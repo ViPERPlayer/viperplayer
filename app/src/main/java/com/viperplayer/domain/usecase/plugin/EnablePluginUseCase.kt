@@ -15,12 +15,12 @@ class EnablePluginUseCase @Inject constructor(
     }
     
     suspend operator fun invoke(pluginId: String): Result<Unit> {
-        Timber.d("[$TAG] Enabling plugin: $pluginId")
+        Timber.d("Enabling plugin: $pluginId")
         val result = repository.enablePlugin(pluginId)
         result.onSuccess {
-            Timber.d("[$TAG] Successfully enabled plugin: $pluginId")
+            Timber.d("Successfully enabled plugin: $pluginId")
         }.onFailure { e ->
-            Timber.e(e, "[$TAG] Failed to enable plugin: $pluginId")
+            Timber.e(e, "Failed to enable plugin: $pluginId")
         }
         return result
     }

@@ -48,23 +48,23 @@ class PluginsViewModel @Inject constructor(
     val uiState: StateFlow<PluginsUiState> = _uiState.asStateFlow()
     
     init {
-        Timber.d("[$TAG] ViewModel initialized")
+        Timber.d("ViewModel initialized")
         observePlugins()
         refresh()
     }
     
     private fun observePlugins() {
-        Timber.d("[$TAG] Starting to observe plugins")
+        Timber.d("Starting to observe plugins")
         viewModelScope.launch {
             getDiscoveredPluginsUseCase().collect { plugins ->
-                Timber.d("[$TAG] Discovered plugins updated: ${plugins.size} plugins")
+                Timber.d("Discovered plugins updated: ${plugins.size} plugins")
                 _uiState.update { it.copy(discoveredPlugins = plugins) }
             }
         }
         
         viewModelScope.launch {
             getConnectedPluginsUseCase().collect { plugins ->
-                Timber.d("[$TAG] Connected plugins updated: ${plugins.size} plugins")
+                Timber.d("Connected plugins updated: ${plugins.size} plugins")
                 _uiState.update { 
                     it.copy(connectedPlugins = plugins.associateBy { p -> p.info.id })
                 }
@@ -73,46 +73,45 @@ class PluginsViewModel @Inject constructor(
         
         viewModelScope.launch {
             getPluginEnabledStatesUseCase().collect { states ->
-                Timber.d("[$TAG] Enabled states updated: $states")
+                Timber.d("Enabled states updated: $states")
                 _uiState.update { it.copy(enabledStates = states) }
             }
         }
     }
     
     fun refresh() {
-        Timber.d("[$TAG] refresh() called")
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, error = null) }
-            
-            try {
-                discoverPluginsUseCase()
-                Timber.d("[$TAG] refresh() completed successfully")
-            } catch (e: Exception) {
-                Timber.e(e, "[$TAG] Error in refresh()")
-                _uiState.update { it.copy(error = e.message) }
-            } finally {
-                _uiState.update { it.copy(isRefreshing = false) }
-            }
+        Timber.d("refresh() called")
+
+        _uiState.update { it.copy(isRefreshing = true, error = null) }
+
+        try {
+            discoverPluginsUseCase()
+            Timber.d("refresh() completed successfully")
+        } catch (e: Exception) {
+            Timber.e(e, "Error in refresh()")
+            _uiState.update { it.copy(error = e.message) }
+        } finally {
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
     
     fun togglePlugin(pluginId: String) {
-        Timber.d("[$TAG] togglePlugin() called for: $pluginId")
+        Timber.d("togglePlugin() called for: $pluginId")
         viewModelScope.launch {
             val isEnabled = _uiState.value.enabledStates[pluginId] ?: true
-            Timber.d("[$TAG] Plugin $pluginId current state: enabled=$isEnabled")
+            Timber.d("Plugin $pluginId current state: enabled=$isEnabled")
             _uiState.update { it.copy(togglingPluginId = pluginId, error = null) }
             
             val result = if (isEnabled) {
-                Timber.d("[$TAG] Disabling plugin: $pluginId")
+                Timber.d("Disabling plugin: $pluginId")
                 disablePluginUseCase(pluginId)
             } else {
-                Timber.d("[$TAG] Enabling plugin: $pluginId")
+                Timber.d("Enabling plugin: $pluginId")
                 enablePluginUseCase(pluginId)
             }
             
             result.onFailure { e ->
-                Timber.e(e, "[$TAG] Failed to toggle plugin: $pluginId")
+                Timber.e(e, "Failed to toggle plugin: $pluginId")
                 _uiState.update {
                     it.copy(
                         togglingPluginId = null,
@@ -122,7 +121,7 @@ class PluginsViewModel @Inject constructor(
             }
             
             result.onSuccess {
-                Timber.d("[$TAG] Successfully toggled plugin: $pluginId")
+                Timber.d("Successfully toggled plugin: $pluginId")
             }
             
             _uiState.update { it.copy(togglingPluginId = null) }

@@ -22,7 +22,7 @@ interface PluginRepository {
     /**
      * Discover all installed plugins.
      */
-    suspend fun discoverPlugins()
+    fun discoverPlugins()
     
     /**
      * Connect to a plugin.

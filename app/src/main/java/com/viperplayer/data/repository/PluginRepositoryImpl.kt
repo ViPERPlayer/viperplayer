@@ -61,19 +61,12 @@ class PluginRepositoryImpl @Inject constructor(
             }
         }
     
-    override suspend fun discoverPlugins() {
-        Timber.d("[$TAG] discoverPlugins() called")
-        try {
-            dataSource.discoverPlugins()
-            Timber.d("[$TAG] discoverPlugins() completed successfully")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in discoverPlugins()")
-            throw e
-        }
+    override fun discoverPlugins() {
+        dataSource.discoverPlugins()
     }
     
     override suspend fun connectPlugin(pluginId: String): Result<Plugin> {
-        Timber.d("[$TAG] connectPlugin() called for: $pluginId")
+        Timber.d("connectPlugin() called for: $pluginId")
         return try {
             val connected = dataSource.connectPlugin(pluginId)
             val plugin = Plugin(
@@ -81,56 +74,44 @@ class PluginRepositoryImpl @Inject constructor(
                 capabilities = connected.capabilities,
                 isConnected = true
             )
-            Timber.d("[$TAG] connectPlugin() succeeded for: $pluginId")
+            Timber.d("connectPlugin() succeeded for: $pluginId")
             Result.success(plugin)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] connectPlugin() failed for: $pluginId")
+            Timber.e(e, "connectPlugin() failed for: $pluginId")
             Result.failure(e)
         }
     }
     
     override suspend fun disconnectPlugin(pluginId: String) {
-        Timber.d("[$TAG] disconnectPlugin() called for: $pluginId")
-        try {
-            dataSource.disconnectPlugin(pluginId)
-            Timber.d("[$TAG] disconnectPlugin() completed for: $pluginId")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in disconnectPlugin() for: $pluginId")
-            throw e
-        }
+        Timber.d("disconnectPlugin() called for: $pluginId")
+        dataSource.disconnectPlugin(pluginId)
     }
     
     override suspend fun disconnectAll() {
-        Timber.d("[$TAG] disconnectAll() called")
-        try {
-            dataSource.disconnectAll()
-            Timber.d("[$TAG] disconnectAll() completed")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in disconnectAll()")
-            throw e
-        }
+        Timber.d("disconnectAll() called")
+        dataSource.disconnectAll()
     }
     
     override suspend fun enablePlugin(pluginId: String): Result<Unit> {
-        Timber.d("[$TAG] enablePlugin() called for: $pluginId")
+        Timber.d("enablePlugin() called for: $pluginId")
         return try {
             dataSource.enablePlugin(pluginId)
-            Timber.d("[$TAG] enablePlugin() succeeded for: $pluginId")
+            Timber.d("enablePlugin() succeeded for: $pluginId")
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] enablePlugin() failed for: $pluginId")
+            Timber.e(e, "enablePlugin() failed for: $pluginId")
             Result.failure(e)
         }
     }
     
     override suspend fun disablePlugin(pluginId: String): Result<Unit> {
-        Timber.d("[$TAG] disablePlugin() called for: $pluginId")
+        Timber.d("disablePlugin() called for: $pluginId")
         return try {
             dataSource.disablePlugin(pluginId)
-            Timber.d("[$TAG] disablePlugin() succeeded for: $pluginId")
+            Timber.d("disablePlugin() succeeded for: $pluginId")
             Result.success(Unit)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] disablePlugin() failed for: $pluginId")
+            Timber.e(e, "disablePlugin() failed for: $pluginId")
             Result.failure(e)
         }
     }
@@ -318,7 +299,7 @@ class PluginRepositoryImpl @Inject constructor(
                     try {
                         dataSource.getLibraryArtists(pluginId, cursor, limit)
                     } catch (e: Exception) {
-                        Timber.e("[$TAG] Error getting library artists from plugin: $pluginId", e)
+                        Timber.e("Error getting library artists from plugin: $pluginId", e)
                         PagedResult<Artist>(emptyList())
                     }
                 }
@@ -328,10 +309,10 @@ class PluginRepositoryImpl @Inject constructor(
                 items = results.flatMap { it.items }
             )
             
-            Timber.d("[$TAG] getLibraryArtists() completed: ${merged.items.size} artists from ${plugins.size} plugins")
+            Timber.d("getLibraryArtists() completed: ${merged.items.size} artists from ${plugins.size} plugins")
             Result.success(merged)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getLibraryArtists()")
+            Timber.e(e, "Error in getLibraryArtists()")
             Result.failure(e)
         }
     }
@@ -351,7 +332,7 @@ class PluginRepositoryImpl @Inject constructor(
                     try {
                         dataSource.getLibraryPlaylists(pluginId, cursor, limit)
                     } catch (e: Exception) {
-                        Timber.e("[$TAG] Error getting library playlists from plugin: $pluginId", e)
+                        Timber.e("Error getting library playlists from plugin: $pluginId", e)
                         PagedResult<Playlist>(emptyList())
                     }
                 }
@@ -361,10 +342,10 @@ class PluginRepositoryImpl @Inject constructor(
                 items = results.flatMap { it.items }
             )
             
-            Timber.d("[$TAG] getLibraryPlaylists() completed: ${merged.items.size} playlists from ${plugins.size} plugins")
+            Timber.d("getLibraryPlaylists() completed: ${merged.items.size} playlists from ${plugins.size} plugins")
             Result.success(merged)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getLibraryPlaylists()")
+            Timber.e(e, "Error in getLibraryPlaylists()")
             Result.failure(e)
         }
     }
@@ -382,39 +363,39 @@ class PluginRepositoryImpl @Inject constructor(
     
     override suspend fun getAlbum(mediaId: MediaId): Result<Album> {
         return try {
-            Timber.d("[$TAG] getAlbum() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
+            Timber.d("getAlbum() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
             val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
             val album = dataSource.getAlbum(aidlMediaId)
-            Timber.d("[$TAG] getAlbum() completed: ${album.name}")
+            Timber.d("getAlbum() completed: ${album.name}")
             Result.success(album)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getAlbum()")
+            Timber.e(e, "Error in getAlbum()")
             Result.failure(e)
         }
     }
     
     override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
         return try {
-            Timber.d("[$TAG] getArtist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
+            Timber.d("getArtist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
             val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
             val artist = dataSource.getArtist(aidlMediaId)
-            Timber.d("[$TAG] getArtist() completed: ${artist.name}")
+            Timber.d("getArtist() completed: ${artist.name}")
             Result.success(artist)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getArtist()")
+            Timber.e(e, "Error in getArtist()")
             Result.failure(e)
         }
     }
     
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
         return try {
-            Timber.d("[$TAG] getPlaylist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
+            Timber.d("getPlaylist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
             val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
             val playlist = dataSource.getPlaylist(aidlMediaId)
-            Timber.d("[$TAG] getPlaylist() completed: ${playlist.name}")
+            Timber.d("getPlaylist() completed: ${playlist.name}")
             Result.success(playlist)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getPlaylist()")
+            Timber.e(e, "Error in getPlaylist()")
             Result.failure(e)
         }
     }
@@ -425,13 +406,13 @@ class PluginRepositoryImpl @Inject constructor(
         limit: Int
     ): Result<PagedResult<Song>> {
         return try {
-            Timber.d("[$TAG] getArtistSongs() called for: ${artistId.pluginId}:${artistId.sourceId}")
+            Timber.d("getArtistSongs() called for: ${artistId.pluginId}:${artistId.sourceId}")
             val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(artistId.pluginId, artistId.sourceId)
             val result = dataSource.getArtistSongs(aidlMediaId, cursor, limit)
-            Timber.d("[$TAG] getArtistSongs() completed: ${result.items.size} songs")
+            Timber.d("getArtistSongs() completed: ${result.items.size} songs")
             Result.success(result)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getArtistSongs()")
+            Timber.e(e, "Error in getArtistSongs()")
             Result.failure(e)
         }
     }
@@ -442,13 +423,13 @@ class PluginRepositoryImpl @Inject constructor(
         limit: Int
     ): Result<PagedResult<Album>> {
         return try {
-            Timber.d("[$TAG] getArtistAlbums() called for: ${artistId.pluginId}:${artistId.sourceId}")
+            Timber.d("getArtistAlbums() called for: ${artistId.pluginId}:${artistId.sourceId}")
             val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(artistId.pluginId, artistId.sourceId)
             val result = dataSource.getArtistAlbums(aidlMediaId, cursor, limit)
-            Timber.d("[$TAG] getArtistAlbums() completed: ${result.items.size} albums")
+            Timber.d("getArtistAlbums() completed: ${result.items.size} albums")
             Result.success(result)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getArtistAlbums()")
+            Timber.e(e, "Error in getArtistAlbums()")
             Result.failure(e)
         }
     }
@@ -459,13 +440,13 @@ class PluginRepositoryImpl @Inject constructor(
         limit: Int
     ): Result<PagedResult<Song>> {
         return try {
-            Timber.d("[$TAG] getPlaylistSongs() called for: ${playlistId.pluginId}:${playlistId.sourceId}")
+            Timber.d("getPlaylistSongs() called for: ${playlistId.pluginId}:${playlistId.sourceId}")
             val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(playlistId.pluginId, playlistId.sourceId)
             val result = dataSource.getPlaylistSongs(aidlMediaId, cursor, limit)
-            Timber.d("[$TAG] getPlaylistSongs() completed: ${result.items.size} songs")
+            Timber.d("getPlaylistSongs() completed: ${result.items.size} songs")
             Result.success(result)
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error in getPlaylistSongs()")
+            Timber.e(e, "Error in getPlaylistSongs()")
             Result.failure(e)
         }
     }

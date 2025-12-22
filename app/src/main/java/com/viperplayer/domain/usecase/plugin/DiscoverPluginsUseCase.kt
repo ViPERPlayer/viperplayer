@@ -10,19 +10,8 @@ import javax.inject.Inject
 class DiscoverPluginsUseCase @Inject constructor(
     private val repository: PluginRepository
 ) {
-    companion object {
-        private const val TAG = "DiscoverPluginsUseCase"
-    }
-    
-    suspend operator fun invoke() {
-        Timber.d("[$TAG] Discovering plugins")
-        try {
-            repository.discoverPlugins()
-            Timber.d("[$TAG] Plugin discovery completed")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error discovering plugins")
-            throw e
-        }
+    operator fun invoke() {
+        repository.discoverPlugins()
     }
 }
 

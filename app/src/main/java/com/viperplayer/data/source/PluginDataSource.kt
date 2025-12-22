@@ -21,12 +21,23 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.plugin.aidl.AudioStream
 import com.viperplayer.plugin.aidl.IHostCallbackV1
 import com.viperplayer.plugin.aidl.IPluginServiceV1
-import com.viperplayer.plugin.aidl.IResultCallback
+import com.viperplayer.plugin.aidl.ISearchCallback
+import com.viperplayer.plugin.aidl.ICategoriesCallback
+import com.viperplayer.plugin.aidl.ISongsCallback
+import com.viperplayer.plugin.aidl.IAlbumsCallback
+import com.viperplayer.plugin.aidl.IArtistsCallback
+import com.viperplayer.plugin.aidl.IPlaylistsCallback
+import com.viperplayer.plugin.aidl.ISongCallback
+import com.viperplayer.plugin.aidl.IAlbumCallback
+import com.viperplayer.plugin.aidl.IArtistCallback
+import com.viperplayer.plugin.aidl.IPlaylistCallback
+import com.viperplayer.plugin.aidl.IAudioStreamCallback
 import com.viperplayer.plugin.sdk.PluginConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,10 +66,6 @@ class PluginDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val pluginPreferences: PluginPreferences
 ) {
-    companion object {
-        private const val TAG = "PluginDataSource"
-    }
-    
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val _discoveredPlugins = MutableStateFlow<Map<String, DiscoveredPluginInfo>>(emptyMap())
@@ -73,82 +80,87 @@ class PluginDataSource @Inject constructor(
      * Discover all installed plugins.
      * Plugin ID is the package name.
      */
-    suspend fun discoverPlugins() {
-        Timber.d("[$TAG] Starting plugin discovery")
-        try {
-            val intent = Intent(PluginConstants.ACTION_PLUGIN_SERVICE)
-            val resolveInfos = context.packageManager.queryIntentServices(
-                intent,
-                PackageManager.GET_META_DATA
-            )
-            Timber.d("[$TAG] Found ${resolveInfos.size} services matching plugin intent")
-            
-            val plugins = resolveInfos.mapNotNull { resolveInfo ->
-                val serviceInfo = resolveInfo.serviceInfo
-                if (serviceInfo == null) {
-                    Timber.w("[$TAG] ResolveInfo has no serviceInfo")
-                    return@mapNotNull null
-                }
-                val metaData = serviceInfo.metaData
-                
-                // Use package name as plugin ID
-                val pluginId = serviceInfo.packageName
-                
-                // Get plugin info from metadata and package manager
-                val pluginName = metaData?.getString(PluginConstants.META_PLUGIN_NAME)
-                    ?: serviceInfo.loadLabel(context.packageManager).toString()
-                val apiVersion = metaData?.getInt(PluginConstants.META_API_VERSION, 1) ?: 1
-                val description = metaData?.getString(PluginConstants.META_PLUGIN_DESCRIPTION)
-                val iconUrl = metaData?.getString(PluginConstants.META_PLUGIN_ICON)
-                
-                // Get version from package info
-                val version = try {
-                    val packageInfo = context.packageManager.getPackageInfo(pluginId, 0)
-                    packageInfo.versionName ?: "1.0"
-                } catch (e: Exception) {
-                    Timber.w(e, "[$TAG] Failed to get version for plugin: $pluginId")
-                    "1.0"
-                }
-                
-                val componentName = ComponentName(serviceInfo.packageName, serviceInfo.name)
-                Timber.d("[$TAG] Discovered plugin: id=$pluginId, name=$pluginName, apiVersion=$apiVersion, version=$version")
-                Timber.d("[$TAG] Plugin component: package=${componentName.packageName}, class=${componentName.className}, flattened=${componentName.flattenToString()}")
-                
-                pluginId to DiscoveredPluginInfo(
-                    id = pluginId,
-                    name = pluginName,
-                    description = description,
-                    apiVersion = apiVersion,
-                    version = version,
-                    iconUrl = iconUrl,
-                    componentName = componentName
-                )
-            }.toMap()
-            
-            _discoveredPlugins.value = plugins
-            Timber.d("[$TAG] Successfully discovered ${plugins.size} plugins: ${plugins.keys}")
-            
-            // Auto-connect enabled plugins
-            plugins.keys.forEach { pluginId ->
-                scope.launch {
-                    val isEnabled = pluginPreferences.isEnabledSync(pluginId)
-                    Timber.d("[$TAG] Plugin $pluginId enabled state: $isEnabled")
-                    if (isEnabled) {
-                        try {
-                            Timber.d("[$TAG] Auto-connecting enabled plugin: $pluginId")
-                            connectPlugin(pluginId)
-                            Timber.d("[$TAG] Successfully auto-connected plugin: $pluginId")
-                        } catch (e: Exception) {
-                            Timber.e(e, "[$TAG] Failed to auto-connect plugin: $pluginId")
-                        }
-                    } else {
-                        Timber.d("[$TAG] Plugin $pluginId is disabled, skipping auto-connect")
-                    }
+    fun discoverPlugins() {
+        Timber.d("Discovering plugins")
+
+        val intent = Intent(PluginConstants.ACTION_PLUGIN_SERVICE)
+        val resolveInfos = context.packageManager.queryIntentServices(
+            intent,
+            PackageManager.GET_META_DATA
+        )
+        Timber.d("Found ${resolveInfos.size} services matching plugin intent")
+
+        val plugins = resolveInfos.mapNotNull { resolveInfo ->
+            val serviceInfo = resolveInfo.serviceInfo
+            if (serviceInfo == null) {
+                Timber.w("ResolveInfo has no serviceInfo")
+                return@mapNotNull null
+            }
+            val metaData = serviceInfo.applicationInfo.metaData
+            if (metaData == null) {
+                Timber.w("ApplicationInfo has no metadata")
+                return@mapNotNull null
+            }
+
+            // Use package name as plugin ID
+            val pluginId = serviceInfo.packageName
+
+            // Get plugin info from metadata and package manager
+            val pluginName = metaData.getString(PluginConstants.META_PLUGIN_NAME) ?: serviceInfo.loadLabel(context.packageManager).toString()
+            val apiVersion = metaData.getInt(PluginConstants.META_API_VERSION, -1).let {
+                if (it == -1) {
+                    Timber.w("Plugin $pluginId has no API version in metadata, using MIN_API_VERSION")
+                    PluginConstants.MIN_API_VERSION
+                } else {
+                    it
                 }
             }
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error during plugin discovery")
-            throw e
+            val description = metaData.getString(PluginConstants.META_PLUGIN_DESCRIPTION)
+            val iconUrl = metaData.getString(PluginConstants.META_PLUGIN_ICON)
+
+            // Get version from package info
+            val version = try {
+                val packageInfo = context.packageManager.getPackageInfo(pluginId, 0)
+                packageInfo.versionName ?: "N/A"
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to get version for plugin: $pluginId")
+                "N/A"
+            }
+
+            val componentName = ComponentName(serviceInfo.packageName, serviceInfo.name)
+            Timber.d("Discovered plugin: id=$pluginId, name=$pluginName, version=$version, apiVersion=$apiVersion, component=$componentName")
+
+            pluginId to DiscoveredPluginInfo(
+                id = pluginId,
+                name = pluginName,
+                description = description,
+                apiVersion = apiVersion,
+                version = version,
+                iconUrl = iconUrl,
+                componentName = componentName
+            )
+        }.toMap()
+
+        _discoveredPlugins.value = plugins
+        Timber.d("Successfully discovered ${plugins.size} plugins: ${plugins.keys}")
+
+        // Auto-connect enabled plugins
+        plugins.keys.forEach { pluginId ->
+            scope.launch {
+                val isEnabled = pluginPreferences.isEnabledSync(pluginId)
+                Timber.d("Plugin $pluginId enabled state: $isEnabled")
+                if (isEnabled) {
+                    try {
+                        Timber.d("Auto-connecting enabled plugin: $pluginId")
+                        connectPlugin(pluginId)
+                        Timber.d("Successfully auto-connected plugin: $pluginId")
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to auto-connect plugin: $pluginId")
+                    }
+                } else {
+                    Timber.d("Plugin $pluginId is disabled, skipping auto-connect")
+                }
+            }
         }
     }
     
@@ -156,282 +168,221 @@ class PluginDataSource @Inject constructor(
      * Connect to a plugin.
      */
     suspend fun connectPlugin(pluginId: String): ConnectedPluginData {
-        Timber.d("[$TAG] Connecting to plugin: $pluginId")
+        Timber.d("Connecting to plugin: $pluginId")
         
         // Check if already connected
         _connectedPlugins.value[pluginId]?.let {
-            Timber.d("[$TAG] Plugin $pluginId already connected, returning existing connection")
+            Timber.d("Plugin $pluginId already connected, returning existing connection")
             return it
         }
         
         // Find the plugin
         val discovered = _discoveredPlugins.value[pluginId]
-        if (discovered == null) {
-            Timber.e("[$TAG] Plugin not found in discovered plugins: $pluginId")
-            throw IllegalArgumentException("Plugin not found: $pluginId")
-        }
-        
-        Timber.d("[$TAG] Binding to service: ${discovered.componentName}")
-        Timber.d("[$TAG] Component details: package=${discovered.componentName.packageName}, class=${discovered.componentName.className}")
-        
-        // Verify the package is installed
-        try {
-            val packageInfo = context.packageManager.getPackageInfo(discovered.componentName.packageName, 0)
-            Timber.d("[$TAG] Package verified: ${packageInfo.packageName}, version=${packageInfo.versionName}")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Package not found or not accessible: ${discovered.componentName.packageName}")
-            throw IllegalStateException("Plugin package not accessible: $pluginId", e)
-        }
-        
-        // Verify the service component exists
-        try {
-            val resolveInfo = context.packageManager.resolveService(
-                Intent(PluginConstants.ACTION_PLUGIN_SERVICE).apply {
-                    setPackage(discovered.componentName.packageName)
-                },
-                PackageManager.GET_META_DATA
-            )
-            if (resolveInfo == null) {
-                Timber.e("[$TAG] Service not found via resolveService for package: ${discovered.componentName.packageName}")
-            } else {
-                Timber.d("[$TAG] Service resolved: ${resolveInfo.serviceInfo?.name}")
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "[$TAG] Could not resolve service (this is okay if using explicit component)")
-        }
+            ?: throw IllegalArgumentException("Plugin not found: $pluginId")
         
         return suspendCancellableCoroutine { cont ->
             var connectionEstablished = false
             val connection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-                    Timber.d("[$TAG] onServiceConnected() called: name=$name for plugin: $pluginId")
+                override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                    Timber.d("onServiceConnected() called: name=$name for plugin: $pluginId")
                     connectionEstablished = true
                     
                     if (binder == null) {
-                        Timber.e("[$TAG] Binder is null for plugin: $pluginId")
                         cont.resumeWithException(IllegalStateException("Binder is null for plugin: $pluginId"))
                         return
                     }
-                    
+
                     try {
-                        val service = IPluginServiceV1.Stub.asInterface(binder)
-                        if (service == null) {
-                            Timber.e("[$TAG] Failed to get IPluginServiceV1 interface from binder for plugin: $pluginId")
-                            cont.resumeWithException(IllegalStateException("Failed to get service interface for plugin: $pluginId"))
-                            return
+                        val connectedData = when (discovered.apiVersion) {
+                            1 -> connectPluginV1(discovered, binder)
+                            else -> {
+                                cont.resumeWithException(IllegalStateException("Unsupported API version: ${discovered.apiVersion} for plugin: $pluginId"))
+                                return
+                            }
                         }
-                        
-                        Timber.d("[$TAG] Calling connect() on plugin service: $pluginId")
-                        val apiVersion = service.connect(hostCallback)
-                        Timber.d("[$TAG] Plugin service connect() returned API version: $apiVersion")
-                        
-                        val capabilities = service.capabilities
-                        Timber.d("[$TAG] Got capabilities from plugin: $pluginId")
-                        
-                        // Create PluginInfo from discovered plugin info (host app creates it)
-                        val pluginInfo = PluginInfo(
-                            id = discovered.id,
-                            name = discovered.name,
-                            version = discovered.version,
-                            apiVersion = discovered.apiVersion,
-                            description = discovered.description,
-                            author = null, // Can be added to metadata if needed
-                            iconUrl = discovered.iconUrl
-                        )
-                        
-                        Timber.d("[$TAG] Plugin $pluginId connected with API v$apiVersion, name: ${pluginInfo.name}")
-                        
-                        val connectedData = ConnectedPluginData(
-                            info = pluginInfo,
-                            capabilities = capabilities.toDomain(),
-                            service = service,
-                            connection = this
-                        )
-                        
-                        _connectedPlugins.update { it + (pluginId to connectedData) }
-                        
-                        Timber.d("[$TAG] Plugin connected successfully: ${pluginInfo.name} (API v$apiVersion)")
+
                         cont.resume(connectedData)
                     } catch (e: Exception) {
-                        Timber.e(e, "[$TAG] Failed to connect plugin: $pluginId")
                         cont.resumeWithException(e)
                     }
                 }
                 
                 override fun onServiceDisconnected(name: ComponentName) {
-                    Timber.w("[$TAG] onServiceDisconnected() called: $name for plugin: $pluginId")
+                    Timber.w("onServiceDisconnected() called: $name for plugin: $pluginId")
                     _connectedPlugins.update { it - pluginId }
                     
                     // Auto-reconnect if enabled
                     scope.launch {
                         val isEnabled = pluginPreferences.isEnabledSync(pluginId)
-                        Timber.d("[$TAG] Plugin $pluginId disconnected, enabled state: $isEnabled")
+                        Timber.d("Plugin $pluginId disconnected, enabled state: $isEnabled")
                         if (isEnabled) {
                             try {
-                                Timber.d("[$TAG] Attempting to reconnect plugin: $pluginId")
+                                Timber.d("Attempting to reconnect plugin: $pluginId")
                                 connectPlugin(pluginId)
-                                Timber.d("[$TAG] Successfully reconnected plugin: $pluginId")
+                                Timber.d("Successfully reconnected plugin: $pluginId")
                             } catch (e: Exception) {
-                                Timber.e(e, "[$TAG] Failed to reconnect plugin: $pluginId")
+                                Timber.e(e, "Failed to reconnect plugin: $pluginId")
                             }
                         } else {
-                            Timber.d("[$TAG] Plugin $pluginId is disabled, not reconnecting")
+                            Timber.d("Plugin $pluginId is disabled, not reconnecting")
                         }
                     }
                 }
                 
                 override fun onBindingDied(name: ComponentName) {
-                    Timber.e("[$TAG] onBindingDied() called: $name for plugin: $pluginId")
+                    Timber.e("onBindingDied() called: $name for plugin: $pluginId")
                     if (!connectionEstablished) {
                         cont.resumeWithException(IllegalStateException("Binding died before connection established for plugin: $pluginId"))
                     }
                 }
                 
                 override fun onNullBinding(name: ComponentName) {
-                    Timber.e("[$TAG] onNullBinding() called: $name for plugin: $pluginId")
+                    Timber.e("onNullBinding() called: $name for plugin: $pluginId")
                     if (!connectionEstablished) {
                         cont.resumeWithException(IllegalStateException("Null binding for plugin: $pluginId"))
                     }
                 }
             }
             
-            // Create intent with explicit component AND action
-            // The action is needed for onBind() to recognize it as a plugin service
+            // Create intent with explicit component
             val intent = Intent().apply {
                 component = discovered.componentName
             }
-            
-            Timber.d("[$TAG] Creating bind intent:")
-            Timber.d("[$TAG]   - component: ${intent.component}")
-            Timber.d("[$TAG] Attempting to bind service with flags: BIND_AUTO_CREATE")
 
             try {
+                Timber.d("Binding to plugin service: ${intent.component}")
                 val bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-                Timber.d("[$TAG] bindService() returned: $bound for plugin: $pluginId")
+                Timber.d("bindService() returned: $bound for plugin: $pluginId")
                 
                 if (!bound) {
-                    Timber.e("[$TAG] bindService() returned false for plugin: $pluginId")
-                    Timber.e("[$TAG] Component: ${discovered.componentName}")
-                    Timber.e("[$TAG] Intent action: ${intent.action}")
-                    Timber.e("[$TAG] This usually means the service doesn't exist or isn't exported")
                     cont.resumeWithException(IllegalStateException("Failed to bind to plugin service: $pluginId. Service may not exist or may not be exported."))
                 } else {
-                    Timber.d("[$TAG] Service bind initiated successfully for plugin: $pluginId")
+                    Timber.d("Service bind initiated successfully for plugin: $pluginId")
                     // Set a timeout to detect if onServiceConnected never gets called
                     scope.launch {
-                        kotlinx.coroutines.delay(10000) // 10 second timeout
-                        if (!connectionEstablished) {
-                            Timber.e("[$TAG] Timeout: onServiceConnected() never called for plugin: $pluginId after 10 seconds")
-                            Timber.e("[$TAG] This usually means onBind() returned null or the service crashed")
-                            Timber.e("[$TAG] Check plugin service logs for onBind() calls")
-                            if (!cont.isCompleted) {
-                                cont.resumeWithException(IllegalStateException("Timeout waiting for service connection: $pluginId. Check if service onBind() is returning the binder."))
-                            }
+                        delay(10000) // 10 second timeout
+                        if (!connectionEstablished && !cont.isCompleted) {
+                            cont.resumeWithException(IllegalStateException("Timeout waiting for service connection: $pluginId."))
                         }
                     }
                 }
             } catch (e: SecurityException) {
-                Timber.e(e, "[$TAG] SecurityException binding to plugin service: $pluginId")
                 cont.resumeWithException(IllegalStateException("Security exception binding to plugin: $pluginId", e))
             } catch (e: Exception) {
-                Timber.e(e, "[$TAG] Exception binding to plugin service: $pluginId")
                 cont.resumeWithException(IllegalStateException("Exception binding to plugin: $pluginId", e))
             }
             
             cont.invokeOnCancellation {
-                Timber.d("[$TAG] Connection cancelled for plugin: $pluginId")
+                Timber.d("Connection cancelled for plugin: $pluginId")
                 try {
                     context.unbindService(connection)
                 } catch (e: Exception) {
-                    Timber.w(e, "[$TAG] Error unbinding service on cancellation")
+                    Timber.w(e, "Error unbinding service on cancellation")
                 }
             }
         }
+    }
+
+    private fun ServiceConnection.connectPluginV1(discovered: DiscoveredPluginInfo, binder: IBinder): ConnectedPluginData {
+        val service = IPluginServiceV1.Stub.asInterface(binder)
+            ?: throw IllegalStateException("Failed to get IPluginServiceV1 interface from binder for plugin: ${discovered.id}")
+
+        Timber.d("Calling connect() on plugin service: ${discovered.id}")
+        service.connect(hostCallback)
+
+        val capabilities = service.capabilities
+        Timber.d("Got capabilities from plugin: ${discovered.id}")
+
+        // Create PluginInfo from discovered plugin info (host app creates it)
+        val pluginInfo = PluginInfo(
+            id = discovered.id,
+            name = discovered.name,
+            version = discovered.version,
+            apiVersion = discovered.apiVersion,
+            description = discovered.description,
+            author = null, // Can be added to metadata if needed
+            iconUrl = discovered.iconUrl
+        )
+
+        val connectedData = ConnectedPluginData(
+            info = pluginInfo,
+            capabilities = capabilities.toDomain(),
+            service = service,
+            connection = this
+        )
+
+        _connectedPlugins.update { it + (discovered.id to connectedData) }
+
+        Timber.d("Plugin connected successfully: ${pluginInfo.name}")
+
+        return connectedData
     }
     
     /**
      * Disconnect from a plugin.
      */
-    suspend fun disconnectPlugin(pluginId: String) {
-        Timber.d("[$TAG] Disconnecting plugin: $pluginId")
+    fun disconnectPlugin(pluginId: String) {
+        Timber.d("Disconnecting plugin: $pluginId")
         val connected = _connectedPlugins.value[pluginId]
         if (connected == null) {
-            Timber.w("[$TAG] Plugin $pluginId not connected, nothing to disconnect")
+            Timber.w("Plugin $pluginId not connected, nothing to disconnect")
             return
         }
         
         try {
-            Timber.d("[$TAG] Calling disconnect() on plugin service: $pluginId")
+            Timber.d("Calling disconnect() on plugin service: $pluginId")
             connected.service.disconnect()
-            Timber.d("[$TAG] Successfully called disconnect() on plugin: $pluginId")
+            Timber.d("Successfully called disconnect() on plugin: $pluginId")
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error calling disconnect() on plugin: $pluginId")
+            Timber.e(e, "Error calling disconnect() on plugin: $pluginId")
         }
         
         try {
-            Timber.d("[$TAG] Unbinding service for plugin: $pluginId")
+            Timber.d("Unbinding service for plugin: $pluginId")
             context.unbindService(connected.connection)
-            Timber.d("[$TAG] Successfully unbound service for plugin: $pluginId")
+            Timber.d("Successfully unbound service for plugin: $pluginId")
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error unbinding service for plugin: $pluginId")
+            Timber.e(e, "Error unbinding service for plugin: $pluginId")
         }
         
         _connectedPlugins.update { it - pluginId }
-        Timber.d("[$TAG] Plugin $pluginId disconnected and removed from connected plugins")
+        Timber.d("Plugin $pluginId disconnected and removed from connected plugins")
     }
     
     /**
      * Disconnect from all plugins.
      */
-    suspend fun disconnectAll() {
-        Timber.d("[$TAG] Disconnecting all plugins")
+    fun disconnectAll() {
+        Timber.d("Disconnecting all plugins")
         val pluginIds = _connectedPlugins.value.keys.toList()
-        Timber.d("[$TAG] Disconnecting ${pluginIds.size} plugins: $pluginIds")
+        Timber.d("Disconnecting ${pluginIds.size} plugins: $pluginIds")
         pluginIds.forEach { disconnectPlugin(it) }
-        Timber.d("[$TAG] All plugins disconnected")
+        Timber.d("All plugins disconnected")
     }
     
     /**
      * Enable a plugin (connects it automatically).
      */
     suspend fun enablePlugin(pluginId: String) {
-        Timber.d("[$TAG] Enabling plugin: $pluginId")
-        try {
-            pluginPreferences.setEnabled(pluginId, true)
-            Timber.d("[$TAG] Plugin $pluginId enabled in preferences, attempting to connect")
-            connectPlugin(pluginId)
-            Timber.d("[$TAG] Plugin $pluginId enabled and connected successfully")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Failed to connect plugin after enabling: $pluginId")
-            throw e
-        }
+        Timber.d("Enabling plugin: $pluginId")
+        pluginPreferences.setEnabled(pluginId, true)
+        connectPlugin(pluginId)
     }
     
     /**
      * Disable a plugin (disconnects it).
      */
     suspend fun disablePlugin(pluginId: String) {
-        Timber.d("[$TAG] Disabling plugin: $pluginId")
-        try {
-            pluginPreferences.setEnabled(pluginId, false)
-            Timber.d("[$TAG] Plugin $pluginId disabled in preferences, disconnecting")
-            disconnectPlugin(pluginId)
-            Timber.d("[$TAG] Plugin $pluginId disabled and disconnected successfully")
-        } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Error disabling plugin: $pluginId")
-            throw e
-        }
+        Timber.d("Disabling plugin: $pluginId")
+        pluginPreferences.setEnabled(pluginId, false)
+        disconnectPlugin(pluginId)
     }
     
     /**
      * Get a connected plugin by ID.
      */
     fun getPlugin(pluginId: String): ConnectedPluginData? {
-        val plugin = _connectedPlugins.value[pluginId]
-        if (plugin == null) {
-            Timber.w("[$TAG] Plugin not found: $pluginId")
-        }
-        return plugin
+        return _connectedPlugins.value[pluginId]
     }
     
     /**
@@ -444,39 +395,26 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): SearchResult {
-        Timber.d("[$TAG] Searching in plugin: $pluginId, query: $query, types: $types, limit: $limit")
+        Timber.d("Searching in plugin: $pluginId, query: $query, types: $types, limit: $limit")
         val plugin = getPlugin(pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for search: $pluginId")
+            Timber.e("Plugin not connected for search: $pluginId")
             throw IllegalStateException("Plugin not connected: $pluginId")
         }
         
         return suspendCancellableCoroutine { cont ->
-            Timber.d("[$TAG] Calling search() on plugin service: $pluginId")
-            plugin.service.search(query, types, cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {
-                    Timber.d("[$TAG] Search result received from plugin: $pluginId, songs: ${result.songs.size}, albums: ${result.albums.size}")
-                    cont.resume(result.toDomain())
-                }
-                override fun onSearchError(errorCode: Int, message: String) {
-                    Timber.e("[$TAG] Search error from plugin $pluginId: code=$errorCode, message=$message")
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            Timber.d("Calling search() on plugin service: $pluginId")
+            try {
+                plugin.service.search(query, types, cursor, limit, object : ISearchCallback.Stub() {
+                    override fun onSuccess(result: AidlSearchResult) {
+                        Timber.d("Search result received from plugin: $pluginId, songs: ${result.songs.size}, albums: ${result.albums.size}")
+                        cont.resume(result.toDomain())
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Search failed for plugin $pluginId")
+                cont.resumeWithException(e)
+            }
         }
     }
     
@@ -488,35 +426,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<BrowseCategory> {
-        Timber.d("[$TAG] Getting browse categories from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        Timber.d("Getting browse categories from plugin: $pluginId, cursor: $cursor, limit: $limit")
         val plugin = getPlugin(pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for browse categories: $pluginId")
+            Timber.e("Plugin not connected for browse categories: $pluginId")
             throw IllegalStateException("Plugin not connected: $pluginId")
         }
         
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getBrowseCategories(cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {
-                    Timber.d("[$TAG] Browse categories received from plugin: $pluginId, count: ${categories.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(categories.map { it.toDomain() }, nextCursor))
-                }
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getBrowseCategories(cursor, limit, object : ICategoriesCallback.Stub() {
+                    override fun onSuccess(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {
+                        Timber.d("Browse categories received from plugin: $pluginId, count: ${categories.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(categories.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get browse categories from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
         }
     }
     
@@ -528,35 +456,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
-        Timber.d("[$TAG] Getting library songs from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        Timber.d("Getting library songs from plugin: $pluginId, cursor: $cursor, limit: $limit")
         val plugin = getPlugin(pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for library songs: $pluginId")
+            Timber.e("Plugin not connected for library songs: $pluginId")
             throw IllegalStateException("Plugin not connected: $pluginId")
         }
         
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getLibrarySongs(cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {
-                    Timber.d("[$TAG] Library songs received from plugin: $pluginId, count: ${songs.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(songs.map { it.toDomain() }, nextCursor))
-                }
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getLibrarySongs(cursor, limit, object : ISongsCallback.Stub() {
+                    override fun onSuccess(songs: MutableList<AidlSong>, nextCursor: String?) {
+                        Timber.d("Library songs received from plugin: $pluginId, count: ${songs.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(songs.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library songs from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
         }
     }
     
@@ -568,35 +486,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Album> {
-        Timber.d("[$TAG] Getting library albums from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        Timber.d("Getting library albums from plugin: $pluginId, cursor: $cursor, limit: $limit")
         val plugin = getPlugin(pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for library albums: $pluginId")
+            Timber.e("Plugin not connected for library albums: $pluginId")
             throw IllegalStateException("Plugin not connected: $pluginId")
         }
         
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getLibraryAlbums(cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {
-                    Timber.d("[$TAG] Library albums received from plugin: $pluginId, count: ${albums.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(albums.map { it.toDomain() }, nextCursor))
-                }
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getLibraryAlbums(cursor, limit, object : IAlbumsCallback.Stub() {
+                    override fun onSuccess(albums: MutableList<AidlAlbum>, nextCursor: String?) {
+                        Timber.d("Library albums received from plugin: $pluginId, count: ${albums.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(albums.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library albums from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
         }
     }
     
@@ -608,35 +516,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Artist> {
-        Timber.d("[$TAG] Getting library artists from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        Timber.d("Getting library artists from plugin: $pluginId, cursor: $cursor, limit: $limit")
         val plugin = getPlugin(pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for library artists: $pluginId")
+            Timber.e("Plugin not connected for library artists: $pluginId")
             throw IllegalStateException("Plugin not connected: $pluginId")
         }
         
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getLibraryArtists(cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {
-                    Timber.d("[$TAG] Library artists received from plugin: $pluginId, count: ${artists.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(artists.map { it.toDomain() }, nextCursor))
-                }
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getLibraryArtists(cursor, limit, object : IArtistsCallback.Stub() {
+                    override fun onSuccess(artists: MutableList<AidlArtist>, nextCursor: String?) {
+                        Timber.d("Library artists received from plugin: $pluginId, count: ${artists.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(artists.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library artists from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
         }
     }
     
@@ -648,35 +546,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Playlist> {
-        Timber.d("[$TAG] Getting library playlists from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        Timber.d("Getting library playlists from plugin: $pluginId, cursor: $cursor, limit: $limit")
         val plugin = getPlugin(pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for library playlists: $pluginId")
+            Timber.e("Plugin not connected for library playlists: $pluginId")
             throw IllegalStateException("Plugin not connected: $pluginId")
         }
         
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getLibraryPlaylists(cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {
-                    Timber.d("[$TAG] Library playlists received from plugin: $pluginId, count: ${playlists.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(playlists.map { it.toDomain() }, nextCursor))
-                }
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getLibraryPlaylists(cursor, limit, object : IPlaylistsCallback.Stub() {
+                    override fun onSuccess(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {
+                        Timber.d("Library playlists received from plugin: $pluginId, count: ${playlists.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(playlists.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library playlists from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
         }
     }
     
@@ -684,35 +572,25 @@ class PluginDataSource @Inject constructor(
      * Get artist details from a plugin.
      */
     suspend fun getArtist(mediaId: AidlMediaId): Artist {
-        Timber.d("[$TAG] Getting artist from plugin: ${mediaId.pluginId}:${mediaId.sourceId}")
+        Timber.d("Getting artist from plugin: ${mediaId.pluginId}:${mediaId.sourceId}")
         val plugin = getPlugin(mediaId.pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for artist: ${mediaId.pluginId}")
+            Timber.e("Plugin not connected for artist: ${mediaId.pluginId}")
             throw IllegalStateException("Plugin not connected: ${mediaId.pluginId}")
         }
 
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getArtist(mediaId, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {
-                    Timber.d("[$TAG] Artist received from plugin: ${artist.name}")
-                    cont.resume(artist.toDomain())
-                }
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getArtist(mediaId, object : IArtistCallback.Stub() {
+                    override fun onSuccess(artist: AidlArtist) {
+                        Timber.d("Artist received from plugin: ${artist.name}")
+                        cont.resume(artist.toDomain())
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get artist from plugin")
+                cont.resumeWithException(e)
+            }
         }
     }
 
@@ -720,35 +598,25 @@ class PluginDataSource @Inject constructor(
      * Get album details from a plugin.
      */
     suspend fun getAlbum(mediaId: AidlMediaId): Album {
-        Timber.d("[$TAG] Getting album from plugin: ${mediaId.pluginId}:${mediaId.sourceId}")
+        Timber.d("Getting album from plugin: ${mediaId.pluginId}:${mediaId.sourceId}")
         val plugin = getPlugin(mediaId.pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for album: ${mediaId.pluginId}")
+            Timber.e("Plugin not connected for album: ${mediaId.pluginId}")
             throw IllegalStateException("Plugin not connected: ${mediaId.pluginId}")
         }
 
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getAlbum(mediaId, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {
-                    Timber.d("[$TAG] Album received from plugin: ${album.name}")
-                    cont.resume(album.toDomain())
-                }
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getAlbum(mediaId, object : IAlbumCallback.Stub() {
+                    override fun onSuccess(album: AidlAlbum) {
+                        Timber.d("Album received from plugin: ${album.name}")
+                        cont.resume(album.toDomain())
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get album from plugin")
+                cont.resumeWithException(e)
+            }
         }
     }
 
@@ -756,35 +624,25 @@ class PluginDataSource @Inject constructor(
      * Get playlist details from a plugin.
      */
     suspend fun getPlaylist(mediaId: AidlMediaId): Playlist {
-        Timber.d("[$TAG] Getting playlist from plugin: ${mediaId.pluginId}:${mediaId.sourceId}")
+        Timber.d("Getting playlist from plugin: ${mediaId.pluginId}:${mediaId.sourceId}")
         val plugin = getPlugin(mediaId.pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for playlist: ${mediaId.pluginId}")
+            Timber.e("Plugin not connected for playlist: ${mediaId.pluginId}")
             throw IllegalStateException("Plugin not connected: ${mediaId.pluginId}")
         }
 
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getPlaylist(mediaId, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {
-                    Timber.d("[$TAG] Playlist received from plugin: ${playlist.name}")
-                    cont.resume(playlist.toDomain())
-                }
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getPlaylist(mediaId, object : IPlaylistCallback.Stub() {
+                    override fun onSuccess(playlist: AidlPlaylist) {
+                        Timber.d("Playlist received from plugin: ${playlist.name}")
+                        cont.resume(playlist.toDomain())
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get playlist from plugin")
+                cont.resumeWithException(e)
+            }
         }
     }
 
@@ -796,35 +654,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
-        Timber.d("[$TAG] Getting artist songs from plugin: ${artistId.pluginId}:${artistId.sourceId}")
+        Timber.d("Getting artist songs from plugin: ${artistId.pluginId}:${artistId.sourceId}")
         val plugin = getPlugin(artistId.pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for artist songs: ${artistId.pluginId}")
+            Timber.e("Plugin not connected for artist songs: ${artistId.pluginId}")
             throw IllegalStateException("Plugin not connected: ${artistId.pluginId}")
         }
 
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getArtistSongs(artistId, cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {
-                    Timber.d("[$TAG] Artist songs received from plugin, count: ${songs.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(songs.map { it.toDomain() }, nextCursor))
-                }
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getArtistSongs(artistId, cursor, limit, object : ISongsCallback.Stub() {
+                    override fun onSuccess(songs: MutableList<AidlSong>, nextCursor: String?) {
+                        Timber.d("Artist songs received from plugin, count: ${songs.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(songs.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get artist songs from plugin")
+                cont.resumeWithException(e)
+            }
         }
     }
 
@@ -836,35 +684,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Album> {
-        Timber.d("[$TAG] Getting artist albums from plugin: ${artistId.pluginId}:${artistId.sourceId}")
+        Timber.d("Getting artist albums from plugin: ${artistId.pluginId}:${artistId.sourceId}")
         val plugin = getPlugin(artistId.pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for artist albums: ${artistId.pluginId}")
+            Timber.e("Plugin not connected for artist albums: ${artistId.pluginId}")
             throw IllegalStateException("Plugin not connected: ${artistId.pluginId}")
         }
 
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getArtistAlbums(artistId, cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {}
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {
-                    Timber.d("[$TAG] Artist albums received from plugin, count: ${albums.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(albums.map { it.toDomain() }, nextCursor))
-                }
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getArtistAlbums(artistId, cursor, limit, object : IAlbumsCallback.Stub() {
+                    override fun onSuccess(albums: MutableList<AidlAlbum>, nextCursor: String?) {
+                        Timber.d("Artist albums received from plugin, count: ${albums.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(albums.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get artist albums from plugin")
+                cont.resumeWithException(e)
+            }
         }
     }
 
@@ -876,35 +714,25 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
-        Timber.d("[$TAG] Getting playlist songs from plugin: ${playlistId.pluginId}:${playlistId.sourceId}")
+        Timber.d("Getting playlist songs from plugin: ${playlistId.pluginId}:${playlistId.sourceId}")
         val plugin = getPlugin(playlistId.pluginId)
         if (plugin == null) {
-            Timber.e("[$TAG] Plugin not connected for playlist songs: ${playlistId.pluginId}")
+            Timber.e("Plugin not connected for playlist songs: ${playlistId.pluginId}")
             throw IllegalStateException("Plugin not connected: ${playlistId.pluginId}")
         }
 
         return suspendCancellableCoroutine { cont ->
-            plugin.service.getPlaylistSongs(playlistId, cursor, limit, object : IResultCallback.Stub() {
-                override fun onSearchResult(result: AidlSearchResult) {}
-                override fun onSearchError(errorCode: Int, message: String) {}
-                override fun onSongResult(song: AidlSong) {}
-                override fun onAlbumResult(album: AidlAlbum) {}
-                override fun onArtistResult(artist: AidlArtist) {}
-                override fun onPlaylistResult(playlist: AidlPlaylist) {}
-                override fun onSongsResult(songs: MutableList<AidlSong>, nextCursor: String?) {
-                    Timber.d("[$TAG] Playlist songs received from plugin, count: ${songs.size}, nextCursor: $nextCursor")
-                    cont.resume(PagedResult(songs.map { it.toDomain() }, nextCursor))
-                }
-                override fun onAlbumsResult(albums: MutableList<AidlAlbum>, nextCursor: String?) {}
-                override fun onArtistsResult(artists: MutableList<AidlArtist>, nextCursor: String?) {}
-                override fun onPlaylistsResult(playlists: MutableList<AidlPlaylist>, nextCursor: String?) {}
-                override fun onCategoriesResult(categories: MutableList<AidlBrowseCategory>, nextCursor: String?) {}
-                override fun onAudioStreamReady(stream: AudioStream) {}
-                override fun onAudioStreamError(errorCode: Int, message: String) {}
-                override fun onError(errorCode: Int, message: String) {
-                    cont.resumeWithException(PluginException(errorCode, message))
-                }
-            })
+            try {
+                plugin.service.getPlaylistSongs(playlistId, cursor, limit, object : ISongsCallback.Stub() {
+                    override fun onSuccess(songs: MutableList<AidlSong>, nextCursor: String?) {
+                        Timber.d("Playlist songs received from plugin, count: ${songs.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(songs.map { it.toDomain() }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get playlist songs from plugin")
+                cont.resumeWithException(e)
+            }
         }
     }
 
@@ -926,7 +754,7 @@ class PluginDataSource @Inject constructor(
         override fun notifyContentChanged() {}
         override fun notifyMetadataUpdated(mediaId: AidlMediaId) {}
         override fun reportError(errorCode: Int, message: String) {
-            Timber.e("[$TAG] Plugin reported error: code=$errorCode, message=$message")
+            Timber.e("Plugin reported error: code=$errorCode, message=$message")
         }
     }
 }

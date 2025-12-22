@@ -35,10 +35,10 @@ class PluginPreferences @Inject constructor(
      * Defaults to true (enabled) if not set.
      */
     fun isEnabled(pluginId: String): Flow<Boolean> {
-        Timber.d("[$TAG] Getting enabled state for plugin: $pluginId")
+        Timber.d("Getting enabled state for plugin: $pluginId")
         return dataStore.data.map { preferences ->
             val enabled = preferences[enabledKey(pluginId)] ?: true // Default to enabled
-            Timber.d("[$TAG] Plugin $pluginId enabled state: $enabled (default: ${preferences[enabledKey(pluginId)] == null})")
+            Timber.d("Plugin $pluginId enabled state: $enabled (default: ${preferences[enabledKey(pluginId)] == null})")
             enabled
         }
     }
@@ -52,7 +52,7 @@ class PluginPreferences @Inject constructor(
             .filterValues { it as? Boolean ?: true }
             .keys.map { it.name.removePrefix("plugin_enabled_") }
             .toSet()
-        Timber.d("[$TAG] Enabled plugins: $enabledSet")
+        Timber.d("Enabled plugins: $enabledSet")
         enabledSet
     }
     
@@ -60,14 +60,14 @@ class PluginPreferences @Inject constructor(
      * Set enabled state for a plugin.
      */
     suspend fun setEnabled(pluginId: String, enabled: Boolean) {
-        Timber.d("[$TAG] Setting plugin $pluginId enabled state to: $enabled")
+        Timber.d("Setting plugin $pluginId enabled state to: $enabled")
         try {
             dataStore.edit { preferences ->
                 preferences[enabledKey(pluginId)] = enabled
             }
-            Timber.d("[$TAG] Successfully set plugin $pluginId enabled state to: $enabled")
+            Timber.d("Successfully set plugin $pluginId enabled state to: $enabled")
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Failed to set enabled state for plugin: $pluginId")
+            Timber.e(e, "Failed to set enabled state for plugin: $pluginId")
             throw e
         }
     }
@@ -76,15 +76,15 @@ class PluginPreferences @Inject constructor(
      * Get enabled state synchronously (for initial load).
      */
     suspend fun isEnabledSync(pluginId: String): Boolean {
-        Timber.d("[$TAG] Getting enabled state synchronously for plugin: $pluginId")
+        Timber.d("Getting enabled state synchronously for plugin: $pluginId")
         return try {
             val enabled = dataStore.data.map { preferences ->
                 preferences[enabledKey(pluginId)] ?: true
             }.first()
-            Timber.d("[$TAG] Plugin $pluginId enabled state (sync): $enabled")
+            Timber.d("Plugin $pluginId enabled state (sync): $enabled")
             enabled
         } catch (e: Exception) {
-            Timber.e(e, "[$TAG] Failed to get enabled state for plugin: $pluginId")
+            Timber.e(e, "Failed to get enabled state for plugin: $pluginId")
             true // Default to enabled on error
         }
     }
