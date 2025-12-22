@@ -1,0 +1,144 @@
+package com.viperplayer.presentation.plugins
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.usecase.plugin.DisablePluginUseCase
+import com.viperplayer.domain.usecase.plugin.DiscoverPluginsUseCase
+import com.viperplayer.domain.usecase.plugin.EnablePluginUseCase
+import com.viperplayer.domain.usecase.plugin.GetConnectedPluginsUseCase
+import com.viperplayer.domain.usecase.plugin.GetDiscoveredPluginsUseCase
+import com.viperplayer.domain.usecase.plugin.GetPluginEnabledStatesUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import javax.inject.Inject
+
+/**
+ * UI State for Plugins screen.
+ */
+data class PluginsUiState(
+    val isRefreshing: Boolean = false,
+    val discoveredPlugins: List<PluginInfo> = emptyList(),
+    val connectedPlugins: Map<String, Plugin> = emptyMap(),
+    val enabledStates: Map<String, Boolean> = emptyMap(),
+    val togglingPluginId: String? = null,
+    val error: String? = null
+)
+
+/**
+ * ViewModel for Plugins screen.
+ */
+@HiltViewModel
+class PluginsViewModel @Inject constructor(
+    private val discoverPluginsUseCase: DiscoverPluginsUseCase,
+    private val enablePluginUseCase: EnablePluginUseCase,
+    private val disablePluginUseCase: DisablePluginUseCase,
+    private val getDiscoveredPluginsUseCase: GetDiscoveredPluginsUseCase,
+    private val getConnectedPluginsUseCase: GetConnectedPluginsUseCase,
+    private val getPluginEnabledStatesUseCase: GetPluginEnabledStatesUseCase
+) : ViewModel() {
+    companion object {
+        private const val TAG = "PluginsViewModel"
+    }
+    
+    private val _uiState = MutableStateFlow(PluginsUiState())
+    val uiState: StateFlow<PluginsUiState> = _uiState.asStateFlow()
+    
+    init {
+        Timber.d("[$TAG] ViewModel initialized")
+        observePlugins()
+        refresh()
+    }
+    
+    private fun observePlugins() {
+        Timber.d("[$TAG] Starting to observe plugins")
+        viewModelScope.launch {
+            getDiscoveredPluginsUseCase().collect { plugins ->
+                Timber.d("[$TAG] Discovered plugins updated: ${plugins.size} plugins")
+                _uiState.update { it.copy(discoveredPlugins = plugins) }
+            }
+        }
+        
+        viewModelScope.launch {
+            getConnectedPluginsUseCase().collect { plugins ->
+                Timber.d("[$TAG] Connected plugins updated: ${plugins.size} plugins")
+                _uiState.update { 
+                    it.copy(connectedPlugins = plugins.associateBy { p -> p.info.id })
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+            getPluginEnabledStatesUseCase().collect { states ->
+                Timber.d("[$TAG] Enabled states updated: $states")
+                _uiState.update { it.copy(enabledStates = states) }
+            }
+        }
+    }
+    
+    fun refresh() {
+        Timber.d("[$TAG] refresh() called")
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            
+            try {
+                discoverPluginsUseCase()
+                Timber.d("[$TAG] refresh() completed successfully")
+            } catch (e: Exception) {
+                Timber.e(e, "[$TAG] Error in refresh()")
+                _uiState.update { it.copy(error = e.message) }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
+        }
+    }
+    
+    fun togglePlugin(pluginId: String) {
+        Timber.d("[$TAG] togglePlugin() called for: $pluginId")
+        viewModelScope.launch {
+            val isEnabled = _uiState.value.enabledStates[pluginId] ?: true
+            Timber.d("[$TAG] Plugin $pluginId current state: enabled=$isEnabled")
+            _uiState.update { it.copy(togglingPluginId = pluginId, error = null) }
+            
+            val result = if (isEnabled) {
+                Timber.d("[$TAG] Disabling plugin: $pluginId")
+                disablePluginUseCase(pluginId)
+            } else {
+                Timber.d("[$TAG] Enabling plugin: $pluginId")
+                enablePluginUseCase(pluginId)
+            }
+            
+            result.onFailure { e ->
+                Timber.e(e, "[$TAG] Failed to toggle plugin: $pluginId")
+                _uiState.update {
+                    it.copy(
+                        togglingPluginId = null,
+                        error = e.message ?: "Failed to ${if (isEnabled) "disable" else "enable"} plugin"
+                    )
+                }
+            }
+            
+            result.onSuccess {
+                Timber.d("[$TAG] Successfully toggled plugin: $pluginId")
+            }
+            
+            _uiState.update { it.copy(togglingPluginId = null) }
+        }
+    }
+    
+    fun isEnabled(pluginId: String): Boolean {
+        return _uiState.value.enabledStates[pluginId] ?: true
+    }
+    
+    fun isConnected(pluginId: String): Boolean {
+        return _uiState.value.connectedPlugins.containsKey(pluginId)
+    }
+    
+    fun getConnectedPlugin(pluginId: String): Plugin? {
+        return _uiState.value.connectedPlugins[pluginId]
+    }
+}
+

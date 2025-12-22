@@ -1,0 +1,95 @@
+package com.viperplayer.presentation.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.usecase.browse.GetBrowseCategoriesUseCase
+import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
+import com.viperplayer.domain.usecase.plugin.ConnectPluginUseCase
+import com.viperplayer.domain.usecase.plugin.DiscoverPluginsUseCase
+import com.viperplayer.domain.usecase.plugin.GetConnectedPluginsUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * UI State for Home screen.
+ */
+data class HomeUiState(
+    val isLoading: Boolean = true,
+    val categories: List<BrowseCategory> = emptyList(),
+    val recentAlbums: List<Album> = emptyList(),
+    val connectedPlugins: List<Plugin> = emptyList(),
+    val error: String? = null
+)
+
+/**
+ * ViewModel for Home screen.
+ */
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val discoverPluginsUseCase: DiscoverPluginsUseCase,
+    private val connectPluginUseCase: ConnectPluginUseCase,
+    private val getConnectedPluginsUseCase: GetConnectedPluginsUseCase,
+    private val getBrowseCategoriesUseCase: GetBrowseCategoriesUseCase,
+    private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    
+    init {
+        observeConnectedPlugins()
+        loadContent()
+    }
+    
+    private fun observeConnectedPlugins() {
+        viewModelScope.launch {
+            getConnectedPluginsUseCase().collect { plugins ->
+                _uiState.update { it.copy(connectedPlugins = plugins) }
+            }
+        }
+    }
+    
+    fun loadContent() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            
+            try {
+                // Discover and connect to plugins
+                discoverPluginsUseCase()
+                
+                // Load categories
+                val categoriesResult = getBrowseCategoriesUseCase(limit = 10)
+                val categories = categoriesResult.getOrNull()?.items ?: emptyList()
+                
+                // Load albums
+                val albumsResult = getLibraryAlbumsUseCase(limit = 10)
+                val albums = albumsResult.getOrNull()?.items ?: emptyList()
+                
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        categories = categories,
+                        recentAlbums = albums
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to load content"
+                    )
+                }
+            }
+        }
+    }
+    
+    fun refresh() {
+        loadContent()
+    }
+}
+

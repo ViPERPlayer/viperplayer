@@ -1,0 +1,472 @@
+package com.viperplayer.data.repository
+
+import com.viperplayer.data.preferences.PluginPreferences
+import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PagedResult
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.SearchResult
+import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.PluginRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import timber.log.Timber
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Implementation of PluginRepository.
+ */
+@Singleton
+class PluginRepositoryImpl @Inject constructor(
+    private val dataSource: PluginDataSource,
+    private val pluginPreferences: PluginPreferences
+) : PluginRepository {
+    companion object {
+        private const val TAG = "PluginRepository"
+    }
+    
+    override val discoveredPlugins: Flow<List<PluginInfo>>
+        get() = dataSource.discoveredPlugins.map { plugins ->
+            plugins.values.map { discovered ->
+                PluginInfo(
+                    id = discovered.id,
+                    name = discovered.name,
+                    version = discovered.version,
+                    apiVersion = discovered.apiVersion,
+                    description = discovered.description,
+                    author = null,
+                    iconUrl = discovered.iconUrl
+                )
+            }
+        }
+    
+    override val connectedPlugins: Flow<List<Plugin>>
+        get() = dataSource.connectedPlugins.map { plugins ->
+            plugins.values.map { connected ->
+                Plugin(
+                    info = connected.info,
+                    capabilities = connected.capabilities,
+                    isConnected = true
+                )
+            }
+        }
+    
+    override suspend fun discoverPlugins() {
+        Timber.d("[$TAG] discoverPlugins() called")
+        try {
+            dataSource.discoverPlugins()
+            Timber.d("[$TAG] discoverPlugins() completed successfully")
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in discoverPlugins()")
+            throw e
+        }
+    }
+    
+    override suspend fun connectPlugin(pluginId: String): Result<Plugin> {
+        Timber.d("[$TAG] connectPlugin() called for: $pluginId")
+        return try {
+            val connected = dataSource.connectPlugin(pluginId)
+            val plugin = Plugin(
+                info = connected.info,
+                capabilities = connected.capabilities,
+                isConnected = true
+            )
+            Timber.d("[$TAG] connectPlugin() succeeded for: $pluginId")
+            Result.success(plugin)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] connectPlugin() failed for: $pluginId")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun disconnectPlugin(pluginId: String) {
+        Timber.d("[$TAG] disconnectPlugin() called for: $pluginId")
+        try {
+            dataSource.disconnectPlugin(pluginId)
+            Timber.d("[$TAG] disconnectPlugin() completed for: $pluginId")
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in disconnectPlugin() for: $pluginId")
+            throw e
+        }
+    }
+    
+    override suspend fun disconnectAll() {
+        Timber.d("[$TAG] disconnectAll() called")
+        try {
+            dataSource.disconnectAll()
+            Timber.d("[$TAG] disconnectAll() completed")
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in disconnectAll()")
+            throw e
+        }
+    }
+    
+    override suspend fun enablePlugin(pluginId: String): Result<Unit> {
+        Timber.d("[$TAG] enablePlugin() called for: $pluginId")
+        return try {
+            dataSource.enablePlugin(pluginId)
+            Timber.d("[$TAG] enablePlugin() succeeded for: $pluginId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] enablePlugin() failed for: $pluginId")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun disablePlugin(pluginId: String): Result<Unit> {
+        Timber.d("[$TAG] disablePlugin() called for: $pluginId")
+        return try {
+            dataSource.disablePlugin(pluginId)
+            Timber.d("[$TAG] disablePlugin() succeeded for: $pluginId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] disablePlugin() failed for: $pluginId")
+            Result.failure(e)
+        }
+    }
+    
+    override val pluginEnabledStates: Flow<Map<String, Boolean>>
+        get() = combine(
+            dataSource.discoveredPlugins,
+            pluginPreferences.enabledPlugins
+        ) { discovered, enabledSet ->
+            discovered.keys.associateWith { pluginId ->
+                enabledSet.contains(pluginId)
+            }
+        }
+    
+    override suspend fun search(
+        query: String,
+        types: Int,
+        cursor: String?,
+        limit: Int
+    ): Result<SearchResult> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            if (plugins.isEmpty()) {
+                return@coroutineScope Result.success(SearchResult())
+            }
+            
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    try {
+                        dataSource.search(pluginId, query, types, cursor, limit)
+                    } catch (e: Exception) {
+                        SearchResult() // Return empty on error
+                    }
+                }
+            }.awaitAll()
+            
+            // Merge results from all plugins
+            val merged = SearchResult(
+                songs = results.flatMap { it.songs },
+                albums = results.flatMap { it.albums },
+                artists = results.flatMap { it.artists },
+                playlists = results.flatMap { it.playlists }
+            )
+            
+            Result.success(merged)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun searchInPlugin(
+        pluginId: String,
+        query: String,
+        types: Int,
+        cursor: String?,
+        limit: Int
+    ): Result<SearchResult> {
+        return try {
+            val result = dataSource.search(pluginId, query, types, cursor, limit)
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getBrowseCategories(
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<BrowseCategory>> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            if (plugins.isEmpty()) {
+                return@coroutineScope Result.success(PagedResult<BrowseCategory>(emptyList()))
+            }
+            
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    try {
+                        dataSource.getBrowseCategories(pluginId, cursor, limit)
+                    } catch (e: Exception) {
+                        PagedResult<BrowseCategory>(emptyList())
+                    }
+                }
+            }.awaitAll()
+            
+            val merged = PagedResult(
+                items = results.flatMap { it.items }
+            )
+            
+            Result.success(merged)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getCategoryContents(
+        pluginId: String,
+        categoryId: String,
+        cursor: String?,
+        limit: Int
+    ): Result<SearchResult> {
+        return try {
+            val plugin = dataSource.getPlugin(pluginId)
+                ?: return Result.failure(IllegalStateException("Plugin not connected"))
+            
+            // For now, return empty result - need to implement in data source
+            Result.success(SearchResult())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getLibrarySongs(
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Song>> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            if (plugins.isEmpty()) {
+                return@coroutineScope Result.success(PagedResult<Song>(emptyList()))
+            }
+            
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    try {
+                        dataSource.getLibrarySongs(pluginId, cursor, limit)
+                    } catch (e: Exception) {
+                        PagedResult<Song>(emptyList())
+                    }
+                }
+            }.awaitAll()
+            
+            val merged = PagedResult(
+                items = results.flatMap { it.items }
+            )
+            
+            Result.success(merged)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getLibraryAlbums(
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Album>> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            if (plugins.isEmpty()) {
+                return@coroutineScope Result.success(PagedResult<Album>(emptyList()))
+            }
+            
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    try {
+                        dataSource.getLibraryAlbums(pluginId, cursor, limit)
+                    } catch (e: Exception) {
+                        PagedResult<Album>(emptyList())
+                    }
+                }
+            }.awaitAll()
+            
+            val merged = PagedResult(
+                items = results.flatMap { it.items }
+            )
+            
+            Result.success(merged)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getLibraryArtists(
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Artist>> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            if (plugins.isEmpty()) {
+                return@coroutineScope Result.success(PagedResult<Artist>(emptyList()))
+            }
+            
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    try {
+                        dataSource.getLibraryArtists(pluginId, cursor, limit)
+                    } catch (e: Exception) {
+                        Timber.e("[$TAG] Error getting library artists from plugin: $pluginId", e)
+                        PagedResult<Artist>(emptyList())
+                    }
+                }
+            }.awaitAll()
+            
+            val merged = PagedResult(
+                items = results.flatMap { it.items }
+            )
+            
+            Timber.d("[$TAG] getLibraryArtists() completed: ${merged.items.size} artists from ${plugins.size} plugins")
+            Result.success(merged)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getLibraryArtists()")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getLibraryPlaylists(
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Playlist>> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            if (plugins.isEmpty()) {
+                return@coroutineScope Result.success(PagedResult<Playlist>(emptyList()))
+            }
+            
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    try {
+                        dataSource.getLibraryPlaylists(pluginId, cursor, limit)
+                    } catch (e: Exception) {
+                        Timber.e("[$TAG] Error getting library playlists from plugin: $pluginId", e)
+                        PagedResult<Playlist>(emptyList())
+                    }
+                }
+            }.awaitAll()
+            
+            val merged = PagedResult(
+                items = results.flatMap { it.items }
+            )
+            
+            Timber.d("[$TAG] getLibraryPlaylists() completed: ${merged.items.size} playlists from ${plugins.size} plugins")
+            Result.success(merged)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getLibraryPlaylists()")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getSong(mediaId: MediaId): Result<Song> {
+        return try {
+            val plugin = dataSource.getPlugin(mediaId.pluginId)
+                ?: return Result.failure(IllegalStateException("Plugin not connected"))
+            // Need to implement in data source
+            Result.failure(NotImplementedError())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getAlbum(mediaId: MediaId): Result<Album> {
+        return try {
+            Timber.d("[$TAG] getAlbum() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
+            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
+            val album = dataSource.getAlbum(aidlMediaId)
+            Timber.d("[$TAG] getAlbum() completed: ${album.name}")
+            Result.success(album)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getAlbum()")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
+        return try {
+            Timber.d("[$TAG] getArtist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
+            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
+            val artist = dataSource.getArtist(aidlMediaId)
+            Timber.d("[$TAG] getArtist() completed: ${artist.name}")
+            Result.success(artist)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getArtist()")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
+        return try {
+            Timber.d("[$TAG] getPlaylist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
+            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
+            val playlist = dataSource.getPlaylist(aidlMediaId)
+            Timber.d("[$TAG] getPlaylist() completed: ${playlist.name}")
+            Result.success(playlist)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getPlaylist()")
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getArtistSongs(
+        artistId: MediaId,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Song>> {
+        return try {
+            Timber.d("[$TAG] getArtistSongs() called for: ${artistId.pluginId}:${artistId.sourceId}")
+            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(artistId.pluginId, artistId.sourceId)
+            val result = dataSource.getArtistSongs(aidlMediaId, cursor, limit)
+            Timber.d("[$TAG] getArtistSongs() completed: ${result.items.size} songs")
+            Result.success(result)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getArtistSongs()")
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getArtistAlbums(
+        artistId: MediaId,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Album>> {
+        return try {
+            Timber.d("[$TAG] getArtistAlbums() called for: ${artistId.pluginId}:${artistId.sourceId}")
+            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(artistId.pluginId, artistId.sourceId)
+            val result = dataSource.getArtistAlbums(aidlMediaId, cursor, limit)
+            Timber.d("[$TAG] getArtistAlbums() completed: ${result.items.size} albums")
+            Result.success(result)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getArtistAlbums()")
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getPlaylistSongs(
+        playlistId: MediaId,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Song>> {
+        return try {
+            Timber.d("[$TAG] getPlaylistSongs() called for: ${playlistId.pluginId}:${playlistId.sourceId}")
+            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(playlistId.pluginId, playlistId.sourceId)
+            val result = dataSource.getPlaylistSongs(aidlMediaId, cursor, limit)
+            Timber.d("[$TAG] getPlaylistSongs() completed: ${result.items.size} songs")
+            Result.success(result)
+        } catch (e: Exception) {
+            Timber.e(e, "[$TAG] Error in getPlaylistSongs()")
+            Result.failure(e)
+        }
+    }
+}

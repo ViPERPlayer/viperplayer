@@ -1,0 +1,183 @@
+package com.viperplayer.domain.repository
+
+import com.viperplayer.domain.model.*
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * Repository interface for plugin operations.
+ * Defines the contract for interacting with music plugins.
+ */
+interface PluginRepository {
+    
+    /**
+     * Flow of all discovered plugins (connected and disconnected).
+     */
+    val discoveredPlugins: Flow<List<PluginInfo>>
+    
+    /**
+     * Flow of connected plugins.
+     */
+    val connectedPlugins: Flow<List<Plugin>>
+    
+    /**
+     * Discover all installed plugins.
+     */
+    suspend fun discoverPlugins()
+    
+    /**
+     * Connect to a plugin.
+     */
+    suspend fun connectPlugin(pluginId: String): Result<Plugin>
+    
+    /**
+     * Disconnect from a plugin.
+     */
+    suspend fun disconnectPlugin(pluginId: String)
+    
+    /**
+     * Disconnect from all plugins.
+     */
+    suspend fun disconnectAll()
+    
+    /**
+     * Enable a plugin (connects it automatically).
+     */
+    suspend fun enablePlugin(pluginId: String): Result<Unit>
+    
+    /**
+     * Disable a plugin (disconnects it).
+     */
+    suspend fun disablePlugin(pluginId: String): Result<Unit>
+    
+    /**
+     * Get enabled state for a plugin.
+     */
+    val pluginEnabledStates: Flow<Map<String, Boolean>>
+    
+    /**
+     * Search across all connected plugins.
+     */
+    suspend fun search(
+        query: String,
+        types: Int = SEARCH_TYPE_ALL,
+        cursor: String? = null,
+        limit: Int = 20
+    ): Result<SearchResult>
+    
+    /**
+     * Search within a specific plugin.
+     */
+    suspend fun searchInPlugin(
+        pluginId: String,
+        query: String,
+        types: Int = SEARCH_TYPE_ALL,
+        cursor: String? = null,
+        limit: Int = 20
+    ): Result<SearchResult>
+    
+    /**
+     * Get browse categories from all plugins.
+     */
+    suspend fun getBrowseCategories(
+        cursor: String? = null,
+        limit: Int = 20
+    ): Result<PagedResult<BrowseCategory>>
+    
+    /**
+     * Get category contents.
+     */
+    suspend fun getCategoryContents(
+        pluginId: String,
+        categoryId: String,
+        cursor: String? = null,
+        limit: Int = 20
+    ): Result<SearchResult>
+    
+    /**
+     * Get library songs from all plugins.
+     */
+    suspend fun getLibrarySongs(
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Song>>
+    
+    /**
+     * Get library albums from all plugins.
+     */
+    suspend fun getLibraryAlbums(
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Album>>
+    
+    /**
+     * Get library artists from all plugins.
+     */
+    suspend fun getLibraryArtists(
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Artist>>
+    
+    /**
+     * Get library playlists from all plugins.
+     */
+    suspend fun getLibraryPlaylists(
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Playlist>>
+    
+    /**
+     * Get song details.
+     */
+    suspend fun getSong(mediaId: MediaId): Result<Song>
+    
+    /**
+     * Get album details with tracks.
+     */
+    suspend fun getAlbum(mediaId: MediaId): Result<Album>
+    
+    /**
+     * Get artist details.
+     */
+    suspend fun getArtist(mediaId: MediaId): Result<Artist>
+    
+    /**
+     * Get playlist details with tracks.
+     */
+    suspend fun getPlaylist(mediaId: MediaId): Result<Playlist>
+    
+    /**
+     * Get artist songs.
+     */
+    suspend fun getArtistSongs(
+        artistId: MediaId,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Song>>
+
+    /**
+     * Get artist albums.
+     */
+    suspend fun getArtistAlbums(
+        artistId: MediaId,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Album>>
+
+    /**
+     * Get playlist songs.
+     */
+    suspend fun getPlaylistSongs(
+        playlistId: MediaId,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Song>>
+
+    companion object {
+        const val SEARCH_TYPE_SONG = 1
+        const val SEARCH_TYPE_ALBUM = 2
+        const val SEARCH_TYPE_ARTIST = 4
+        const val SEARCH_TYPE_PLAYLIST = 8
+        const val SEARCH_TYPE_ALL = SEARCH_TYPE_SONG or SEARCH_TYPE_ALBUM or SEARCH_TYPE_ARTIST or SEARCH_TYPE_PLAYLIST
+    }
+}
+
