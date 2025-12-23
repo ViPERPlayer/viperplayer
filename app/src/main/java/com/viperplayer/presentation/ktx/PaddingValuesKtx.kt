@@ -1,0 +1,39 @@
+package com.viperplayer.presentation.ktx
+
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+
+operator fun PaddingValues.plus(other: PaddingValues): PaddingValues =
+    PaddingValues(
+        start = this.calculateStartPadding(LayoutDirection.Ltr) +
+                other.calculateStartPadding(LayoutDirection.Ltr),
+        top = this.calculateTopPadding() +
+                other.calculateTopPadding(),
+        end = this.calculateEndPadding(LayoutDirection.Ltr) +
+                other.calculateEndPadding(LayoutDirection.Ltr),
+        bottom = this.calculateBottomPadding() +
+                other.calculateBottomPadding()
+    )
+
+fun PaddingValues.with(
+    start: Dp = this.calculateStartPadding(LayoutDirection.Ltr),
+    top: Dp = this.calculateTopPadding(),
+    end: Dp = this.calculateEndPadding(LayoutDirection.Ltr),
+    bottom: Dp = this.calculateBottomPadding(),
+): PaddingValues =
+    PaddingValues(
+        start = start,
+        top = top,
+        end = end,
+        bottom = bottom
+    )
+
+fun PaddingValues.bottom(): PaddingValues {
+    return PaddingValues(
+        bottom = this.calculateBottomPadding()
+    )
+}

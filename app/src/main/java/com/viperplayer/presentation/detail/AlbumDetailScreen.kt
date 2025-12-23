@@ -1,6 +1,7 @@
 package com.viperplayer.presentation.detail
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,39 +19,44 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.viperplayer.domain.model.Album
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.SongItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumDetailScreen(
+    rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (String) -> Unit = {},
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(uiState.album?.name ?: "Album") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(rootPadding.with(bottom = 0.dp))
+    ) {
+        TopAppBar(
+            title = { Text(uiState.album?.name ?: "Album") },
+            navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-            )
-        }
-    ) { padding ->
+            },
+            actions = {
+                IconButton(onClick = { viewModel.refresh() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                }
+            }
+        )
+
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(rootPadding.bottom()),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
@@ -59,7 +65,7 @@ fun AlbumDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(rootPadding.bottom()),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -79,10 +85,8 @@ fun AlbumDetailScreen(
         } else {
             uiState.album?.let { album ->
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = rootPadding.bottom()
                 ) {
                     // Album header
                     item {

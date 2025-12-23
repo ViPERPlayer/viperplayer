@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,10 +23,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.with
+import androidx.core.net.toUri
+import com.viperplayer.presentation.ktx.plus
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PluginsScreen(
+    rootPadding: PaddingValues,
     viewModel: PluginsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -33,7 +39,11 @@ fun PluginsScreen(
     var menuPluginId by remember { mutableStateOf<String?>(null) }
     var showInfoDialog by remember { mutableStateOf<PluginInfo?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(rootPadding.with(bottom = 0.dp))
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,6 +78,7 @@ fun PluginsScreen(
         if (uiState.discoveredPlugins.isEmpty() && !uiState.isRefreshing) {
             Box(
                 modifier = Modifier
+                    .padding(rootPadding.bottom())
                     .fillMaxSize()
                     .padding(32.dp),
                 contentAlignment = Alignment.Center
@@ -117,7 +128,7 @@ fun PluginsScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = rootPadding.bottom() + PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(uiState.discoveredPlugins) { plugin ->
@@ -143,10 +154,10 @@ fun PluginsScreen(
                         onUninstall = {
                             menuPluginId = null
                             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.parse("package:${plugin.id}")
+                                data = "package:${plugin.id}".toUri()
                             }
                             context.startActivity(intent)
-                        }
+                        },
                     )
                 }
             }

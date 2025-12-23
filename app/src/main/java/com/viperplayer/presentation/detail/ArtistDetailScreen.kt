@@ -1,6 +1,7 @@
 package com.viperplayer.presentation.detail
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -18,40 +19,45 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.AlbumItem
 import com.viperplayer.presentation.search.SongItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistDetailScreen(
+    rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onNavigateToAlbum: (String) -> Unit = {},
     viewModel: ArtistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(uiState.artist?.name ?: "Artist") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(rootPadding.with(bottom = 0.dp))
+    ) {
+        TopAppBar(
+            title = { Text(uiState.artist?.name ?: "Artist") },
+            navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-            )
-        }
-    ) { padding ->
+            },
+            actions = {
+                IconButton(onClick = { viewModel.refresh() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                }
+            }
+        )
+
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(rootPadding.bottom()),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
@@ -60,7 +66,7 @@ fun ArtistDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(rootPadding.bottom()),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -82,7 +88,7 @@ fun ArtistDetailScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding),
+                        .padding(rootPadding.bottom()),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     // Artist header

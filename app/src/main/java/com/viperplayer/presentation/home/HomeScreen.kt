@@ -2,6 +2,7 @@ package com.viperplayer.presentation.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import com.viperplayer.domain.model.BrowseCategory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    rootPadding: PaddingValues,
     onNavigateToAlbum: (String) -> Unit = {},
     onNavigateToArtist: (String) -> Unit = {},
     onNavigateToPlaylist: (String) -> Unit = {},
@@ -34,7 +36,7 @@ fun HomeScreen(
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = rootPadding
     ) {
         item {
             Row(
