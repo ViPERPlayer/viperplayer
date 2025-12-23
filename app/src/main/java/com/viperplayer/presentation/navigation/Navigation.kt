@@ -5,7 +5,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.toRoute
 import com.viperplayer.presentation.detail.AlbumDetailScreen
 import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
@@ -62,6 +61,9 @@ fun ViperNavHost(
                 },
                 onNavigateToPlaylist = { playlistId ->
                     navController.navigate(PlaylistDetail(playlistId))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Settings)
                 }
             )
         }
@@ -98,6 +100,12 @@ fun ViperNavHost(
             PluginsScreen()
         }
         
+        composable<NowPlaying> {
+            NowPlayingScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         composable<AlbumDetail> {
             AlbumDetailScreen(
                 onNavigateBack = { navController.popBackStack() },
@@ -118,6 +126,12 @@ fun ViperNavHost(
         
         composable<PlaylistDetail> {
             PlaylistDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Settings> {
+            SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
