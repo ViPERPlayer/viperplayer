@@ -3,11 +3,8 @@ package com.viperplayer.data.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.viperplayer.ViperPlayerApp
 import com.viperplayer.data.source.PluginDataSource
-import com.viperplayer.di.PluginEntryPoint
 import dagger.hilt.android.AndroidEntryPoint
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

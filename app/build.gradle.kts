@@ -96,6 +96,9 @@ dependencies {
     
     // Logging
     implementation(libs.timber)
+
+    // Dynamic theme
+    implementation("com.materialkolor:material-kolor:4.0.0")
     
     // Testing
     testImplementation(libs.junit)

@@ -9,7 +9,7 @@ import timber.log.Timber
  * Annotated with @HiltAndroidApp to enable Hilt dependency injection.
  */
 @HiltAndroidApp
-class ViperPlayerApp : Application() {
+class ViperPlayerApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()

@@ -1,4 +1,4 @@
-package com.viperplayer.ui.theme
+package com.viperplayer.presentation.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
