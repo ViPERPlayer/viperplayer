@@ -1,7 +1,10 @@
 package com.viperplayer.presentation.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.SingletonImageLoader
+import coil3.imageLoader
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.Plugin

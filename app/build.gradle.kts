@@ -42,6 +42,7 @@ android {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
             optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
+            optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
 
@@ -75,12 +76,22 @@ dependencies {
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // Ktor Client
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.serialization.json)
+
+    // Room
+    implementation(libs.room.runtime)
+    ksp(libs.room.compiler)
+    implementation(libs.room.ktx)
+
     // Media3 / ExoPlayer
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
-    implementation(libs.media3.ui)
-    implementation(libs.media3.datasource)
-    
+    implementation(libs.media3.datasource.okhttp)
+    implementation(libs.media3.cast)
+
     // Image loading
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)

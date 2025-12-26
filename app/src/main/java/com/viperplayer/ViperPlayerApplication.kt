@@ -1,20 +1,45 @@
 package com.viperplayer
 
 import android.app.Application
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.ktx.awaitBlocking
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * Application class for ViPER Player.
  * Annotated with @HiltAndroidApp to enable Hilt dependency injection.
  */
 @HiltAndroidApp
-class ViperPlayerApplication : Application() {
+class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val cacheSizeDeferred = CompletableDeferred<Long>()
     
     override fun onCreate() {
         super.onCreate()
         
-        // Initialize Timber for logging
+        initializeTimber()
+        prefetchCacheSize()
+    }
+
+    private fun initializeTimber() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         } else {
@@ -27,5 +52,24 @@ class ViperPlayerApplication : Application() {
                 }
             })
         }
+    }
+
+    private fun prefetchCacheSize() {
+        scope.launch {
+            val size = settingsRepository.cacheSize.first()
+            cacheSizeDeferred.complete(size)
+        }
+    }
+
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        val cacheSize = cacheSizeDeferred.awaitBlocking()
+
+        return ImageLoader.Builder(this)
+            .diskCache {
+                DiskCache.Builder()
+                    .maxSizeBytes(cacheSize)
+                    .build()
+            }
+            .build()
     }
 }
