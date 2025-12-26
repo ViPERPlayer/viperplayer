@@ -11,8 +11,12 @@ import com.viperplayer.domain.usecase.plugin.ConnectPluginUseCase
 import com.viperplayer.domain.usecase.plugin.DiscoverPluginsUseCase
 import com.viperplayer.domain.usecase.plugin.GetConnectedPluginsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
 
 /**
@@ -23,7 +27,9 @@ data class HomeUiState(
     val categories: List<BrowseCategory> = emptyList(),
     val recentAlbums: List<Album> = emptyList(),
     val connectedPlugins: List<Plugin> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val greetingType: GreetingType = GreetingType.MORNING,
+    val userName: String? = null
 )
 
 /**
@@ -91,5 +97,21 @@ class HomeViewModel @Inject constructor(
     fun refresh() {
         loadContent()
     }
+
+    fun onTimeChanged() {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+
+        val greetingType = when (hour) {
+            in 5..11 -> GreetingType.MORNING
+            in 12..16 -> GreetingType.AFTERNOON
+            in 17..20 -> GreetingType.EVENING
+            else -> GreetingType.NIGHT
+        }
+
+        _uiState.update { it.copy(greetingType = greetingType) }
+    }
 }
 
+enum class GreetingType {
+    NIGHT, MORNING, AFTERNOON, EVENING
+}

@@ -1,7 +1,6 @@
 package com.viperplayer.domain.usecase.plugin
 
 import com.viperplayer.domain.repository.PluginRepository
-import timber.log.Timber
 import javax.inject.Inject
 
 /**

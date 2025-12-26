@@ -5,7 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.PlayerState
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
-import com.viperplayer.domain.usecase.player.*
+import com.viperplayer.domain.usecase.player.AddToQueueUseCase
+import com.viperplayer.domain.usecase.player.GetPlayerStateUseCase
+import com.viperplayer.domain.usecase.player.GetQueueUseCase
+import com.viperplayer.domain.usecase.player.SeekToUseCase
+import com.viperplayer.domain.usecase.player.SetRepeatModeUseCase
+import com.viperplayer.domain.usecase.player.SetShuffleUseCase
+import com.viperplayer.domain.usecase.player.SkipToNextUseCase
+import com.viperplayer.domain.usecase.player.SkipToPreviousUseCase
+import com.viperplayer.domain.usecase.player.TogglePlayPauseUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

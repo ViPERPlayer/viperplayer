@@ -11,8 +11,8 @@ import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.library.LibraryScreen
-import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.player.NowPlayingScreen
+import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
 import com.viperplayer.presentation.settings.SettingsScreen
 import kotlinx.serialization.Serializable

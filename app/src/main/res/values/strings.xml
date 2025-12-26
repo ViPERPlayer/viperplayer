@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">ViPER Player</string>
+    <string name="greeting_good_morning_personalized">Good morning, %1$s!</string>
+    <string name="greeting_good_afternoon_personalized">Good afternoon, %1$s!</string>
+    <string name="greeting_good_evening_personalized">Good evening, %1$s!</string>
+    <string name="greeting_good_night_personalized">Good night, %1$s!</string>
+    <string name="greeting_good_night">Good night!</string>
+    <string name="greeting_good_morning">Good morning!</string>
+    <string name="greeting_good_afternoon">Good afternoon!</string>
+    <string name="greeting_good_evening">Good evening!</string>
 </resources>

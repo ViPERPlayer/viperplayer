@@ -1,6 +1,15 @@
 package com.viperplayer.domain.repository
 
-import com.viperplayer.domain.model.*
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PagedResult
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.SearchResult
+import com.viperplayer.domain.model.Song
 import kotlinx.coroutines.flow.Flow
 
 /**

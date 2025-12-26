@@ -4,7 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.viperplayer.domain.model.*
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.usecase.detail.GetArtistAlbumsUseCase
 import com.viperplayer.domain.usecase.detail.GetArtistSongsUseCase
