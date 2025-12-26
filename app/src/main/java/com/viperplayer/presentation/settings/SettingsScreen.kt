@@ -1,164 +1,125 @@
 package com.viperplayer.presentation.settings
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Settings screen with its own Scaffold and top bar.
- * This screen doesn't show the bottom navigation bar.
+ * Settings screen demonstrating how to use the layout system.
+ *
+ * Note: This screen hides the bottom navigation bar but still shows the mini player
+ * if there's playing content. The bottomPadding is used to ensure content scrolls
+ * properly without being hidden behind the mini player.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit = {}
+    rootPadding: PaddingValues,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(rootPadding)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onNavigateBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Default.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.headlineSmall
             )
+            Box(modifier = Modifier.size(48.dp)) // Spacer for alignment
         }
-    ) { paddingValues ->
+
+        // Content
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(vertical = 8.dp)
+                .fillMaxWidth()
+                .weight(1f),
+//            contentPadding = layoutState.bottomPadding // Apply layout-aware padding here
         ) {
-            // Appearance Section
             item {
-                SettingsSectionHeader("Appearance")
+                SettingsCategory("Playback")
+            }
+            item {
+                SettingsItem(
+                    title = "Quality",
+                    description = "Select audio quality",
+                    onClick = { }
+                )
+            }
+            item {
+                SettingsItem(
+                    title = "Volume Normalization",
+                    description = "Normalize volume across songs",
+                    onClick = { }
+                )
             }
 
             item {
+                SettingsCategory("Library")
+            }
+            item {
                 SettingsItem(
-                    icon = Icons.Default.Palette,
+                    title = "Auto Cache",
+                    description = "Automatically cache songs",
+                    onClick = { }
+                )
+            }
+            item {
+                SettingsItem(
+                    title = "Sync Playlists",
+                    description = "Sync with cloud",
+                    onClick = { }
+                )
+            }
+
+            item {
+                SettingsCategory("Display")
+            }
+            item {
+                SettingsItem(
                     title = "Theme",
-                    subtitle = "System default",
-                    onClick = { /* TODO: Open theme picker */ }
+                    description = "Light / Dark / System",
+                    onClick = { }
                 )
             }
-
             item {
                 SettingsItem(
-                    icon = Icons.Default.DarkMode,
-                    title = "Dark Mode",
-                    subtitle = "Automatic",
-                    onClick = { /* TODO: Open dark mode options */ }
-                )
-            }
-
-            // Playback Section
-            item {
-                SettingsSectionHeader("Playback")
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.AutoMirrored.Filled.VolumeUp,
-                    title = "Audio Quality",
-                    subtitle = "High",
-                    onClick = { /* TODO: Open quality settings */ }
-                )
-            }
-
-            item {
-                var gaplessEnabled by remember { mutableStateOf(true) }
-                SettingsSwitchItem(
-                    icon = Icons.Default.Queue,
-                    title = "Gapless Playback",
-                    subtitle = "Seamless transitions between tracks",
-                    checked = gaplessEnabled,
-                    onCheckedChange = { gaplessEnabled = it }
-                )
-            }
-
-            item {
-                var crossfadeEnabled by remember { mutableStateOf(false) }
-                SettingsSwitchItem(
-                    icon = Icons.Default.Tune,
-                    title = "Crossfade",
-                    subtitle = "Fade between songs",
-                    checked = crossfadeEnabled,
-                    onCheckedChange = { crossfadeEnabled = it }
-                )
-            }
-
-            // Library Section
-            item {
-                SettingsSectionHeader("Library")
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Folder,
-                    title = "Music Folders",
-                    subtitle = "Manage scanned folders",
-                    onClick = { /* TODO: Open folder picker */ }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Refresh,
-                    title = "Rescan Library",
-                    subtitle = "Search for new music",
-                    onClick = { /* TODO: Trigger rescan */ }
-                )
-            }
-
-            // Plugins Section
-            item {
-                SettingsSectionHeader("Plugins")
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Extension,
-                    title = "Plugin Sources",
-                    subtitle = "Manage plugin providers",
-                    onClick = { /* TODO: Open plugin sources */ }
-                )
-            }
-
-            // About Section
-            item {
-                SettingsSectionHeader("About")
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Info,
-                    title = "Version",
-                    subtitle = "1.0.0",
-                    onClick = { /* TODO: Show version info */ }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Description,
-                    title = "Licenses",
-                    subtitle = "Open source licenses",
-                    onClick = { /* TODO: Show licenses */ }
+                    title = "Show Lyrics",
+                    description = "Display song lyrics",
+                    onClick = { }
                 )
             }
         }
@@ -166,68 +127,50 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSectionHeader(title: String) {
+private fun SettingsCategory(
+    title: String,
+    modifier: Modifier = Modifier
+) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     )
 }
 
 @Composable
 private fun SettingsItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    subtitle: String,
-    onClick: () -> Unit
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        color = MaterialTheme.colorScheme.surface,
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium
             )
-        },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        },
-        modifier = Modifier.clickable(onClick = onClick)
-    )
-}
-
-@Composable
-private fun SettingsSwitchItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
-        },
-        modifier = Modifier.clickable { onCheckedChange(!checked) }
-    )
+        }
+    }
 }
 

@@ -1,6 +1,11 @@
 package com.viperplayer.domain.usecase.detail
 
-import com.viperplayer.domain.model.*
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PagedResult
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
 import javax.inject.Inject
 

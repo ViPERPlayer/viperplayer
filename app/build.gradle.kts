@@ -41,6 +41,7 @@ android {
     kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
+            optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
         }
     }
 
@@ -60,6 +61,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.palette.ktx)
     
     // Compose
     implementation(platform(libs.androidx.compose.bom))
@@ -69,10 +71,6 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
-    
-    // Coroutines
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.android)
     
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
@@ -85,6 +83,7 @@ dependencies {
     
     // Image loading
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     
     // DataStore for preferences
     implementation(libs.androidx.datastore.preferences)
@@ -96,6 +95,9 @@ dependencies {
     
     // Logging
     implementation(libs.timber)
+
+    // Dynamic theme
+    implementation(libs.material.kolor)
     
     // Testing
     testImplementation(libs.junit)

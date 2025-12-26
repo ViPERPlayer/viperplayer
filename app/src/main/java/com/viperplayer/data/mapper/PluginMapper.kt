@@ -1,11 +1,21 @@
 package com.viperplayer.data.mapper
 
-import com.viperplayer.domain.model.*
-import com.viperplayer.plugin.aidl.AlbumType as AidlAlbumType
-import com.viperplayer.plugin.aidl.CategoryContentType as AidlCategoryContentType
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.AlbumType
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.CategoryContentType
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.PluginCapabilities
+import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.SearchResult
+import com.viperplayer.domain.model.Song
 import com.viperplayer.plugin.aidl.Album as AidlAlbum
+import com.viperplayer.plugin.aidl.AlbumType as AidlAlbumType
 import com.viperplayer.plugin.aidl.Artist as AidlArtist
 import com.viperplayer.plugin.aidl.BrowseCategory as AidlBrowseCategory
+import com.viperplayer.plugin.aidl.CategoryContentType as AidlCategoryContentType
 import com.viperplayer.plugin.aidl.MediaId as AidlMediaId
 import com.viperplayer.plugin.aidl.Playlist as AidlPlaylist
 import com.viperplayer.plugin.aidl.PluginCapabilities as AidlPluginCapabilities
