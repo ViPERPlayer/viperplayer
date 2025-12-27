@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">ViPER Player</string>
+
+    <!-- Greeting -->
     <string name="greeting_good_morning_personalized">Good morning, %1$s!</string>
     <string name="greeting_good_afternoon_personalized">Good afternoon, %1$s!</string>
     <string name="greeting_good_evening_personalized">Good evening, %1$s!</string>
@@ -8,4 +10,41 @@
     <string name="greeting_good_morning">Good morning!</string>
     <string name="greeting_good_afternoon">Good afternoon!</string>
     <string name="greeting_good_evening">Good evening!</string>
+
+    <!-- ViPER effects -->
+    <string name="viper_bass">ViPER bass</string>
+    <string name="natural_bass">Natural bass</string>
+    <string name="pure_bass_plus">Pure bass+</string>
+    <string name="subwoofer">Subwoofer</string>
+    <string name="bass_frequency">Bass frequency</string>
+    <string name="bass_gain">Bass gain</string>
+    <string name="bass_mode">Bass mode</string>
+    <string name="natural">Natural</string>
+    <string name="ozone_plus">OZone+</string>
+    <string name="xhifi">XHiFi</string>
+    <string name="clarity_mode">Clarity mode</string>
+    <string name="clarity_gain">Clarity gain</string>
+    <string name="viper_clarity">ViPER clarity</string>
+    <string name="value_slider_reset_to_default">Reset to default</string>
+    <string name="main_enabled">Enabled</string>
+    <string name="main_disabled">Disabled</string>
+    <string name="master_limiter">Master limiter</string>
+    <string name="master_limiter_output_gain">Output gain</string>
+    <string name="master_limiter_output_pan">Output pan</string>
+    <string name="master_limiter_threshold_limit">Threshold limit</string>
+    <string name="speaker_optimization">Speaker optimization</string>
+    <string name="analogx">AnalogX</string>
+    <string name="analogx_level">Level</string>
+    <string name="auditory_system_protection">Auditory system protection</string>
+    <string name="tube_simulator_6n1j">Tube simulator (6N1J)</string>
+    <string name="dynamic_system">Dynamic system</string>
+    <string name="dynamic_system_device_type">Device type</string>
+    <string name="dynamic_system_dynamic_bass_strength">Dynamic bass strength</string>
+    <string name="differential_surround">Differential surround</string>
+    <string name="differential_surround_delay">Delay</string>
+    <string name="spectrum_extension">Spectrum extension</string>
+    <string name="spectrum_extension_strength">Strength</string>
+    <string name="field_surround">Field surround</string>
+    <string name="field_surround_surround_strength">Surround strength</string>
+    <string name="field_surround_mid_image_strength">Mid image strength</string>
 </resources>

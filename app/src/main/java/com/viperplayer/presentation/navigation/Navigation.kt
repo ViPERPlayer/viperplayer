@@ -11,10 +11,10 @@ import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.library.LibraryScreen
-import com.viperplayer.presentation.player.NowPlayingScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
 import com.viperplayer.presentation.settings.SettingsScreen
+import com.viperplayer.presentation.viper.ViperScreen
 import kotlinx.serialization.Serializable
 
 /**
@@ -30,13 +30,13 @@ object Search
 object Library
 
 @Serializable
+object Viper
+
+@Serializable
 object Plugins
 
 @Serializable
 object Settings
-
-@Serializable
-object NowPlaying
 
 @Serializable
 data class AlbumDetail(val albumId: String)
@@ -102,6 +102,12 @@ fun ViperNavHost(
                 }
             )
         }
+
+        composable<Viper> {
+            ViperScreen(
+                rootPadding = rootPadding
+            )
+        }
         
         composable<Plugins> {
             PluginsScreen(
@@ -138,13 +144,6 @@ fun ViperNavHost(
         
         composable<PlaylistDetail> {
             PlaylistDetailScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable<NowPlaying> {
-            NowPlayingScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navController.popBackStack() }
             )

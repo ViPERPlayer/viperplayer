@@ -5,24 +5,19 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
+import coil3.request.CachePolicy
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.ktx.awaitBlocking
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import javax.inject.Inject
 
-/**
- * Application class for ViPER Player.
- * Annotated with @HiltAndroidApp to enable Hilt dependency injection.
- */
 @HiltAndroidApp
 class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     @Inject
@@ -65,10 +60,15 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
         val cacheSize = cacheSizeDeferred.awaitBlocking()
 
         return ImageLoader.Builder(this)
-            .diskCache {
-                DiskCache.Builder()
-                    .maxSizeBytes(cacheSize)
-                    .build()
+            .apply {
+                if (cacheSize == 0L)
+                    diskCachePolicy(CachePolicy.DISABLED)
+                else
+                    diskCache {
+                        DiskCache.Builder()
+                            .maxSizeBytes(cacheSize)
+                            .build()
+                    }
             }
             .build()
     }

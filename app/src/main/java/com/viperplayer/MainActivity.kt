@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.viperplayer.presentation.ViperPlayerApp
+import com.viperplayer.presentation.main.ViperPlayerApp
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

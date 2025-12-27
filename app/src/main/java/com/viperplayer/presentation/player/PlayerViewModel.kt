@@ -15,16 +15,18 @@ import com.viperplayer.domain.usecase.player.SkipToNextUseCase
 import com.viperplayer.domain.usecase.player.SkipToPreviousUseCase
 import com.viperplayer.domain.usecase.player.TogglePlayPauseUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel for player controls.
- * Can be shared across screens that need player functionality.
- */
+data class PlayerUiState(
+    val playingFrom: String? = null
+)
+
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     getPlayerStateUseCase: GetPlayerStateUseCase,
@@ -37,7 +39,9 @@ class PlayerViewModel @Inject constructor(
     private val setRepeatModeUseCase: SetRepeatModeUseCase,
     private val addToQueueUseCase: AddToQueueUseCase
 ) : ViewModel() {
-    
+    private val _uiState = MutableStateFlow(PlayerUiState())
+    val uiState = _uiState.asStateFlow()
+
     val playerState: StateFlow<PlayerState> = getPlayerStateUseCase()
         .stateIn(
             scope = viewModelScope,

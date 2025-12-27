@@ -42,6 +42,7 @@ android {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
             optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
+            optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
             optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
