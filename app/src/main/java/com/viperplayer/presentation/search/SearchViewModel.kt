@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.usecase.player.PlaySongUseCase
 import com.viperplayer.domain.usecase.search.SearchUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,8 +12,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +23,7 @@ data class SearchUiState(
     val query: String = "",
     val isSearching: Boolean = false,
     val results: SearchResult? = null,
+    val suggestions: List<String> = emptyList(),
     val error: String? = null
 )
 
@@ -34,7 +34,8 @@ data class SearchUiState(
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val searchUseCase: SearchUseCase,
-    private val playSongUseCase: PlaySongUseCase
+    private val playSongUseCase: PlaySongUseCase,
+    private val searchRepository: SearchRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -46,10 +47,10 @@ class SearchViewModel @Inject constructor(
         // Debounced search
         viewModelScope.launch {
             _searchQuery
-                .debounce(300)
-                .distinctUntilChanged()
+//                .debounce(300)
+//                .distinctUntilChanged()
                 .collect { query ->
-                    performSearch(query)
+                    getSearchSuggestions(query)
                 }
         }
     }
@@ -61,6 +62,18 @@ class SearchViewModel @Inject constructor(
     
     fun clearQuery() {
         onQueryChange("")
+    }
+
+    private suspend fun getSearchSuggestions(query: String) {
+        if (query.isBlank()) {
+            _uiState.update { it.copy(suggestions = emptyList()) }
+            return
+        }
+
+        searchRepository.getSuggestions(query).collect { results ->
+            val suggestions = results.mapNotNull { it.getOrNull() }.flatten()
+            _uiState.update { it.copy(suggestions = suggestions) }
+        }
     }
     
     private suspend fun performSearch(query: String) {

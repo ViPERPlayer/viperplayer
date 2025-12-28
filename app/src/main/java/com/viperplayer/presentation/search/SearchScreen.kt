@@ -12,25 +12,42 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,7 +58,7 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.ktx.bottom
-import com.viperplayer.presentation.ktx.with
+import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
@@ -52,157 +69,206 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(rootPadding.with(bottom = 0.dp))
-    ) {
-        // Search bar
-        OutlinedTextField(
-            value = uiState.query,
-            onValueChange = { viewModel.onQueryChange(it) },
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize()
+    ) { contentPadding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            placeholder = { Text("Search...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-            trailingIcon = {
-                if (uiState.query.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.clearQuery() }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                .fillMaxSize()
+                .padding(contentPadding)
+        ) {
+            val searchBarState = rememberSearchBarState()
+            val textFieldState = rememberTextFieldState()
+            val scope = rememberCoroutineScope()
+
+            LaunchedEffect(textFieldState.text) {
+                viewModel.onQueryChange(textFieldState.text.toString())
+            }
+
+            val inputField =
+                @Composable {
+                    SearchBarDefaults.InputField(
+                        textFieldState = textFieldState,
+                        searchBarState = searchBarState,
+                        onSearch = { scope.launch { searchBarState.animateToCollapsed() } },
+                        placeholder = {
+                            Text(modifier = Modifier.clearAndSetSemantics {}, text = "Search")
+                        },
+                        leadingIcon = {
+                            if (searchBarState.currentValue == SearchBarValue.Expanded) {
+                                IconButton(onClick = { scope.launch { searchBarState.animateToCollapsed() } }) {
+                                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                                }
+                            } else {
+                                Icon(Icons.Default.Search, contentDescription = null)
+                            }
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                textFieldState.clearText()
+                            }) {
+                                Icon(imageVector = Icons.Rounded.Close, contentDescription = "Mic")
+                            }
+                        },
+                    )
+                }
+
+            SearchBar(
+                state = searchBarState,
+                inputField = inputField,
+                modifier = Modifier.fillMaxWidth().padding(16.dp)
+            )
+
+            ExpandedFullScreenSearchBar(
+                state = searchBarState,
+                inputField = inputField
+            ) {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    uiState.suggestions.forEach { suggestion ->
+                        ListItem(
+                            headlineContent = { Text(suggestion) },
+                            supportingContent = { Text("Additional info") },
+                            leadingContent = { Icon(Icons.Filled.Star, contentDescription = null) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            modifier =
+                                Modifier.clickable {
+                                    textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
+                                    scope.launch { searchBarState.animateToCollapsed() }
+                                }
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                        )
                     }
                 }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(24.dp)
-        )
-        
-        if (uiState.isSearching) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
             }
-        }
-        
-        uiState.results?.let { results ->
-            if (results.isEmpty) {
+
+            if (uiState.isSearching) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(rootPadding.bottom()),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No results found",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    CircularProgressIndicator()
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = rootPadding.bottom()
-                ) {
-                    // Songs section
-                    if (results.songs.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Songs",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
-                        }
-                        items(results.songs.take(5)) { song ->
-                            SongItem(
-                                song = song,
-                                onClick = { viewModel.playSong(song) }
-                            )
-                        }
+            }
+
+            uiState.results?.let { results ->
+                if (results.isEmpty) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(rootPadding.bottom()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No results found",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    
-                    // Albums section
-                    if (results.albums.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Albums",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = rootPadding.bottom()
+                    ) {
+                        // Songs section
+                        if (results.songs.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Songs",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(results.songs.take(5)) { song ->
+                                SongItem(
+                                    song = song,
+                                    onClick = { viewModel.playSong(song) }
+                                )
+                            }
                         }
-                        items(results.albums.take(5)) { album ->
-                            AlbumItem(
-                                album = album,
-                                onClick = { onNavigateToAlbum(album.id.toString()) }
-                            )
+
+                        // Albums section
+                        if (results.albums.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Albums",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(results.albums.take(5)) { album ->
+                                AlbumItem(
+                                    album = album,
+                                    onClick = { onNavigateToAlbum(album.id.toString()) }
+                                )
+                            }
                         }
-                    }
-                    
-                    // Artists section
-                    if (results.artists.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Artists",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
+
+                        // Artists section
+                        if (results.artists.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Artists",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(results.artists.take(5)) { artist ->
+                                ArtistItem(
+                                    artist = artist,
+                                    onClick = { onNavigateToArtist(artist.id.toString()) }
+                                )
+                            }
                         }
-                        items(results.artists.take(5)) { artist ->
-                            ArtistItem(
-                                artist = artist,
-                                onClick = { onNavigateToArtist(artist.id.toString()) }
-                            )
-                        }
-                    }
-                    
-                    // Playlists section
-                    if (results.playlists.isNotEmpty()) {
-                        item {
-                            Text(
-                                text = "Playlists",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
-                        }
-                        items(results.playlists.take(5)) { playlist ->
-                            PlaylistItem(
-                                playlist = playlist,
-                                onClick = { onNavigateToPlaylist(playlist.id.toString()) }
-                            )
+
+                        // Playlists section
+                        if (results.playlists.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Playlists",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(results.playlists.take(5)) { playlist ->
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    onClick = { onNavigateToPlaylist(playlist.id.toString()) }
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-        
-        if (uiState.query.isEmpty() && uiState.results == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Search for music",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+            if (uiState.query.isEmpty() && uiState.results == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Search for music",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

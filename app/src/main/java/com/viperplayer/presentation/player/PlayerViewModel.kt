@@ -20,11 +20,20 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class PlayerUiState(
-    val playingFrom: String? = null
+    val playingFrom: String? = null,
+    val title: String = "Title",
+    val artists: List<String> = listOf("Artist 1", "Artist 2"),
+    val thumbnailUrl: String? = null,
+    val isLiked: Boolean = false,
+    val position: Long = 50L,
+    val duration: Long = 100L,
+    val isPlaying: Boolean = false,
+    val hasNext: Boolean = true,
 )
 
 @HiltViewModel
@@ -57,6 +66,7 @@ class PlayerViewModel @Inject constructor(
         )
     
     fun togglePlayPause() {
+        _uiState.update { it.copy(isPlaying = !it.isPlaying) }
         viewModelScope.launch {
             togglePlayPauseUseCase()
         }
@@ -101,6 +111,10 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             addToQueueUseCase(song)
         }
+    }
+
+    fun toggleLike() {
+        _uiState.update { it.copy(isLiked = !it.isLiked) }
     }
 }
 

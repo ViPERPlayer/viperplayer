@@ -70,7 +70,7 @@ fun Effect(
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
         Row(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .height(64.dp)
                 .fillMaxWidth()
                 .clickable(enabled = (content != null) || (checked != null && onCheckedChange != null)) {
@@ -81,7 +81,7 @@ fun Effect(
                     }
                 }
                 .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.Companion.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
@@ -89,10 +89,10 @@ fun Effect(
             )
             Text(
                 text = title,
-                modifier = Modifier.Companion.weight(1f),
+                modifier = Modifier.weight(1f),
                 fontSize = 18.sp,
                 letterSpacing = 0.5.sp,
-                overflow = TextOverflow.Companion.Ellipsis,
+                overflow = TextOverflow.Ellipsis,
                 maxLines = 1
             )
             if (checked != null && onCheckedChange != null) {

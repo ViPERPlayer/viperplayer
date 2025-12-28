@@ -59,7 +59,7 @@ fun ViperScreen(
 //                onOpenSettings = onNavigateToSettings,
 //            )
         },
-    ) { innerPadding ->
+    ) { contentPadding ->
 //        BottomSheet(
 //            onDismissRequest = { /*TODO*/ }
 //        ) {
@@ -69,7 +69,7 @@ fun ViperScreen(
 
         Column(
             modifier = Modifier
-                .padding(innerPadding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(rootPadding.bottom()),
         ) {

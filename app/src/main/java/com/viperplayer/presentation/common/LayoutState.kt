@@ -42,7 +42,7 @@ fun determineLayoutVisibility(
 
     return LayoutVisibilityState(
         showBottomNavBar = showBottomNavBar,
-        showMiniPlayer = showMiniPlayer,
+        showMiniPlayer = true,
     )
 }
 

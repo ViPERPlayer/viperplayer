@@ -34,13 +34,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.viperplayer.presentation.common.MiniPlayer
 import com.viperplayer.presentation.common.determineLayoutVisibility
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
 import com.viperplayer.presentation.navigation.Search
 import com.viperplayer.presentation.navigation.Viper
 import com.viperplayer.presentation.navigation.ViperNavHost
+import com.viperplayer.presentation.player.MiniPlayer
 import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import kotlinx.coroutines.launch
@@ -131,8 +131,6 @@ fun ViperPlayerApp(
 
                 val miniPlayerMeasurables = subcompose(SubcomposeSlot.MiniPlayer) {
                     MiniPlayer(
-                        playerState = playerState,
-                        onPlayPauseClick = { viewModel.togglePlayPause() },
                         onMiniPlayerClick = { showPlayerBottomSheet = true },
                     )
                 }

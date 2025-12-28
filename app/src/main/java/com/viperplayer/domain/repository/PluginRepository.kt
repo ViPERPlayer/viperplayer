@@ -62,7 +62,12 @@ interface PluginRepository {
      * Get enabled state for a plugin.
      */
     val pluginEnabledStates: Flow<Map<String, Boolean>>
-    
+
+    /**
+     * Gets search suggestions across all connected plugins.
+     */
+    suspend fun getSearchSuggestions(query: String): Flow<List<Result<List<String>>>>
+
     /**
      * Search across all connected plugins.
      */

@@ -27,6 +27,7 @@ import com.viperplayer.plugin.aidl.IPlaylistCallback
 import com.viperplayer.plugin.aidl.IPlaylistsCallback
 import com.viperplayer.plugin.aidl.IPluginServiceV1
 import com.viperplayer.plugin.aidl.ISearchCallback
+import com.viperplayer.plugin.aidl.ISearchSuggestionsCallback
 import com.viperplayer.plugin.aidl.ISongsCallback
 import com.viperplayer.plugin.sdk.PluginConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -34,9 +35,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -45,6 +50,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import com.viperplayer.plugin.aidl.Album as AidlAlbum
 import com.viperplayer.plugin.aidl.Artist as AidlArtist
 import com.viperplayer.plugin.aidl.BrowseCategory as AidlBrowseCategory
@@ -70,6 +76,9 @@ class PluginDataSource @Inject constructor(
     
     private val _connectedPlugins = MutableStateFlow<Map<String, ConnectedPluginData>>(emptyMap())
     val connectedPlugins: StateFlow<Map<String, ConnectedPluginData>> = _connectedPlugins.asStateFlow()
+    
+    // Track ongoing connection attempts to prevent duplicates
+    private val ongoingConnections = mutableMapOf<String, ServiceConnection>()
     
     private val hostCallback = HostCallbackImpl()
     
@@ -177,15 +186,40 @@ class PluginDataSource @Inject constructor(
         val discovered = _discoveredPlugins.value[pluginId]
             ?: throw IllegalArgumentException("Plugin not found: $pluginId")
         
+        // Unbind any existing ongoing connection attempt
+        synchronized(ongoingConnections) {
+            ongoingConnections[pluginId]?.let { oldConnection ->
+                Timber.d("Unbinding existing connection attempt for plugin: $pluginId")
+                try {
+                    context.unbindService(oldConnection)
+                } catch (e: Exception) {
+                    Timber.w(e, "Error unbinding old connection for plugin: $pluginId")
+                }
+                ongoingConnections.remove(pluginId)
+            }
+        }
+        
         return suspendCancellableCoroutine { cont ->
             var connectionEstablished = false
             val connection = object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                     Timber.d("onServiceConnected() called: name=$name for plugin: $pluginId")
+                    
+                    // Check if continuation is already completed (race condition protection)
+                    if (cont.isCompleted) {
+                        Timber.w("onServiceConnected() called but continuation already completed for plugin: $pluginId")
+                        return
+                    }
+                    
                     connectionEstablished = true
                     
                     if (binder == null) {
-                        cont.resumeWithException(IllegalStateException("Binder is null for plugin: $pluginId"))
+                        synchronized(ongoingConnections) {
+                            ongoingConnections.remove(pluginId)
+                        }
+                        if (!cont.isCompleted) {
+                            cont.resumeWithException(IllegalStateException("Binder is null for plugin: $pluginId"))
+                        }
                         return
                     }
 
@@ -193,19 +227,37 @@ class PluginDataSource @Inject constructor(
                         val connectedData = when (discovered.apiVersion) {
                             1 -> connectPluginV1(discovered, binder)
                             else -> {
-                                cont.resumeWithException(IllegalStateException("Unsupported API version: ${discovered.apiVersion} for plugin: $pluginId"))
+                                synchronized(ongoingConnections) {
+                                    ongoingConnections.remove(pluginId)
+                                }
+                                if (!cont.isCompleted) {
+                                    cont.resumeWithException(IllegalStateException("Unsupported API version: ${discovered.apiVersion} for plugin: $pluginId"))
+                                }
                                 return
                             }
                         }
 
-                        cont.resume(connectedData)
+                        synchronized(ongoingConnections) {
+                            ongoingConnections.remove(pluginId)
+                        }
+                        if (!cont.isCompleted) {
+                            cont.resume(connectedData)
+                        }
                     } catch (e: Exception) {
-                        cont.resumeWithException(e)
+                        synchronized(ongoingConnections) {
+                            ongoingConnections.remove(pluginId)
+                        }
+                        if (!cont.isCompleted) {
+                            cont.resumeWithException(e)
+                        }
                     }
                 }
                 
                 override fun onServiceDisconnected(name: ComponentName) {
                     Timber.w("onServiceDisconnected() called: $name for plugin: $pluginId")
+                    synchronized(ongoingConnections) {
+                        ongoingConnections.remove(pluginId)
+                    }
                     _connectedPlugins.update { it - pluginId }
                     
                     // Auto-reconnect if enabled
@@ -228,17 +280,28 @@ class PluginDataSource @Inject constructor(
                 
                 override fun onBindingDied(name: ComponentName) {
                     Timber.e("onBindingDied() called: $name for plugin: $pluginId")
-                    if (!connectionEstablished) {
+                    synchronized(ongoingConnections) {
+                        ongoingConnections.remove(pluginId)
+                    }
+                    if (!connectionEstablished && !cont.isCompleted) {
                         cont.resumeWithException(IllegalStateException("Binding died before connection established for plugin: $pluginId"))
                     }
                 }
                 
                 override fun onNullBinding(name: ComponentName) {
                     Timber.e("onNullBinding() called: $name for plugin: $pluginId")
-                    if (!connectionEstablished) {
+                    synchronized(ongoingConnections) {
+                        ongoingConnections.remove(pluginId)
+                    }
+                    if (!connectionEstablished && !cont.isCompleted) {
                         cont.resumeWithException(IllegalStateException("Null binding for plugin: $pluginId"))
                     }
                 }
+            }
+            
+            // Track this connection attempt
+            synchronized(ongoingConnections) {
+                ongoingConnections[pluginId] = connection
             }
             
             // Create intent with explicit component
@@ -252,25 +315,48 @@ class PluginDataSource @Inject constructor(
                 Timber.d("bindService() returned: $bound for plugin: $pluginId")
                 
                 if (!bound) {
-                    cont.resumeWithException(IllegalStateException("Failed to bind to plugin service: $pluginId. Service may not exist or may not be exported."))
+                    synchronized(ongoingConnections) {
+                        ongoingConnections.remove(pluginId)
+                    }
+                    if (!cont.isCompleted) {
+                        cont.resumeWithException(IllegalStateException("Failed to bind to plugin service: $pluginId. Service may not exist or may not be exported."))
+                    }
                 } else {
                     Timber.d("Service bind initiated successfully for plugin: $pluginId")
                     // Set a timeout to detect if onServiceConnected never gets called
                     scope.launch {
                         delay(10000) // 10 second timeout
                         if (!connectionEstablished && !cont.isCompleted) {
-                            cont.resumeWithException(IllegalStateException("Timeout waiting for service connection: $pluginId."))
+                            synchronized(ongoingConnections) {
+                                ongoingConnections.remove(pluginId)
+                            }
+                            if (!cont.isCompleted) {
+                                cont.resumeWithException(IllegalStateException("Timeout waiting for service connection: $pluginId."))
+                            }
                         }
                     }
                 }
             } catch (e: SecurityException) {
-                cont.resumeWithException(IllegalStateException("Security exception binding to plugin: $pluginId", e))
+                synchronized(ongoingConnections) {
+                    ongoingConnections.remove(pluginId)
+                }
+                if (!cont.isCompleted) {
+                    cont.resumeWithException(IllegalStateException("Security exception binding to plugin: $pluginId", e))
+                }
             } catch (e: Exception) {
-                cont.resumeWithException(IllegalStateException("Exception binding to plugin: $pluginId", e))
+                synchronized(ongoingConnections) {
+                    ongoingConnections.remove(pluginId)
+                }
+                if (!cont.isCompleted) {
+                    cont.resumeWithException(IllegalStateException("Exception binding to plugin: $pluginId", e))
+                }
             }
             
             cont.invokeOnCancellation {
                 Timber.d("Connection cancelled for plugin: $pluginId")
+                synchronized(ongoingConnections) {
+                    ongoingConnections.remove(pluginId)
+                }
                 try {
                     context.unbindService(connection)
                 } catch (e: Exception) {
@@ -321,6 +407,20 @@ class PluginDataSource @Inject constructor(
     fun disconnectPlugin(pluginId: String) {
         Timber.d("Disconnecting plugin: $pluginId")
         val connected = _connectedPlugins.value[pluginId]
+        
+        // Clean up any ongoing connection attempts
+        synchronized(ongoingConnections) {
+            ongoingConnections[pluginId]?.let { ongoingConnection ->
+                Timber.d("Unbinding ongoing connection attempt for plugin: $pluginId")
+                try {
+                    context.unbindService(ongoingConnection)
+                } catch (e: Exception) {
+                    Timber.w(e, "Error unbinding ongoing connection for plugin: $pluginId")
+                }
+                ongoingConnections.remove(pluginId)
+            }
+        }
+        
         if (connected == null) {
             Timber.w("Plugin $pluginId not connected, nothing to disconnect")
             return
@@ -731,6 +831,34 @@ class PluginDataSource @Inject constructor(
                 cont.resumeWithException(e)
             }
         }
+    }
+
+    // Gets search suggestions from all plugins asynchronously and publishes merged results
+    // as soon as it gets them
+    fun getSearchSuggestions(query: String): Flow<List<Result<List<String>>>> {
+        return channelFlow {
+            _connectedPlugins.value.forEach { (_, plugin) ->
+                launch {
+                    val result = try {
+                        val suggestions = suspendCoroutine { continuation ->
+                            plugin.service.getSearchSuggestions(query, object : ISearchSuggestionsCallback.Stub() {
+                                override fun onSuccess(result: List<String>) {
+                                    continuation.resume(result)
+                                }
+                            })
+                        }
+                        Result.success(suggestions)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to get search suggestions from plugin")
+                        Result.failure(e)
+                    }
+
+                    send(result)
+                }
+            }
+        }
+            .scan(emptyList<Result<List<String>>>()) { acc, value -> acc + value }
+            .drop(1)
     }
 
     private inner class HostCallbackImpl : IHostCallbackV1.Stub() {

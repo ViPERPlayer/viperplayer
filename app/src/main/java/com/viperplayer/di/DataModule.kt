@@ -2,9 +2,11 @@ package com.viperplayer.di
 
 import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
+import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.Binds
 import dagger.Module
@@ -30,6 +32,12 @@ abstract class DataModule {
     abstract fun bindPluginRepository(
         impl: PluginRepositoryImpl
     ): PluginRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSearchRepository(
+        impl: SearchRepositoryImpl
+    ): SearchRepository
 
     @Binds
     @Singleton

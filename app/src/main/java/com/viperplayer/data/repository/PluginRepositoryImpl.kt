@@ -125,6 +125,12 @@ class PluginRepositoryImpl @Inject constructor(
                 enabledSet.contains(pluginId)
             }
         }
+
+    // Gets search suggestions from all plugins asynchronously and publishes merged results
+    // as soon as it gets them
+    override suspend fun getSearchSuggestions(query: String): Flow<List<Result<List<String>>>> {
+        return dataSource.getSearchSuggestions(query)
+    }
     
     override suspend fun search(
         query: String,
