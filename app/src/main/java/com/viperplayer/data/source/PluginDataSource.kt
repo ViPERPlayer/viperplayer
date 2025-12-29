@@ -862,7 +862,6 @@ class PluginDataSource @Inject constructor(
     }
 
     private inner class HostCallbackImpl : IHostCallbackV1.Stub() {
-        override fun getHostApiVersion(): Int = PluginConstants.CURRENT_API_VERSION
         override fun play(mediaId: AidlMediaId) {}
         override fun pause() {}
         override fun resume() {}
