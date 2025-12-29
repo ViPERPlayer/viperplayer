@@ -17,19 +17,19 @@ import com.viperplayer.domain.model.PluginCapabilities
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.aidl.IAlbumCallback
-import com.viperplayer.plugin.aidl.IAlbumsCallback
-import com.viperplayer.plugin.aidl.IArtistCallback
-import com.viperplayer.plugin.aidl.IArtistsCallback
-import com.viperplayer.plugin.aidl.ICategoriesCallback
-import com.viperplayer.plugin.aidl.IHostCallbackV1
-import com.viperplayer.plugin.aidl.IPlaylistCallback
-import com.viperplayer.plugin.aidl.IPlaylistsCallback
-import com.viperplayer.plugin.aidl.IPluginServiceV1
-import com.viperplayer.plugin.aidl.ISearchCallback
-import com.viperplayer.plugin.aidl.ISearchSuggestionsCallback
-import com.viperplayer.plugin.aidl.ISongsCallback
 import com.viperplayer.plugin.sdk.PluginConstants
+import com.viperplayer.plugin.sdk.v1.IAlbumCallback
+import com.viperplayer.plugin.sdk.v1.IAlbumsCallback
+import com.viperplayer.plugin.sdk.v1.IArtistCallback
+import com.viperplayer.plugin.sdk.v1.IArtistsCallback
+import com.viperplayer.plugin.sdk.v1.ICategoriesCallback
+import com.viperplayer.plugin.sdk.v1.IHostCallbackV1
+import com.viperplayer.plugin.sdk.v1.IPlaylistCallback
+import com.viperplayer.plugin.sdk.v1.IPlaylistsCallback
+import com.viperplayer.plugin.sdk.v1.IPluginServiceV1
+import com.viperplayer.plugin.sdk.v1.ISearchCallback
+import com.viperplayer.plugin.sdk.v1.ISearchSuggestionsCallback
+import com.viperplayer.plugin.sdk.v1.ISongsCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,14 +51,14 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import com.viperplayer.plugin.aidl.Album as AidlAlbum
-import com.viperplayer.plugin.aidl.Artist as AidlArtist
-import com.viperplayer.plugin.aidl.BrowseCategory as AidlBrowseCategory
-import com.viperplayer.plugin.aidl.MediaId as AidlMediaId
-import com.viperplayer.plugin.aidl.PlayerState as AidlPlayerState
-import com.viperplayer.plugin.aidl.Playlist as AidlPlaylist
-import com.viperplayer.plugin.aidl.SearchResult as AidlSearchResult
-import com.viperplayer.plugin.aidl.Song as AidlSong
+import com.viperplayer.plugin.sdk.v1.Album as AidlAlbum
+import com.viperplayer.plugin.sdk.v1.Artist as AidlArtist
+import com.viperplayer.plugin.sdk.v1.BrowseCategory as AidlBrowseCategory
+import com.viperplayer.plugin.sdk.v1.MediaId as AidlMediaId
+import com.viperplayer.plugin.sdk.v1.PlayerState as AidlPlayerState
+import com.viperplayer.plugin.sdk.v1.Playlist as AidlPlaylist
+import com.viperplayer.plugin.sdk.v1.SearchResult as AidlSearchResult
+import com.viperplayer.plugin.sdk.v1.Song as AidlSong
 
 /**
  * Data source for plugin operations.

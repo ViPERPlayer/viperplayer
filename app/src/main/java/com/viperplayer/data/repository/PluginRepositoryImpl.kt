@@ -370,7 +370,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getAlbum(mediaId: MediaId): Result<Album> {
         return try {
             Timber.d("getAlbum() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
+            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(mediaId.pluginId, mediaId.sourceId)
             val album = dataSource.getAlbum(aidlMediaId)
             Timber.d("getAlbum() completed: ${album.name}")
             Result.success(album)
@@ -383,7 +383,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
         return try {
             Timber.d("getArtist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
+            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(mediaId.pluginId, mediaId.sourceId)
             val artist = dataSource.getArtist(aidlMediaId)
             Timber.d("getArtist() completed: ${artist.name}")
             Result.success(artist)
@@ -396,7 +396,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
         return try {
             Timber.d("getPlaylist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(mediaId.pluginId, mediaId.sourceId)
+            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(mediaId.pluginId, mediaId.sourceId)
             val playlist = dataSource.getPlaylist(aidlMediaId)
             Timber.d("getPlaylist() completed: ${playlist.name}")
             Result.success(playlist)
@@ -413,7 +413,7 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Song>> {
         return try {
             Timber.d("getArtistSongs() called for: ${artistId.pluginId}:${artistId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(artistId.pluginId, artistId.sourceId)
+            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(artistId.pluginId, artistId.sourceId)
             val result = dataSource.getArtistSongs(aidlMediaId, cursor, limit)
             Timber.d("getArtistSongs() completed: ${result.items.size} songs")
             Result.success(result)
@@ -430,7 +430,7 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Album>> {
         return try {
             Timber.d("getArtistAlbums() called for: ${artistId.pluginId}:${artistId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(artistId.pluginId, artistId.sourceId)
+            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(artistId.pluginId, artistId.sourceId)
             val result = dataSource.getArtistAlbums(aidlMediaId, cursor, limit)
             Timber.d("getArtistAlbums() completed: ${result.items.size} albums")
             Result.success(result)
@@ -447,7 +447,7 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Song>> {
         return try {
             Timber.d("getPlaylistSongs() called for: ${playlistId.pluginId}:${playlistId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.aidl.MediaId(playlistId.pluginId, playlistId.sourceId)
+            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(playlistId.pluginId, playlistId.sourceId)
             val result = dataSource.getPlaylistSongs(aidlMediaId, cursor, limit)
             Timber.d("getPlaylistSongs() completed: ${result.items.size} songs")
             Result.success(result)
