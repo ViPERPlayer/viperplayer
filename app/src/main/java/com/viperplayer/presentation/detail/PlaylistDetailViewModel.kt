@@ -76,7 +76,7 @@ class PlaylistDetailViewModel @Inject constructor(
                     playlist.songs
                 } else {
                     val songsResult = getPlaylistSongsUseCase(mediaId, limit = 100)
-                    songsResult.getOrNull()?.items ?: emptyList()
+                    songsResult.getOrNull()?.items.orEmpty()
                 }
 
                 _uiState.update {

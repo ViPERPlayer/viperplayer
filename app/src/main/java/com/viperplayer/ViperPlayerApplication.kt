@@ -4,8 +4,6 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
-import coil3.disk.DiskCache
-import coil3.request.CachePolicy
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.ktx.awaitBlocking
 import dagger.hilt.android.HiltAndroidApp
@@ -60,16 +58,16 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
         val cacheSize = cacheSizeDeferred.awaitBlocking()
 
         return ImageLoader.Builder(this)
-            .apply {
-                if (cacheSize == 0L)
-                    diskCachePolicy(CachePolicy.DISABLED)
-                else
-                    diskCache {
-                        DiskCache.Builder()
-                            .maxSizeBytes(cacheSize)
-                            .build()
-                    }
-            }
+//            .apply {
+//                if (cacheSize == 0L)
+//                    diskCachePolicy(CachePolicy.DISABLED)
+//                else
+//                    diskCache {
+//                        DiskCache.Builder()
+//                            .maxSizeBytes(cacheSize)
+//                            .build()
+//                    }
+//            }
             .build()
     }
 }

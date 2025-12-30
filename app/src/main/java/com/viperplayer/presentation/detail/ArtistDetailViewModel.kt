@@ -82,11 +82,11 @@ class ArtistDetailViewModel @Inject constructor(
 
                 // Load artist songs
                 val songsResult = getArtistSongsUseCase(mediaId, limit = 20)
-                val topSongs = songsResult.getOrNull()?.items ?: emptyList()
+                val topSongs = songsResult.getOrNull()?.items.orEmpty()
 
                 // Load artist albums
                 val albumsResult = getArtistAlbumsUseCase(mediaId, limit = 20)
-                val albums = albumsResult.getOrNull()?.items ?: emptyList()
+                val albums = albumsResult.getOrNull()?.items.orEmpty()
 
                 _uiState.update {
                     it.copy(

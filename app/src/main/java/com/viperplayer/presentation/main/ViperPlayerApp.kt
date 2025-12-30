@@ -78,7 +78,7 @@ fun ViperPlayerApp(
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val playerState by viewModel.playerState.collectAsState()
 
-            var showPlayerBottomSheet by remember { mutableStateOf(true) }
+            var showPlayerBottomSheet by remember { mutableStateOf(false) }
 
             val bottomNavItems = listOf(
                 BottomNavItem(Home, "Home", Icons.Rounded.Home),

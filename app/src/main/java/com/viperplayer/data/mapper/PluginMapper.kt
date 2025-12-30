@@ -28,12 +28,12 @@ import com.viperplayer.plugin.sdk.v1.Song as AidlSong
  */
 object PluginMapper {
     
-    fun AidlMediaId.toDomain(): MediaId = MediaId(pluginId, sourceId)
+    fun String.toDomain(pluginId: String): MediaId = MediaId(pluginId, this)
     
     fun MediaId.toAidl(): AidlMediaId = AidlMediaId(pluginId, sourceId)
     
-    fun AidlArtist.toDomain(): Artist = Artist(
-        id = id.toDomain(),
+    fun AidlArtist.toDomain(pluginId: String): Artist = Artist(
+        id = id.toDomain(pluginId),
         name = name,
         imageUrl = imageUrl,
         genres = genres,
@@ -48,22 +48,22 @@ object PluginMapper {
         AidlAlbumType.COMPILATION -> AlbumType.COMPILATION
     }
     
-    fun AidlAlbum.toDomain(): Album = Album(
-        id = id.toDomain(),
+    fun AidlAlbum.toDomain(pluginId: String): Album = Album(
+        id = id.toDomain(pluginId),
         name = name,
-        artists = artists.map { it.toDomain() },
+        artists = artists.map { it.toDomain(pluginId) },
         artworkUrl = artworkUrl,
         releaseYear = releaseYear,
         trackCount = trackCount,
         type = type.toDomain(),
-        songs = songs?.map { it.toDomain() }
+        songs = songs?.map { it.toDomain(pluginId) }
     )
     
-    fun AidlSong.toDomain(): Song = Song(
-        id = id.toDomain(),
+    fun AidlSong.toDomain(pluginId: String): Song = Song(
+        id = id.toDomain(pluginId),
         title = title,
-        artists = artists.map { it.toDomain() },
-        album = album?.toDomain(),
+        artists = artists.map { it.toDomain(pluginId) },
+        album = album?.toDomain(pluginId),
         durationMs = durationMs,
         artworkUrl = artworkUrl,
         trackNumber = trackNumber,
@@ -72,8 +72,8 @@ object PluginMapper {
         isPlayable = isPlayable
     )
     
-    fun AidlPlaylist.toDomain(): Playlist = Playlist(
-        id = id.toDomain(),
+    fun AidlPlaylist.toDomain(pluginId: String): Playlist = Playlist(
+        id = id.toDomain(pluginId),
         name = name,
         description = description,
         artworkUrl = artworkUrl,
@@ -81,7 +81,7 @@ object PluginMapper {
         songCount = songCount,
         isPublic = isPublic,
         isEditable = isEditable,
-        songs = songs?.map { it.toDomain() }
+        songs = songs?.map { it.toDomain(pluginId) }
     )
     
     fun AidlCategoryContentType.toDomain(): CategoryContentType = when (this) {
@@ -102,11 +102,11 @@ object PluginMapper {
         contentType = contentType.toDomain()
     )
     
-    fun AidlSearchResult.toDomain(): SearchResult = SearchResult(
-        songs = songs.map { it.toDomain() },
-        albums = albums.map { it.toDomain() },
-        artists = artists.map { it.toDomain() },
-        playlists = playlists.map { it.toDomain() },
+    fun AidlSearchResult.toDomain(pluginId: String): SearchResult = SearchResult(
+        songs = songs.map { it.toDomain(pluginId) },
+        albums = albums.map { it.toDomain(pluginId) },
+        artists = artists.map { it.toDomain(pluginId) },
+        playlists = playlists.map { it.toDomain(pluginId) },
         nextCursor = nextCursor
     )
     

@@ -67,7 +67,7 @@ data class Song(
     val title: String,
     val artists: List<Artist> = emptyList(),
     val album: Album? = null,
-    val durationMs: Long = 0,
+    val durationMs: Long? = 0,
     val artworkUrl: String? = null,
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
@@ -82,18 +82,6 @@ data class Song(
     
     val effectiveArtworkUrl: String?
         get() = artworkUrl ?: album?.artworkUrl
-    
-    val durationFormatted: String
-        get() {
-            val seconds = (durationMs / 1000) % 60
-            val minutes = (durationMs / (1000 * 60)) % 60
-            val hours = durationMs / (1000 * 60 * 60)
-            return if (hours > 0) {
-                String.format("%d:%02d:%02d", hours, minutes, seconds)
-            } else {
-                String.format("%d:%02d", minutes, seconds)
-            }
-        }
 }
 
 /**
@@ -170,7 +158,7 @@ data class PluginInfo(
     val id: String,
     val name: String,
     val version: String,
-    val apiVersion: Int,
+    val apiVersion: Int?,
     val description: String? = null,
     val author: String? = null,
     val iconUrl: String? = null
@@ -221,7 +209,7 @@ data class PlayerState(
     val state: PlaybackState = PlaybackState.IDLE,
     val currentSong: Song? = null,
     val positionMs: Long = 0,
-    val durationMs: Long = 0,
+    val durationMs: Long? = 0,
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val volume: Float = 1.0f,
@@ -231,6 +219,5 @@ data class PlayerState(
     val isPlaying: Boolean get() = state == PlaybackState.PLAYING
     val isPaused: Boolean get() = state == PlaybackState.PAUSED
     val hasContent: Boolean get() = currentSong != null
-    val progress: Float get() = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
 }
 

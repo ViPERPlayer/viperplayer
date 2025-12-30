@@ -10,6 +10,7 @@ import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
+import com.viperplayer.plugin.sdk.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -66,7 +67,7 @@ interface PluginRepository {
     /**
      * Gets search suggestions across all connected plugins.
      */
-    suspend fun getSearchSuggestions(query: String): Flow<List<Result<List<String>>>>
+    suspend fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestionsResultV1>>>
 
     /**
      * Search across all connected plugins.

@@ -74,7 +74,7 @@ class LibraryViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                songs = result.getOrNull()?.items ?: emptyList()
+                                songs = result.getOrNull()?.items.orEmpty()
                             )
                         }
                     }
@@ -83,7 +83,7 @@ class LibraryViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                albums = result.getOrNull()?.items ?: emptyList()
+                                albums = result.getOrNull()?.items.orEmpty()
                             )
                         }
                     }
@@ -92,7 +92,7 @@ class LibraryViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                artists = result.getOrNull()?.items ?: emptyList()
+                                artists = result.getOrNull()?.items.orEmpty()
                             )
                         }
                     }
@@ -101,7 +101,7 @@ class LibraryViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                playlists = result.getOrNull()?.items ?: emptyList()
+                                playlists = result.getOrNull()?.items.orEmpty()
                             )
                         }
                     }

@@ -12,24 +12,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -39,19 +36,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -68,7 +64,8 @@ fun SearchScreen(
     onNavigateToPlaylist: (String) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = Modifier.fillMaxSize()
@@ -93,7 +90,7 @@ fun SearchScreen(
                         searchBarState = searchBarState,
                         onSearch = { scope.launch { searchBarState.animateToCollapsed() } },
                         placeholder = {
-                            Text(modifier = Modifier.clearAndSetSemantics {}, text = "Search")
+                            Text(modifier = Modifier.clearAndSetSemantics {}, text = "What's playing in your head?")
                         },
                         leadingIcon = {
                             if (searchBarState.currentValue == SearchBarValue.Expanded) {
@@ -105,10 +102,15 @@ fun SearchScreen(
                             }
                         },
                         trailingIcon = {
-                            IconButton(onClick = {
-                                textFieldState.clearText()
-                            }) {
-                                Icon(imageVector = Icons.Rounded.Close, contentDescription = "Mic")
+                            if (textFieldState.text.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    textFieldState.clearText()
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = "Clear"
+                                    )
+                                }
                             }
                         },
                     )
@@ -124,20 +126,73 @@ fun SearchScreen(
                 state = searchBarState,
                 inputField = inputField
             ) {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    uiState.suggestions.forEach { suggestion ->
-                        ListItem(
-                            headlineContent = { Text(suggestion) },
-                            supportingContent = { Text("Additional info") },
-                            leadingContent = { Icon(Icons.Filled.Star, contentDescription = null) },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            modifier =
-                                Modifier.clickable {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(
+                        items = uiState.history,
+                        key = { "history_$it" }
+                    ) { suggestion ->
+                        HistoryListItem(
+                            suggestion = suggestion,
+                            onRemove = { viewModel.removeHistoryEntry(suggestion) },
+                            onInsert = { textFieldState.setTextAndPlaceCursorAtEnd(suggestion) },
+                            modifier = Modifier
+                                .animateItem()
+                                .clickable {
                                     textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
                                     scope.launch { searchBarState.animateToCollapsed() }
                                 }
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                .fillMaxWidth()
+                        )
+                    }
+
+                    items (
+                        items = uiState.suggestions,
+                        key = { "suggestion_$it" }
+                    ) { suggestion ->
+                        SuggestionListItem(
+                            suggestion = suggestion,
+                            onInsert = { textFieldState.setTextAndPlaceCursorAtEnd(suggestion) },
+                            modifier = Modifier
+                                .animateItem()
+                                .clickable {
+                                    textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
+                                    scope.launch { searchBarState.animateToCollapsed() }
+                                }
+                                .fillMaxWidth()
+                        )
+                    }
+
+                    if ((uiState.history.isNotEmpty() || uiState.suggestions.isNotEmpty()) && uiState.items.isNotEmpty()) {
+                        item(
+                            key = "items_divider"
+                        ) {
+                            HorizontalDivider(
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                    }
+
+                    items(
+                        items = uiState.items,
+                        key = { "item_${it.id}" },
+                        contentType = { it.type }
+                    ) { item ->
+                        ListItem(
+                            type = item.type,
+                            title = item.title,
+                            badges = item.badges,
+                            subtitle = item.subtitle,
+                            artworkUrl = item.artworkUrl,
+                            isActive = item.isActive,
+                            isPlaying = uiState.isPlaying,
+                            modifier = Modifier
+                                .animateItem()
+                                .clickable {
+
+                                }
+                                .fillMaxWidth()
                         )
                     }
                 }
@@ -248,7 +303,7 @@ fun SearchScreen(
                 }
             }
 
-            if (uiState.query.isEmpty() && uiState.results == null) {
+            if (query.isEmpty() && uiState.results == null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -309,7 +364,7 @@ fun SongItem(
         },
         trailingContent = {
             Text(
-                text = song.durationFormatted,
+                text = "song.durationFormatted",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

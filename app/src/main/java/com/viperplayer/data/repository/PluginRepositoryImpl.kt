@@ -13,6 +13,7 @@ import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.plugin.sdk.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -42,7 +43,7 @@ class PluginRepositoryImpl @Inject constructor(
                     id = discovered.id,
                     name = discovered.name,
                     version = discovered.version,
-                    apiVersion = discovered.apiVersion,
+                    apiVersion = null,
                     description = discovered.description,
                     author = null,
                     iconUrl = discovered.iconUrl
@@ -128,7 +129,7 @@ class PluginRepositoryImpl @Inject constructor(
 
     // Gets search suggestions from all plugins asynchronously and publishes merged results
     // as soon as it gets them
-    override suspend fun getSearchSuggestions(query: String): Flow<List<Result<List<String>>>> {
+    override suspend fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestionsResultV1>>> {
         return dataSource.getSearchSuggestions(query)
     }
     
