@@ -88,7 +88,12 @@ fun SearchScreen(
                     SearchBarDefaults.InputField(
                         textFieldState = textFieldState,
                         searchBarState = searchBarState,
-                        onSearch = { scope.launch { searchBarState.animateToCollapsed() } },
+                        onSearch = {
+                            scope.launch {
+                                viewModel.performSearch(it)
+                                searchBarState.animateToCollapsed()
+                            }
+                        },
                         placeholder = {
                             Text(modifier = Modifier.clearAndSetSemantics {}, text = "What's playing in your head?")
                         },
@@ -141,7 +146,10 @@ fun SearchScreen(
                                 .animateItem()
                                 .clickable {
                                     textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
-                                    scope.launch { searchBarState.animateToCollapsed() }
+                                    scope.launch {
+                                        viewModel.performSearch(suggestion)
+                                        searchBarState.animateToCollapsed()
+                                    }
                                 }
                                 .fillMaxWidth()
                         )
@@ -158,7 +166,10 @@ fun SearchScreen(
                                 .animateItem()
                                 .clickable {
                                     textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
-                                    scope.launch { searchBarState.animateToCollapsed() }
+                                    scope.launch {
+                                        viewModel.performSearch(suggestion)
+                                        searchBarState.animateToCollapsed()
+                                    }
                                 }
                                 .fillMaxWidth()
                         )
@@ -209,101 +220,7 @@ fun SearchScreen(
                 }
             }
 
-            uiState.results?.let { results ->
-                if (results.isEmpty) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(rootPadding.bottom()),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No results found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = rootPadding.bottom()
-                    ) {
-                        // Songs section
-                        if (results.songs.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Songs",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(results.songs.take(5)) { song ->
-                                SongItem(
-                                    song = song,
-                                    onClick = { viewModel.playSong(song) }
-                                )
-                            }
-                        }
-
-                        // Albums section
-                        if (results.albums.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Albums",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(results.albums.take(5)) { album ->
-                                AlbumItem(
-                                    album = album,
-                                    onClick = { onNavigateToAlbum(album.id.toString()) }
-                                )
-                            }
-                        }
-
-                        // Artists section
-                        if (results.artists.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Artists",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(results.artists.take(5)) { artist ->
-                                ArtistItem(
-                                    artist = artist,
-                                    onClick = { onNavigateToArtist(artist.id.toString()) }
-                                )
-                            }
-                        }
-
-                        // Playlists section
-                        if (results.playlists.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Playlists",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(results.playlists.take(5)) { playlist ->
-                                PlaylistItem(
-                                    playlist = playlist,
-                                    onClick = { onNavigateToPlaylist(playlist.id.toString()) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (query.isEmpty() && uiState.results == null) {
+            if (query.isEmpty() && uiState.results.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -323,6 +240,55 @@ fun SearchScreen(
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            } else if (uiState.results.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(rootPadding.bottom()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No results found",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = rootPadding.bottom()
+                ) {
+                    uiState.results.forEach { section ->
+                        item {
+                            Text(
+                                text = section.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        items(
+                            items = section.items,
+                        ) { item ->
+                            ListItem(
+                                type = item.type,
+                                title = item.title,
+                                badges = item.badges,
+                                subtitle = item.subtitle,
+                                artworkUrl = item.artworkUrl,
+                                isActive = item.isActive,
+                                isPlaying = uiState.isPlaying,
+                                modifier = Modifier
+                                    .animateItem()
+                                    .clickable {
+
+                                    }
+                                    .fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }

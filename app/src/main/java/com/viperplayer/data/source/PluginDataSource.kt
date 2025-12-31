@@ -16,11 +16,15 @@ import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.PluginInfo
-import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.plugin.sdk.IConnectCallback
 import com.viperplayer.plugin.sdk.PluginConstants
+import com.viperplayer.plugin.sdk.v1.IAlbumsCallback
+import com.viperplayer.plugin.sdk.v1.IArtistsCallback
 import com.viperplayer.plugin.sdk.v1.IHostCallbackV1
+import com.viperplayer.plugin.sdk.v1.IPlaylistsCallback
+import com.viperplayer.plugin.sdk.v1.ISearchCallback
+import com.viperplayer.plugin.sdk.v1.ISongsCallback
 import com.viperplayer.plugin.sdk.v1.IViperPluginV1
 import com.viperplayer.plugin.sdk.v1.SearchSuggestionsResultV1
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,8 +45,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import com.viperplayer.plugin.sdk.v1.Artist as AidlArtist
 import com.viperplayer.plugin.sdk.v1.MediaId as AidlMediaId
 import com.viperplayer.plugin.sdk.v1.PlayerState as AidlPlayerState
+import com.viperplayer.plugin.sdk.v1.Playlist as AidlPlaylist
+import com.viperplayer.plugin.sdk.v1.SearchResult as AidlSearchResult
 import com.viperplayer.plugin.sdk.v1.Song as AidlSong
 
 /**
@@ -491,8 +498,28 @@ class PluginDataSource @Inject constructor(
         types: Int,
         cursor: String?,
         limit: Int
-    ): SearchResult {
-        TODO()
+    ): AidlSearchResult {
+        Timber.d("Searching in plugin: $pluginId, query: $query, types: $types, limit: $limit")
+        val plugin = getPlugin(pluginId)
+        if (plugin == null) {
+            Timber.e("Plugin not connected for search: $pluginId")
+            throw IllegalStateException("Plugin not connected: $pluginId")
+        }
+
+        return suspendCancellableCoroutine { cont ->
+            Timber.d("Calling search() on plugin service: $pluginId")
+            try {
+                plugin.service.search(query, types, cursor, limit, object : ISearchCallback.Stub() {
+                    override fun onSuccess(result: AidlSearchResult) {
+                        Timber.d("Search result received from plugin: $pluginId, sections: ${result.sections.size}")
+                        cont.resume(result/*.toDomain(pluginId)*/)
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Search failed for plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     /**
@@ -514,7 +541,26 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
-        TODO()
+        Timber.d("Getting library songs from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        val plugin = getPlugin(pluginId)
+        if (plugin == null) {
+            Timber.e("Plugin not connected for library songs: $pluginId")
+            throw IllegalStateException("Plugin not connected: $pluginId")
+        }
+
+        return suspendCancellableCoroutine { cont ->
+            try {
+                plugin.service.getLibrarySongs(cursor, limit, object : ISongsCallback.Stub() {
+                    override fun onSuccess(songs: MutableList<AidlSong>, nextCursor: String?) {
+                        Timber.d("Library songs received from plugin: $pluginId, count: ${songs.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(songs.map { it.toDomain(pluginId) }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library songs from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     /**
@@ -525,7 +571,26 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Album> {
-        TODO()
+        Timber.d("Getting library albums from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        val plugin = getPlugin(pluginId)
+        if (plugin == null) {
+            Timber.e("Plugin not connected for library albums: $pluginId")
+            throw IllegalStateException("Plugin not connected: $pluginId")
+        }
+
+        return suspendCancellableCoroutine { cont ->
+            try {
+                plugin.service.getLibraryAlbums(cursor, limit, object : IAlbumsCallback.Stub() {
+                    override fun onSuccess(albums: MutableList<com.viperplayer.plugin.sdk.v1.Album>, nextCursor: String?) {
+                        Timber.d("Library albums received from plugin: $pluginId, count: ${albums.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(albums.map { it.toDomain(pluginId) }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library albums from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     /**
@@ -536,7 +601,26 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Artist> {
-        TODO()
+        Timber.d("Getting library artists from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        val plugin = getPlugin(pluginId)
+        if (plugin == null) {
+            Timber.e("Plugin not connected for library artists: $pluginId")
+            throw IllegalStateException("Plugin not connected: $pluginId")
+        }
+
+        return suspendCancellableCoroutine { cont ->
+            try {
+                plugin.service.getLibraryArtists(cursor, limit, object : IArtistsCallback.Stub() {
+                    override fun onSuccess(artists: MutableList<AidlArtist>, nextCursor: String?) {
+                        Timber.d("Library artists received from plugin: $pluginId, count: ${artists.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(artists.map { it.toDomain(pluginId) }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library artists from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     /**
@@ -547,7 +631,37 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<Playlist> {
-        TODO()
+        Timber.d("Getting library playlists from plugin: $pluginId, cursor: $cursor, limit: $limit")
+        val plugin = getPlugin(pluginId)
+        if (plugin == null) {
+            Timber.e("Plugin not connected for library playlists: $pluginId")
+            throw IllegalStateException("Plugin not connected: $pluginId")
+        }
+
+        return suspendCancellableCoroutine { cont ->
+            try {
+                plugin.service.getLibraryPlaylists(
+                    cursor,
+                    limit,
+                    object : IPlaylistsCallback.Stub() {
+                        override fun onSuccess(
+                            playlists: MutableList<AidlPlaylist>,
+                            nextCursor: String?
+                        ) {
+                            Timber.d("Library playlists received from plugin: $pluginId, count: ${playlists.size}, nextCursor: $nextCursor")
+                            cont.resume(
+                                PagedResult(
+                                    playlists.map { it.toDomain(pluginId) },
+                                    nextCursor
+                                )
+                            )
+                        }
+                    })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get library playlists from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     /**

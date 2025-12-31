@@ -77,7 +77,7 @@ interface PluginRepository {
         types: Int = SEARCH_TYPE_ALL,
         cursor: String? = null,
         limit: Int = 20
-    ): Result<SearchResult>
+    ): Result<com.viperplayer.plugin.sdk.v1.SearchResult>
     
     /**
      * Search within a specific plugin.

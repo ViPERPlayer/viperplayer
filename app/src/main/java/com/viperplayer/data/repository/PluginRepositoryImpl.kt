@@ -138,11 +138,11 @@ class PluginRepositoryImpl @Inject constructor(
         types: Int,
         cursor: String?,
         limit: Int
-    ): Result<SearchResult> = coroutineScope {
+    ): Result<com.viperplayer.plugin.sdk.v1.SearchResult> = coroutineScope {
         try {
             val plugins = dataSource.connectedPlugins.value
             if (plugins.isEmpty()) {
-                return@coroutineScope Result.success(SearchResult())
+                return@coroutineScope Result.success(com.viperplayer.plugin.sdk.v1.SearchResult())
             }
             
             val results = plugins.keys.map { pluginId ->
@@ -150,17 +150,17 @@ class PluginRepositoryImpl @Inject constructor(
                     try {
                         dataSource.search(pluginId, query, types, cursor, limit)
                     } catch (e: Exception) {
-                        SearchResult() // Return empty on error
+                        com.viperplayer.plugin.sdk.v1.SearchResult(
+                            emptyList(), null
+                        ) // Return empty on error
                     }
                 }
             }.awaitAll()
             
             // Merge results from all plugins
-            val merged = SearchResult(
-                songs = results.flatMap { it.songs },
-                albums = results.flatMap { it.albums },
-                artists = results.flatMap { it.artists },
-                playlists = results.flatMap { it.playlists }
+            val merged = com.viperplayer.plugin.sdk.v1.SearchResult(
+                sections = results.flatMap { it.sections },
+                nextCursor = null
             )
             
             Result.success(merged)
@@ -176,12 +176,13 @@ class PluginRepositoryImpl @Inject constructor(
         cursor: String?,
         limit: Int
     ): Result<SearchResult> {
-        return try {
-            val result = dataSource.search(pluginId, query, types, cursor, limit)
-            Result.success(result)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        TODO()
+//        return try {
+//            val result = dataSource.search(pluginId, query, types, cursor, limit)
+//            Result.success(result)
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
     }
     
     override suspend fun getBrowseCategories(

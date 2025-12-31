@@ -1,6 +1,5 @@
 package com.viperplayer.domain.usecase.search
 
-import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.repository.PluginRepository
 import javax.inject.Inject
 
@@ -15,7 +14,7 @@ class SearchUseCase @Inject constructor(
         types: Int = PluginRepository.SEARCH_TYPE_ALL,
         cursor: String? = null,
         limit: Int = 20
-    ): Result<SearchResult> {
+    ): Result<com.viperplayer.plugin.sdk.v1.SearchResult> {
         return repository.search(query, types, cursor, limit)
     }
 }
