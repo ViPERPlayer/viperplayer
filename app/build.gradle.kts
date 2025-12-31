@@ -44,6 +44,7 @@ android {
             optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
             optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
             optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            optIn.add("androidx.media3.common.util.UnstableApi")
         }
     }
 
@@ -75,7 +76,8 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     
-    // Kotlinx Serialization
+    // Kotlinx
+    implementation(libs.kotlinx.coroutines.guava)
     implementation(libs.kotlinx.serialization.json)
 
     // Ktor Client

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.imageLoader
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.toBitmap
 import com.materialkolor.ktx.themeColorOrNull
 import com.viperplayer.domain.model.PlayerState
@@ -46,6 +47,7 @@ class ViperPlayerAppViewModel @Inject constructor(
                     val result = context.imageLoader.execute(
                         ImageRequest.Builder(context)
                             .data(artworkUrl)
+                            .allowHardware(false)
                             .build()
                     )
                     result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
