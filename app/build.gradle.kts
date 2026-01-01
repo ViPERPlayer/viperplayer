@@ -45,6 +45,7 @@ android {
             optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
             optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
             optIn.add("androidx.media3.common.util.UnstableApi")
+            optIn.add("kotlinx.coroutines.FlowPreview")
         }
     }
 
@@ -62,6 +63,7 @@ dependencies {
     // Core Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.service)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.palette.ktx)

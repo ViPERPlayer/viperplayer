@@ -2,9 +2,16 @@ package com.viperplayer.data.player
 
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.IBinder
 import androidx.annotation.OptIn
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ServiceLifecycleDispatcher
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.audio.AudioProcessorChain
 import androidx.media3.common.util.UnstableApi
@@ -23,19 +30,29 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import com.viperplayer.R
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @OptIn(UnstableApi::class)
-class PlaybackService : MediaLibraryService(), MediaLibraryService.MediaLibrarySession.Callback, Player.Listener {
+class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryService.MediaLibrarySession.Callback, Player.Listener {
     @Inject
     lateinit var viperPlayerResolver: ViperPlayerResolver
     @Inject
     lateinit var viperAnalyticsListener: ViperAnalyticsListener
 
+    private val dispatcher = ServiceLifecycleDispatcher(this)
+    override val lifecycle: Lifecycle
+        get() = dispatcher.lifecycle
+
     private lateinit var player: ExoPlayer
     private lateinit var mediaLibrarySession: MediaLibrarySession
+
+    private val mediaMetadata = MutableStateFlow(MediaMetadata.EMPTY)
     
     override fun onCreate() {
+        dispatcher.onServicePreSuperOnCreate()
         super.onCreate()
 
         // Configure MediaNotificationProvider
@@ -48,11 +65,24 @@ class PlaybackService : MediaLibraryService(), MediaLibraryService.MediaLibraryS
         mediaLibrarySession = createMediaLibrarySession()
     }
 
+    override fun onBind(intent: Intent?): IBinder? {
+        dispatcher.onServicePreSuperOnBind()
+        return super.onBind(intent)
+    }
+
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun onStart(intent: Intent?, startId: Int) {
+        dispatcher.onServicePreSuperOnStart()
+        super.onStart(intent, startId)
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession {
         return mediaLibrarySession
     }
     
     override fun onDestroy() {
+        dispatcher.onServicePreSuperOnDestroy()
         mediaLibrarySession.release()
         player.release()
         super.onDestroy()
@@ -133,8 +163,17 @@ class PlaybackService : MediaLibraryService(), MediaLibraryService.MediaLibraryS
         )
     }
 
-    override fun onEvents(player: Player, events: Player.Events) {
-        super.onEvents(player, events)
+    private fun observeMediaMetadata() {
+        lifecycleScope.launch {
+            mediaMetadata
+                .debounce(100)
+                .collect { mediaMetadata ->
+
+                }
+        }
+    }
+
+    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+        this.mediaMetadata.value = mediaMetadata
     }
 }
-
