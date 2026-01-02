@@ -92,6 +92,7 @@ class PluginDataSource @Inject constructor(
                         if (context == null || intent == null) return
                         scope.launch { 
                             try {
+                                Timber.d("Triggering plugin discovery from broadcast receiver")
                                 trySend(discoverPlugins())
                             } catch (e: Exception) {
                                 Timber.w(e, "Error discovering plugins in broadcast receiver")
@@ -104,7 +105,11 @@ class PluginDataSource @Inject constructor(
                     addAction(Intent.ACTION_PACKAGE_ADDED)
                     addAction(Intent.ACTION_PACKAGE_REPLACED)
                     addAction(Intent.ACTION_PACKAGE_REMOVED)
+                    addAction(Intent.ACTION_PACKAGE_CHANGED)
+                    addDataScheme("package")
                 }
+                
+                Timber.d("Registering BroadcastReceiver for package events")
                 context.registerReceiver(receiver, intentFilter)
 
                 trySend(discoverPlugins())
@@ -113,7 +118,8 @@ class PluginDataSource @Inject constructor(
                     context.unregisterReceiver(receiver)
                 }
             }.collect { discoveredPlugins ->
-                _discoveredPlugins.value = discoveredPlugins
+                // Use update for atomic state modification
+                _discoveredPlugins.update { discoveredPlugins }
             }
         }
 
@@ -270,7 +276,10 @@ class PluginDataSource @Inject constructor(
     suspend fun connectPlugin(pluginId: String) {
         // Find the plugin first (read-only operation, no race condition)
         val discovered = _discoveredPlugins.value[pluginId]
-            ?: throw IllegalArgumentException("Plugin not found: $pluginId")
+        if (discovered == null) {
+            Timber.w("Plugin not discovered: $pluginId")
+            return
+        }
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder) {
