@@ -1,5 +1,6 @@
 package com.viperplayer.data.player
 
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.viperplayer.domain.model.Album
@@ -65,7 +66,7 @@ object MediaItemMapper {
             // If parsing fails, it might be a URI - create a default MediaId
             // Extract a reasonable identifier from the URI
             val identifier = try {
-                val uri = android.net.Uri.parse(mediaIdString)
+                val uri = mediaIdString.toUri()
                 uri.lastPathSegment ?: uri.host ?: mediaIdString.hashCode().toString()
             } catch (e2: Exception) {
                 mediaIdString.hashCode().toString()
@@ -79,7 +80,7 @@ object MediaItemMapper {
             ?: metadata.displayTitle?.toString()
             ?: try {
                 // Try to extract filename from URI as last resort
-                val uri = android.net.Uri.parse(mediaIdString)
+                val uri = mediaIdString.toUri()
                 uri.lastPathSegment?.substringBefore("?")?.substringBefore("#")
             } catch (e: Exception) {
                 null

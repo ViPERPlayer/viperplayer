@@ -1,5 +1,6 @@
 package com.viperplayer.data.repository
 
+import com.viperplayer.data.mapper.PluginMapper.toDomain
 import com.viperplayer.data.preferences.PluginPreferences
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
@@ -13,7 +14,7 @@ import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
-import com.viperplayer.plugin.sdk.v1.SearchSuggestionsResultV1
+import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -46,7 +47,6 @@ class PluginRepositoryImpl @Inject constructor(
                     apiVersion = null,
                     description = discovered.description,
                     author = null,
-                    iconUrl = discovered.iconUrl
                 )
             }
         }
@@ -56,33 +56,20 @@ class PluginRepositoryImpl @Inject constructor(
             plugins.values.map { connected ->
                 Plugin(
                     info = connected.info,
-                    capabilities = connected.capabilities,
+                    capabilities = connected.service.capabilities.toDomain(),
                     isConnected = true
                 )
             }
         }
     
-    override fun discoverPlugins() {
-        dataSource.discoverPlugins()
+    override suspend fun discoverPlugins() {
+        dataSource.discoverAndUpdatePlugins()
     }
-    
+
     override suspend fun connectPlugin(pluginId: String): Result<Plugin> {
-        Timber.d("connectPlugin() called for: $pluginId")
-        return try {
-            val connected = dataSource.connectPlugin(pluginId)
-            val plugin = Plugin(
-                info = connected.info,
-                capabilities = connected.capabilities,
-                isConnected = true
-            )
-            Timber.d("connectPlugin() succeeded for: $pluginId")
-            Result.success(plugin)
-        } catch (e: Exception) {
-            Timber.e(e, "connectPlugin() failed for: $pluginId")
-            Result.failure(e)
-        }
+        TODO("Not implemented yet")
     }
-    
+
     override suspend fun disconnectPlugin(pluginId: String) {
         Timber.d("disconnectPlugin() called for: $pluginId")
         dataSource.disconnectPlugin(pluginId)
@@ -117,13 +104,13 @@ class PluginRepositoryImpl @Inject constructor(
         }
     }
     
-    override val pluginEnabledStates: Flow<Map<String, Boolean>>
+    override val pluginDisabledStates: Flow<Map<String, Boolean>>
         get() = combine(
             dataSource.discoveredPlugins,
-            pluginPreferences.enabledPlugins
-        ) { discovered, enabledSet ->
+            pluginPreferences.disabledPlugins
+        ) { discovered, disabledSet ->
             discovered.keys.associateWith { pluginId ->
-                enabledSet.contains(pluginId)
+                disabledSet.contains(pluginId)
             }
         }
 
@@ -138,11 +125,11 @@ class PluginRepositoryImpl @Inject constructor(
         types: Int,
         cursor: String?,
         limit: Int
-    ): Result<com.viperplayer.plugin.sdk.v1.SearchResult> = coroutineScope {
+    ): Result<com.viperplayer.plugin.v1.SearchResult> = coroutineScope {
         try {
             val plugins = dataSource.connectedPlugins.value
             if (plugins.isEmpty()) {
-                return@coroutineScope Result.success(com.viperplayer.plugin.sdk.v1.SearchResult())
+                return@coroutineScope Result.success(com.viperplayer.plugin.v1.SearchResult())
             }
             
             val results = plugins.keys.map { pluginId ->
@@ -150,7 +137,7 @@ class PluginRepositoryImpl @Inject constructor(
                     try {
                         dataSource.search(pluginId, query, types, cursor, limit)
                     } catch (e: Exception) {
-                        com.viperplayer.plugin.sdk.v1.SearchResult(
+                        com.viperplayer.plugin.v1.SearchResult(
                             emptyList(), null
                         ) // Return empty on error
                     }
@@ -158,7 +145,7 @@ class PluginRepositoryImpl @Inject constructor(
             }.awaitAll()
             
             // Merge results from all plugins
-            val merged = com.viperplayer.plugin.sdk.v1.SearchResult(
+            val merged = com.viperplayer.plugin.v1.SearchResult(
                 sections = results.flatMap { it.sections },
                 nextCursor = null
             )
@@ -372,8 +359,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getAlbum(mediaId: MediaId): Result<Album> {
         return try {
             Timber.d("getAlbum() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(mediaId.pluginId, mediaId.sourceId)
-            val album = dataSource.getAlbum(aidlMediaId)
+            val album = dataSource.getAlbum(mediaId)
             Timber.d("getAlbum() completed: ${album.name}")
             Result.success(album)
         } catch (e: Exception) {
@@ -385,8 +371,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
         return try {
             Timber.d("getArtist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(mediaId.pluginId, mediaId.sourceId)
-            val artist = dataSource.getArtist(aidlMediaId)
+            val artist = dataSource.getArtist(mediaId)
             Timber.d("getArtist() completed: ${artist.name}")
             Result.success(artist)
         } catch (e: Exception) {
@@ -398,8 +383,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
         return try {
             Timber.d("getPlaylist() called for: ${mediaId.pluginId}:${mediaId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(mediaId.pluginId, mediaId.sourceId)
-            val playlist = dataSource.getPlaylist(aidlMediaId)
+            val playlist = dataSource.getPlaylist(mediaId)
             Timber.d("getPlaylist() completed: ${playlist.name}")
             Result.success(playlist)
         } catch (e: Exception) {
@@ -415,8 +399,7 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Song>> {
         return try {
             Timber.d("getArtistSongs() called for: ${artistId.pluginId}:${artistId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(artistId.pluginId, artistId.sourceId)
-            val result = dataSource.getArtistSongs(aidlMediaId, cursor, limit)
+            val result = dataSource.getArtistSongs(artistId, cursor, limit)
             Timber.d("getArtistSongs() completed: ${result.items.size} songs")
             Result.success(result)
         } catch (e: Exception) {
@@ -432,8 +415,7 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Album>> {
         return try {
             Timber.d("getArtistAlbums() called for: ${artistId.pluginId}:${artistId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(artistId.pluginId, artistId.sourceId)
-            val result = dataSource.getArtistAlbums(aidlMediaId, cursor, limit)
+            val result = dataSource.getArtistAlbums(artistId, cursor, limit)
             Timber.d("getArtistAlbums() completed: ${result.items.size} albums")
             Result.success(result)
         } catch (e: Exception) {
@@ -449,8 +431,7 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Song>> {
         return try {
             Timber.d("getPlaylistSongs() called for: ${playlistId.pluginId}:${playlistId.sourceId}")
-            val aidlMediaId = com.viperplayer.plugin.sdk.v1.MediaId(playlistId.pluginId, playlistId.sourceId)
-            val result = dataSource.getPlaylistSongs(aidlMediaId, cursor, limit)
+            val result = dataSource.getPlaylistSongs(playlistId, cursor, limit)
             Timber.d("getPlaylistSongs() completed: ${result.items.size} songs")
             Result.success(result)
         } catch (e: Exception) {

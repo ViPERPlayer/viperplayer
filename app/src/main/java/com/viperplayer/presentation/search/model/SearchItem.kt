@@ -1,7 +1,9 @@
 package com.viperplayer.presentation.search.model
 
+import com.viperplayer.domain.model.MediaId
+
 class SearchItem(
-    val id: String,
+    val id: MediaId,
     val type: Type,
     val artworkUrl: String?,
     val title: String,

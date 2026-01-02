@@ -40,15 +40,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
-import com.viperplayer.presentation.search.SongItem
 
 @Composable
 fun AlbumDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
-    onNavigateToArtist: (String) -> Unit = {},
+    onNavigateToArtist: (MediaId) -> Unit = {},
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -116,7 +116,7 @@ fun AlbumDetailScreen(
                             onPlayAlbum = { viewModel.playAlbum() },
                             onShuffle = { viewModel.shuffle() },
                             onArtistClick = { artist ->
-                                onNavigateToArtist(artist.id.toString())
+                                onNavigateToArtist(artist.id)
                             }
                         )
                     }
@@ -139,10 +139,10 @@ fun AlbumDetailScreen(
                         }
                     } else {
                         items(uiState.songs) { song ->
-                            SongItem(
-                                song = song,
-                                onClick = { viewModel.playSong(song) }
-                            )
+//                            SongItem(
+//                                song = song,
+//                                onClick = { viewModel.playSong(song) }
+//                            )
                         }
                     }
                 }
@@ -274,6 +274,3 @@ private fun AlbumHeader(
         }
     }
 }
-
-
-

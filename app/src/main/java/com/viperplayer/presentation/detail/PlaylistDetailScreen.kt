@@ -42,7 +42,6 @@ import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
-import com.viperplayer.presentation.search.SongItem
 
 @Composable
 fun PlaylistDetailScreen(
@@ -137,10 +136,10 @@ fun PlaylistDetailScreen(
                         }
                     } else {
                         items(uiState.songs) { song ->
-                            SongItem(
-                                song = song,
-                                onClick = { viewModel.playSong(song) }
-                            )
+//                            SongItem(
+//                                song = song,
+//                                onClick = { viewModel.playSong(song) }
+//                            )
                         }
                     }
                 }
@@ -246,6 +245,7 @@ private fun PlaylistHeader(
         }
     }
 }
+
 
 
 

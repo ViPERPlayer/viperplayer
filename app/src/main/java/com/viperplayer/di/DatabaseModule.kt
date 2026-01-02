@@ -27,7 +27,7 @@ object DatabaseModule {
             ViperPlayerDatabase::class.java,
             "viperplayer_database"
         )
-            .fallbackToDestructiveMigration() // For development
+            .fallbackToDestructiveMigration(true) // For development
             .build()
     }
     
@@ -48,5 +48,8 @@ object DatabaseModule {
     
     @Provides
     fun provideCrossRefDao(database: ViperPlayerDatabase) = database.crossRefDao()
+    
+    @Provides
+    fun provideSearchHistoryDao(database: ViperPlayerDatabase) = database.searchHistoryDao()
 }
 

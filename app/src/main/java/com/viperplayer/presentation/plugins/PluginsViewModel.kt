@@ -87,14 +87,16 @@ class PluginsViewModel @Inject constructor(
 
         _uiState.update { it.copy(isRefreshing = true, error = null) }
 
-        try {
-            discoverPluginsUseCase()
-            Timber.d("refresh() completed successfully")
-        } catch (e: Exception) {
-            Timber.e(e, "Error in refresh()")
-            _uiState.update { it.copy(error = e.message) }
-        } finally {
-            _uiState.update { it.copy(isRefreshing = false) }
+        viewModelScope.launch {
+            try {
+                discoverPluginsUseCase()
+                Timber.d("refresh() completed successfully")
+            } catch (e: Exception) {
+                Timber.e(e, "Error in refresh()")
+                _uiState.update { it.copy(error = e.message) }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
         }
     }
     

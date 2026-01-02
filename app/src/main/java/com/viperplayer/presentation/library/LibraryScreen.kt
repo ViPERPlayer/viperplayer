@@ -31,19 +31,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
-import com.viperplayer.presentation.search.AlbumItem
-import com.viperplayer.presentation.search.ArtistItem
-import com.viperplayer.presentation.search.PlaylistItem
-import com.viperplayer.presentation.search.SongItem
 
 @Composable
 fun LibraryScreen(
     rootPadding: PaddingValues,
-    onNavigateToAlbum: (String) -> Unit = {},
-    onNavigateToArtist: (String) -> Unit = {},
-    onNavigateToPlaylist: (String) -> Unit = {},
+    onNavigateToAlbum: (MediaId) -> Unit = {},
+    onNavigateToArtist: (MediaId) -> Unit = {},
+    onNavigateToPlaylist: (MediaId) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -107,10 +104,10 @@ fun LibraryScreen(
                             contentPadding = rootPadding.bottom()
                         ) {
                             items(uiState.songs) { song ->
-                                SongItem(
-                                    song = song,
-                                    onClick = { viewModel.playSong(song) }
-                                )
+//                                SongItem(
+//                                    song = song,
+//                                    onClick = { viewModel.playSong(song) }
+//                                )
                             }
                         }
                     }
@@ -124,10 +121,10 @@ fun LibraryScreen(
                             contentPadding = rootPadding.bottom()
                         ) {
                             items(uiState.albums) { album ->
-                                AlbumItem(
-                                    album = album,
-                                    onClick = { onNavigateToAlbum(album.id.toString()) }
-                                )
+//                                AlbumItem(
+//                                    album = album,
+//                                    onClick = { onNavigateToAlbum(album.id.toString()) }
+//                                )
                             }
                         }
                     }
@@ -141,10 +138,10 @@ fun LibraryScreen(
                             contentPadding = rootPadding.bottom()
                         ) {
                             items(uiState.artists) { artist ->
-                                ArtistItem(
-                                    artist = artist,
-                                    onClick = { onNavigateToArtist(artist.id.toString()) }
-                                )
+//                                ArtistItem(
+//                                    artist = artist,
+//                                    onClick = { onNavigateToArtist(artist.id.toString()) }
+//                                )
                             }
                         }
                     }
@@ -158,10 +155,10 @@ fun LibraryScreen(
                             contentPadding = rootPadding.bottom()
                         ) {
                             items(uiState.playlists) { playlist ->
-                                PlaylistItem(
-                                    playlist = playlist,
-                                    onClick = { onNavigateToPlaylist(playlist.id.toString()) }
-                                )
+//                                PlaylistItem(
+//                                    playlist = playlist,
+//                                    onClick = { onNavigateToPlaylist(playlist.id.toString()) }
+//                                )
                             }
                         }
                     }

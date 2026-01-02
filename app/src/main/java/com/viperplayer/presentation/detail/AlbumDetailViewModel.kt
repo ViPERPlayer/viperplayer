@@ -39,7 +39,10 @@ class AlbumDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val albumDetail = savedStateHandle.toRoute<AlbumDetail>()
-    private val albumId: String = albumDetail.albumId
+    private val albumId: MediaId = MediaId(
+        pluginId = albumDetail.pluginId,
+        sourceId = albumDetail.sourceId
+    )
 
     private val _uiState = MutableStateFlow(AlbumDetailUiState())
     val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()
@@ -53,10 +56,8 @@ class AlbumDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val mediaId = MediaId.fromString(albumId)
-
                 // Load album details
-                val albumResult = getAlbumUseCase(mediaId)
+                val albumResult = getAlbumUseCase(albumId)
                 if (albumResult.isFailure) {
                     _uiState.update {
                         it.copy(

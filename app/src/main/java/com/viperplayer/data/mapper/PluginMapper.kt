@@ -10,16 +10,15 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.PluginCapabilities
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.sdk.v1.Album as AidlAlbum
-import com.viperplayer.plugin.sdk.v1.AlbumType as AidlAlbumType
-import com.viperplayer.plugin.sdk.v1.Artist as AidlArtist
-import com.viperplayer.plugin.sdk.v1.BrowseCategory as AidlBrowseCategory
-import com.viperplayer.plugin.sdk.v1.CategoryContentType as AidlCategoryContentType
-import com.viperplayer.plugin.sdk.v1.MediaId as AidlMediaId
-import com.viperplayer.plugin.sdk.v1.Playlist as AidlPlaylist
-import com.viperplayer.plugin.sdk.v1.PluginCapabilities as AidlPluginCapabilities
-import com.viperplayer.plugin.sdk.v1.PluginInfo as AidlPluginInfo
-import com.viperplayer.plugin.sdk.v1.Song as AidlSong
+import com.viperplayer.plugin.v1.Album as AidlAlbum
+import com.viperplayer.plugin.v1.AlbumType as AidlAlbumType
+import com.viperplayer.plugin.v1.Artist as AidlArtist
+import com.viperplayer.plugin.v1.BrowseCategory as AidlBrowseCategory
+import com.viperplayer.plugin.v1.CategoryContentType as AidlCategoryContentType
+import com.viperplayer.plugin.v1.Playlist as AidlPlaylist
+import com.viperplayer.plugin.v1.PluginCapabilities as AidlPluginCapabilities
+import com.viperplayer.plugin.v1.PluginInfo as AidlPluginInfo
+import com.viperplayer.plugin.v1.Song as AidlSong
 
 /**
  * Mappers to convert between AIDL models and domain models.
@@ -27,9 +26,7 @@ import com.viperplayer.plugin.sdk.v1.Song as AidlSong
 object PluginMapper {
     
     fun String.toDomain(pluginId: String): MediaId = MediaId(pluginId, this)
-    
-    fun MediaId.toAidl(): AidlMediaId = AidlMediaId(pluginId, sourceId)
-    
+
     fun AidlArtist.toDomain(pluginId: String): Artist = Artist(
         id = id.toDomain(pluginId),
         name = name,
@@ -115,7 +112,6 @@ object PluginMapper {
         apiVersion = apiVersion,
         description = description,
         author = author,
-        iconUrl = iconUrl,
     )
     
     fun AidlPluginCapabilities.toDomain(): PluginCapabilities = PluginCapabilities(

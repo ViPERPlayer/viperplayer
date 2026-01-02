@@ -39,13 +39,22 @@ object Plugins
 object Settings
 
 @Serializable
-data class AlbumDetail(val albumId: String)
+data class AlbumDetail(
+    val pluginId: String,
+    val sourceId: String
+)
 
 @Serializable
-data class ArtistDetail(val artistId: String)
+data class ArtistDetail(
+    val pluginId: String,
+    val sourceId: String
+)
 
 @Serializable
-data class PlaylistDetail(val playlistId: String)
+data class PlaylistDetail(
+    val pluginId: String,
+    val sourceId: String
+)
 
 @Composable
 fun ViperNavHost(
@@ -56,19 +65,19 @@ fun ViperNavHost(
     NavHost(
         navController = navController,
         startDestination = Home,
-        modifier = modifier
+        modifier = modifier,
     ) {
         composable<Home> {
             HomeScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId))
+                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId))
+                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 },
                 onNavigateToPlaylist = { playlistId ->
-                    navController.navigate(PlaylistDetail(playlistId))
+                    navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
                 }
             )
         }
@@ -77,13 +86,13 @@ fun ViperNavHost(
             SearchScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId))
+                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId))
+                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 },
                 onNavigateToPlaylist = { playlistId ->
-                    navController.navigate(PlaylistDetail(playlistId))
+                    navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
                 }
             )
         }
@@ -92,13 +101,13 @@ fun ViperNavHost(
             LibraryScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId))
+                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId))
+                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 },
                 onNavigateToPlaylist = { playlistId ->
-                    navController.navigate(PlaylistDetail(playlistId))
+                    navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
                 }
             )
         }
@@ -127,7 +136,7 @@ fun ViperNavHost(
                 rootPadding = rootPadding,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId))
+                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 }
             )
         }
@@ -137,7 +146,7 @@ fun ViperNavHost(
                 rootPadding = rootPadding,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId))
+                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 }
             )
         }

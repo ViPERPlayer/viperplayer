@@ -11,7 +11,7 @@ class GetPluginEnabledStatesUseCase @Inject constructor(
     private val repository: PluginRepository
 ) {
     operator fun invoke(): Flow<Map<String, Boolean>> {
-        return repository.pluginEnabledStates
+        return repository.pluginDisabledStates
     }
 }
 

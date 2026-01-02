@@ -10,7 +10,7 @@ import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.sdk.v1.SearchSuggestionsResultV1
+import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -32,7 +32,7 @@ interface PluginRepository {
     /**
      * Discover all installed plugins.
      */
-    fun discoverPlugins()
+    suspend fun discoverPlugins()
     
     /**
      * Connect to a plugin.
@@ -60,9 +60,9 @@ interface PluginRepository {
     suspend fun disablePlugin(pluginId: String): Result<Unit>
     
     /**
-     * Get enabled state for a plugin.
+     * Get disabled state for a plugin.
      */
-    val pluginEnabledStates: Flow<Map<String, Boolean>>
+    val pluginDisabledStates: Flow<Map<String, Boolean>>
 
     /**
      * Gets search suggestions across all connected plugins.
@@ -77,7 +77,7 @@ interface PluginRepository {
         types: Int = SEARCH_TYPE_ALL,
         cursor: String? = null,
         limit: Int = 20
-    ): Result<com.viperplayer.plugin.sdk.v1.SearchResult>
+    ): Result<com.viperplayer.plugin.v1.SearchResult>
     
     /**
      * Search within a specific plugin.

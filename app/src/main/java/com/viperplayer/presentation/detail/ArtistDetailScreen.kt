@@ -38,16 +38,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
-import com.viperplayer.presentation.search.AlbumItem
-import com.viperplayer.presentation.search.SongItem
 
 @Composable
 fun ArtistDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
-    onNavigateToAlbum: (String) -> Unit = {},
+    onNavigateToAlbum: (MediaId) -> Unit = {},
     viewModel: ArtistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -155,10 +154,10 @@ fun ArtistDetailScreen(
                                 }
                             } else {
                                 items(uiState.topSongs) { song ->
-                                    SongItem(
-                                        song = song,
-                                        onClick = { viewModel.playSong(song) }
-                                    )
+//                                    SongItem(
+//                                        song = song,
+//                                        onClick = { viewModel.playSong(song) }
+//                                    )
                                 }
                             }
                         }
@@ -180,10 +179,10 @@ fun ArtistDetailScreen(
                                 }
                             } else {
                                 items(uiState.albums) { album ->
-                                    AlbumItem(
-                                        album = album,
-                                        onClick = { onNavigateToAlbum(album.id.toString()) }
-                                    )
+//                                    AlbumItem(
+//                                        album = album,
+//                                        onClick = { onNavigateToAlbum(album.id.toString()) }
+//                                    )
                                 }
                             }
                         }
@@ -273,6 +272,3 @@ private fun formatFollowerCount(count: Long): String {
         else -> count.toString()
     }
 }
-
-
-

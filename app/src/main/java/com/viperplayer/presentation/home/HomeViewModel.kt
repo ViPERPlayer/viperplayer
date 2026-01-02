@@ -8,7 +8,6 @@ import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.usecase.browse.GetBrowseCategoriesUseCase
 import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
-import com.viperplayer.domain.usecase.plugin.ConnectPluginUseCase
 import com.viperplayer.domain.usecase.plugin.DiscoverPluginsUseCase
 import com.viperplayer.domain.usecase.plugin.GetConnectedPluginsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,7 +38,6 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val discoverPluginsUseCase: DiscoverPluginsUseCase,
-    private val connectPluginUseCase: ConnectPluginUseCase,
     private val getConnectedPluginsUseCase: GetConnectedPluginsUseCase,
     private val getBrowseCategoriesUseCase: GetBrowseCategoriesUseCase,
     private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase,

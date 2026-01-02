@@ -2,40 +2,44 @@ package com.viperplayer.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.repository.PlayerRepository
+import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
-import com.viperplayer.domain.usecase.search.SearchUseCase
-import com.viperplayer.plugin.sdk.v1.SearchSuggestionsItemV1
+import com.viperplayer.plugin.v1.SearchResult
+import com.viperplayer.plugin.v1.SearchSuggestionsItemV1
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.search.model.SearchSection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * UI State for Search screen.
+ * Represents the different states of search suggestions (history, suggestions, items).
  */
-data class SearchUiState(
-    // Search box
+data class SearchSuggestionsState(
     val history: List<String> = emptyList(),
     val suggestions: List<String> = emptyList(),
-    val items: List<SearchItem> = emptyList(),
-
-    // Search results
-    val isSearching: Boolean = false,
-    val results: List<SearchSection> = emptyList(),
-    val error: String? = null,
-
-    // Random TODO: Move somewhere else?
-    val isPlaying: Boolean = false,
+    val items: List<SearchItem> = emptyList()
 )
+
+/**
+ * Represents the different states of search results for animation.
+ */
+sealed class SearchResultsState {
+    data object Idle : SearchResultsState()
+    data object Searching : SearchResultsState()
+    data class Results(val sections: List<SearchSection>) : SearchResultsState()
+    data object Empty : SearchResultsState()
+    data class Error(val message: String) : SearchResultsState()
+}
 
 /**
  * ViewModel for Search screen.
@@ -43,30 +47,76 @@ data class SearchUiState(
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val searchUseCase: SearchUseCase,
+    private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val searchRepository: SearchRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(SearchUiState())
-    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+    private val _searchSuggestionsState = MutableStateFlow(SearchSuggestionsState())
+    val searchSuggestionsState = _searchSuggestionsState.asStateFlow()
+
+    private val _searchResultsState = MutableStateFlow<SearchResultsState>(SearchResultsState.Idle)
+    val searchResultsState = _searchResultsState.asStateFlow()
+
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying = _isPlaying.asStateFlow()
 
     private val _query = MutableStateFlow("")
     val query = _query.asStateFlow()
+    
+    private val _lastSearchedQuery = MutableStateFlow("")
+    val lastSearchedQuery = _lastSearchedQuery.asStateFlow()
 
     init {
-        // Debounced search
         viewModelScope.launch {
-            _query
-//                .debounce(300)
-//                .distinctUntilChanged()
-                .collect { query ->
-                    getSearchSuggestions(query)
+            _query.flatMapLatest { query ->
+                if (query.isBlank()) {
+                    searchRepository.getRecentHistory(limit = 10)
+                } else {
+                    searchRepository.getHistoryContaining(query, limit = 10)
                 }
+            }.collect { history ->
+                _searchSuggestionsState.update {
+                    it.copy(history = history)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            _query.flatMapLatest { query ->
+                if (query.isBlank()) {
+                    flowOf(emptyList())
+                } else {
+                    searchRepository.getSuggestions(query)
+                }
+            }.collect { suggestionsResults ->
+                if (suggestionsResults.isEmpty()) {
+                    _searchSuggestionsState.update {
+                        it.copy(
+                            suggestions = emptyList(),
+                            items = emptyList()
+                        )
+                    }
+                } else {
+                    val successfulResults = suggestionsResults.mapNotNull { it.getOrNull() }
+                    val suggestions = successfulResults.map { it.suggestions }.flatten().distinct()
+                    val items = successfulResults.map { it.items }.flatten().map { it.toSearchItem() }
+                    _searchSuggestionsState.update {
+                        it.copy(
+                            suggestions = suggestions,
+                            items = items
+                        )
+                    }
+                }
+            }
         }
     }
     
     fun onQueryChange(query: String) {
-        _query.update { query }
+        _query.value = query
+    }
+
+    fun clearQuery() {
+        _query.value = ""
     }
 
     private fun SearchSuggestionsItemV1.toSearchItem(): SearchItem {
@@ -94,7 +144,7 @@ class SearchViewModel @Inject constructor(
                 }
 
                 SearchItem(
-                    id = it.id,
+                    id = MediaId("", it.id),
                     type = SearchItem.Type.SONG,
                     artworkUrl = it.artworkUrl,
                     title = it.title,
@@ -111,7 +161,7 @@ class SearchViewModel @Inject constructor(
             SearchSuggestionsItemV1.Type.ARTIST -> this.artist.let {
                 if (it == null) throw IllegalArgumentException("Artist can't be null")
                 SearchItem(
-                    id = it.id,
+                    id = MediaId("", it.id),
                     type = SearchItem.Type.ARTIST,
                     artworkUrl = it.imageUrl,
                     title = it.name,
@@ -144,7 +194,7 @@ class SearchViewModel @Inject constructor(
                 }
 
                 SearchItem(
-                    id = it.id,
+                    id = MediaId("", it.id),
                     type = SearchItem.Type.ALBUM,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
@@ -161,7 +211,7 @@ class SearchViewModel @Inject constructor(
             SearchSuggestionsItemV1.Type.PLAYLIST -> this.playlist.let {
                 if (it == null) throw IllegalArgumentException("Playlist can't be null")
                 SearchItem(
-                    id = it.id,
+                    id = MediaId("", it.id),
                     type = SearchItem.Type.PLAYLIST,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
@@ -173,78 +223,53 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    private suspend fun getSearchSuggestions(query: String) {
-        if (query.isBlank()) {
-            _uiState.update { it.copy(
-                history = emptyList(),
-                suggestions = emptyList(),
-//                items = emptyList(),
-            ) }
+    fun performSearch() {
+        if (query.value.isBlank()) {
+            _searchResultsState.value = SearchResultsState.Idle
+            _lastSearchedQuery.value = ""
             return
         }
 
-        _uiState.update {
-            it.copy(
-                history = listOf(query)
-            )
-        }
-
-        searchRepository.getSuggestions(query).collect { results ->
-            val successfulResults = results.mapNotNull { it.getOrNull() }
-            val suggestions = successfulResults.map { it.suggestions }.flatten().distinct()
-            val items = successfulResults.map { it.items }.flatten().map { it.toSearchItem() }
-            _uiState.update { it.copy(
-                suggestions = suggestions,
-                items = items,
-            ) }
-        }
-    }
-    
-    fun performSearch(query: String) {
-        if (query.isBlank()) {
-            _uiState.update { it.copy(results = emptyList()) }
-            return
-        }
-
-        _uiState.update { it.copy(isSearching = true, error = null) }
+        _searchResultsState.value = SearchResultsState.Searching
+        _lastSearchedQuery.value = query.value
         
         viewModelScope.launch {
-            searchUseCase(query)
+            // Save search to history
+            searchRepository.saveSearchHistory(query.value)
+            
+            pluginRepository.search(query.value)
                 .onSuccess { results ->
-                    _uiState.update {
-                        it.copy(
-                            isSearching = false,
-                            results = results.sections.map { section ->
-                                SearchSection(
-                                    title = when (section.type) {
-                                        com.viperplayer.plugin.sdk.v1.SearchResult.Section.Type.TOP_RESULT -> "Top result"
-                                        com.viperplayer.plugin.sdk.v1.SearchResult.Section.Type.OTHER -> "Other"
-                                    },
-                                    items = section.items.map { it.toSearchItem() }
-                                )
-                            }
+                    val sections = results.sections.map { section ->
+                        SearchSection(
+                            title = when (section.type) {
+                                SearchResult.Section.Type.TOP_RESULT -> "Top result"
+                                SearchResult.Section.Type.OTHER -> "Other"
+                            },
+                            items = section.items.map { it.toSearchItem() }
                         )
+                    }
+                    _searchResultsState.value = if (sections.isEmpty()) {
+                        SearchResultsState.Empty
+                    } else {
+                        SearchResultsState.Results(sections)
                     }
                 }
                 .onFailure { e ->
-                    _uiState.update {
-                        it.copy(
-                            isSearching = false,
-                            error = e.message ?: "Search failed"
-                        )
-                    }
+                    _searchResultsState.value = SearchResultsState.Error(e.message ?: "Search failed")
                 }
         }
     }
     
-    fun playSong(song: Song) {
+    fun playSong(songId: MediaId) {
         viewModelScope.launch {
-            playerRepository.play(song)
+//            playerRepository.play(song)
         }
     }
 
     fun removeHistoryEntry(history: String) {
-
+        viewModelScope.launch {
+            searchRepository.removeHistoryEntry(history)
+        }
     }
 }
 

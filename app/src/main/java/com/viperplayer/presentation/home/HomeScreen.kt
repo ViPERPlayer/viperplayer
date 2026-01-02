@@ -54,14 +54,15 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.ktx.with
 
 @Composable
 fun HomeScreen(
     rootPadding: PaddingValues,
-    onNavigateToAlbum: (String) -> Unit = {},
-    onNavigateToArtist: (String) -> Unit = {},
-    onNavigateToPlaylist: (String) -> Unit = {},
+    onNavigateToAlbum: (MediaId) -> Unit = {},
+    onNavigateToArtist: (MediaId) -> Unit = {},
+    onNavigateToPlaylist: (MediaId) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -298,7 +299,7 @@ fun HomeScreen(
                         items(uiState.recentAlbums) { album ->
                             AlbumCard(
                                 album = album,
-                                onClick = { onNavigateToAlbum(album.id.toString()) }
+                                onClick = { onNavigateToAlbum(album.id) }
                             )
                         }
                     }

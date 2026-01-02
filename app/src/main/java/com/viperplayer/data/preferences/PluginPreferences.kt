@@ -23,69 +23,68 @@ class PluginPreferences @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val TAG = "PluginPreferences"
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "plugin_preferences")
-        private fun enabledKey(pluginId: String) = booleanPreferencesKey("plugin_enabled_$pluginId")
+        private fun disabledKey(pluginId: String) = booleanPreferencesKey("plugin_disabled_$pluginId")
     }
     
     private val dataStore = context.dataStore
     
     /**
-     * Get enabled state for a plugin.
-     * Defaults to true (enabled) if not set.
+     * Get disabled state for a plugin.
+     * Defaults to false (enabled) if not set.
      */
-    fun isEnabled(pluginId: String): Flow<Boolean> {
-        Timber.d("Getting enabled state for plugin: $pluginId")
+    fun isDisabled(pluginId: String): Flow<Boolean> {
+        Timber.d("Getting disabled state for plugin: $pluginId")
         return dataStore.data.map { preferences ->
-            val enabled = preferences[enabledKey(pluginId)] ?: true // Default to enabled
-            Timber.d("Plugin $pluginId enabled state: $enabled (default: ${preferences[enabledKey(pluginId)] == null})")
-            enabled
+            val disabled = preferences[disabledKey(pluginId)] ?: false // Default to enabled
+            Timber.d("Plugin $pluginId disabled state: $disabled (default: ${preferences[disabledKey(pluginId)] == null})")
+            disabled
         }
     }
     
     /**
-     * Get all enabled plugin IDs.
+     * Get all disabled plugin IDs.
      */
-    val enabledPlugins: Flow<Set<String>> = dataStore.data.map { preferences ->
-        val enabledSet = preferences.asMap()
-            .filterKeys { it.name.startsWith("plugin_enabled_") }
-            .filterValues { it as? Boolean ?: true }
-            .keys.map { it.name.removePrefix("plugin_enabled_") }
+    val disabledPlugins: Flow<Set<String>> = dataStore.data.map { preferences ->
+        val disabledSet = preferences.asMap()
+            .filterKeys { it.name.startsWith("plugin_disabled") }
+            .filterValues { it as? Boolean ?: false }
+            .keys.map { it.name.removePrefix("plugin_disabled") }
             .toSet()
-        Timber.d("Enabled plugins: $enabledSet")
-        enabledSet
+        Timber.d("Disabled plugins: $disabledSet")
+        disabledSet
     }
     
     /**
-     * Set enabled state for a plugin.
+     * Set disabled state for a plugin.
      */
-    suspend fun setEnabled(pluginId: String, enabled: Boolean) {
-        Timber.d("Setting plugin $pluginId enabled state to: $enabled")
+    suspend fun setDisabled(pluginId: String, disabled: Boolean) {
+        Timber.d("Setting plugin $pluginId disabled state to: $disabled")
         try {
             dataStore.edit { preferences ->
-                preferences[enabledKey(pluginId)] = enabled
+                preferences[disabledKey(pluginId)] = disabled
             }
-            Timber.d("Successfully set plugin $pluginId enabled state to: $enabled")
+            Timber.d("Successfully set plugin $pluginId disabled state to: $disabled")
         } catch (e: Exception) {
-            Timber.e(e, "Failed to set enabled state for plugin: $pluginId")
+            Timber.e(e, "Failed to set disabled state for plugin: $pluginId")
             throw e
         }
     }
     
     /**
-     * Get enabled state synchronously (for initial load).
+     * Get disabled state synchronously (for initial load).
      */
-    suspend fun isEnabledSync(pluginId: String): Boolean {
-        Timber.d("Getting enabled state synchronously for plugin: $pluginId")
+    suspend fun isDisabledSync(pluginId: String): Boolean {
+        Timber.d("Getting disabled state synchronously for plugin: $pluginId")
         return try {
-            val enabled = dataStore.data.map { preferences ->
-                preferences[enabledKey(pluginId)] ?: true
+            val disabled = dataStore.data.map { preferences ->
+                preferences[disabledKey(pluginId)] ?: false
             }.first()
-            Timber.d("Plugin $pluginId enabled state (sync): $enabled")
-            enabled
+            Timber.d("Plugin $pluginId disabled state (sync): $disabled")
+            disabled
         } catch (e: Exception) {
-            Timber.e(e, "Failed to get enabled state for plugin: $pluginId")
-            true // Default to enabled on error
+            Timber.e(e, "Failed to get disabled state for plugin: $pluginId")
+            false // Default to enabled on error
         }
     }
 }

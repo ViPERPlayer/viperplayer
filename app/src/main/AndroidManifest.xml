@@ -11,7 +11,7 @@
     <!-- Query installed plugins -->
     <queries>
         <intent>
-            <action android:name="com.viperplayer.plugin.PLUGIN_SERVICE" />
+            <action android:name="com.viperplayer.plugin.ViperPluginService" />
         </intent>
     </queries>
 
@@ -45,20 +45,6 @@
                 <action android:name="android.media.browse.MediaBrowserService"/>
             </intent-filter>
         </service>
-        
-        <!-- BroadcastReceiver for package install/update/uninstall events -->
-        <receiver
-            android:name=".data.receiver.PluginPackageReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.PACKAGE_ADDED" />
-                <action android:name="android.intent.action.PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.PACKAGE_REMOVED" />
-                <data android:scheme="package" />
-            </intent-filter>
-        </receiver>
-        
     </application>
 
 </manifest>

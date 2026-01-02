@@ -8,6 +8,7 @@ import com.viperplayer.data.local.dao.ArtistDao
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.GenreDao
 import com.viperplayer.data.local.dao.PlaylistDao
+import com.viperplayer.data.local.dao.SearchHistoryDao
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.AlbumArtistCrossRef
 import com.viperplayer.data.local.entity.AlbumEntity
@@ -17,6 +18,7 @@ import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
 import com.viperplayer.data.local.entity.PlaylistEntity
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
+import com.viperplayer.data.local.entity.SearchHistoryEntity
 import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
 
@@ -33,9 +35,10 @@ import com.viperplayer.data.local.entity.SongEntity
         SongArtistCrossRef::class,
         AlbumArtistCrossRef::class,
         PlaylistSongCrossRef::class,
-        ArtistGenreCrossRef::class
+        ArtistGenreCrossRef::class,
+        SearchHistoryEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(AlbumTypeConverter::class)
@@ -46,5 +49,6 @@ abstract class ViperPlayerDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
     abstract fun genreDao(): GenreDao
     abstract fun crossRefDao(): CrossRefDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
 }
 

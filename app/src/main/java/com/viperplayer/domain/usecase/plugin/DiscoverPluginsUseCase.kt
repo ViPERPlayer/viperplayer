@@ -9,7 +9,7 @@ import javax.inject.Inject
 class DiscoverPluginsUseCase @Inject constructor(
     private val repository: PluginRepository
 ) {
-    operator fun invoke() {
+    operator suspend fun invoke() {
         repository.discoverPlugins()
     }
 }

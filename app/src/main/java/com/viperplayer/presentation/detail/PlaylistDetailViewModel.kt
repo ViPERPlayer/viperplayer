@@ -41,7 +41,10 @@ class PlaylistDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val playlistDetail = savedStateHandle.toRoute<PlaylistDetail>()
-    private val playlistId: String = playlistDetail.playlistId
+    private val playlistId: MediaId = MediaId(
+        pluginId = playlistDetail.pluginId,
+        sourceId = playlistDetail.sourceId
+    )
 
     private val _uiState = MutableStateFlow(PlaylistDetailUiState())
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
@@ -55,10 +58,8 @@ class PlaylistDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val mediaId = MediaId.fromString(playlistId)
-
                 // Load playlist details
-                val playlistResult = getPlaylistUseCase(mediaId)
+                val playlistResult = getPlaylistUseCase(playlistId)
                 if (playlistResult.isFailure) {
                     _uiState.update {
                         it.copy(
@@ -75,7 +76,7 @@ class PlaylistDetailViewModel @Inject constructor(
                 val songs = if (playlist.songs != null && playlist.songs.isNotEmpty()) {
                     playlist.songs
                 } else {
-                    val songsResult = getPlaylistSongsUseCase(mediaId, limit = 100)
+                    val songsResult = getPlaylistSongsUseCase(playlistId, limit = 100)
                     songsResult.getOrNull()?.items.orEmpty()
                 }
 

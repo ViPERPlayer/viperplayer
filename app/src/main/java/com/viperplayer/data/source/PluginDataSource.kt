@@ -1,8 +1,10 @@
 package com.viperplayer.data.source
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
@@ -13,44 +15,50 @@ import com.viperplayer.data.preferences.PluginPreferences
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.sdk.IConnectCallback
-import com.viperplayer.plugin.sdk.PluginConstants
-import com.viperplayer.plugin.sdk.v1.IAlbumsCallback
-import com.viperplayer.plugin.sdk.v1.IArtistsCallback
-import com.viperplayer.plugin.sdk.v1.IHostCallbackV1
-import com.viperplayer.plugin.sdk.v1.IPlaylistsCallback
-import com.viperplayer.plugin.sdk.v1.ISearchCallback
-import com.viperplayer.plugin.sdk.v1.ISongsCallback
-import com.viperplayer.plugin.sdk.v1.IViperPluginV1
-import com.viperplayer.plugin.sdk.v1.SearchSuggestionsResultV1
+import com.viperplayer.plugin.IConnectCallback
+import com.viperplayer.plugin.PluginConstants
+import com.viperplayer.plugin.v1.IAlbumsCallback
+import com.viperplayer.plugin.v1.IArtistsCallback
+import com.viperplayer.plugin.v1.IHostCallbackV1
+import com.viperplayer.plugin.v1.IPlaylistsCallback
+import com.viperplayer.plugin.v1.ISearchCallback
+import com.viperplayer.plugin.v1.ISongsCallback
+import com.viperplayer.plugin.v1.IViperPluginV1
+import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import com.viperplayer.plugin.sdk.v1.Artist as AidlArtist
-import com.viperplayer.plugin.sdk.v1.MediaId as AidlMediaId
-import com.viperplayer.plugin.sdk.v1.PlayerState as AidlPlayerState
-import com.viperplayer.plugin.sdk.v1.Playlist as AidlPlaylist
-import com.viperplayer.plugin.sdk.v1.SearchResult as AidlSearchResult
-import com.viperplayer.plugin.sdk.v1.Song as AidlSong
+import com.viperplayer.plugin.v1.Artist as AidlArtist
+import com.viperplayer.plugin.v1.PlayerState as AidlPlayerState
+import com.viperplayer.plugin.v1.Playlist as AidlPlaylist
+import com.viperplayer.plugin.v1.SearchResult as AidlSearchResult
+import com.viperplayer.plugin.v1.Song as AidlSong
 
 /**
  * Data source for plugin operations.
@@ -61,7 +69,7 @@ class PluginDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val pluginPreferences: PluginPreferences
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     
     private val _discoveredPlugins = MutableStateFlow<Map<String, DiscoveredPluginInfo>>(emptyMap())
     val discoveredPlugins: StateFlow<Map<String, DiscoveredPluginInfo>> = _discoveredPlugins.asStateFlow()
@@ -70,17 +78,138 @@ class PluginDataSource @Inject constructor(
     val connectedPlugins: StateFlow<Map<String, ConnectedPluginV1>> = _connectedPlugins.asStateFlow()
     
     // Track ongoing connection attempts to prevent duplicates
+    // Protected by connectionMutex for thread safety
     private val ongoingConnections = mutableMapOf<String, ServiceConnection>()
+    private val connectionMutex = Mutex()
     
     private val hostCallback = HostCallbackImpl()
+
+    init {
+        scope.launch {
+            callbackFlow {
+                val receiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        if (context == null || intent == null) return
+                        scope.launch { 
+                            try {
+                                trySend(discoverPlugins())
+                            } catch (e: Exception) {
+                                Timber.w(e, "Error discovering plugins in broadcast receiver")
+                            }
+                        }
+                    }
+                }
+
+                val intentFilter = IntentFilter().apply {
+                    addAction(Intent.ACTION_PACKAGE_ADDED)
+                    addAction(Intent.ACTION_PACKAGE_REPLACED)
+                    addAction(Intent.ACTION_PACKAGE_REMOVED)
+                }
+                context.registerReceiver(receiver, intentFilter)
+
+                trySend(discoverPlugins())
+
+                awaitClose {
+                    context.unregisterReceiver(receiver)
+                }
+            }.collect { discoveredPlugins ->
+                _discoveredPlugins.value = discoveredPlugins
+            }
+        }
+
+        scope.launch {
+            // Combine discovered plugins with disabled state to only connect enabled plugins
+            combine(
+                discoveredPlugins,
+                pluginPreferences.disabledPlugins
+            ) { discovered, disabled ->
+                discovered to disabled
+            }.collect { (discovered, disabled) ->
+                // Get current state atomically
+                val currentConnected = _connectedPlugins.value
+                val currentDiscovered = discovered
+                
+                // Disconnect plugins that are no longer discovered or disabled
+                val toDisconnect = currentConnected.keys.filter { pluginId ->
+                    !currentDiscovered.containsKey(pluginId) || pluginId in disabled
+                }
+                
+                toDisconnect.forEach { pluginId ->
+                    try {
+                        disconnectPlugin(pluginId)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Error disconnecting plugin: $pluginId")
+                    }
+                }
+
+                // Connect new plugins that are discovered and not disabled, sequentially to avoid race conditions
+                val toConnect = currentDiscovered.keys.filter { pluginId ->
+                    pluginId !in currentConnected && pluginId !in disabled
+                }
+                
+                toConnect.forEach { pluginId ->
+                    try {
+                        connectPlugin(pluginId)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Error connecting plugin: $pluginId")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun onPluginConnectionFailed(pluginId: String, retry: Boolean) {
+        scope.launch {
+            val connection = connectionMutex.withLock {
+                // Get connection from either connected or ongoing, then clean up atomically
+                val connection = _connectedPlugins.value[pluginId]?.connection
+                    ?: ongoingConnections[pluginId]
+                // Remove from both maps atomically
+                _connectedPlugins.update { it - pluginId }
+                ongoingConnections.remove(pluginId)
+                connection
+            }
+
+            // Unbind outside the lock to avoid holding it during I/O
+            connection?.let {
+                withContext(Dispatchers.Main) {
+                    try {
+                        context.unbindService(it)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Error unbinding old connection for plugin: $pluginId")
+                    }
+                }
+            }
+
+            if (retry) {
+                // Delay retry to avoid immediate reconnection loops
+                delay(1000)
+                try {
+                    connectPlugin(pluginId)
+                } catch (e: Exception) {
+                    Timber.w(e, "Error retrying connection for plugin: $pluginId")
+                }
+            }
+        }
+    }
+
+    private fun onPluginDisconnected(pluginId: String) {
+        scope.launch {
+            connectionMutex.withLock {
+                _connectedPlugins.update { it - pluginId }
+                ongoingConnections.remove(pluginId)
+            }
+        }
+    }
     
     /**
      * Discover all installed plugins.
      * Plugin ID is the package name.
      */
-    fun discoverPlugins() {
+    suspend fun discoverPlugins(): Map<String, DiscoveredPluginInfo> = withContext(Dispatchers.IO) {
         Timber.d("Discovering plugins")
 
+        // Retrieve all installed packages with the plugin intent
         val intent = Intent(PluginConstants.ACTION_PLUGIN_SERVICE)
         val resolveInfos = context.packageManager.queryIntentServices(
             intent,
@@ -88,12 +217,13 @@ class PluginDataSource @Inject constructor(
         )
         Timber.d("Found ${resolveInfos.size} services matching plugin intent")
 
-        val plugins = resolveInfos.mapNotNull { resolveInfo ->
+        resolveInfos.mapNotNull { resolveInfo ->
             val serviceInfo = resolveInfo.serviceInfo
             if (serviceInfo == null) {
                 Timber.w("ResolveInfo has no serviceInfo")
                 return@mapNotNull null
             }
+
             val metaData = serviceInfo.applicationInfo.metaData
             if (metaData == null) {
                 Timber.w("ApplicationInfo has no metadata")
@@ -106,7 +236,6 @@ class PluginDataSource @Inject constructor(
             // Get plugin info from metadata and package manager
             val pluginName = metaData.getString(PluginConstants.META_PLUGIN_NAME) ?: serviceInfo.loadLabel(context.packageManager).toString()
             val description = metaData.getString(PluginConstants.META_PLUGIN_DESCRIPTION)
-            val iconUrl = metaData.getString(PluginConstants.META_PLUGIN_ICON)
 
             // Get version from package info
             val version = try {
@@ -125,342 +254,292 @@ class PluginDataSource @Inject constructor(
                 name = pluginName,
                 description = description,
                 version = version,
-                iconUrl = iconUrl,
                 componentName = componentName
             )
         }.toMap()
+    }
 
-        _discoveredPlugins.value = plugins
-        Timber.d("Successfully discovered ${plugins.size} plugins: ${plugins.keys}")
-
-        // Auto-connect enabled plugins
-        plugins.keys.forEach { pluginId ->
-            scope.launch {
-                val isEnabled = pluginPreferences.isEnabledSync(pluginId)
-                Timber.d("Plugin $pluginId enabled state: $isEnabled")
-                if (isEnabled) {
-                    try {
-                        Timber.d("Auto-connecting enabled plugin: $pluginId")
-                        connectPlugin(pluginId)
-                        Timber.d("Successfully auto-connected plugin: $pluginId")
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to auto-connect plugin: $pluginId")
-                    }
-                } else {
-                    Timber.d("Plugin $pluginId is disabled, skipping auto-connect")
-                }
-            }
-        }
+    suspend fun discoverAndUpdatePlugins() {
+        _discoveredPlugins.value = discoverPlugins()
     }
     
     /**
      * Connect to a plugin.
+     * Thread-safe and prevents concurrent connection attempts for the same plugin.
      */
-    suspend fun connectPlugin(pluginId: String): ConnectedPluginV1 {
-        Timber.d("Connecting to plugin: $pluginId")
-        
-        // Check if already connected
-        _connectedPlugins.value[pluginId]?.let {
-            Timber.d("Plugin $pluginId already connected, returning existing connection")
-            return it
-        }
-        
-        // Find the plugin
+    suspend fun connectPlugin(pluginId: String) {
+        // Find the plugin first (read-only operation, no race condition)
         val discovered = _discoveredPlugins.value[pluginId]
             ?: throw IllegalArgumentException("Plugin not found: $pluginId")
-        
-        // Unbind any existing ongoing connection attempt
-        synchronized(ongoingConnections) {
-            ongoingConnections[pluginId]?.let { oldConnection ->
-                Timber.d("Unbinding existing connection attempt for plugin: $pluginId")
-                try {
-                    context.unbindService(oldConnection)
-                } catch (e: Exception) {
-                    Timber.w(e, "Error unbinding old connection for plugin: $pluginId")
+
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder) {
+                Timber.d("onServiceConnected() called: name=$name for plugin: $pluginId")
+
+                val descriptor = try {
+                    binder.interfaceDescriptor
+                } catch (e: RemoteException) {
+                    Timber.w(e, "Error getting interface descriptor for plugin: $pluginId")
+                    onPluginConnectionFailed(pluginId = pluginId, retry = false)
+                    return
                 }
-                ongoingConnections.remove(pluginId)
+
+                try {
+                    when (descriptor) {
+                        IViperPluginV1.DESCRIPTOR -> connectPluginV1(discovered, binder, this)
+                        else -> {
+                            Timber.w("Unknown interface descriptor: $descriptor for plugin: $pluginId")
+                            onPluginConnectionFailed(pluginId = pluginId, retry = false)
+                            return
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Error connecting to plugin: $pluginId")
+                    onPluginConnectionFailed(pluginId = pluginId, retry = false)
+                }
+            }
+
+            override fun onServiceDisconnected(name: ComponentName) {
+                Timber.w("onServiceDisconnected() called: $name for plugin: $pluginId")
+                onPluginDisconnected(pluginId = pluginId)
+            }
+
+            override fun onBindingDied(name: ComponentName?) {
+                Timber.e("onBindingDied() called: $name for plugin: $pluginId")
+                onPluginConnectionFailed(pluginId = pluginId, retry = true)
+            }
+
+            override fun onNullBinding(name: ComponentName?) {
+                Timber.e("onNullBinding() called: $name for plugin: $pluginId")
+                onPluginConnectionFailed(pluginId = pluginId, retry = false)
             }
         }
-        
-        return suspendCancellableCoroutine { cont ->
-            var connectionEstablished = false
-            val connection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                    Timber.d("onServiceConnected() called: name=$name for plugin: $pluginId")
-                    
-                    // Check if continuation is already completed (race condition protection)
-                    if (cont.isCompleted) {
-                        Timber.w("onServiceConnected() called but continuation already completed for plugin: $pluginId")
-                        return
-                    }
-                    
-                    connectionEstablished = true
-                    
-                    if (binder == null) {
-                        synchronized(ongoingConnections) {
-                            ongoingConnections.remove(pluginId)
-                        }
-                        if (!cont.isCompleted) {
-                            cont.resumeWithException(IllegalStateException("Binder is null for plugin: $pluginId"))
-                        }
-                        return
-                    }
 
-                    val descriptor = try {
-                        binder.interfaceDescriptor
-                    } catch (e: RemoteException) {
-                        Timber.w(e, "Error getting interface descriptor for plugin: $pluginId")
-                        null
-                    }
-
-                    if (descriptor == null) {
-                        synchronized(ongoingConnections) {
-                            ongoingConnections.remove(pluginId)
-                        }
-                        if (!cont.isCompleted) {
-                            cont.resumeWithException(IllegalStateException("Interface descriptor is null for plugin: $pluginId"))
-                        }
-                    }
-
-                    try {
-                        val connectedData = when (descriptor) {
-                            IViperPluginV1.DESCRIPTOR -> connectPluginV1(discovered, binder)
-                            else -> {
-                                synchronized(ongoingConnections) {
-                                    ongoingConnections.remove(pluginId)
-                                }
-                                if (!cont.isCompleted) {
-                                    cont.resumeWithException(IllegalStateException("Unknown interface descriptor for plugin: $pluginId ($descriptor)"))
-                                }
-                                return
-                            }
-                        }
-
-                        synchronized(ongoingConnections) {
-                            ongoingConnections.remove(pluginId)
-                        }
-                        if (!cont.isCompleted) {
-                            cont.resume(connectedData)
-                        }
-                    } catch (e: Exception) {
-                        synchronized(ongoingConnections) {
-                            ongoingConnections.remove(pluginId)
-                        }
-                        if (!cont.isCompleted) {
-                            cont.resumeWithException(e)
-                        }
-                    }
-                }
-                
-                override fun onServiceDisconnected(name: ComponentName) {
-                    Timber.w("onServiceDisconnected() called: $name for plugin: $pluginId")
-                    synchronized(ongoingConnections) {
-                        ongoingConnections.remove(pluginId)
-                    }
-                    _connectedPlugins.update { it - pluginId }
-                    
-                    // Auto-reconnect if enabled
-                    scope.launch {
-                        val isEnabled = pluginPreferences.isEnabledSync(pluginId)
-                        Timber.d("Plugin $pluginId disconnected, enabled state: $isEnabled")
-                        if (isEnabled) {
-                            try {
-                                Timber.d("Attempting to reconnect plugin: $pluginId")
-                                connectPlugin(pluginId)
-                                Timber.d("Successfully reconnected plugin: $pluginId")
-                            } catch (e: Exception) {
-                                Timber.e(e, "Failed to reconnect plugin: $pluginId")
-                            }
-                        } else {
-                            Timber.d("Plugin $pluginId is disabled, not reconnecting")
-                        }
-                    }
-                }
-                
-                override fun onBindingDied(name: ComponentName) {
-                    Timber.e("onBindingDied() called: $name for plugin: $pluginId")
-                    synchronized(ongoingConnections) {
-                        ongoingConnections.remove(pluginId)
-                    }
-                    if (!connectionEstablished && !cont.isCompleted) {
-                        cont.resumeWithException(IllegalStateException("Binding died before connection established for plugin: $pluginId"))
-                    }
-                }
-                
-                override fun onNullBinding(name: ComponentName) {
-                    Timber.e("onNullBinding() called: $name for plugin: $pluginId")
-                    synchronized(ongoingConnections) {
-                        ongoingConnections.remove(pluginId)
-                    }
-                    if (!connectionEstablished && !cont.isCompleted) {
-                        cont.resumeWithException(IllegalStateException("Null binding for plugin: $pluginId"))
-                    }
-                }
-            }
-            
-            // Track this connection attempt
-            synchronized(ongoingConnections) {
-                ongoingConnections[pluginId] = connection
-            }
-            
-            // Create intent with explicit component
-            val intent = Intent().apply {
-                component = discovered.componentName
+        // Atomically check and add to ongoingConnections to prevent race conditions
+        connectionMutex.withLock {
+            // Check if already connected (double-check after acquiring lock)
+            if (_connectedPlugins.value.containsKey(pluginId)) {
+                Timber.d("Plugin $pluginId already connected")
+                return
             }
 
-            try {
-                Timber.d("Binding to plugin service: ${intent.component}")
-                val bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-                Timber.d("bindService() returned: $bound for plugin: $pluginId")
-                
-                if (!bound) {
-                    synchronized(ongoingConnections) {
-                        ongoingConnections.remove(pluginId)
-                    }
-                    if (!cont.isCompleted) {
-                        cont.resumeWithException(IllegalStateException("Failed to bind to plugin service: $pluginId. Service may not exist or may not be exported."))
-                    }
-                } else {
-                    Timber.d("Service bind initiated successfully for plugin: $pluginId")
-                    // Set a timeout to detect if onServiceConnected never gets called
-                    scope.launch {
-                        delay(10000) // 10 second timeout
-                        if (!connectionEstablished && !cont.isCompleted) {
-                            synchronized(ongoingConnections) {
-                                ongoingConnections.remove(pluginId)
-                            }
-                            if (!cont.isCompleted) {
-                                cont.resumeWithException(IllegalStateException("Timeout waiting for service connection: $pluginId."))
-                            }
-                        }
-                    }
-                }
-            } catch (e: SecurityException) {
-                synchronized(ongoingConnections) {
+            // Check if connection already in progress
+            if (ongoingConnections.containsKey(pluginId)) {
+                Timber.d("Plugin $pluginId already connecting")
+                return
+            }
+
+            // Add to ongoingConnections atomically with the check
+            ongoingConnections[pluginId] = connection
+        }
+
+        // Create intent with explicit component
+        val intent = Intent().apply {
+            component = discovered.componentName
+        }
+
+        try {
+            Timber.d("Binding to plugin service: ${intent.component}")
+            val bound = withContext(Dispatchers.Main) {
+                context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            }
+            Timber.d("bindService() returned: $bound for plugin: $pluginId")
+
+            if (!bound) {
+                Timber.e("Failed to bind to plugin service: ${intent.component}")
+                connectionMutex.withLock {
                     ongoingConnections.remove(pluginId)
                 }
-                if (!cont.isCompleted) {
-                    cont.resumeWithException(IllegalStateException("Security exception binding to plugin: $pluginId", e))
-                }
-            } catch (e: Exception) {
-                synchronized(ongoingConnections) {
-                    ongoingConnections.remove(pluginId)
-                }
-                if (!cont.isCompleted) {
-                    cont.resumeWithException(IllegalStateException("Exception binding to plugin: $pluginId", e))
-                }
+                onPluginConnectionFailed(pluginId = pluginId, retry = false)
             }
-            
-            cont.invokeOnCancellation {
-                Timber.d("Connection cancelled for plugin: $pluginId")
-                synchronized(ongoingConnections) {
-                    ongoingConnections.remove(pluginId)
-                }
-                try {
-                    context.unbindService(connection)
-                } catch (e: Exception) {
-                    Timber.w(e, "Error unbinding service on cancellation")
-                }
+        } catch (e: Exception) {
+            Timber.e(e, "Error binding to plugin service: ${intent.component}")
+            connectionMutex.withLock {
+                ongoingConnections.remove(pluginId)
             }
+            onPluginConnectionFailed(pluginId = pluginId, retry = false)
         }
     }
 
-    private fun ServiceConnection.connectPluginV1(discovered: DiscoveredPluginInfo, binder: IBinder): ConnectedPluginV1 {
+    private fun connectPluginV1(
+        discovered: DiscoveredPluginInfo,
+        binder: IBinder,
+        connection: ServiceConnection
+    ) {
         val service = IViperPluginV1.Stub.asInterface(binder)
             ?: throw IllegalStateException("Failed to get IViperPluginV1 interface from binder for plugin: ${discovered.id}")
 
         Timber.d("Calling connect() on plugin service: ${discovered.id}")
-        service.onConnect(hostCallback, object : IConnectCallback.Stub() {
-            override fun onSuccess() {
-                Timber.d("Plugin connected successfully: ${discovered.id}")
+
+        scope.launch {
+            try {
+                suspendCancellableCoroutine { continuation ->
+                    service.onConnect(hostCallback, object : IConnectCallback.Stub() {
+                        override fun onSuccess() {
+                            Timber.d("Plugin connect() callback succeeded: ${discovered.id}")
+                            if (continuation.isActive) {
+                                continuation.resume(Unit)
+                            }
+                        }
+
+                        override fun onFailure(errorCode: Int, message: String?) {
+                            Timber.e("Plugin connect() callback failed: $errorCode, $message")
+                            if (continuation.isActive) {
+                                continuation.resumeWithException(
+                                    PluginException(errorCode, message ?: "Connection failed")
+                                )
+                            }
+                        }
+                    })
+                }
+
+                // Double-check that plugin is still in discovered list and not disabled before connecting
+                val isStillDiscovered = _discoveredPlugins.value.containsKey(discovered.id)
+                val isDisabled = pluginPreferences.isDisabledSync(discovered.id)
+                
+                if (!isStillDiscovered || isDisabled) {
+                    Timber.d("Plugin ${discovered.id} no longer discovered or disabled, aborting connection")
+                    onPluginConnectionFailed(discovered.id, retry = false)
+                    return@launch
+                }
+
+                // Create PluginInfo from discovered plugin info (host app creates it)
+                val pluginInfo = PluginInfo(
+                    id = discovered.id,
+                    name = discovered.name,
+                    version = discovered.version,
+                    apiVersion = 1,
+                    description = discovered.description,
+                    author = null, // Can be added to metadata if needed
+                )
+
+                val connectedData = ConnectedPluginV1(
+                    info = pluginInfo,
+                    service = service,
+                    connection = connection
+                )
+
+                // Atomically add to connected plugins and remove from ongoing connections
+                connectionMutex.withLock {
+                    // Double-check again inside the lock
+                    if (!_discoveredPlugins.value.containsKey(discovered.id)) {
+                        Timber.d("Plugin ${discovered.id} no longer discovered, aborting connection")
+                        ongoingConnections.remove(discovered.id)
+                        return@launch
+                    }
+                    _connectedPlugins.update { it + (discovered.id to connectedData) }
+                    ongoingConnections.remove(discovered.id)
+                }
+
+                Timber.d("Plugin connected successfully: ${pluginInfo.name}")
+            } catch (e: Exception) {
+                Timber.e(e, "Error during plugin connection: ${discovered.id}")
+                onPluginConnectionFailed(discovered.id, retry = false)
             }
-
-            override fun onFailure(errorCode: Int, message: String?) {
-                Timber.e("Plugin connection failed: $errorCode, $message")
-            }
-        })
-
-        val capabilities = service.capabilities
-        Timber.d("Got capabilities from plugin: ${discovered.id}")
-
-        // Create PluginInfo from discovered plugin info (host app creates it)
-        val pluginInfo = PluginInfo(
-            id = discovered.id,
-            name = discovered.name,
-            version = discovered.version,
-            apiVersion = 1,
-            description = discovered.description,
-            author = null, // Can be added to metadata if needed
-            iconUrl = discovered.iconUrl
-        )
-
-        val connectedData = ConnectedPluginV1(
-            info = pluginInfo,
-            capabilities = capabilities.toDomain(),
-            service = service,
-            connection = this
-        )
-
-        _connectedPlugins.update { it + (discovered.id to connectedData) }
-
-        Timber.d("Plugin connected successfully: ${pluginInfo.name}")
-
-        return connectedData
+        }
     }
     
     /**
      * Disconnect from a plugin.
+     * Thread-safe and ensures proper cleanup.
      */
-    fun disconnectPlugin(pluginId: String) {
+    suspend fun disconnectPlugin(pluginId: String) {
         Timber.d("Disconnecting plugin: $pluginId")
-        val connected = _connectedPlugins.value[pluginId]
         
-        // Clean up any ongoing connection attempts
-        synchronized(ongoingConnections) {
-            ongoingConnections[pluginId]?.let { ongoingConnection ->
-                Timber.d("Unbinding ongoing connection attempt for plugin: $pluginId")
-                try {
-                    context.unbindService(ongoingConnection)
-                } catch (e: Exception) {
-                    Timber.w(e, "Error unbinding ongoing connection for plugin: $pluginId")
+        // Get connections atomically but don't remove from maps yet
+        // This prevents race conditions where another thread might try to use the plugin
+        val (ongoingConnection, connected) = connectionMutex.withLock {
+            val ongoingConnection = ongoingConnections[pluginId]
+            val connected = _connectedPlugins.value[pluginId]
+            ongoingConnection to connected
+        }
+
+        // Unbind ongoing connection attempts first
+        ongoingConnection?.let {
+            Timber.d("Unbinding ongoing connection attempt for plugin: $pluginId")
+            try {
+                withContext(Dispatchers.Main) {
+                    context.unbindService(it)
                 }
+            } catch (e: Exception) {
+                Timber.w(e, "Error unbinding ongoing connection for plugin: $pluginId")
+            }
+            // Remove from ongoing connections after unbinding
+            connectionMutex.withLock {
                 ongoingConnections.remove(pluginId)
             }
         }
-        
+
         if (connected == null) {
             Timber.w("Plugin $pluginId not connected, nothing to disconnect")
             return
         }
-        
+
+        // Call disconnect() on the service first, then unbind
+        // This ensures the plugin knows it's being disconnected
         try {
             Timber.d("Calling disconnect() on plugin service: $pluginId")
             connected.service.onDisconnect()
-            Timber.d("Successfully called disconnect() on plugin: $pluginId")
         } catch (e: Exception) {
             Timber.e(e, "Error calling disconnect() on plugin: $pluginId")
+            // Continue with unbinding even if disconnect() fails
         }
-        
+
+        // Unbind the service
         try {
             Timber.d("Unbinding service for plugin: $pluginId")
-            context.unbindService(connected.connection)
-            Timber.d("Successfully unbound service for plugin: $pluginId")
+            withContext(Dispatchers.Main) {
+                context.unbindService(connected.connection)
+            }
         } catch (e: Exception) {
             Timber.e(e, "Error unbinding service for plugin: $pluginId")
         }
         
-        _connectedPlugins.update { it - pluginId }
+        // Finally, remove from connected plugins map after unbinding is complete
+        // This ensures the plugin is fully disconnected before it's removed from the map
+        connectionMutex.withLock {
+            _connectedPlugins.update { it - pluginId }
+        }
+        
         Timber.d("Plugin $pluginId disconnected and removed from connected plugins")
     }
     
     /**
      * Disconnect from all plugins.
+     * Thread-safe and ensures proper cleanup.
      */
-    fun disconnectAll() {
+    suspend fun disconnectAll() {
         Timber.d("Disconnecting all plugins")
-        val pluginIds = _connectedPlugins.value.keys.toList()
-        Timber.d("Disconnecting ${pluginIds.size} plugins: $pluginIds")
-        pluginIds.forEach { disconnectPlugin(it) }
+
+        // Get all plugin IDs and ongoing connections atomically
+        val (pluginIds, ongoingConnectionsToUnbind) = connectionMutex.withLock {
+            val ids = _connectedPlugins.value.keys.toList()
+            val ongoing = ongoingConnections.toMap() // Create a copy
+            ongoingConnections.clear() // Clear immediately to prevent new connections
+            ids to ongoing
+        }
+
+        // Unbind ongoing connections first (these are handled separately to avoid double-unbind)
+        ongoingConnectionsToUnbind.forEach { (pluginId, connection) ->
+            try {
+                withContext(Dispatchers.Main) {
+                    context.unbindService(connection)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Error unbinding ongoing connection for plugin: $pluginId")
+            }
+        }
+
+        // Disconnect all connected plugins
+        // disconnectPlugin will handle its own unbinding, so we don't double-unbind
+        pluginIds.forEach { pluginId ->
+            try {
+                disconnectPlugin(pluginId)
+            } catch (e: Exception) {
+                Timber.w(e, "Error disconnecting plugin: $pluginId")
+            }
+        }
+
         Timber.d("All plugins disconnected")
     }
     
@@ -469,7 +548,7 @@ class PluginDataSource @Inject constructor(
      */
     suspend fun enablePlugin(pluginId: String) {
         Timber.d("Enabling plugin: $pluginId")
-        pluginPreferences.setEnabled(pluginId, true)
+        pluginPreferences.setDisabled(pluginId, false)
         connectPlugin(pluginId)
     }
     
@@ -478,7 +557,7 @@ class PluginDataSource @Inject constructor(
      */
     suspend fun disablePlugin(pluginId: String) {
         Timber.d("Disabling plugin: $pluginId")
-        pluginPreferences.setEnabled(pluginId, false)
+        pluginPreferences.setDisabled(pluginId, true)
         disconnectPlugin(pluginId)
     }
     
@@ -581,7 +660,7 @@ class PluginDataSource @Inject constructor(
         return suspendCancellableCoroutine { cont ->
             try {
                 plugin.service.getLibraryAlbums(cursor, limit, object : IAlbumsCallback.Stub() {
-                    override fun onSuccess(albums: MutableList<com.viperplayer.plugin.sdk.v1.Album>, nextCursor: String?) {
+                    override fun onSuccess(albums: MutableList<com.viperplayer.plugin.v1.Album>, nextCursor: String?) {
                         Timber.d("Library albums received from plugin: $pluginId, count: ${albums.size}, nextCursor: $nextCursor")
                         cont.resume(PagedResult(albums.map { it.toDomain(pluginId) }, nextCursor))
                     }
@@ -667,21 +746,21 @@ class PluginDataSource @Inject constructor(
     /**
      * Get artist details from a plugin.
      */
-    suspend fun getArtist(mediaId: AidlMediaId): Artist {
+    suspend fun getArtist(mediaId: MediaId): Artist {
         TODO()
     }
 
     /**
      * Get album details from a plugin.
      */
-    suspend fun getAlbum(mediaId: AidlMediaId): Album {
+    suspend fun getAlbum(mediaId: MediaId): Album {
         TODO()
     }
 
     /**
      * Get playlist details from a plugin.
      */
-    suspend fun getPlaylist(mediaId: AidlMediaId): Playlist {
+    suspend fun getPlaylist(mediaId: MediaId): Playlist {
         TODO()
     }
 
@@ -689,7 +768,7 @@ class PluginDataSource @Inject constructor(
      * Get artist songs from a plugin.
      */
     suspend fun getArtistSongs(
-        artistId: AidlMediaId,
+        artistId: MediaId,
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
@@ -700,7 +779,7 @@ class PluginDataSource @Inject constructor(
      * Get artist albums from a plugin.
      */
     suspend fun getArtistAlbums(
-        artistId: AidlMediaId,
+        artistId: MediaId,
         cursor: String?,
         limit: Int
     ): PagedResult<Album> {
@@ -711,7 +790,7 @@ class PluginDataSource @Inject constructor(
      * Get playlist songs from a plugin.
      */
     suspend fun getPlaylistSongs(
-        playlistId: AidlMediaId,
+        playlistId: MediaId,
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
@@ -758,7 +837,7 @@ class PluginDataSource @Inject constructor(
     }
 
     private inner class HostCallbackImpl : IHostCallbackV1.Stub() {
-        override fun play(mediaId: AidlMediaId) {}
+        override fun play(mediaId: String) {}
         override fun pause() {}
         override fun resume() {}
         override fun stop() {}
@@ -772,7 +851,7 @@ class PluginDataSource @Inject constructor(
         override fun getCurrentSong(): AidlSong? = null
         override fun getPlaybackPosition(): Long = 0
         override fun notifyContentChanged() {}
-        override fun notifyMetadataUpdated(mediaId: AidlMediaId) {}
+        override fun notifyMetadataUpdated(mediaId: String) {}
         override fun reportError(errorCode: Int, message: String) {
             Timber.e("Plugin reported error: code=$errorCode, message=$message")
         }
@@ -787,7 +866,6 @@ data class DiscoveredPluginInfo(
     val name: String,
     val description: String?,
     val version: String,
-    val iconUrl: String?,
     val componentName: ComponentName
 )
 

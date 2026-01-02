@@ -1,5 +1,9 @@
 package com.viperplayer.domain.model
 
+import android.net.Uri
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
 /**
  * Domain models - These are the core business entities used throughout the app.
  * They are independent of any framework or external data source.
@@ -8,17 +12,26 @@ package com.viperplayer.domain.model
 /**
  * Unique identifier for media items across plugins.
  */
+@Parcelize
 data class MediaId(
     val pluginId: String,
     val sourceId: String
-) {
-    override fun toString(): String = "$pluginId:$sourceId"
-    
+) : Parcelable {
+    override fun toString(): String {
+        val encodedPluginId = Uri.encode(pluginId)
+        val encodedSourceId = Uri.encode(sourceId)
+        return "pluginId=$encodedPluginId&sourceId=$encodedSourceId"
+    }
+
     companion object {
-        fun fromString(value: String): MediaId {
-            val parts = value.split(":", limit = 2)
-            require(parts.size == 2) { "Invalid MediaId format: $value" }
-            return MediaId(parts[0], parts[1])
+        fun fromString(string: String): MediaId {
+            val params = string.split("&").associate {
+                val (key, value) = it.split("=")
+                key to Uri.decode(value)
+            }
+            val pluginId = params["pluginId"] ?: error("Missing pluginId in MediaId")
+            val sourceId = params["sourceId"] ?: error("Missing sourceId in MediaId")
+            return MediaId(pluginId, sourceId)
         }
     }
 }
@@ -161,7 +174,6 @@ data class PluginInfo(
     val apiVersion: Int?,
     val description: String? = null,
     val author: String? = null,
-    val iconUrl: String? = null
 )
 
 /**

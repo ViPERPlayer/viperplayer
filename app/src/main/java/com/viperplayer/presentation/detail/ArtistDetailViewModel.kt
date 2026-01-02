@@ -50,7 +50,10 @@ class ArtistDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val artistDetail = savedStateHandle.toRoute<ArtistDetail>()
-    private val artistId: String = artistDetail.artistId
+    private val artistId: MediaId = MediaId(
+        pluginId = artistDetail.pluginId,
+        sourceId = artistDetail.sourceId
+    )
 
     private val _uiState = MutableStateFlow(ArtistDetailUiState())
     val uiState: StateFlow<ArtistDetailUiState> = _uiState.asStateFlow()
@@ -64,10 +67,8 @@ class ArtistDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val mediaId = MediaId.fromString(artistId)
-
                 // Load artist details
-                val artistResult = getArtistUseCase(mediaId)
+                val artistResult = getArtistUseCase(artistId)
                 if (artistResult.isFailure) {
                     _uiState.update {
                         it.copy(
@@ -81,11 +82,11 @@ class ArtistDetailViewModel @Inject constructor(
                 val artist = artistResult.getOrNull()!!
 
                 // Load artist songs
-                val songsResult = getArtistSongsUseCase(mediaId, limit = 20)
+                val songsResult = getArtistSongsUseCase(artistId, limit = 20)
                 val topSongs = songsResult.getOrNull()?.items.orEmpty()
 
                 // Load artist albums
-                val albumsResult = getArtistAlbumsUseCase(mediaId, limit = 20)
+                val albumsResult = getArtistAlbumsUseCase(artistId, limit = 20)
                 val albums = albumsResult.getOrNull()?.items.orEmpty()
 
                 _uiState.update {
