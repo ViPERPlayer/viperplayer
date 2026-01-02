@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
@@ -65,6 +66,10 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+
+    // Collect playerState for debug output - this will cause recomposition of debug section only
+    // The debug section is isolated in its own item, so it won't affect the rest of the screen
+    val playerState by viewModel.playerState.collectAsStateWithLifecycle()
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -166,6 +171,27 @@ fun HomeScreen(
 //                    }
 //                }
 //            }
+
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text("Player State Debug", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("State: ${playerState.state}")
+                    Text("Current Song: ${playerState.currentSong?.title ?: "None"}")
+//                    Text("Position: ${playerState.positionMs} ms")
+                    Text("Duration: ${playerState.durationMs ?: "Unknown"} ms")
+                    Text("Shuffle Enabled: ${playerState.shuffleEnabled}")
+                    Text("Repeat Mode: ${playerState.repeatMode}")
+                    Text("Volume: ${playerState.volume}")
+                    Text("Queue Size: ${playerState.queueSize}")
+                    Text("Queue Position: ${playerState.queuePosition}")
+                }
+            }
 
             if (uiState.isLoading) {
                 item {

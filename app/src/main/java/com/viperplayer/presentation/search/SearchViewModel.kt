@@ -3,8 +3,8 @@ package com.viperplayer.presentation.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.SearchRepository
-import com.viperplayer.domain.usecase.player.PlaySongUseCase
 import com.viperplayer.domain.usecase.search.SearchUseCase
 import com.viperplayer.plugin.sdk.v1.SearchSuggestionsItemV1
 import com.viperplayer.presentation.search.model.ItemBadge
@@ -44,7 +44,7 @@ data class SearchUiState(
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val searchUseCase: SearchUseCase,
-    private val playSongUseCase: PlaySongUseCase,
+    private val playerRepository: PlayerRepository,
     private val searchRepository: SearchRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -239,7 +239,7 @@ class SearchViewModel @Inject constructor(
     
     fun playSong(song: Song) {
         viewModelScope.launch {
-            playSongUseCase(song)
+            playerRepository.play(song)
         }
     }
 

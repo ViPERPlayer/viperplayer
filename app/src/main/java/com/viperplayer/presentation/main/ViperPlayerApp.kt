@@ -20,7 +20,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,10 +60,10 @@ enum class SubcomposeSlot {
 fun ViperPlayerApp(
     viewModel: ViperPlayerAppViewModel = hiltViewModel(),
 ) {
-    val themeColor by viewModel.dynamicThemeColor.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ViPERPlayerTheme(
-        seedColor = themeColor
+        seedColor = uiState.themeColor
     ) {
         Surface(
             modifier = Modifier.fillMaxSize()
@@ -76,7 +75,6 @@ fun ViperPlayerApp(
             val bottomInset = windowInsets.getBottom(density)
 
             val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val playerState by viewModel.playerState.collectAsState()
 
             var showPlayerBottomSheet by remember { mutableStateOf(false) }
 
@@ -89,7 +87,7 @@ fun ViperPlayerApp(
 
             val layoutState = determineLayoutVisibility(
                 currentDestination = navBackStackEntry,
-                hasPlayingContent = playerState.hasContent,
+                hasPlayingContent = uiState.hasCurrentSong,
             )
 
             val navBarY = remember { Animatable(-1, Int.VectorConverter) }

@@ -1,9 +1,11 @@
 package com.viperplayer.di
 
+import com.viperplayer.data.repository.MediaLibraryRepositoryImpl
 import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
@@ -44,5 +46,11 @@ abstract class DataModule {
     abstract fun bindSettingsRepository(
         impl: SettingsRepositoryImpl
     ): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMediaLibraryRepository(
+        impl: MediaLibraryRepositoryImpl
+    ): MediaLibraryRepository
 }
 

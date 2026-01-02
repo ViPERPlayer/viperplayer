@@ -6,11 +6,11 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
 import com.viperplayer.domain.usecase.library.GetLibraryArtistsUseCase
 import com.viperplayer.domain.usecase.library.GetLibraryPlaylistsUseCase
 import com.viperplayer.domain.usecase.library.GetLibrarySongsUseCase
-import com.viperplayer.domain.usecase.player.PlaySongUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +48,7 @@ class LibraryViewModel @Inject constructor(
     private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase,
     private val getLibraryArtistsUseCase: GetLibraryArtistsUseCase,
     private val getLibraryPlaylistsUseCase: GetLibraryPlaylistsUseCase,
-    private val playSongUseCase: PlaySongUseCase
+    private val playerRepository: PlayerRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -119,7 +119,7 @@ class LibraryViewModel @Inject constructor(
     
     fun playSong(song: Song) {
         viewModelScope.launch {
-            playSongUseCase(song)
+            playerRepository.play(song)
         }
     }
     

@@ -115,6 +115,9 @@ dependencies {
 
     // Dynamic theme
     implementation(libs.material.kolor)
+
+    // Rebugger
+    implementation("io.github.theapache64:rebugger:1.0.1")
     
     // Testing
     testImplementation(libs.junit)

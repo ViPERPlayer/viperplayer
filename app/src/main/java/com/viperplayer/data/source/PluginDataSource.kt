@@ -530,7 +530,7 @@ class PluginDataSource @Inject constructor(
         cursor: String?,
         limit: Int
     ): PagedResult<BrowseCategory> {
-        TODO()
+        return PagedResult(emptyList())
     }
     
     /**

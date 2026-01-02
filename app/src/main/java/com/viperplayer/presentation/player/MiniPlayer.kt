@@ -40,7 +40,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +60,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable
 fun MiniPlayer(
@@ -62,10 +73,27 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Use separate flows for optimal performance - only recompose what changed
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
+    val isLiked by viewModel.isLiked.collectAsStateWithLifecycle()
+
+    // Poll position
+    var position by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            position = viewModel.getCurrentPosition()
+            delay(16) // ~60fps updates
+        }
+    }
 
     MiniPlayerContent(
-        state = state,
+        song = currentSong,
+        isPlaying = isPlaying,
+        duration = duration,
+        position = position,
+        isLiked = isLiked,
         onTogglePlayPause = { viewModel.togglePlayPause() },
         onSkipToNext = { viewModel.skipToNext() },
         onToggleLike = { viewModel.toggleLike() },
@@ -75,8 +103,82 @@ fun MiniPlayer(
 }
 
 @Composable
+private fun MiniPlayerProgressIndicator(
+    position: Long,
+    duration: Long,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (duration > 0) {
+        var progress by remember { mutableFloatStateOf(0f) }
+        
+        // Track when we last synced with actual position (for discontinuity detection)
+        var lastSyncedPosition by remember { mutableLongStateOf(0L) }
+        var lastSyncTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+        var syncCounter by remember { mutableIntStateOf(0) }
+
+        // 16ms loop for smooth 60fps updates
+        LaunchedEffect(isPlaying, duration, position) {
+            // Initialize from current position
+            progress = (position.toFloat() / duration).coerceIn(0f, 1f)
+            lastSyncedPosition = position
+            lastSyncTime = System.currentTimeMillis()
+
+            while (true) {
+                delay(16) // ~60fps updates
+
+                if (isPlaying && duration > 0) {
+                    // Every ~250ms (every 16th frame), check for discontinuities (seeks)
+                    syncCounter++
+                    if (syncCounter >= 16) {
+                        syncCounter = 0
+                        val positionDiff = kotlin.math.abs(position - lastSyncedPosition)
+                        val isDiscontinuity = positionDiff > 1000 // More than 1 second difference = seek
+
+                        if (isDiscontinuity) {
+                            // Seek detected - sync immediately
+                            lastSyncedPosition = position
+                            lastSyncTime = System.currentTimeMillis()
+                            progress = (position.toFloat() / duration).coerceIn(0f, 1f)
+                            continue
+                        } else {
+                            // Small drift - update tracking
+                            lastSyncedPosition = position
+                            lastSyncTime = System.currentTimeMillis()
+                        }
+                    }
+
+                    // Calculate elapsed time and interpolate forward
+                    val currentTime = System.currentTimeMillis()
+                    val elapsed = (currentTime - lastSyncTime).toFloat()
+                    val interpolatedPosition = lastSyncedPosition + elapsed
+                    progress = (interpolatedPosition / duration).coerceIn(0f, 1f)
+                } else {
+                    // When paused, sync to exact position
+                    progress = (position.toFloat() / duration).coerceIn(0f, 1f)
+                    lastSyncedPosition = position
+                    lastSyncTime = System.currentTimeMillis()
+                }
+            }
+        }
+        
+        CircularProgressIndicator(
+            progress = { progress },
+            modifier = modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 3.dp,
+            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        )
+    }
+}
+
+@Composable
 fun MiniPlayerContent(
-    state: PlayerUiState,
+    song: Song?,
+    isPlaying: Boolean,
+    duration: Long,
+    position: Long,
+    isLiked: Boolean,
     onTogglePlayPause: () -> Unit,
     onSkipToNext: () -> Unit,
     onToggleLike: () -> Unit,
@@ -91,7 +193,7 @@ fun MiniPlayerContent(
             configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val overlayAlpha by animateFloatAsState(
-        targetValue = if (state.isPlaying) 0.0f else 0.4f,
+        targetValue = if (isPlaying) 0.0f else 0.4f,
         animationSpec = spring(
             stiffness = Spring.StiffnessLow
         )
@@ -137,16 +239,11 @@ fun MiniPlayerContent(
                 modifier = Modifier.size(48.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                // Circular progress indicator around the play button
-                if (state.duration > 0) {
-                    CircularProgressIndicator(
-                        progress = { (state.position.toFloat() / state.duration).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 3.dp,
-                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                    )
-                }
+                MiniPlayerProgressIndicator(
+                    position = position,
+                    duration = duration,
+                    isPlaying = isPlaying
+                )
 
                 // Play/Pause button with thumbnail background
                 Box(
@@ -165,7 +262,7 @@ fun MiniPlayerContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     // Thumbnail background
-                    state.thumbnailUrl?.let { thumbnailUrl ->
+                    song?.effectiveArtworkUrl?.let { thumbnailUrl ->
                         AsyncImage(
                             model = thumbnailUrl,
                             contentDescription = "Artwork",
@@ -186,7 +283,7 @@ fun MiniPlayerContent(
                     )
 
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !state.isPlaying,
+                        visible = !isPlaying,
                         enter = fadeIn(),
                         exit = fadeOut()
                     ) {
@@ -206,8 +303,9 @@ fun MiniPlayerContent(
                 verticalArrangement = Arrangement.Center
             ) {
                 AnimatedContent(
-                    targetState = state.title,
+                    targetState = song?.title ?: "Unknown",
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "song_title"
                 ) { targetState ->
                     Text(
                         text = targetState,
@@ -218,19 +316,19 @@ fun MiniPlayerContent(
                     )
                 }
 
-                state.artists.joinToString().let { joinedArtists ->
-                    if (joinedArtists.isNotBlank()) {
-                        AnimatedContent(
-                            targetState = joinedArtists,
-                            transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        ) { targetState ->
-                            Text(
-                                text = targetState,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                fontSize = 12.sp,
-                                modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
-                            )
-                        }
+                val artistNames = song?.artists?.joinToString { it.name }
+                AnimatedContent(
+                    targetState = artistNames,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "song_artist"
+                ) { targetState ->
+                    if (!targetState.isNullOrBlank()) {
+                        Text(
+                            text = targetState,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            fontSize = 12.sp,
+                            modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                        )
                     }
                 }
             }
@@ -248,14 +346,14 @@ fun MiniPlayerContent(
                         .clip(CircleShape)
                         .border(
                             width = 1.dp,
-                            color = if (state.isLiked)
+                            color = if (isLiked)
                                 MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
                             else
                                 MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                             shape = CircleShape
                         )
                         .background(
-                            color = if (state.isLiked)
+                            color = if (isLiked)
                                 MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
                             else
                                 Color.Transparent,
@@ -266,8 +364,8 @@ fun MiniPlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.FavoriteBorder,
-                        contentDescription = null,
-                        tint = if (state.isLiked)
+                        contentDescription = "Like",
+                        tint = if (isLiked)
                             MaterialTheme.colorScheme.error
                         else
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
@@ -308,7 +406,20 @@ fun MiniPlayerPreview() {
     ViPERPlayerTheme {
         Surface {
             MiniPlayerContent(
-                state = PlayerUiState(),
+                song = Song(
+                    id = MediaId("test", "1"),
+                    title = "Sample Song",
+                    artists = listOf(
+                        Artist(
+                            id = MediaId("test", "artist1"),
+                            name = "Sample Artist"
+                        )
+                    )
+                ),
+                isPlaying = false,
+                duration = 180000L,
+                position = 50000L,
+                isLiked = false,
                 onTogglePlayPause = {},
                 onSkipToNext = {},
                 onToggleLike = {},

@@ -10,7 +10,7 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.materialkolor.ktx.themeColorOrNull
-import com.viperplayer.domain.model.PlayerState
+import com.viperplayer.domain.repository.PlayerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,21 +20,17 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ViperPlayerAppUiState(
-    val color: Color = Color.Unspecified
+    val themeColor: Color? = null,
+    val hasCurrentSong: Boolean = false,
 )
 
 @HiltViewModel
 class ViperPlayerAppViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val playerRepository: PlayerRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ViperPlayerAppUiState())
     val uiState = _uiState.asStateFlow()
-
-    private val _dynamicThemeColor = MutableStateFlow<Color?>(null)
-    val dynamicThemeColor = _dynamicThemeColor.asStateFlow()
-
-    private val _playerState = MutableStateFlow(PlayerState())
-    val playerState = _playerState.asStateFlow()
 
     init {
         observeThemeColor()
@@ -42,8 +38,8 @@ class ViperPlayerAppViewModel @Inject constructor(
 
     private fun observeThemeColor() {
         viewModelScope.launch {
-            playerState.collect { playerState ->
-                val themeColor = playerState.currentSong?.artworkUrl?.let { artworkUrl ->
+            playerRepository.currentSong.collect { song ->
+                val themeColor = song?.artworkUrl?.let { artworkUrl ->
                     val result = context.imageLoader.execute(
                         ImageRequest.Builder(context)
                             .data(artworkUrl)
@@ -53,12 +49,11 @@ class ViperPlayerAppViewModel @Inject constructor(
                     result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
                 }
 
-                _dynamicThemeColor.update { themeColor }
+                _uiState.update { it.copy(
+                    themeColor = themeColor,
+                    hasCurrentSong = song != null
+                ) }
             }
         }
-    }
-
-    fun togglePlayPause() {
-        TODO("Not yet implemented")
     }
 }

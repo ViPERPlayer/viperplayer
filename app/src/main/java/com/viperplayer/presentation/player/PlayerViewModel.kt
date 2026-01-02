@@ -2,119 +2,107 @@ package com.viperplayer.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.viperplayer.domain.model.PlayerState
+import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
-import com.viperplayer.domain.usecase.player.AddToQueueUseCase
-import com.viperplayer.domain.usecase.player.GetPlayerStateUseCase
-import com.viperplayer.domain.usecase.player.GetQueueUseCase
-import com.viperplayer.domain.usecase.player.SeekToUseCase
-import com.viperplayer.domain.usecase.player.SetRepeatModeUseCase
-import com.viperplayer.domain.usecase.player.SetShuffleUseCase
-import com.viperplayer.domain.usecase.player.SkipToNextUseCase
-import com.viperplayer.domain.usecase.player.SkipToPreviousUseCase
-import com.viperplayer.domain.usecase.player.TogglePlayPauseUseCase
+import com.viperplayer.domain.repository.PlayerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class PlayerUiState(
-    val playingFrom: String? = null,
-    val title: String = "Title",
-    val artists: List<String> = listOf("Artist 1", "Artist 2"),
-    val thumbnailUrl: String? = null,
-    val isLiked: Boolean = false,
-    val position: Long = 50L,
-    val duration: Long = 100L,
-    val isPlaying: Boolean = false,
-    val hasNext: Boolean = true,
-)
-
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    getPlayerStateUseCase: GetPlayerStateUseCase,
-    getQueueUseCase: GetQueueUseCase,
-    private val togglePlayPauseUseCase: TogglePlayPauseUseCase,
-    private val skipToNextUseCase: SkipToNextUseCase,
-    private val skipToPreviousUseCase: SkipToPreviousUseCase,
-    private val seekToUseCase: SeekToUseCase,
-    private val setShuffleUseCase: SetShuffleUseCase,
-    private val setRepeatModeUseCase: SetRepeatModeUseCase,
-    private val addToQueueUseCase: AddToQueueUseCase
+    private val playerRepository: PlayerRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(PlayerUiState())
-    val uiState = _uiState.asStateFlow()
+    // Separate flows for optimal performance
+    val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
 
-    val playerState: StateFlow<PlayerState> = getPlayerStateUseCase()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = PlayerState()
-        )
+    val isPlaying: StateFlow<Boolean> =
+        playbackState
+            .map { it.isPlaying }
+            .distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false
+            )
+
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val duration: StateFlow<Long> = playerRepository.duration
     
-    val queue: StateFlow<List<Song>> = getQueueUseCase()
+    /**
+     * Gets the current playback position in milliseconds.
+     * Use this for polling-based position updates where the UI controls the polling frequency.
+     */
+    suspend fun getCurrentPosition(): Long = playerRepository.getCurrentPosition()
+    val queue: StateFlow<List<Song>> = playerRepository.queue
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
     
+    // UI state for local UI concerns (like liked status)
+    private val _isLiked = MutableStateFlow(false)
+    val isLiked: StateFlow<Boolean> = _isLiked.asStateFlow()
+    
     fun togglePlayPause() {
-        _uiState.update { it.copy(isPlaying = !it.isPlaying) }
         viewModelScope.launch {
-            togglePlayPauseUseCase()
+            playerRepository.togglePlayPause()
         }
     }
     
     fun skipToNext() {
         viewModelScope.launch {
-            skipToNextUseCase()
+            playerRepository.skipToNext()
         }
     }
     
     fun skipToPrevious() {
         viewModelScope.launch {
-            skipToPreviousUseCase()
+            playerRepository.skipToPrevious()
         }
     }
     
     fun seekTo(positionMs: Long) {
         viewModelScope.launch {
-            seekToUseCase(positionMs)
+            playerRepository.seekTo(positionMs)
         }
     }
     
     fun toggleShuffle() {
         viewModelScope.launch {
-            setShuffleUseCase(!playerState.value.shuffleEnabled)
+            playerRepository.setShuffle(!playbackState.value.shuffleEnabled)
         }
     }
     
     fun cycleRepeatMode() {
         viewModelScope.launch {
-            val nextMode = when (playerState.value.repeatMode) {
+            val nextMode = when (playbackState.value.repeatMode) {
                 RepeatMode.OFF -> RepeatMode.ALL
                 RepeatMode.ALL -> RepeatMode.ONE
                 RepeatMode.ONE -> RepeatMode.OFF
             }
-            setRepeatModeUseCase(nextMode)
+            playerRepository.setRepeatMode(nextMode)
         }
     }
     
     fun addToQueue(song: Song) {
         viewModelScope.launch {
-            addToQueueUseCase(song)
+            playerRepository.addToQueue(song)
         }
     }
 
     fun toggleLike() {
-        _uiState.update { it.copy(isLiked = !it.isLiked) }
+        _isLiked.update { !it }
     }
 }
 

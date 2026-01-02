@@ -203,7 +203,25 @@ enum class RepeatMode {
 }
 
 /**
- * Current player state.
+ * Playback information (state, settings, queue info).
+ * Does NOT include position, currentSong, or duration - these are separate.
+ * Use this for UI that only needs playback state and settings.
+ */
+data class PlaybackInfo(
+    val state: PlaybackState = PlaybackState.IDLE,
+    val shuffleEnabled: Boolean = false,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
+    val volume: Float = 1.0f,
+    val queueSize: Int = 0,
+    val queuePosition: Int = 0
+) {
+    val isPlaying: Boolean get() = state == PlaybackState.BUFFERING || state == PlaybackState.PLAYING
+    val isPaused: Boolean get() = state == PlaybackState.PAUSED
+}
+
+/**
+ * Current player state (legacy - combines all fields).
+ * For better performance, use separate flows: playbackState, currentSong, position, duration.
  */
 data class PlayerState(
     val state: PlaybackState = PlaybackState.IDLE,

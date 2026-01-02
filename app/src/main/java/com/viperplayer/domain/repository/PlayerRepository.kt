@@ -1,9 +1,11 @@
 package com.viperplayer.domain.repository
 
+import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.PlayerState
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Repository interface for player operations.
@@ -11,14 +13,40 @@ import kotlinx.coroutines.flow.Flow
 interface PlayerRepository {
     
     /**
-     * Flow of current player state.
+     * Flow of playback state (playing/paused/idle, shuffle, repeat, volume, queue info).
+     * Does NOT include position, currentSong, or duration - these are separate flows.
+     * Emits only when playback state or settings change.
      */
-    val playerState: Flow<PlayerState>
+    val playbackState: StateFlow<PlaybackInfo>
+    
+    /**
+     * Flow of currently playing song metadata.
+     * Emits only when track changes.
+     */
+    val currentSong: StateFlow<Song?>
+    
+    /**
+     * Flow of current track duration in milliseconds.
+     * Emits only when track changes.
+     */
+    val duration: StateFlow<Long>
+    
+    /**
+     * Gets the current playback position in milliseconds.
+     * Use this for polling-based position updates where the UI controls the polling frequency.
+     */
+    suspend fun getCurrentPosition(): Long
     
     /**
      * Flow of current queue.
      */
     val queue: Flow<List<Song>>
+    
+    /**
+     * Legacy combined player state for backward compatibility.
+     * Combines all separate flows - use individual flows for better performance.
+     */
+    val playerState: StateFlow<PlayerState>
     
     /**
      * Play a song.

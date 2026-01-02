@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.usecase.browse.GetBrowseCategoriesUseCase
 import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
 import com.viperplayer.domain.usecase.plugin.ConnectPluginUseCase
@@ -41,11 +42,14 @@ class HomeViewModel @Inject constructor(
     private val connectPluginUseCase: ConnectPluginUseCase,
     private val getConnectedPluginsUseCase: GetConnectedPluginsUseCase,
     private val getBrowseCategoriesUseCase: GetBrowseCategoriesUseCase,
-    private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase
+    private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase,
+    private val playerRepository: PlayerRepository,
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    val playerState = playerRepository.playerState
     
     init {
         observeConnectedPlugins()
