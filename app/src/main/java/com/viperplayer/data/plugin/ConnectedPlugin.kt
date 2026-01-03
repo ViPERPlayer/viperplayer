@@ -1,4 +1,4 @@
-package com.viperplayer.data
+package com.viperplayer.data.plugin
 
 import android.content.ServiceConnection
 import com.viperplayer.data.plugin.handler.PluginHandler

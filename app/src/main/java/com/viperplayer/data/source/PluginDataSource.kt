@@ -9,8 +9,8 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
 import android.os.RemoteException
-import com.viperplayer.data.ConnectedPlugin
 import com.viperplayer.data.mapper.SearchSuggestionsMapper.toDomain
+import com.viperplayer.data.plugin.ConnectedPlugin
 import com.viperplayer.data.plugin.handler.PluginHandlerFactory
 import com.viperplayer.data.preferences.PluginPreferences
 import com.viperplayer.domain.model.Album
