@@ -231,7 +231,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
                     val isLiked = mediaMetadata.extras?.getBoolean("liked") == true
                     mediaLibrarySession.setMediaButtonPreferences(
                         listOf(
-                            CommandButton.Builder()
+                            CommandButton.Builder(if (isLiked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
                                 .setDisplayName(if (isLiked) "Remove like" else "Like")
                                 .build()
                         )
