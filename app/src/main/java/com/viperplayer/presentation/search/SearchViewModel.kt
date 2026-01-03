@@ -3,11 +3,11 @@ package com.viperplayer.presentation.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.SearchSuggestionItem
+import com.viperplayer.domain.model.SearchSuggestionType
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
-import com.viperplayer.plugin.v1.SearchResult
-import com.viperplayer.plugin.v1.SearchSuggestionsItemV1
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.search.model.SearchSection
@@ -119,9 +119,9 @@ class SearchViewModel @Inject constructor(
         _query.value = ""
     }
 
-    private fun SearchSuggestionsItemV1.toSearchItem(): SearchItem {
+    private fun SearchSuggestionItem.toSearchItem(): SearchItem {
         return when (this.type) {
-            SearchSuggestionsItemV1.Type.SONG -> this.song.let {
+            SearchSuggestionType.SONG -> this.song.let {
                 if (it == null) throw IllegalArgumentException("Song can't be null")
 
                 val subtitle = buildString {
@@ -144,7 +144,7 @@ class SearchViewModel @Inject constructor(
                 }
 
                 SearchItem(
-                    id = MediaId("", it.id),
+                    id = MediaId("", it.id.sourceId),
                     type = SearchItem.Type.SONG,
                     artworkUrl = it.artworkUrl,
                     title = it.title,
@@ -158,10 +158,10 @@ class SearchViewModel @Inject constructor(
                 )
             }
 
-            SearchSuggestionsItemV1.Type.ARTIST -> this.artist.let {
+            SearchSuggestionType.ARTIST -> this.artist.let {
                 if (it == null) throw IllegalArgumentException("Artist can't be null")
                 SearchItem(
-                    id = MediaId("", it.id),
+                    id = MediaId("", it.id.sourceId),
                     type = SearchItem.Type.ARTIST,
                     artworkUrl = it.imageUrl,
                     title = it.name,
@@ -171,7 +171,7 @@ class SearchViewModel @Inject constructor(
                 )
             }
 
-            SearchSuggestionsItemV1.Type.ALBUM -> this.album.let {
+            SearchSuggestionType.ALBUM -> this.album.let {
                 if (it == null) throw IllegalArgumentException("Album can't be null")
 
                 val subtitle = buildString {
@@ -194,24 +194,24 @@ class SearchViewModel @Inject constructor(
                 }
 
                 SearchItem(
-                    id = MediaId("", it.id),
+                    id = MediaId("", it.id.sourceId),
                     type = SearchItem.Type.ALBUM,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
                     subtitle = subtitle,
                     isActive = false,
                     badges = buildList {
-                        if (it.isExplicit) {
+                        if (it.type == com.viperplayer.domain.model.AlbumType.COMPILATION) {
                             add(ItemBadge.EXPLICIT)
                         }
                     }
                 )
             }
 
-            SearchSuggestionsItemV1.Type.PLAYLIST -> this.playlist.let {
+            SearchSuggestionType.PLAYLIST -> this.playlist.let {
                 if (it == null) throw IllegalArgumentException("Playlist can't be null")
                 SearchItem(
-                    id = MediaId("", it.id),
+                    id = MediaId("", it.id.sourceId),
                     type = SearchItem.Type.PLAYLIST,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
@@ -239,13 +239,33 @@ class SearchViewModel @Inject constructor(
             
             pluginRepository.search(query.value)
                 .onSuccess { results ->
+                    // Convert domain SearchSectionItem to presentation SearchItem
                     val sections = results.sections.map { section ->
                         SearchSection(
                             title = when (section.type) {
-                                SearchResult.Section.Type.TOP_RESULT -> "Top result"
-                                SearchResult.Section.Type.OTHER -> "Other"
+                                com.viperplayer.domain.model.SearchSectionType.TOP_RESULT -> "Top Result"
+                                com.viperplayer.domain.model.SearchSectionType.OTHER -> "Other"
                             },
-                            items = section.items.map { it.toSearchItem() }
+                            items = section.items.map { item ->
+                                when (item.type) {
+                                    com.viperplayer.domain.model.SearchSectionItemType.SONG -> {
+                                        if (item.song == null) throw IllegalArgumentException("Song can't be null")
+                                        item.song.toSearchItem()
+                                    }
+                                    com.viperplayer.domain.model.SearchSectionItemType.ARTIST -> {
+                                        if (item.artist == null) throw IllegalArgumentException("Artist can't be null")
+                                        item.artist.toSearchItem()
+                                    }
+                                    com.viperplayer.domain.model.SearchSectionItemType.ALBUM -> {
+                                        if (item.album == null) throw IllegalArgumentException("Album can't be null")
+                                        item.album.toSearchItem()
+                                    }
+                                    com.viperplayer.domain.model.SearchSectionItemType.PLAYLIST -> {
+                                        if (item.playlist == null) throw IllegalArgumentException("Playlist can't be null")
+                                        item.playlist.toSearchItem()
+                                    }
+                                }
+                            }
                         )
                     }
                     _searchResultsState.value = if (sections.isEmpty()) {
@@ -271,5 +291,95 @@ class SearchViewModel @Inject constructor(
             searchRepository.removeHistoryEntry(history)
         }
     }
-}
 
+    // Extension functions to convert domain models to SearchItem
+    private fun com.viperplayer.domain.model.Song.toSearchItem(): SearchItem {
+        val subtitle = buildString {
+            if (artists.size > 1) {
+                artists.forEachIndexed { index, artist ->
+                    if (index == artists.size - 1) {
+                        append(" and ")
+                    } else if (index > 0) {
+                        append(", ")
+                    }
+                    append(artist.name)
+                }
+            } else {
+                append(artists.joinToString { it.name })
+            }
+            album?.let { album ->
+                if (artists.isNotEmpty()) append(" • ")
+                append(album.name)
+            }
+        }
+
+        return SearchItem(
+            id = id,
+            type = SearchItem.Type.SONG,
+            artworkUrl = effectiveArtworkUrl,
+            title = title,
+            subtitle = subtitle,
+            isActive = false,
+            badges = buildList {
+                if (isExplicit) {
+                    add(ItemBadge.EXPLICIT)
+                }
+            }
+        )
+    }
+
+    private fun com.viperplayer.domain.model.Artist.toSearchItem(): SearchItem {
+        return SearchItem(
+            id = id,
+            type = SearchItem.Type.ARTIST,
+            artworkUrl = imageUrl,
+            title = name,
+            subtitle = null,
+            isActive = false,
+            badges = emptyList()
+        )
+    }
+
+    private fun com.viperplayer.domain.model.Album.toSearchItem(): SearchItem {
+        val subtitle = buildString {
+            if (artists.size > 1) {
+                artists.forEachIndexed { index, artist ->
+                    if (index == artists.size - 1) {
+                        append(" and ")
+                    } else if (index > 0) {
+                        append(", ")
+                    }
+                    append(artist.name)
+                }
+            } else {
+                append(artists.joinToString { it.name })
+            }
+            releaseYear?.let { year ->
+                if (artists.isNotEmpty()) append(" • ")
+                append(year)
+            }
+        }
+
+        return SearchItem(
+            id = id,
+            type = SearchItem.Type.ALBUM,
+            artworkUrl = artworkUrl,
+            title = name,
+            subtitle = subtitle,
+            isActive = false,
+            badges = emptyList()
+        )
+    }
+
+    private fun com.viperplayer.domain.model.Playlist.toSearchItem(): SearchItem {
+        return SearchItem(
+            id = id,
+            type = SearchItem.Type.PLAYLIST,
+            artworkUrl = artworkUrl,
+            title = name,
+            subtitle = ownerName,
+            isActive = false,
+            badges = emptyList()
+        )
+    }
+}

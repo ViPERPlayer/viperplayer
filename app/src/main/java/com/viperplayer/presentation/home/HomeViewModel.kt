@@ -6,10 +6,9 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.repository.PlayerRepository
+import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.usecase.browse.GetBrowseCategoriesUseCase
 import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
-import com.viperplayer.domain.usecase.plugin.DiscoverPluginsUseCase
-import com.viperplayer.domain.usecase.plugin.GetConnectedPluginsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,8 +36,7 @@ data class HomeUiState(
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val discoverPluginsUseCase: DiscoverPluginsUseCase,
-    private val getConnectedPluginsUseCase: GetConnectedPluginsUseCase,
+    private val pluginRepository: PluginRepository,
     private val getBrowseCategoriesUseCase: GetBrowseCategoriesUseCase,
     private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase,
     private val playerRepository: PlayerRepository,
@@ -56,7 +54,7 @@ class HomeViewModel @Inject constructor(
     
     private fun observeConnectedPlugins() {
         viewModelScope.launch {
-            getConnectedPluginsUseCase().collect { plugins ->
+            pluginRepository.connectedPlugins.collect { plugins ->
                 _uiState.update { it.copy(connectedPlugins = plugins) }
             }
         }
@@ -67,9 +65,6 @@ class HomeViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                // Discover and connect to plugins
-                discoverPluginsUseCase()
-                
                 // Load categories
                 val categoriesResult = getBrowseCategoriesUseCase(limit = 10)
                 val categories = categoriesResult.getOrNull()?.items.orEmpty()

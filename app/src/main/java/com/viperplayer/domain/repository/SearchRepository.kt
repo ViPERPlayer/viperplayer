@@ -1,13 +1,13 @@
 package com.viperplayer.domain.repository
 
-import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
+import com.viperplayer.domain.model.SearchSuggestions
 import kotlinx.coroutines.flow.Flow
 
 interface SearchRepository {
     // Retrieves search suggestions for the given query, asynchronously.
     // Different plugins will take different amount of times to return the data.
-    suspend fun getSuggestions(query: String): Flow<List<Result<SearchSuggestionsResultV1>>>
-    
+    suspend fun getSuggestions(query: String): Flow<List<Result<SearchSuggestions>>>
+
     // Saves a search query to history
     suspend fun saveSearchHistory(query: String)
     

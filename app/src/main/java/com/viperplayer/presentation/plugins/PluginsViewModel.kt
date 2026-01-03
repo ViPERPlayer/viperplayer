@@ -4,12 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
-import com.viperplayer.domain.usecase.plugin.DisablePluginUseCase
-import com.viperplayer.domain.usecase.plugin.DiscoverPluginsUseCase
-import com.viperplayer.domain.usecase.plugin.EnablePluginUseCase
-import com.viperplayer.domain.usecase.plugin.GetConnectedPluginsUseCase
-import com.viperplayer.domain.usecase.plugin.GetDiscoveredPluginsUseCase
-import com.viperplayer.domain.usecase.plugin.GetPluginEnabledStatesUseCase
+import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,12 +31,7 @@ data class PluginsUiState(
  */
 @HiltViewModel
 class PluginsViewModel @Inject constructor(
-    private val discoverPluginsUseCase: DiscoverPluginsUseCase,
-    private val enablePluginUseCase: EnablePluginUseCase,
-    private val disablePluginUseCase: DisablePluginUseCase,
-    private val getDiscoveredPluginsUseCase: GetDiscoveredPluginsUseCase,
-    private val getConnectedPluginsUseCase: GetConnectedPluginsUseCase,
-    private val getPluginEnabledStatesUseCase: GetPluginEnabledStatesUseCase
+    private val pluginRepository: PluginRepository
 ) : ViewModel() {
     companion object {
         private const val TAG = "PluginsViewModel"
@@ -59,14 +49,14 @@ class PluginsViewModel @Inject constructor(
     private fun observePlugins() {
         Timber.d("Starting to observe plugins")
         viewModelScope.launch {
-            getDiscoveredPluginsUseCase().collect { plugins ->
+            pluginRepository.discoveredPlugins.collect { plugins ->
                 Timber.d("Discovered plugins updated: ${plugins.size} plugins")
                 _uiState.update { it.copy(discoveredPlugins = plugins) }
             }
         }
         
         viewModelScope.launch {
-            getConnectedPluginsUseCase().collect { plugins ->
+            pluginRepository.connectedPlugins.collect { plugins ->
                 Timber.d("Connected plugins updated: ${plugins.size} plugins")
                 _uiState.update { 
                     it.copy(connectedPlugins = plugins.associateBy { p -> p.info.id })
@@ -75,10 +65,10 @@ class PluginsViewModel @Inject constructor(
         }
         
         viewModelScope.launch {
-            getPluginEnabledStatesUseCase().collect { states ->
-                Timber.d("Enabled states updated: $states")
-                _uiState.update { it.copy(enabledStates = states) }
-            }
+//            pluginRepository..collect { states ->
+//                Timber.d("Enabled states updated: $states")
+//                _uiState.update { it.copy(enabledStates = states) }
+//            }
         }
     }
     
@@ -89,7 +79,7 @@ class PluginsViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                discoverPluginsUseCase()
+                pluginRepository.refreshPlugins()
                 Timber.d("refresh() completed successfully")
             } catch (e: Exception) {
                 Timber.e(e, "Error in refresh()")
@@ -109,10 +99,10 @@ class PluginsViewModel @Inject constructor(
             
             val result = if (isEnabled) {
                 Timber.d("Disabling plugin: $pluginId")
-                disablePluginUseCase(pluginId)
+                pluginRepository.disablePlugin(pluginId)
             } else {
                 Timber.d("Enabling plugin: $pluginId")
-                enablePluginUseCase(pluginId)
+                pluginRepository.enablePlugin(pluginId)
             }
             
             result.onFailure { e ->

@@ -132,20 +132,78 @@ data class BrowseCategory(
 )
 
 /**
- * Search results containing multiple types.
+ * Search suggestions from a plugin.
+ */
+data class SearchSuggestions(
+    val pluginId: String,
+    val suggestions: List<String> = emptyList(),
+    val items: List<SearchSuggestionItem> = emptyList()
+)
+
+/**
+ * A single search suggestion item (song, artist, album, or playlist).
+ */
+data class SearchSuggestionItem(
+    val type: SearchSuggestionType,
+    val song: Song? = null,
+    val artist: Artist? = null,
+    val album: Album? = null,
+    val playlist: Playlist? = null
+)
+
+/**
+ * Type of search suggestion item.
+ */
+enum class SearchSuggestionType {
+    SONG, ARTIST, ALBUM, PLAYLIST
+}
+
+/**
+ * Search results containing multiple types organized in sections.
  */
 data class SearchResult(
-    val songs: List<Song> = emptyList(),
-    val albums: List<Album> = emptyList(),
-    val artists: List<Artist> = emptyList(),
-    val playlists: List<Playlist> = emptyList(),
+    val sections: List<SearchSection> = emptyList(),
     val nextCursor: String? = null
 ) {
     val isEmpty: Boolean
-        get() = songs.isEmpty() && albums.isEmpty() && artists.isEmpty() && playlists.isEmpty()
-    
+        get() = sections.isEmpty()
+
     val hasMore: Boolean
         get() = nextCursor != null
+}
+
+/**
+ * A section of search results.
+ */
+data class SearchSection(
+    val type: SearchSectionType,
+    val items: List<SearchSectionItem> = emptyList()
+)
+
+/**
+ * Type of search result section.
+ */
+enum class SearchSectionType {
+    TOP_RESULT,
+    OTHER
+}
+
+/**
+ * An individual search result item (song, artist, album, or playlist).
+ */
+data class SearchSectionItem(
+    val type: SearchSectionItemType,
+    val song: Song? = null,
+    val artist: Artist? = null,
+    val album: Album? = null,
+    val playlist: Playlist? = null
+)
+
+/**
+ * Type of search section item.
+ */
+enum class SearchSectionItemType {
+    SONG, ARTIST, ALBUM, PLAYLIST
 }
 
 /**

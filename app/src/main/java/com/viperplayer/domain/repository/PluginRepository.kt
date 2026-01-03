@@ -9,8 +9,8 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
+import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -32,22 +32,7 @@ interface PluginRepository {
     /**
      * Discover all installed plugins.
      */
-    suspend fun discoverPlugins()
-    
-    /**
-     * Connect to a plugin.
-     */
-    suspend fun connectPlugin(pluginId: String): Result<Plugin>
-    
-    /**
-     * Disconnect from a plugin.
-     */
-    suspend fun disconnectPlugin(pluginId: String)
-    
-    /**
-     * Disconnect from all plugins.
-     */
-    suspend fun disconnectAll()
+    suspend fun refreshPlugins()
     
     /**
      * Enable a plugin (connects it automatically).
@@ -58,32 +43,16 @@ interface PluginRepository {
      * Disable a plugin (disconnects it).
      */
     suspend fun disablePlugin(pluginId: String): Result<Unit>
-    
-    /**
-     * Get disabled state for a plugin.
-     */
-    val pluginDisabledStates: Flow<Map<String, Boolean>>
 
     /**
      * Gets search suggestions across all connected plugins.
      */
-    suspend fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestionsResultV1>>>
+    suspend fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestions>>>
 
     /**
      * Search across all connected plugins.
      */
     suspend fun search(
-        query: String,
-        types: Int = SEARCH_TYPE_ALL,
-        cursor: String? = null,
-        limit: Int = 20
-    ): Result<com.viperplayer.plugin.v1.SearchResult>
-    
-    /**
-     * Search within a specific plugin.
-     */
-    suspend fun searchInPlugin(
-        pluginId: String,
         query: String,
         types: Int = SEARCH_TYPE_ALL,
         cursor: String? = null,

@@ -2,9 +2,9 @@ package com.viperplayer.data.repository
 
 import com.viperplayer.data.local.dao.SearchHistoryDao
 import com.viperplayer.data.local.entity.SearchHistoryEntity
+import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
-import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -15,7 +15,7 @@ class SearchRepositoryImpl @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val searchHistoryDao: SearchHistoryDao
 ) : SearchRepository {
-    override suspend fun getSuggestions(query: String): Flow<List<Result<SearchSuggestionsResultV1>>> {
+    override suspend fun getSuggestions(query: String): Flow<List<Result<SearchSuggestions>>> {
         return pluginRepository.getSearchSuggestions(query)
     }
     
