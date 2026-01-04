@@ -6,15 +6,15 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CategoryContentType
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.PluginCapabilities
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSection
-import com.viperplayer.domain.model.SearchSectionItem
-import com.viperplayer.domain.model.SearchSectionItemType
 import com.viperplayer.domain.model.SearchSectionType
 import com.viperplayer.domain.model.Song
+import com.viperplayer.plugin.v1.MediaItemV1
 import com.viperplayer.plugin.v1.Album as AidlAlbum
 import com.viperplayer.plugin.v1.AlbumType as AidlAlbumType
 import com.viperplayer.plugin.v1.Artist as AidlArtist
@@ -30,6 +30,15 @@ import com.viperplayer.plugin.v1.Song as AidlSong
  * Mappers to convert between AIDL models and domain models.
  */
 object PluginMapper {
+
+    fun MediaItemV1.toDomain(pluginId: String): MediaItem {
+        return when (this.type) {
+            MediaItemV1.Type.SONG -> this.song!!.toDomain(pluginId)
+            MediaItemV1.Type.ALBUM -> this.album!!.toDomain(pluginId)
+            MediaItemV1.Type.ARTIST -> this.artist!!.toDomain(pluginId)
+            MediaItemV1.Type.PLAYLIST -> this.playlist!!.toDomain(pluginId)
+        }
+    }
     
     fun String.toDomain(pluginId: String): MediaId = MediaId(pluginId, this)
 
@@ -80,8 +89,8 @@ object PluginMapper {
         artworkUrl = artworkUrl,
         ownerName = ownerName,
         songCount = songCount,
-        isPublic = isPublic,
-        isEditable = isEditable,
+        isPublic = true,
+        isEditable = false,
         songs = songs?.map { it.toDomain(pluginId) }
     )
     
@@ -116,20 +125,7 @@ object PluginMapper {
                 com.viperplayer.plugin.v1.SearchResult.Section.Type.TOP_RESULT -> SearchSectionType.TOP_RESULT
                 com.viperplayer.plugin.v1.SearchResult.Section.Type.OTHER -> SearchSectionType.OTHER
             },
-            items = items.map { item ->
-                SearchSectionItem(
-                    type = when (item.type) {
-                        com.viperplayer.plugin.v1.SearchSuggestionsItemV1.Type.SONG -> SearchSectionItemType.SONG
-                        com.viperplayer.plugin.v1.SearchSuggestionsItemV1.Type.ARTIST -> SearchSectionItemType.ARTIST
-                        com.viperplayer.plugin.v1.SearchSuggestionsItemV1.Type.ALBUM -> SearchSectionItemType.ALBUM
-                        com.viperplayer.plugin.v1.SearchSuggestionsItemV1.Type.PLAYLIST -> SearchSectionItemType.PLAYLIST
-                    },
-                    song = item.song?.toDomain(pluginId),
-                    artist = item.artist?.toDomain(pluginId),
-                    album = item.album?.toDomain(pluginId),
-                    playlist = item.playlist?.toDomain(pluginId)
-                )
-            }
+            items = items.map { it.toDomain(pluginId) }
         )
     }
 

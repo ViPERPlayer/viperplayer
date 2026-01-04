@@ -2,9 +2,12 @@ package com.viperplayer.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
-import com.viperplayer.domain.model.SearchSuggestionItem
-import com.viperplayer.domain.model.SearchSuggestionType
+import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
@@ -119,28 +122,30 @@ class SearchViewModel @Inject constructor(
         _query.value = ""
     }
 
-    private fun SearchSuggestionItem.toSearchItem(): SearchItem {
-        return when (this.type) {
-            SearchSuggestionType.SONG -> this.song.let {
-                if (it == null) throw IllegalArgumentException("Song can't be null")
-
+    private fun MediaItem.toSearchItem(): SearchItem {
+        return when (this) {
+            is Song -> this.let {
                 val subtitle = buildString {
-                    if (it.artists.size > 1) {
-                        it.artists.forEachIndexed { index, artist ->
-                            if (index == it.artists.size - 1) {
-                                append(" and ")
-                            } else if (index > 0) {
-                                append(", ")
+                    append("Song")
+                    if (it.artists.isNotEmpty()) {
+                        append(" • ")
+                        if (it.artists.size > 1) {
+                            it.artists.forEachIndexed { index, artist ->
+                                if (index == it.artists.size - 1) {
+                                    append(" and ")
+                                } else if (index > 0) {
+                                    append(", ")
+                                }
+                                append(artist.name)
                             }
-                            append(artist.name)
+                        } else {
+                            append(it.artists.joinToString { it.name })
                         }
-                    } else {
-                        append(it.artists.joinToString { it.name })
                     }
-                    it.album?.let { album ->
-                        if (it.artists.isNotEmpty()) append(" • ")
-                        append(album.name)
-                    }
+//                    it.album?.let { album ->
+//                        append(" • ")
+//                        append(album.name)
+//                    }
                 }
 
                 SearchItem(
@@ -158,8 +163,7 @@ class SearchViewModel @Inject constructor(
                 )
             }
 
-            SearchSuggestionType.ARTIST -> this.artist.let {
-                if (it == null) throw IllegalArgumentException("Artist can't be null")
+            is Artist -> this.let {
                 SearchItem(
                     id = MediaId("", it.id.sourceId),
                     type = SearchItem.Type.ARTIST,
@@ -171,24 +175,26 @@ class SearchViewModel @Inject constructor(
                 )
             }
 
-            SearchSuggestionType.ALBUM -> this.album.let {
-                if (it == null) throw IllegalArgumentException("Album can't be null")
-
+            is Album -> this.let {
                 val subtitle = buildString {
-                    if (it.artists.size > 1) {
-                        it.artists.forEachIndexed { index, artist ->
-                            if (index == it.artists.size - 1) {
-                                append(" and ")
-                            } else if (index > 0) {
-                                append(", ")
+                    append("Album")
+                    if (it.artists.isNotEmpty()) {
+                        append(" • ")
+                        if (it.artists.size > 1) {
+                            it.artists.forEachIndexed { index, artist ->
+                                if (index == it.artists.size - 1) {
+                                    append(" and ")
+                                } else if (index > 0) {
+                                    append(", ")
+                                }
+                                append(artist.name)
                             }
-                            append(artist.name)
+                        } else {
+                            append(it.artists.joinToString { it.name })
                         }
-                    } else {
-                        append(it.artists.joinToString { it.name })
                     }
                     it.releaseYear?.let { releaseYear ->
-                        if (it.artists.isNotEmpty()) append(" • ")
+                        append(" • ")
                         append(releaseYear)
                     }
                 }
@@ -208,14 +214,20 @@ class SearchViewModel @Inject constructor(
                 )
             }
 
-            SearchSuggestionType.PLAYLIST -> this.playlist.let {
-                if (it == null) throw IllegalArgumentException("Playlist can't be null")
+            is Playlist -> this.let {
+                val subtitle = buildString {
+                    append("Playlist")
+                    it.ownerName?.let { ownerName ->
+                        append(" • ")
+                        append(ownerName)
+                    }
+                }
                 SearchItem(
                     id = MediaId("", it.id.sourceId),
                     type = SearchItem.Type.PLAYLIST,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
-                    subtitle = it.ownerName,
+                    subtitle = subtitle,
                     isActive = false,
                     badges = emptyList()
                 )
@@ -246,26 +258,7 @@ class SearchViewModel @Inject constructor(
                                 com.viperplayer.domain.model.SearchSectionType.TOP_RESULT -> "Top Result"
                                 com.viperplayer.domain.model.SearchSectionType.OTHER -> "Other"
                             },
-                            items = section.items.map { item ->
-                                when (item.type) {
-                                    com.viperplayer.domain.model.SearchSectionItemType.SONG -> {
-                                        if (item.song == null) throw IllegalArgumentException("Song can't be null")
-                                        item.song.toSearchItem()
-                                    }
-                                    com.viperplayer.domain.model.SearchSectionItemType.ARTIST -> {
-                                        if (item.artist == null) throw IllegalArgumentException("Artist can't be null")
-                                        item.artist.toSearchItem()
-                                    }
-                                    com.viperplayer.domain.model.SearchSectionItemType.ALBUM -> {
-                                        if (item.album == null) throw IllegalArgumentException("Album can't be null")
-                                        item.album.toSearchItem()
-                                    }
-                                    com.viperplayer.domain.model.SearchSectionItemType.PLAYLIST -> {
-                                        if (item.playlist == null) throw IllegalArgumentException("Playlist can't be null")
-                                        item.playlist.toSearchItem()
-                                    }
-                                }
-                            }
+                            items = section.items.map { it.toSearchItem() }
                         )
                     }
                     _searchResultsState.value = if (sections.isEmpty()) {

@@ -37,8 +37,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -772,15 +772,20 @@ class PluginDataSource @Inject constructor(
     // Gets search suggestions from all plugins asynchronously and publishes merged results
     // as soon as it gets them
     fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestions>>> {
-        return flow {
+        return channelFlow {
             val results = mutableListOf<Result<SearchSuggestions>>()
+
             _connectedPlugins.value.forEach { (pluginId, plugin) ->
-                val result = plugin.handler.getSearchSuggestions(query)
-                results.add(result.mapCatching { suggestionsV1 ->
-                    suggestionsV1.toDomain(pluginId)
-                })
+                launch {
+                    val result = plugin.handler.getSearchSuggestions(query)
+                        .mapCatching { it.toDomain(pluginId) }
+
+                    synchronized(results) {
+                        results.add(result)
+                        trySend(results.toList()) // emit every time a plugin responds
+                    }
+                }
             }
-            emit(results)
         }
     }
 

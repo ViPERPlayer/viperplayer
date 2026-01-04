@@ -11,7 +11,7 @@ enum class AlbumType {
  * Represents an album.
  */
 data class Album(
-    val id: MediaId,
+    override val id: MediaId,
     val name: String,
     val artists: List<Artist> = emptyList(),
     val artworkUrl: String? = null,
@@ -19,7 +19,7 @@ data class Album(
     val trackCount: Int = 0,
     val type: AlbumType = AlbumType.ALBUM,
     val songs: List<Song>? = null
-) {
+) : MediaItem {
     val artistName: String
         get() = artists.firstOrNull()?.name ?: "Unknown Artist"
 }

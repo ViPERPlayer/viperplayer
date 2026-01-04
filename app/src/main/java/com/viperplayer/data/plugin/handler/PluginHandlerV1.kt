@@ -52,12 +52,15 @@ class PluginHandlerV1(
     override suspend fun getSearchSuggestions(query: String): Result<SearchSuggestionsResultV1> {
         return runCatching {
             suspendCancellableCoroutine { continuation ->
+                Timber.d("Getting search suggestions from plugin: $pluginId, query: $query")
                 service.getSearchSuggestions(query, object : ISearchSuggestionsCallback.Stub() {
                     override fun onSuccess(result: SearchSuggestionsResultV1) {
+                        Timber.d("Search suggestions received from plugin: $pluginId, suggestions: ${result.suggestions.size}")
                         continuation.resume(result)
                     }
 
                     override fun onFailure(errorCode: Int, message: String?) {
+                        Timber.e("Search suggestions failed from plugin: $pluginId, error: $errorCode, message: $message")
                         continuation.resumeWithException(PluginException(errorCode, message))
                     }
                 })
@@ -78,6 +81,11 @@ class PluginHandlerV1(
                     override fun onSuccess(result: AidlSearchResult) {
                         Timber.d("Search result received from plugin: $pluginId, sections: ${result.sections.size}")
                         cont.resume(result)
+                    }
+
+                    override fun onFailure(errorCode: Int, message: String?) {
+                        Timber.e("Search failed from plugin: $pluginId, error: $errorCode, message: $message")
+                        cont.resumeWithException(PluginException(errorCode, message))
                     }
                 })
             } catch (e: Exception) {

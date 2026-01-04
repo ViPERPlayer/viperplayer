@@ -4,7 +4,7 @@ package com.viperplayer.domain.model
  * Represents a song/track.
  */
 data class Song(
-    val id: MediaId,
+    override val id: MediaId,
     val title: String,
     val artists: List<Artist> = emptyList(),
     val album: Album? = null,
@@ -14,7 +14,7 @@ data class Song(
     val discNumber: Int? = null,
     val isExplicit: Boolean = false,
     val isPlayable: Boolean = true
-) {
+) : MediaItem {
     val artistName: String
         get() = artists.firstOrNull()?.name ?: "Unknown Artist"
 
