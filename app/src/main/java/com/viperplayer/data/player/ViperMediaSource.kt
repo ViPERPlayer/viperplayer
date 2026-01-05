@@ -33,28 +33,24 @@ class ViperMediaSource(
         private val dash: MediaSource.Factory,
     ) : MediaSource.Factory {
         override fun setDrmSessionManagerProvider(drmSessionManagerProvider: DrmSessionManagerProvider): MediaSource.Factory {
-            Timber.d("setDrmSessionManagerProvider() called")
             base.setDrmSessionManagerProvider(drmSessionManagerProvider)
             dash.setDrmSessionManagerProvider(drmSessionManagerProvider)
             return this
         }
 
         override fun setLoadErrorHandlingPolicy(loadErrorHandlingPolicy: LoadErrorHandlingPolicy): MediaSource.Factory {
-            Timber.d("setLoadErrorHandlingPolicy() called")
             base.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
             dash.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
             return this
         }
 
         override fun getSupportedTypes(): IntArray {
-            Timber.d("getSupportedTypes() called")
-            val base = base.getSupportedTypes()
-            val dash = dash.getSupportedTypes()
+            val base = base.supportedTypes
+            val dash = dash.supportedTypes
             return (base + dash).distinct().toIntArray()
         }
 
         override fun createMediaSource(mediaItem: MediaItem): MediaSource {
-            Timber.d("createMediaSource() called")
             val base = base.createMediaSource(mediaItem)
             val dash = dash.createMediaSource(mediaItem)
             return ViperMediaSource(resolver, base, dash)
@@ -65,13 +61,11 @@ class ViperMediaSource(
         handler: Handler,
         eventListener: MediaSourceEventListener
     ) {
-        Timber.d("addEventListener() called")
         base.addEventListener(handler, eventListener)
         dash.addEventListener(handler, eventListener)
     }
 
     override fun removeEventListener(eventListener: MediaSourceEventListener) {
-        Timber.d("removeEventListener() called")
         base.removeEventListener(eventListener)
         dash.removeEventListener(eventListener)
     }
@@ -80,13 +74,11 @@ class ViperMediaSource(
         handler: Handler,
         eventListener: DrmSessionEventListener
     ) {
-        Timber.d("addDrmEventListener() called")
         base.addDrmEventListener(handler, eventListener)
         dash.addDrmEventListener(handler, eventListener)
     }
 
     override fun removeDrmEventListener(eventListener: DrmSessionEventListener) {
-        Timber.d("removeDrmEventListener() called")
         base.removeDrmEventListener(eventListener)
         dash.removeDrmEventListener(eventListener)
     }
@@ -113,12 +105,8 @@ class ViperMediaSource(
             val response = resolver.resolve(uri).getOrNull()
             handler.post {
                 real = when (response?.type) {
-                    StreamSource.Type.URL -> {
-                        base
-                    }
-                    StreamSource.Type.DASH -> {
-                        dash
-                    }
+                    StreamSource.Type.URL -> base
+                    StreamSource.Type.DASH -> dash
                     else -> throw IllegalStateException("Unknown stream type")
                 }
                 real.prepareSource(caller, mediaTransferListener, playerId)
@@ -135,7 +123,6 @@ class ViperMediaSource(
     }
 
     override fun enable(caller: MediaSource.MediaSourceCaller) {
-        Timber.d("enable() called")
         real.enable(caller)
     }
 
@@ -144,22 +131,18 @@ class ViperMediaSource(
         allocator: Allocator,
         startPositionUs: Long
     ): MediaPeriod {
-        Timber.d("createPeriod() called")
         return real.createPeriod(id, allocator, startPositionUs)
     }
 
     override fun releasePeriod(mediaPeriod: MediaPeriod) {
-        Timber.d("releasePeriod() called")
         real.releasePeriod(mediaPeriod)
     }
 
     override fun disable(caller: MediaSource.MediaSourceCaller) {
-        Timber.d("disable() called")
         real.disable(caller)
     }
 
     override fun releaseSource(caller: MediaSource.MediaSourceCaller) {
-        Timber.d("releaseSource() called")
         real.releaseSource(caller)
     }
 }
