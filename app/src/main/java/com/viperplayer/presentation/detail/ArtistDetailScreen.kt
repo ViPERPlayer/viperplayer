@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.detail
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,11 +37,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.search.model.ItemBadge
+import com.viperplayer.presentation.search.model.SearchItem
 
 @Composable
 fun ArtistDetailScreen(
@@ -50,6 +55,8 @@ fun ArtistDetailScreen(
     viewModel: ArtistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -57,7 +64,14 @@ fun ArtistDetailScreen(
             .padding(rootPadding.with(bottom = 0.dp))
     ) {
         TopAppBar(
-            title = { Text(uiState.artist?.name ?: "Artist") },
+            title = { 
+                Text(
+                    when (val state = uiState) {
+                        is ArtistDetailUiState.Success -> state.artist.name
+                        else -> "Artist"
+                    }
+                )
+            },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -70,38 +84,40 @@ fun ArtistDetailScreen(
             }
         )
 
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (uiState.error != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+        when (val state = uiState) {
+            is ArtistDetailUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(rootPadding.bottom()),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = uiState.error!!,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Button(onClick = { viewModel.refresh() }) {
-                        Text("Retry")
+                    CircularProgressIndicator()
+                }
+            }
+            is ArtistDetailUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(rootPadding.bottom()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Button(onClick = { viewModel.refresh() }) {
+                            Text("Retry")
+                        }
                     }
                 }
             }
-        } else {
-            uiState.artist?.let { artist ->
+            is ArtistDetailUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -111,7 +127,7 @@ fun ArtistDetailScreen(
                     // Artist header
                     item {
                         ArtistHeader(
-                            artist = artist,
+                            artist = state.artist,
                             onPlayAll = { viewModel.playAllSongs() }
                         )
                     }
@@ -119,15 +135,15 @@ fun ArtistDetailScreen(
                     // Tab selector
                     item {
                         PrimaryTabRow(
-                            selectedTabIndex = uiState.selectedTab.ordinal
+                            selectedTabIndex = state.selectedTab.ordinal
                         ) {
                             Tab(
-                                selected = uiState.selectedTab == ArtistTab.SONGS,
+                                selected = state.selectedTab == ArtistTab.SONGS,
                                 onClick = { viewModel.selectTab(ArtistTab.SONGS) },
                                 text = { Text("Songs") }
                             )
                             Tab(
-                                selected = uiState.selectedTab == ArtistTab.ALBUMS,
+                                selected = state.selectedTab == ArtistTab.ALBUMS,
                                 onClick = { viewModel.selectTab(ArtistTab.ALBUMS) },
                                 text = { Text("Albums") }
                             )
@@ -135,9 +151,9 @@ fun ArtistDetailScreen(
                     }
 
                     // Content based on selected tab
-                    when (uiState.selectedTab) {
+                    when (state.selectedTab) {
                         ArtistTab.SONGS -> {
-                            if (uiState.topSongs.isEmpty()) {
+                            if (state.topSongs.isEmpty()) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -153,16 +169,25 @@ fun ArtistDetailScreen(
                                     }
                                 }
                             } else {
-                                items(uiState.topSongs) { song ->
-//                                    SongItem(
-//                                        song = song,
-//                                        onClick = { viewModel.playSong(song) }
-//                                    )
+                                items(state.topSongs) { song ->
+                                    ListItem(
+                                        type = SearchItem.Type.SONG,
+                                        title = song.title,
+                                        badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
+                                        subtitle = song.artistName,
+                                        trackNumber = song.trackNumber,
+                                        durationMs = song.durationMs,
+                                        isActive = currentSong?.id == song.id,
+                                        isPlaying = currentSong?.id == song.id && isPlaying,
+                                        modifier = Modifier
+                                            .clickable { viewModel.playSong(song) }
+                                            .fillMaxWidth()
+                                    )
                                 }
                             }
                         }
                         ArtistTab.ALBUMS -> {
-                            if (uiState.albums.isEmpty()) {
+                            if (state.albums.isEmpty()) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -178,7 +203,7 @@ fun ArtistDetailScreen(
                                     }
                                 }
                             } else {
-                                items(uiState.albums) { album ->
+                                items(state.albums) { album ->
 //                                    AlbumItem(
 //                                        album = album,
 //                                        onClick = { onNavigateToAlbum(album.id.toString()) }
@@ -272,3 +297,4 @@ private fun formatFollowerCount(count: Long): String {
         else -> count.toString()
     }
 }
+

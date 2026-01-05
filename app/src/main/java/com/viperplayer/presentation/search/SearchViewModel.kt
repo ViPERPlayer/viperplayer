@@ -13,7 +13,6 @@ import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
-import com.viperplayer.presentation.search.model.SearchSection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +38,7 @@ data class SearchSuggestionsState(
 sealed class SearchResultsState {
     data object Idle : SearchResultsState()
     data object Searching : SearchResultsState()
-    data class Results(val sections: List<SearchSection>) : SearchResultsState()
+    data class Results(val items: List<SearchItem>) : SearchResultsState()
     data object Empty : SearchResultsState()
     data class Error(val message: String) : SearchResultsState()
 }
@@ -149,7 +148,7 @@ class SearchViewModel @Inject constructor(
                 }
 
                 SearchItem(
-                    id = MediaId("", it.id.sourceId),
+                    id = it.id,
                     type = SearchItem.Type.SONG,
                     artworkUrl = it.artworkUrl,
                     title = it.title,
@@ -165,7 +164,7 @@ class SearchViewModel @Inject constructor(
 
             is Artist -> this.let {
                 SearchItem(
-                    id = MediaId("", it.id.sourceId),
+                    id = it.id,
                     type = SearchItem.Type.ARTIST,
                     artworkUrl = it.imageUrl,
                     title = it.name,
@@ -200,7 +199,7 @@ class SearchViewModel @Inject constructor(
                 }
 
                 SearchItem(
-                    id = MediaId("", it.id.sourceId),
+                    id = it.id,
                     type = SearchItem.Type.ALBUM,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
@@ -223,7 +222,7 @@ class SearchViewModel @Inject constructor(
                     }
                 }
                 SearchItem(
-                    id = MediaId("", it.id.sourceId),
+                    id = it.id,
                     type = SearchItem.Type.PLAYLIST,
                     artworkUrl = it.artworkUrl,
                     title = it.name,
@@ -252,19 +251,11 @@ class SearchViewModel @Inject constructor(
             pluginRepository.search(query.value)
                 .onSuccess { results ->
                     // Convert domain SearchSectionItem to presentation SearchItem
-                    val sections = results.sections.map { section ->
-                        SearchSection(
-                            title = when (section.type) {
-                                com.viperplayer.domain.model.SearchSectionType.TOP_RESULT -> "Top Result"
-                                com.viperplayer.domain.model.SearchSectionType.OTHER -> "Other"
-                            },
-                            items = section.items.map { it.toSearchItem() }
-                        )
-                    }
-                    _searchResultsState.value = if (sections.isEmpty()) {
+                    val items = results.items.map { it.toSearchItem() }
+                    _searchResultsState.value = if (items.isEmpty()) {
                         SearchResultsState.Empty
                     } else {
-                        SearchResultsState.Results(sections)
+                        SearchResultsState.Results(items)
                     }
                 }
                 .onFailure { e ->

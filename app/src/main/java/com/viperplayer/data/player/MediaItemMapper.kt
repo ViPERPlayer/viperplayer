@@ -23,10 +23,10 @@ object MediaItemMapper {
             .setTitle(title)
             .setArtist(artistName)
             .setAlbumTitle(albumName)
-//            .setArtworkUri(artworkUrl)
-//            .setDuration(durationMs?.takeIf { it > 0 }?.let { java.time.Duration.ofMillis(it) })
-//            .setTrackNumber(trackNumber?.toLong())
-//            .setDiscNumber(discNumber?.toLong())
+            .setArtworkUri(artworkUrl?.toUri())
+            .setDurationMs(durationMs)
+            .setTrackNumber(trackNumber)
+            .setDiscNumber(discNumber)
 //            .setIsExplicit(isExplicit)
 
         // Store domain model data in extras for later retrieval
@@ -46,6 +46,7 @@ object MediaItemMapper {
             .setMediaId(mediaId)
             .setUri(mediaId) // The ViperPlayerResolver will handle the actual URI resolution
             .setMediaMetadata(metadataBuilder.build())
+//            .setMimeType(MimeTypes.APPLICATION_MPD)
             .build()
     }
 

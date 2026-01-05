@@ -8,26 +8,29 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
-import com.viperplayer.domain.usecase.detail.GetPlaylistSongsUseCase
-import com.viperplayer.domain.usecase.detail.GetPlaylistUseCase
+import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.PlaylistDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * UI state for Playlist Detail screen.
  */
-data class PlaylistDetailUiState(
-    val isLoading: Boolean = true,
-    val playlist: Playlist? = null,
-    val songs: List<Song> = emptyList(),
-    val error: String? = null
-)
+sealed class PlaylistDetailUiState {
+    data object Loading : PlaylistDetailUiState()
+    data class Success(
+        val playlist: Playlist,
+        val songs: List<Song>
+    ) : PlaylistDetailUiState()
+    data class Error(val message: String) : PlaylistDetailUiState()
+}
 
 /**
  * ViewModel for Playlist Detail screen.
@@ -35,8 +38,7 @@ data class PlaylistDetailUiState(
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getPlaylistUseCase: GetPlaylistUseCase,
-    private val getPlaylistSongsUseCase: GetPlaylistSongsUseCase,
+    private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
@@ -46,8 +48,18 @@ class PlaylistDetailViewModel @Inject constructor(
         sourceId = playlistDetail.sourceId
     )
 
-    private val _uiState = MutableStateFlow(PlaylistDetailUiState())
+    private val _uiState = MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading)
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
+
+    // Expose current song and playing state from player repository
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+        .map { it.isPlaying }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     init {
         loadPlaylistDetails()
@@ -55,18 +67,15 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private fun loadPlaylistDetails() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.value = PlaylistDetailUiState.Loading
 
             try {
                 // Load playlist details
-                val playlistResult = getPlaylistUseCase(playlistId)
+                val playlistResult = pluginRepository.getPlaylist(playlistId)
                 if (playlistResult.isFailure) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = playlistResult.exceptionOrNull()?.message ?: "Failed to load playlist"
-                        )
-                    }
+                    _uiState.value = PlaylistDetailUiState.Error(
+                        playlistResult.exceptionOrNull()?.message ?: "Failed to load playlist"
+                    )
                     return@launch
                 }
 
@@ -76,24 +85,18 @@ class PlaylistDetailViewModel @Inject constructor(
                 val songs = if (playlist.songs != null && playlist.songs.isNotEmpty()) {
                     playlist.songs
                 } else {
-                    val songsResult = getPlaylistSongsUseCase(playlistId, limit = 100)
+                    val songsResult = pluginRepository.getPlaylistSongs(playlistId, limit = 100)
                     songsResult.getOrNull()?.items.orEmpty()
                 }
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        playlist = playlist,
-                        songs = songs
-                    )
-                }
+                _uiState.value = PlaylistDetailUiState.Success(
+                    playlist = playlist,
+                    songs = songs
+                )
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load playlist details"
-                    )
-                }
+                _uiState.value = PlaylistDetailUiState.Error(
+                    e.message ?: "Failed to load playlist details"
+                )
             }
         }
     }
@@ -111,7 +114,10 @@ class PlaylistDetailViewModel @Inject constructor(
     fun playAll() {
         viewModelScope.launch {
             try {
-                val songs = _uiState.value.songs
+                val songs = when (val state = _uiState.value) {
+                    is PlaylistDetailUiState.Success -> state.songs
+                    else -> emptyList()
+                }
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0)
                 }
@@ -124,7 +130,10 @@ class PlaylistDetailViewModel @Inject constructor(
     fun shuffle() {
         viewModelScope.launch {
             try {
-                val songs = _uiState.value.songs.shuffled()
+                val songs = when (val state = _uiState.value) {
+                    is PlaylistDetailUiState.Success -> state.songs.shuffled()
+                    else -> emptyList()
+                }
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0)
                 }

@@ -8,25 +8,29 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
-import com.viperplayer.domain.usecase.detail.GetAlbumUseCase
+import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.AlbumDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * UI state for Album Detail screen.
  */
-data class AlbumDetailUiState(
-    val isLoading: Boolean = true,
-    val album: Album? = null,
-    val songs: List<Song> = emptyList(),
-    val error: String? = null
-)
+sealed class AlbumDetailUiState {
+    data object Loading : AlbumDetailUiState()
+    data class Success(
+        val album: Album,
+        val songs: List<Song>
+    ) : AlbumDetailUiState()
+    data class Error(val message: String) : AlbumDetailUiState()
+}
 
 /**
  * ViewModel for Album Detail screen.
@@ -34,7 +38,7 @@ data class AlbumDetailUiState(
 @HiltViewModel
 class AlbumDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getAlbumUseCase: GetAlbumUseCase,
+    private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
@@ -44,8 +48,18 @@ class AlbumDetailViewModel @Inject constructor(
         sourceId = albumDetail.sourceId
     )
 
-    private val _uiState = MutableStateFlow(AlbumDetailUiState())
+    private val _uiState = MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading)
     val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()
+
+    // Expose current song and playing state from player repository
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+        .map { it.isPlaying }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     init {
         loadAlbumDetails()
@@ -53,18 +67,15 @@ class AlbumDetailViewModel @Inject constructor(
 
     private fun loadAlbumDetails() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.value = AlbumDetailUiState.Loading
 
             try {
                 // Load album details
-                val albumResult = getAlbumUseCase(albumId)
+                val albumResult = pluginRepository.getAlbum(albumId)
                 if (albumResult.isFailure) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = albumResult.exceptionOrNull()?.message ?: "Failed to load album"
-                        )
-                    }
+                    _uiState.value = AlbumDetailUiState.Error(
+                        albumResult.exceptionOrNull()?.message ?: "Failed to load album"
+                    )
                     return@launch
                 }
 
@@ -73,20 +84,14 @@ class AlbumDetailViewModel @Inject constructor(
                 // Songs should be included in album object
                 val songs = album.songs.orEmpty()
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        album = album,
-                        songs = songs
-                    )
-                }
+                _uiState.value = AlbumDetailUiState.Success(
+                    album = album,
+                    songs = songs
+                )
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load album details"
-                    )
-                }
+                _uiState.value = AlbumDetailUiState.Error(
+                    e.message ?: "Failed to load album details"
+                )
             }
         }
     }
@@ -104,7 +109,10 @@ class AlbumDetailViewModel @Inject constructor(
     fun playAlbum() {
         viewModelScope.launch {
             try {
-                val songs = _uiState.value.songs
+                val songs = when (val state = _uiState.value) {
+                    is AlbumDetailUiState.Success -> state.songs
+                    else -> emptyList()
+                }
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0)
                 }
@@ -117,7 +125,10 @@ class AlbumDetailViewModel @Inject constructor(
     fun shuffle() {
         viewModelScope.launch {
             try {
-                val songs = _uiState.value.songs.shuffled()
+                val songs = when (val state = _uiState.value) {
+                    is AlbumDetailUiState.Success -> state.songs.shuffled()
+                    else -> emptyList()
+                }
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0)
                 }

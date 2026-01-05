@@ -405,7 +405,10 @@ class PlayerRepositoryImpl @Inject constructor(
         withContext(Dispatchers.Main) {
             val controller = mediaControllerManager.controllerFlow.first()
             val mediaItem = song.toMediaItem()
-            controller.setMediaItem(mediaItem)
+            controller.addMediaItem(mediaItem)
+            controller.addMediaItem(mediaItem)
+            controller.addMediaItem(mediaItem)
+            controller.addMediaItem(mediaItem)
             controller.prepare()
             controller.play()
         }
@@ -550,7 +553,7 @@ class PlayerRepositoryImpl @Inject constructor(
         this@toMediaItems.toMediaItems()
     }
 
-    private fun androidx.media3.common.MediaItem.toSong() = MediaItemMapper.run {
+    private fun MediaItem.toSong() = MediaItemMapper.run {
         this@toSong.toSong()
     }
 }

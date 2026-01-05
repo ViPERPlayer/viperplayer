@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.detail
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,13 +36,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Playlist
+import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.ListItemLeadingArtwork
+import com.viperplayer.presentation.common.ListItemTrailingWithDuration
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.search.model.ItemBadge
+import com.viperplayer.presentation.search.model.SearchItem
 
 @Composable
 fun PlaylistDetailScreen(
@@ -50,6 +58,8 @@ fun PlaylistDetailScreen(
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -57,7 +67,14 @@ fun PlaylistDetailScreen(
             .padding(rootPadding.with(bottom = 0.dp))
     ) {
         TopAppBar(
-            title = { Text(uiState.playlist?.name ?: "Playlist") },
+            title = { 
+                Text(
+                    when (val state = uiState) {
+                        is PlaylistDetailUiState.Success -> state.playlist.name
+                        else -> "Playlist"
+                    }
+                )
+            },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -70,56 +87,57 @@ fun PlaylistDetailScreen(
             }
         )
 
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (uiState.error != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = uiState.error!!,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Button(onClick = { viewModel.refresh() }) {
-                        Text("Retry")
-                    }
-                }
-            }
-        } else {
-            uiState.playlist?.let { playlist ->
-                LazyColumn(
+        when (val state = uiState) {
+            is PlaylistDetailUiState.Loading -> {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(rootPadding.bottom()),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            is PlaylistDetailUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(rootPadding.bottom()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Button(onClick = { viewModel.refresh() }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
+            is PlaylistDetailUiState.Success -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentPadding = rootPadding.bottom()
                 ) {
                     // Playlist header
                     item {
                         PlaylistHeader(
-                            playlist = playlist,
-                            songCount = uiState.songs.size,
+                            playlist = state.playlist,
+                            songCount = state.songs.size,
                             onPlayAll = { viewModel.playAll() },
                             onShuffle = { viewModel.shuffle() }
                         )
                     }
 
                     // Songs list
-                    if (uiState.songs.isEmpty()) {
+                    if (state.songs.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -135,11 +153,31 @@ fun PlaylistDetailScreen(
                             }
                         }
                     } else {
-                        items(uiState.songs) { song ->
-//                            SongItem(
-//                                song = song,
-//                                onClick = { viewModel.playSong(song) }
-//                            )
+                        items(state.songs) { song ->
+                            ListItem(
+                                type = SearchItem.Type.SONG,
+                                title = song.title,
+                                badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
+                                subtitle = song.artistName,
+                                isActive = currentSong?.id == song.id,
+                                isPlaying = currentSong?.id == song.id && isPlaying,
+                                leadingContent = {
+                                    ListItemLeadingArtwork(
+                                        artworkUrl = song.effectiveArtworkUrl,
+                                        type = SearchItem.Type.SONG,
+                                        isActive = currentSong?.id == song.id,
+                                        isPlaying = currentSong?.id == song.id && isPlaying
+                                    )
+                                },
+                                trailingContent = {
+                                    ListItemTrailingWithDuration(
+                                        durationMs = song.durationMs
+                                    )
+                                },
+                                modifier = Modifier
+                                    .clickable { viewModel.playSong(song) }
+                                    .fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -177,7 +215,8 @@ private fun PlaylistHeader(
         Text(
             text = playlist.name,
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
 
         // Description
@@ -187,8 +226,8 @@ private fun PlaylistHeader(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 3
                 )
             }
         }
@@ -245,6 +284,7 @@ private fun PlaylistHeader(
         }
     }
 }
+
 
 
 

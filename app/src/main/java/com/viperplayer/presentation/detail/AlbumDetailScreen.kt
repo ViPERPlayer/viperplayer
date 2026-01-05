@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.detail
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,23 +28,34 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.search.model.ItemBadge
+import com.viperplayer.presentation.search.model.SearchItem
 
 @Composable
 fun AlbumDetailScreen(
@@ -52,6 +65,8 @@ fun AlbumDetailScreen(
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -59,7 +74,16 @@ fun AlbumDetailScreen(
             .padding(rootPadding.with(bottom = 0.dp))
     ) {
         TopAppBar(
-            title = { Text(uiState.album?.name ?: "Album") },
+            title = { 
+                Text(
+                    text = when (val state = uiState) {
+                        is AlbumDetailUiState.Success -> state.album.name
+                        else -> "Album"
+                    },
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1
+                )
+            },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -72,38 +96,40 @@ fun AlbumDetailScreen(
             }
         )
 
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (uiState.error != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(rootPadding.bottom()),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+        when (val state = uiState) {
+            is AlbumDetailUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(rootPadding.bottom()),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = uiState.error!!,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Button(onClick = { viewModel.refresh() }) {
-                        Text("Retry")
+                    CircularProgressIndicator()
+                }
+            }
+            is AlbumDetailUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(rootPadding.bottom()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Button(onClick = { viewModel.refresh() }) {
+                            Text("Retry")
+                        }
                     }
                 }
             }
-        } else {
-            uiState.album?.let { album ->
+            is AlbumDetailUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = rootPadding.bottom()
@@ -111,18 +137,18 @@ fun AlbumDetailScreen(
                     // Album header
                     item {
                         AlbumHeader(
-                            album = album,
-                            songCount = uiState.songs.size,
+                            album = state.album,
+                            songCount = state.songs.size,
                             onPlayAlbum = { viewModel.playAlbum() },
                             onShuffle = { viewModel.shuffle() },
-                            onArtistClick = { artist ->
-                                onNavigateToArtist(artist.id)
+                            onArtistClick = { artistId ->
+                                onNavigateToArtist(artistId)
                             }
                         )
                     }
 
                     // Songs list
-                    if (uiState.songs.isEmpty()) {
+                    if (state.songs.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -138,11 +164,20 @@ fun AlbumDetailScreen(
                             }
                         }
                     } else {
-                        items(uiState.songs) { song ->
-//                            SongItem(
-//                                song = song,
-//                                onClick = { viewModel.playSong(song) }
-//                            )
+                        items(state.songs) { song ->
+                            ListItem(
+                                type = SearchItem.Type.SONG,
+                                title = song.title,
+                                badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
+                                subtitle = song.artistName,
+                                trackNumber = song.trackNumber,
+                                durationMs = song.durationMs,
+                                isActive = currentSong?.id == song.id,
+                                isPlaying = currentSong?.id == song.id && isPlaying,
+                                modifier = Modifier
+                                    .clickable { viewModel.playSong(song) }
+                                    .fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -157,7 +192,7 @@ private fun AlbumHeader(
     songCount: Int,
     onPlayAlbum: () -> Unit,
     onShuffle: () -> Unit,
-    onArtistClick: (com.viperplayer.domain.model.Artist) -> Unit,
+    onArtistClick: (MediaId) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -181,35 +216,58 @@ private fun AlbumHeader(
         Text(
             text = album.name,
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
 
         // Artists (clickable)
         if (album.artists.isNotEmpty()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+            val annotatedString = buildAnnotatedString {
                 album.artists.forEachIndexed { index, artist ->
-                    TextButton(
-                        onClick = { onArtistClick(artist) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = artist.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    val startIndex = length
+                    append(artist.name)
+                    val endIndex = length
+
+                    addStringAnnotation(
+                        tag = "artist",
+                        annotation = index.toString(),
+                        start = startIndex,
+                        end = endIndex
+                    )
+                    
                     if (index < album.artists.size - 1) {
-                        Text(
-                            text = "•",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        append(", ")
                     }
                 }
             }
+            
+            Text(
+                text = annotatedString,
+                modifier = Modifier
+                    .pointerInput(textLayoutResult, annotatedString) {
+                        detectTapGestures { position ->
+                            textLayoutResult?.let {
+                                val offset = it.getOffsetForPosition(position)
+                                annotatedString
+                                    .getStringAnnotations(
+                                        tag = "artist",
+                                        start = offset,
+                                        end = offset
+                                    )
+                                    .firstOrNull()
+                                    ?.let { annotation ->
+                                        val artist = album.artists[annotation.item.toInt()]
+                                        onArtistClick(artist.id)
+                                    }
+                            }
+                        }
+                    },
+                textAlign = TextAlign.Center,
+                onTextLayout = { textLayoutResult = it },
+                style = MaterialTheme.typography.titleMedium
+            )
         }
 
         // Album info
@@ -274,3 +332,4 @@ private fun AlbumHeader(
         }
     }
 }
+

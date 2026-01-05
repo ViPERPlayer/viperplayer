@@ -9,29 +9,31 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
-import com.viperplayer.domain.usecase.detail.GetArtistAlbumsUseCase
-import com.viperplayer.domain.usecase.detail.GetArtistSongsUseCase
-import com.viperplayer.domain.usecase.detail.GetArtistUseCase
+import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.ArtistDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * UI state for Artist Detail screen.
  */
-data class ArtistDetailUiState(
-    val isLoading: Boolean = true,
-    val artist: Artist? = null,
-    val topSongs: List<Song> = emptyList(),
-    val albums: List<Album> = emptyList(),
-    val selectedTab: ArtistTab = ArtistTab.SONGS,
-    val error: String? = null
-)
+sealed class ArtistDetailUiState {
+    data object Loading : ArtistDetailUiState()
+    data class Success(
+        val artist: Artist,
+        val topSongs: List<Song>,
+        val albums: List<Album>,
+        val selectedTab: ArtistTab = ArtistTab.SONGS
+    ) : ArtistDetailUiState()
+    data class Error(val message: String) : ArtistDetailUiState()
+}
 
 enum class ArtistTab {
     SONGS, ALBUMS
@@ -43,9 +45,7 @@ enum class ArtistTab {
 @HiltViewModel
 class ArtistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getArtistUseCase: GetArtistUseCase,
-    private val getArtistSongsUseCase: GetArtistSongsUseCase,
-    private val getArtistAlbumsUseCase: GetArtistAlbumsUseCase,
+    private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
@@ -55,8 +55,18 @@ class ArtistDetailViewModel @Inject constructor(
         sourceId = artistDetail.sourceId
     )
 
-    private val _uiState = MutableStateFlow(ArtistDetailUiState())
+    private val _uiState = MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading)
     val uiState: StateFlow<ArtistDetailUiState> = _uiState.asStateFlow()
+
+    // Expose current song and playing state from player repository
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+        .map { it.isPlaying }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     init {
         loadArtistDetails()
@@ -64,52 +74,46 @@ class ArtistDetailViewModel @Inject constructor(
 
     private fun loadArtistDetails() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.value = ArtistDetailUiState.Loading
 
             try {
                 // Load artist details
-                val artistResult = getArtistUseCase(artistId)
+                val artistResult = pluginRepository.getArtist(artistId)
                 if (artistResult.isFailure) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = artistResult.exceptionOrNull()?.message ?: "Failed to load artist"
-                        )
-                    }
+                    _uiState.value = ArtistDetailUiState.Error(
+                        artistResult.exceptionOrNull()?.message ?: "Failed to load artist"
+                    )
                     return@launch
                 }
 
                 val artist = artistResult.getOrNull()!!
 
                 // Load artist songs
-                val songsResult = getArtistSongsUseCase(artistId, limit = 20)
+                val songsResult = pluginRepository.getArtistSongs(artistId, limit = 20)
                 val topSongs = songsResult.getOrNull()?.items.orEmpty()
 
                 // Load artist albums
-                val albumsResult = getArtistAlbumsUseCase(artistId, limit = 20)
+                val albumsResult = pluginRepository.getArtistAlbums(artistId, limit = 20)
                 val albums = albumsResult.getOrNull()?.items.orEmpty()
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        artist = artist,
-                        topSongs = topSongs,
-                        albums = albums
-                    )
-                }
+                _uiState.value = ArtistDetailUiState.Success(
+                    artist = artist,
+                    topSongs = topSongs,
+                    albums = albums
+                )
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load artist details"
-                    )
-                }
+                _uiState.value = ArtistDetailUiState.Error(
+                    e.message ?: "Failed to load artist details"
+                )
             }
         }
     }
 
     fun selectTab(tab: ArtistTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
+        _uiState.value = when (val state = _uiState.value) {
+            is ArtistDetailUiState.Success -> state.copy(selectedTab = tab)
+            else -> state
+        }
     }
 
     fun playSong(song: Song) {
@@ -125,7 +129,10 @@ class ArtistDetailViewModel @Inject constructor(
     fun playAllSongs() {
         viewModelScope.launch {
             try {
-                val songs = _uiState.value.topSongs
+                val songs = when (val state = _uiState.value) {
+                    is ArtistDetailUiState.Success -> state.topSongs
+                    else -> emptyList()
+                }
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0)
                 }

@@ -3,7 +3,6 @@ package com.viperplayer.data.plugin.handler
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
-import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -94,28 +93,28 @@ interface PluginHandler {
     /**
      * Get song details.
      */
-    suspend fun getSong(mediaId: MediaId): Song
+    suspend fun getSong(id: String): Song
     
     /**
      * Get album details with tracks.
      */
-    suspend fun getAlbum(mediaId: MediaId): Album
+    suspend fun getAlbum(id: String): Album
     
     /**
      * Get artist details.
      */
-    suspend fun getArtist(mediaId: MediaId): Artist
+    suspend fun getArtist(id: String): Artist
     
     /**
      * Get playlist details with tracks.
      */
-    suspend fun getPlaylist(mediaId: MediaId): Playlist
+    suspend fun getPlaylist(id: String): Playlist
     
     /**
      * Get artist songs.
      */
     suspend fun getArtistSongs(
-        artistId: MediaId,
+        artistId: String,
         cursor: String?,
         limit: Int
     ): PagedResult<Song>
@@ -124,7 +123,7 @@ interface PluginHandler {
      * Get artist albums.
      */
     suspend fun getArtistAlbums(
-        artistId: MediaId,
+        artistId: String,
         cursor: String?,
         limit: Int
     ): PagedResult<Album>
@@ -133,10 +132,16 @@ interface PluginHandler {
      * Get playlist songs.
      */
     suspend fun getPlaylistSongs(
-        playlistId: MediaId,
+        playlistId: String,
         cursor: String?,
         limit: Int
     ): PagedResult<Song>
+    
+    /**
+     * Get a stream source for playback.
+     * Can return a URL, DASH XML, or AudioStream based on what the plugin supports.
+     */
+    suspend fun getStream(mediaId: String): com.viperplayer.plugin.v1.StreamSource
     
     /**
      * Disconnect from the plugin.

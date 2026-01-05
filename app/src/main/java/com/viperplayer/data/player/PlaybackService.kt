@@ -12,7 +12,6 @@ import androidx.lifecycle.ServiceLifecycleDispatcher
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -29,6 +28,7 @@ import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.CommandButton
@@ -76,48 +76,48 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
         // Create MediaSession
         mediaLibrarySession = createMediaLibrarySession()
 
-        player.addMediaItem(
-            MediaItem.Builder()
-                // PELIGROSA
-                .setUri("https://files.catbox.moe/umacii.flac")
-                .build()
-        )
-        player.addMediaItem(
-            MediaItem.Builder()
-                // Gata Only
-                .setUri("https://files.catbox.moe/e05tep.flac")
-                .build()
-        )
-        player.addMediaItem(
-            MediaItem.Builder()
-                // Uptown Funk
-                .setUri("https://files.catbox.moe/xl4c54.flac")
-                .build()
-        )
-        player.addMediaItem(
-            MediaItem.Builder()
-                // Perfect (Exceeder)
-                .setUri("https://files.catbox.moe/9axqe4.flac")
-                .build()
-        )
-        player.addMediaItem(
-            MediaItem.Builder()
-                // Alejandro
-                .setUri("https://files.catbox.moe/ul596p.flac")
-                .build()
-        )
-        player.addMediaItem(
-            MediaItem.Builder()
-                // Telephone
-                .setUri("https://files.catbox.moe/9cd4t7.flac")
-                .build()
-        )
-        player.addMediaItem(
-            MediaItem.Builder()
-                // Just Dance
-                .setUri("https://files.catbox.moe/nqk69n.flac")
-                .build()
-        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // PELIGROSA
+//                .setUri("https://files.catbox.moe/umacii.flac")
+//                .build()
+//        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // Gata Only
+//                .setUri("https://files.catbox.moe/e05tep.flac")
+//                .build()
+//        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // Uptown Funk
+//                .setUri("https://files.catbox.moe/xl4c54.flac")
+//                .build()
+//        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // Perfect (Exceeder)
+//                .setUri("https://files.catbox.moe/9axqe4.flac")
+//                .build()
+//        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // Alejandro
+//                .setUri("https://files.catbox.moe/ul596p.flac")
+//                .build()
+//        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // Telephone
+//                .setUri("https://files.catbox.moe/9cd4t7.flac")
+//                .build()
+//        )
+//        player.addMediaItem(
+//            MediaItem.Builder()
+//                // Just Dance
+//                .setUri("https://files.catbox.moe/nqk69n.flac")
+//                .build()
+//        )
 //        player.shuffleModeEnabled = true
         player.prepare()
         player.playWhenReady = true
@@ -177,9 +177,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     private fun createExoPlayerMediaSourceFactory(): MediaSource.Factory {
-        return DefaultMediaSourceFactory(
-            createExoPlayerDataSourceFactory()
-        )
+        val dataSourceFactory = createExoPlayerDataSourceFactory()
+        val base = DefaultMediaSourceFactory(dataSourceFactory)
+        val dash = DashMediaSource.Factory(dataSourceFactory)
+        return ViperMediaSource.Factory(viperPlayerResolver, base, dash)
     }
 
     private fun createExoPlayerDataSourceFactory(): DataSource.Factory {

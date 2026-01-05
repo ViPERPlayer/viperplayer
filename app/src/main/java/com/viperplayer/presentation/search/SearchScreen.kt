@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,7 +28,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.NavigationBarDefaults
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
@@ -40,11 +42,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.launch
@@ -63,8 +66,9 @@ fun SearchScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize()
+    ViperScaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.exclude(NavigationBarDefaults.windowInsets)
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -297,40 +301,31 @@ fun SearchScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = rootPadding.bottom()
                         ) {
-                            state.sections.forEach { section ->
-                                item {
-                                    Text(
-                                        text = section.title,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                    )
-                                }
-
-                                items(
-                                    items = section.items,
-                                ) { item ->
-                                    ListItem(
-                                        type = item.type,
-                                        title = item.title,
-                                        badges = item.badges,
-                                        subtitle = item.subtitle,
-                                        artworkUrl = item.artworkUrl,
-                                        isActive = item.isActive,
-                                        isPlaying = isPlaying,
-                                        modifier = Modifier
-                                            .animateItem()
-                                            .clickable {
-                                                when (item.type) {
-                                                    SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                                    SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
-                                                    SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
-                                                    SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
-                                                }
+                            items(
+                                items = state.items,
+                            ) { item ->
+                                ListItem(
+                                    type = item.type,
+                                    title = item.title,
+                                    badges = item.badges,
+                                    subtitle = item.subtitle,
+                                    artworkUrl = item.artworkUrl,
+                                    isActive = item.isActive,
+                                    isPlaying = isPlaying,
+                                    modifier = Modifier
+                                        .animateItem()
+                                        .clickable {
+                                            when (item.type) {
+                                                SearchItem.Type.SONG -> viewModel.playSong(item.id)
+                                                SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
+                                                SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
+                                                SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(
+                                                    item.id
+                                                )
                                             }
-                                            .fillMaxWidth()
-                                    )
-                                }
+                                        }
+                                        .fillMaxWidth()
+                                )
                             }
                         }
                     }

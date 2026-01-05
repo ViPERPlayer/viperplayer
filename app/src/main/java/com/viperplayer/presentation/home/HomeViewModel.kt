@@ -7,8 +7,6 @@ import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
-import com.viperplayer.domain.usecase.browse.GetBrowseCategoriesUseCase
-import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,8 +35,6 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
-    private val getBrowseCategoriesUseCase: GetBrowseCategoriesUseCase,
-    private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase,
     private val playerRepository: PlayerRepository,
 ) : ViewModel() {
     
@@ -66,11 +62,11 @@ class HomeViewModel @Inject constructor(
             
             try {
                 // Load categories
-                val categoriesResult = getBrowseCategoriesUseCase(limit = 10)
+                val categoriesResult = pluginRepository.getBrowseCategories(limit = 10)
                 val categories = categoriesResult.getOrNull()?.items.orEmpty()
                 
                 // Load albums
-                val albumsResult = getLibraryAlbumsUseCase(limit = 10)
+                val albumsResult = pluginRepository.getLibraryAlbums(limit = 10)
                 val albums = albumsResult.getOrNull()?.items.orEmpty()
                 
                 _uiState.update {

@@ -7,10 +7,7 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
-import com.viperplayer.domain.usecase.library.GetLibraryAlbumsUseCase
-import com.viperplayer.domain.usecase.library.GetLibraryArtistsUseCase
-import com.viperplayer.domain.usecase.library.GetLibraryPlaylistsUseCase
-import com.viperplayer.domain.usecase.library.GetLibrarySongsUseCase
+import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,10 +41,7 @@ data class LibraryUiState(
  */
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val getLibrarySongsUseCase: GetLibrarySongsUseCase,
-    private val getLibraryAlbumsUseCase: GetLibraryAlbumsUseCase,
-    private val getLibraryArtistsUseCase: GetLibraryArtistsUseCase,
-    private val getLibraryPlaylistsUseCase: GetLibraryPlaylistsUseCase,
+    private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
     
@@ -70,7 +64,7 @@ class LibraryViewModel @Inject constructor(
             try {
                 when (tab) {
                     LibraryTab.SONGS -> {
-                        val result = getLibrarySongsUseCase(limit = 50)
+                        val result = pluginRepository.getLibrarySongs(limit = 50)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -79,7 +73,7 @@ class LibraryViewModel @Inject constructor(
                         }
                     }
                     LibraryTab.ALBUMS -> {
-                        val result = getLibraryAlbumsUseCase(limit = 50)
+                        val result = pluginRepository.getLibraryAlbums(limit = 50)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -88,7 +82,7 @@ class LibraryViewModel @Inject constructor(
                         }
                     }
                     LibraryTab.ARTISTS -> {
-                        val result = getLibraryArtistsUseCase(limit = 50)
+                        val result = pluginRepository.getLibraryArtists(limit = 50)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -97,7 +91,7 @@ class LibraryViewModel @Inject constructor(
                         }
                     }
                     LibraryTab.PLAYLISTS -> {
-                        val result = getLibraryPlaylistsUseCase(limit = 50)
+                        val result = pluginRepository.getLibraryPlaylists(limit = 50)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,

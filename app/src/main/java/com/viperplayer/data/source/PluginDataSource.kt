@@ -700,30 +700,31 @@ class PluginDataSource @Inject constructor(
     /**
      * Get artist details from a plugin.
      */
-    suspend fun getArtist(mediaId: MediaId): Result<Artist> {
+    suspend fun getArtist(id: MediaId): Result<Artist> {
         return runCatching {
-            val plugin = getPlugin(mediaId.pluginId)
-            plugin.handler.getArtist(mediaId)
+            val plugin = getPlugin(id.pluginId)
+            plugin.handler.getArtist(id.sourceId)
         }
     }
 
     /**
      * Get album details from a plugin.
      */
-    suspend fun getAlbum(mediaId: MediaId): Result<Album> {
+    suspend fun getAlbum(id: MediaId): Result<Album> {
         return runCatching {
-            val plugin = getPlugin(mediaId.pluginId)
-            plugin.handler.getAlbum(mediaId)
+            Timber.d("getAlbum() called for: $id")
+            val plugin = getPlugin(id.pluginId)
+            plugin.handler.getAlbum(id.sourceId)
         }
     }
 
     /**
      * Get playlist details from a plugin.
      */
-    suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
+    suspend fun getPlaylist(id: MediaId): Result<Playlist> {
         return runCatching {
-            val plugin = getPlugin(mediaId.pluginId)
-            plugin.handler.getPlaylist(mediaId)
+            val plugin = getPlugin(id.pluginId)
+            plugin.handler.getPlaylist(id.sourceId)
         }
     }
 
@@ -737,7 +738,7 @@ class PluginDataSource @Inject constructor(
     ): Result<PagedResult<Song>> {
         return runCatching {
             val plugin = getPlugin(artistId.pluginId)
-            plugin.handler.getArtistSongs(artistId, cursor, limit)
+            plugin.handler.getArtistSongs(artistId.sourceId, cursor, limit)
         }
     }
 
@@ -751,7 +752,7 @@ class PluginDataSource @Inject constructor(
     ): Result<PagedResult<Album>> {
         return runCatching {
             val plugin = getPlugin(artistId.pluginId)
-            plugin.handler.getArtistAlbums(artistId, cursor, limit)
+            plugin.handler.getArtistAlbums(artistId.sourceId, cursor, limit)
         }
     }
 
@@ -765,7 +766,18 @@ class PluginDataSource @Inject constructor(
     ): Result<PagedResult<Song>> {
         return runCatching {
             val plugin = getPlugin(playlistId.pluginId)
-            plugin.handler.getPlaylistSongs(playlistId, cursor, limit)
+            plugin.handler.getPlaylistSongs(playlistId.sourceId, cursor, limit)
+        }
+    }
+    
+    /**
+     * Get a stream source for playback from a plugin.
+     * Can return a URL, DASH XML, or AudioStream based on what the plugin supports.
+     */
+    suspend fun getStream(mediaId: MediaId): Result<com.viperplayer.plugin.v1.StreamSource> {
+        return runCatching {
+            val plugin = getPlugin(mediaId.pluginId)
+            plugin.handler.getStream(mediaId.sourceId)
         }
     }
 

@@ -101,20 +101,18 @@ class PluginRepositoryImpl @Inject constructor(
 
             val results = plugins.keys.map { pluginId ->
                 async {
-                    dataSource.search(pluginId, query, types, cursor, limit)
+                    dataSource.search(pluginId, query, types, cursor, limit).map { it.toDomain(pluginId) }
                 }
             }.awaitAll()
             
             // Merge sections from all plugins, mapping them to domain models
             val successfulResults = results.mapNotNull { it.getOrNull() }
-            val merged = SearchResult(
-                sections = successfulResults.flatMap { aidlResult ->
-                    aidlResult.sections.map { it.toDomain("") } // Use toDomain mapper for sections
-                },
-                nextCursor = successfulResults.firstOrNull()?.nextCursor
-            )
+            val merged = successfulResults.flatMap { it.items }
 
-            Result.success(merged)
+            Result.success(SearchResult(
+                items = merged,
+                nextCursor = null
+            ))
         } catch (e: Exception) {
             Timber.e(e, "Error in search")
             Result.failure(e)
