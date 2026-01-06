@@ -46,12 +46,17 @@ class PluginRepositoryImpl @Inject constructor(
     
     override val connectedPlugins: Flow<List<Plugin>>
         get() = dataSource.connectedPlugins.map { plugins ->
-            plugins.values.map { connected ->
-                Plugin(
-                    info = connected.info,
-                    capabilities = connected.handler.getCapabilities().toDomain(),
-                    isConnected = true
-                )
+            plugins.values.mapNotNull { connected ->
+                try {
+                    Plugin(
+                        info = connected.info,
+                        capabilities = connected.handler.getCapabilities().getOrThrow().toDomain(),
+                        isConnected = true
+                    )
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to map plugin to domain model")
+                    null
+                }
             }
         }
     

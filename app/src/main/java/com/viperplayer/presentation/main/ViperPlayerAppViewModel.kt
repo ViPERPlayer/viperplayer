@@ -13,10 +13,12 @@ import com.materialkolor.ktx.themeColorOrNull
 import com.viperplayer.domain.repository.PlayerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class ViperPlayerAppUiState(
@@ -26,7 +28,7 @@ data class ViperPlayerAppUiState(
 
 @HiltViewModel
 class ViperPlayerAppViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ViperPlayerAppUiState())
@@ -40,13 +42,15 @@ class ViperPlayerAppViewModel @Inject constructor(
         viewModelScope.launch {
             playerRepository.currentSong.collect { song ->
                 val themeColor = song?.artworkUrl?.let { artworkUrl ->
-                    val result = context.imageLoader.execute(
-                        ImageRequest.Builder(context)
-                            .data(artworkUrl)
-                            .allowHardware(false)
-                            .build()
-                    )
-                    result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
+                    withContext(Dispatchers.IO) {
+                        val result = context.imageLoader.execute(
+                            ImageRequest.Builder(context)
+                                .data(artworkUrl)
+                                .allowHardware(false)
+                                .build()
+                        )
+                        result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
+                    }
                 }
 
                 _uiState.update { it.copy(

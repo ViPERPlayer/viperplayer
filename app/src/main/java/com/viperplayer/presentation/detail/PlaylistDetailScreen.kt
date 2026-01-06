@@ -33,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -158,12 +159,12 @@ fun PlaylistDetailScreen(
                                 type = SearchItem.Type.SONG,
                                 title = song.title,
                                 badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                                subtitle = song.artistName,
+                                subtitle = song.artistNames,
                                 isActive = currentSong?.id == song.id,
                                 isPlaying = currentSong?.id == song.id && isPlaying,
                                 leadingContent = {
                                     ListItemLeadingArtwork(
-                                        artworkUrl = song.effectiveArtworkUrl,
+                                        artworkUrl = song.artworkUrl,
                                         type = SearchItem.Type.SONG,
                                         isActive = currentSong?.id == song.id,
                                         isPlaying = currentSong?.id == song.id && isPlaying
@@ -175,8 +176,19 @@ fun PlaylistDetailScreen(
                                     )
                                 },
                                 modifier = Modifier
-                                    .clickable { viewModel.playSong(song) }
+                                    .clickable(enabled = song.isPlayable) { 
+                                        if (song.isPlayable) {
+                                            viewModel.playSong(song)
+                                        }
+                                    }
                                     .fillMaxWidth()
+                                    .then(
+                                        if (!song.isPlayable) {
+                                            Modifier.alpha(0.5f)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                             )
                         }
                     }

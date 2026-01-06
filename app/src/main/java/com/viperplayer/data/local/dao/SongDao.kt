@@ -65,6 +65,9 @@ interface SongDao {
     @Query("UPDATE songs SET isDownloaded = :isDownloaded, downloadPath = :downloadPath WHERE pluginId = :pluginId AND sourceId = :sourceId")
     suspend fun updateDownloaded(pluginId: String, sourceId: String, isDownloaded: Boolean, downloadPath: String? = null)
     
+    @Query("UPDATE songs SET localArtworkPath = :localArtworkPath WHERE pluginId = :pluginId AND sourceId = :sourceId")
+    suspend fun updateLocalArtworkPath(pluginId: String, sourceId: String, localArtworkPath: String?)
+    
     @Query("UPDATE songs SET playCount = playCount + 1, lastPlayed = :timestamp WHERE pluginId = :pluginId AND sourceId = :sourceId")
     suspend fun incrementPlayCount(pluginId: String, sourceId: String, timestamp: Long = System.currentTimeMillis())
     

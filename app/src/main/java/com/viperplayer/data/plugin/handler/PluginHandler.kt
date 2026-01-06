@@ -24,7 +24,7 @@ interface PluginHandler {
     /**
      * Get plugin capabilities (what features it supports).
      */
-    fun getCapabilities(): PluginCapabilities
+    fun getCapabilities(): Result<PluginCapabilities>
     
     /**
      * Get search suggestions from the plugin.

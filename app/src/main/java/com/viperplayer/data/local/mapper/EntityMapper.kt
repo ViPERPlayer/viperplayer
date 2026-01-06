@@ -73,18 +73,28 @@ object EntityMapper {
     }
     
     // Song mappings (requires album and artists to be loaded separately)
-    fun SongEntity.toDomain(album: Album? = null, artists: List<Artist> = emptyList()): Song {
+    // Note: isPlayable is NOT stored in the database - it's computed at runtime
+    // Note: requiresInternet defaults to true (for streaming), but can be set by plugins
+    fun SongEntity.toDomain(album: Album? = null, artists: List<Artist> = emptyList(), isPlayable: Boolean = true, requiresInternet: Boolean = true): Song {
+        // Use local artwork path if available (convert to file:// URI), otherwise fall back to remote URL
+        val effectiveArtworkUrl = localArtworkPath?.let { 
+            if (it.startsWith("file://")) it else "file://$it"
+        } ?: artworkUrl
+        
         return Song(
             id = MediaId(pluginId, sourceId),
             title = title,
             artists = artists,
             album = album,
             durationMs = durationMs,
-            artworkUrl = artworkUrl,
+            artworkUrl = effectiveArtworkUrl,
             trackNumber = trackNumber,
             discNumber = discNumber,
             isExplicit = isExplicit,
-            isPlayable = isPlayable
+            isPlayable = isPlayable,
+            requiresInternet = requiresInternet,
+            isLiked = isLiked,
+            isDownloaded = isDownloaded
         )
     }
     
@@ -99,7 +109,6 @@ object EntityMapper {
             trackNumber = trackNumber,
             discNumber = discNumber,
             isExplicit = isExplicit,
-            isPlayable = isPlayable,
             isLiked = false,
             isSaved = false,
             isDownloaded = false,

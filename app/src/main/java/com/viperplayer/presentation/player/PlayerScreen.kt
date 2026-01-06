@@ -165,7 +165,7 @@ fun PlayerScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             AsyncImage(
-                model = currentSong!!.effectiveArtworkUrl,
+                model = currentSong!!.artworkUrl,
                 contentDescription = "Album artwork",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

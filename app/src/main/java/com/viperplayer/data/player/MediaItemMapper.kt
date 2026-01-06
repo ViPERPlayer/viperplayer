@@ -21,8 +21,8 @@ object MediaItemMapper {
         
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
-            .setArtist(artistName)
-            .setAlbumTitle(albumName)
+            .setArtist(artistNames)
+            .setAlbumTitle(album?.name)
             .setArtworkUri(artworkUrl?.toUri())
             .setDurationMs(durationMs)
             .setTrackNumber(trackNumber)
@@ -34,8 +34,8 @@ object MediaItemMapper {
             putString("pluginId", id.pluginId)
             putString("sourceId", id.sourceId)
             putString("title", title)
-            putString("artistName", artistName)
-            putString("albumName", albumName)
+            putString("artistName", artistNames)
+            putString("albumName", album?.name)
             putString("artworkUrl", artworkUrl)
             putLong("durationMs", durationMs ?: 0L)
         }

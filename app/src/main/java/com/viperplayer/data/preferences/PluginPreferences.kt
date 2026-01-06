@@ -20,7 +20,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class PluginPreferences @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     companion object {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "plugin_preferences")

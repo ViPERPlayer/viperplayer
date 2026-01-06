@@ -13,15 +13,12 @@ data class Song(
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
     val isExplicit: Boolean = false,
-    val isPlayable: Boolean = true
+    val isPlayable: Boolean = true,
+    val requiresInternet: Boolean = true, // Default to true for streaming services
+    val isLiked: Boolean = false,
+    val isDownloaded: Boolean = false
 ) : MediaItem {
-    val artistName: String
-        get() = artists.firstOrNull()?.name ?: "Unknown Artist"
-
-    val albumName: String
-        get() = album?.name ?: ""
-
-    val effectiveArtworkUrl: String?
-        get() = artworkUrl ?: album?.artworkUrl
+    val artistNames: String?
+        get() = artists.joinToString { it.name }.takeIf { it.isNotEmpty() }
 }
 

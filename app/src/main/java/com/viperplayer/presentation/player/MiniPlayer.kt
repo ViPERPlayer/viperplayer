@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
@@ -262,7 +263,7 @@ fun MiniPlayerContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     // Thumbnail background
-                    song?.effectiveArtworkUrl?.let { thumbnailUrl ->
+                    song?.artworkUrl?.let { thumbnailUrl ->
                         AsyncImage(
                             model = thumbnailUrl,
                             contentDescription = "Artwork",
@@ -363,8 +364,8 @@ fun MiniPlayerContent(
                         }
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.FavoriteBorder,
-                        contentDescription = "Like",
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = if (isLiked) "Unlike" else "Like",
                         tint = if (isLiked)
                             MaterialTheme.colorScheme.error
                         else

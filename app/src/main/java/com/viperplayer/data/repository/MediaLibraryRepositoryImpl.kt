@@ -16,6 +16,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
+import com.viperplayer.domain.repository.PluginRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -34,7 +35,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val songDao: SongDao,
     private val playlistDao: PlaylistDao,
     private val genreDao: GenreDao,
-    private val crossRefDao: CrossRefDao
+    private val crossRefDao: CrossRefDao,
+    private val pluginRepository: PluginRepository,
+    private val artworkDownloader: ArtworkDownloader,
+    private val networkConnectivityChecker: NetworkConnectivityChecker
 ) : MediaLibraryRepository {
     
     // Helper function to load artist with genres
@@ -45,6 +49,33 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             genreDao.getById(genreId)?.name
         }
         return artistEntity.toDomain(genres)
+    }
+    
+    // Helper function to compute isPlayable at runtime based on plugin connection, download status, and internet availability
+    private fun computeIsPlayable(
+        songEntity: com.viperplayer.data.local.entity.SongEntity,
+        connectedPluginIds: Set<String>,
+        requiresInternet: Boolean,
+        isInternetAvailable: Boolean
+    ): Boolean {
+        val isPluginConnected = songEntity.pluginId in connectedPluginIds
+        
+        // If song is downloaded, it's always playable (offline)
+        if (songEntity.isDownloaded) {
+            return true
+        }
+        
+        // If plugin is not connected, song is not playable
+        if (!isPluginConnected) {
+            return false
+        }
+        
+        // If song requires internet but internet is not available, song is not playable
+        if (requiresInternet && !isInternetAvailable) {
+            return false
+        }
+        
+        return true
     }
     
     // Helper function to save artist genres
@@ -234,9 +265,16 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         return combine(
             songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
             songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id },
-            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.albumId }
-        ) { songEntity, songId, albumId ->
+            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.albumId },
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { songEntity, songId, albumId, connectedPlugins, isInternetAvailable ->
             if (songEntity == null) return@combine null
+            
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            // Default to true for database songs (assume streaming)
+            val requiresInternet = true
+            val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
             
             val artistIds = songId?.let { crossRefDao.getArtistIdsForSong(it) } ?: emptyList()
             val artists = artistIds.mapNotNull { artistId ->
@@ -253,74 +291,95 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
             
-            songEntity.toDomain(album, artists)
+            songEntity.toDomain(album, artists, isPlayable, requiresInternet)
         }
     }
     
     override fun getAllLikedSongs(): Flow<List<Song>> {
-        return songDao.getAllLiked()
-            .map { entities ->
-                entities.map { entity ->
-                    val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
-                    val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
-                    }
-                    val album = entity.albumId?.let {
-                        albumDao.getById(it).first()?.let { albumEntity ->
-                            val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
-                            val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                                loadArtistWithGenres(artistId)
-                            }
-                            albumEntity.toDomain(albumArtists)
-                        }
-                    }
-                    entity.toDomain(album, artists)
+        return combine(
+            songDao.getAllLiked(),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { entities, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            entities.map { entity ->
+                val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
+                val artists = artistIds.mapNotNull { artistId ->
+                    loadArtistWithGenres(artistId)
                 }
+                val album = entity.albumId?.let {
+                    albumDao.getById(it).first()?.let { albumEntity ->
+                        val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                        val albumArtists = albumArtistIds.mapNotNull { artistId ->
+                            loadArtistWithGenres(artistId)
+                        }
+                        albumEntity.toDomain(albumArtists)
+                    }
+                }
+                // Default to true for database songs (assume streaming)
+                val requiresInternet = true
+                val isPlayable = computeIsPlayable(entity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                entity.toDomain(album, artists, isPlayable, requiresInternet)
             }
+        }
     }
     
     override fun getAllSavedSongs(): Flow<List<Song>> {
-        return songDao.getAllSaved()
-            .map { entities ->
-                entities.map { entity ->
-                    val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
-                    val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
-                    }
-                    val album = entity.albumId?.let {
-                        albumDao.getById(it).first()?.let { albumEntity ->
-                            val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
-                            val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                                loadArtistWithGenres(artistId)
-                            }
-                            albumEntity.toDomain(albumArtists)
-                        }
-                    }
-                    entity.toDomain(album, artists)
+        return combine(
+            songDao.getAllSaved(),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { entities, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            entities.map { entity ->
+                val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
+                val artists = artistIds.mapNotNull { artistId ->
+                    loadArtistWithGenres(artistId)
                 }
+                val album = entity.albumId?.let {
+                    albumDao.getById(it).first()?.let { albumEntity ->
+                        val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                        val albumArtists = albumArtistIds.mapNotNull { artistId ->
+                            loadArtistWithGenres(artistId)
+                        }
+                        albumEntity.toDomain(albumArtists)
+                    }
+                }
+                // Default to true for database songs (assume streaming)
+                val requiresInternet = true
+                val isPlayable = computeIsPlayable(entity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                entity.toDomain(album, artists, isPlayable, requiresInternet)
             }
+        }
     }
     
     override fun getAllDownloadedSongs(): Flow<List<Song>> {
-        return songDao.getAllDownloaded()
-            .map { entities ->
-                entities.map { entity ->
-                    val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
-                    val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
-                    }
-                    val album = entity.albumId?.let {
-                        albumDao.getById(it).first()?.let { albumEntity ->
-                            val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
-                            val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                                loadArtistWithGenres(artistId)
-                            }
-                            albumEntity.toDomain(albumArtists)
-                        }
-                    }
-                    entity.toDomain(album, artists)
+        return combine(
+            songDao.getAllDownloaded(),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { entities, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            entities.map { entity ->
+                val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
+                val artists = artistIds.mapNotNull { artistId ->
+                    loadArtistWithGenres(artistId)
                 }
+                val album = entity.albumId?.let {
+                    albumDao.getById(it).first()?.let { albumEntity ->
+                        val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                        val albumArtists = albumArtistIds.mapNotNull { artistId ->
+                            loadArtistWithGenres(artistId)
+                        }
+                        albumEntity.toDomain(albumArtists)
+                    }
+                }
+                // Downloaded songs don't require internet
+                val requiresInternet = false
+                val isPlayable = computeIsPlayable(entity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                entity.toDomain(album, artists, isPlayable, requiresInternet)
             }
+        }
     }
     
     override suspend fun saveSong(song: Song) {
@@ -337,8 +396,27 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             albumDao.insert(albumEntity)
         }
         
-        val songEntity = song.toEntity(albumId)
+        // Check if song already exists to preserve liked/downloaded/artwork status
+        val existingSong = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+        val songEntity = song.toEntity(albumId).copy(
+            isLiked = existingSong?.isLiked ?: song.isLiked,
+            isDownloaded = existingSong?.isDownloaded ?: song.isDownloaded,
+            downloadPath = existingSong?.downloadPath ?: null,
+            localArtworkPath = existingSong?.localArtworkPath ?: null
+        )
         val songId = songDao.insert(songEntity)
+        
+        // Download artwork if song is liked or saved
+        if ((existingSong?.isLiked ?: song.isLiked) || (existingSong?.isSaved ?: false)) {
+            song.artworkUrl?.let { artworkUrl ->
+                if (existingSong?.localArtworkPath == null) {
+                    val localPath = artworkDownloader.downloadArtwork(artworkUrl, song.id)
+                    localPath?.let {
+                        songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, it)
+                    }
+                }
+            }
+        }
         
         // Save artists and create cross-refs
         song.artists.forEachIndexed { index, artist ->
@@ -357,10 +435,35 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     
     override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) {
         songDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+        
+        // Download artwork if song is being liked
+        if (isLiked) {
+            val song = getSong(mediaId).first()
+            song?.artworkUrl?.let { artworkUrl ->
+                val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
+                localPath?.let {
+                    songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+                }
+            }
+        } else {
+            // Optionally delete artwork when unliked (or keep it for offline access)
+            // For now, we'll keep it cached
+        }
     }
     
     override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean) {
         songDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+        
+        // Download artwork if song is being saved
+        if (isSaved) {
+            val song = getSong(mediaId).first()
+            song?.artworkUrl?.let { artworkUrl ->
+                val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
+                localPath?.let {
+                    songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+                }
+            }
+        }
     }
     
     override suspend fun setSongDownloaded(mediaId: MediaId, isDownloaded: Boolean, downloadPath: String?) {
@@ -375,9 +478,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override fun getPlaylist(mediaId: MediaId): Flow<Playlist?> {
         return combine(
             playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
-            playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id }
-        ) { playlistEntity, playlistId ->
+            playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id },
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { playlistEntity, playlistId, connectedPlugins, isInternetAvailable ->
             if (playlistEntity == null) return@combine null
+            
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
             
             val songIds = playlistId?.let { crossRefDao.getSongIdsForPlaylist(it) } ?: emptyList()
             val songs = songIds.mapNotNull { songId ->
@@ -395,65 +502,95 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                         albumEntity.toDomain(albumArtists)
                     }
                 }
-                songEntity.toDomain(album, artists)
+                // Default to true for database songs (assume streaming)
+                val requiresInternet = true
+                val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                songEntity.toDomain(album, artists, isPlayable, requiresInternet)
             }
             
-            playlistEntity.toDomain(songs)
+            // Get artwork from first song with non-null artwork, or use playlist's existing artwork
+            val artworkUrl = playlistEntity.artworkUrl 
+                ?: songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
+            
+            val playlist = playlistEntity.toDomain(songs)
+            playlist.copy(artworkUrl = artworkUrl)
         }
     }
     
     override fun getAllLikedPlaylists(): Flow<List<Playlist>> {
-        return playlistDao.getAllLiked()
-            .map { entities ->
-                entities.map { entity ->
-                    val songIds = crossRefDao.getSongIdsForPlaylist(entity.id)
-                    val songs = songIds.mapNotNull { songId ->
-                        val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
-                        val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
-                        val artists = artistIds.mapNotNull { artistId ->
-                            loadArtistWithGenres(artistId)
-                        }
-                        val album = songEntity.albumId?.let {
-                            albumDao.getById(it).first()?.let { albumEntity ->
-                                val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
-                                val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                                    artistDao.getById(artistId).first()?.toDomain()
-                                }
-                                albumEntity.toDomain(albumArtists)
-                            }
-                        }
-                        songEntity.toDomain(album, artists)
+        return combine(
+            playlistDao.getAllLiked(),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { entities, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            entities.map { entity ->
+                val songIds = crossRefDao.getSongIdsForPlaylist(entity.id)
+                val songs = songIds.mapNotNull { songId ->
+                    val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
+                    val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
+                    val artists = artistIds.mapNotNull { artistId ->
+                        loadArtistWithGenres(artistId)
                     }
-                    entity.toDomain(songs)
+                    val album = songEntity.albumId?.let {
+                        albumDao.getById(it).first()?.let { albumEntity ->
+                            val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                            val albumArtists = albumArtistIds.mapNotNull { artistId ->
+                                artistDao.getById(artistId).first()?.toDomain()
+                            }
+                            albumEntity.toDomain(albumArtists)
+                        }
+                    }
+                    // Default to true for database songs (assume streaming)
+                    val requiresInternet = true
+                    val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                    songEntity.toDomain(album, artists, isPlayable, requiresInternet)
                 }
+                // Get artwork from first song with non-null artwork, or use playlist's existing artwork
+                val artworkUrl = entity.artworkUrl 
+                    ?: songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
+                val playlist = entity.toDomain(songs)
+                playlist.copy(artworkUrl = artworkUrl)
             }
+        }
     }
     
     override fun getAllSavedPlaylists(): Flow<List<Playlist>> {
-        return playlistDao.getAllSaved()
-            .map { entities ->
-                entities.map { entity ->
-                    val songIds = crossRefDao.getSongIdsForPlaylist(entity.id)
-                    val songs = songIds.mapNotNull { songId ->
-                        val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
-                        val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
-                        val artists = artistIds.mapNotNull { artistId ->
-                            loadArtistWithGenres(artistId)
-                        }
-                        val album = songEntity.albumId?.let {
-                            albumDao.getById(it).first()?.let { albumEntity ->
-                                val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
-                                val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                                    artistDao.getById(artistId).first()?.toDomain()
-                                }
-                                albumEntity.toDomain(albumArtists)
-                            }
-                        }
-                        songEntity.toDomain(album, artists)
+        return combine(
+            playlistDao.getAllSaved(),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { entities, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            entities.map { entity ->
+                val songIds = crossRefDao.getSongIdsForPlaylist(entity.id)
+                val songs = songIds.mapNotNull { songId ->
+                    val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
+                    val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
+                    val artists = artistIds.mapNotNull { artistId ->
+                        loadArtistWithGenres(artistId)
                     }
-                    entity.toDomain(songs)
+                    val album = songEntity.albumId?.let {
+                        albumDao.getById(it).first()?.let { albumEntity ->
+                            val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                            val albumArtists = albumArtistIds.mapNotNull { artistId ->
+                                artistDao.getById(artistId).first()?.toDomain()
+                            }
+                            albumEntity.toDomain(albumArtists)
+                        }
+                    }
+                    // Default to true for database songs (assume streaming)
+                    val requiresInternet = true
+                    val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                    songEntity.toDomain(album, artists, isPlayable, requiresInternet)
                 }
+                // Get artwork from first song with non-null artwork, or use playlist's existing artwork
+                val artworkUrl = entity.artworkUrl 
+                    ?: songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
+                val playlist = entity.toDomain(songs)
+                playlist.copy(artworkUrl = artworkUrl)
             }
+        }
     }
     
     override suspend fun savePlaylist(playlist: Playlist) {
@@ -472,6 +609,14 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                         position = index
                     )
                 )
+                
+                // Download artwork for songs added to local playlists
+                if (it.localArtworkPath == null && song.artworkUrl != null) {
+                    val localPath = artworkDownloader.downloadArtwork(song.artworkUrl, song.id)
+                    localPath?.let { path ->
+                        songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, path)
+                    }
+                }
             }
         }
     }
@@ -486,6 +631,25 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     
     override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean) {
         playlistDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
+    }
+    
+    override fun getLikedSongsPlaylist(): Flow<Playlist> {
+        return getAllLikedSongs().map { songs ->
+            // Get artwork from first song with non-null artwork
+            val artworkUrl = songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
+            
+            Playlist(
+                id = MediaId("local", "liked_songs"),
+                name = "Liked Songs",
+                description = "Songs you've liked",
+                artworkUrl = artworkUrl,
+                ownerName = null,
+                songCount = songs.size,
+                isPublic = false,
+                isEditable = false,
+                songs = songs
+            )
+        }
     }
 }
 

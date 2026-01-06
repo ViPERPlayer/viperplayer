@@ -38,11 +38,11 @@ data class SongEntity(
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
     val isExplicit: Boolean = false,
-    val isPlayable: Boolean = true,
     val isLiked: Boolean = false,
     val isSaved: Boolean = false,
     val isDownloaded: Boolean = false,
     val downloadPath: String? = null,
+    val localArtworkPath: String? = null, // Local path to cached artwork
     val playCount: Long = 0,
     val lastPlayed: Long? = null,
     val lastUpdated: Long = System.currentTimeMillis()

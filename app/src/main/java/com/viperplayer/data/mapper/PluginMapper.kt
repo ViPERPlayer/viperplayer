@@ -80,7 +80,8 @@ object PluginMapper {
         trackNumber = this.trackNumber ?: trackNumber,
         discNumber = this.discNumber,
         isExplicit = this.isExplicit,
-        isPlayable = this.isPlayable
+        isPlayable = this.isPlayable,
+        requiresInternet = this.requiresInternet
     )
     
     fun AidlPlaylist.toDomain(pluginId: String): Playlist = Playlist(

@@ -47,8 +47,8 @@ class PluginHandlerV1(
     val v1Service: IViperPluginV1
         get() = service
     
-    override fun getCapabilities(): PluginCapabilities {
-        return service.capabilities
+    override fun getCapabilities(): Result<PluginCapabilities> {
+        return runCatching { service.capabilities }
     }
     
     override suspend fun getSearchSuggestions(query: String): Result<SearchSuggestionsResultV1> {

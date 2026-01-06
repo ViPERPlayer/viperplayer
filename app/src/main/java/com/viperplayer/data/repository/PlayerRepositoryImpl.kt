@@ -51,7 +51,7 @@ import javax.inject.Singleton
 @OptIn(UnstableApi::class)
 @Singleton
 class PlayerRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val mediaControllerManager: MediaControllerManager
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -268,7 +268,7 @@ class PlayerRepositoryImpl @Inject constructor(
             isExplicit = mediaMetadata.extras?.getBoolean("isExplicit") ?: false
         )
         
-        Timber.d("createSongFromController: created song - title=${song.title}, artist=${song.artistName}")
+        Timber.d("createSongFromController: created song - title=${song.title}, artist=${song.artistNames}")
         
         return song
     }
@@ -405,10 +405,7 @@ class PlayerRepositoryImpl @Inject constructor(
         withContext(Dispatchers.Main) {
             val controller = mediaControllerManager.controllerFlow.first()
             val mediaItem = song.toMediaItem()
-            controller.addMediaItem(mediaItem)
-            controller.addMediaItem(mediaItem)
-            controller.addMediaItem(mediaItem)
-            controller.addMediaItem(mediaItem)
+            controller.setMediaItem(mediaItem)
             controller.prepare()
             controller.play()
         }

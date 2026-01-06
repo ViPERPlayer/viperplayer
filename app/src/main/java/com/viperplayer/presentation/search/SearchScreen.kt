@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
@@ -63,7 +64,6 @@ fun SearchScreen(
     val searchSuggestionsState by viewModel.searchSuggestionsState.collectAsStateWithLifecycle()
     val searchResultsState by viewModel.searchResultsState.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    val query by viewModel.query.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
 
     ViperScaffold(
@@ -76,23 +76,12 @@ fun SearchScreen(
                 .padding(contentPadding)
         ) {
             val searchBarState = rememberSearchBarState()
-            val textFieldState = rememberTextFieldState(initialText = query)
+            val textFieldState = rememberTextFieldState()
             val scope = rememberCoroutineScope()
 
-            // Sync text field changes to ViewModel (user typing)
             LaunchedEffect(textFieldState.text) {
                 val text = textFieldState.text.toString()
-                if (text != query) {
-                    viewModel.onQueryChange(text)
-                }
-            }
-
-            // Sync ViewModel query to text field (programmatic updates)
-            LaunchedEffect(query) {
-                val currentText = textFieldState.text.toString()
-                if (currentText != query) {
-                    textFieldState.setTextAndPlaceCursorAtEnd(query)
-                }
+                viewModel.onQueryChange(text)
             }
 
             val inputField =
@@ -101,8 +90,8 @@ fun SearchScreen(
                         textFieldState = textFieldState,
                         searchBarState = searchBarState,
                         onSearch = {
-                            viewModel.onQueryChange(it)
-                            viewModel.performSearch()
+                            textFieldState.setTextAndPlaceCursorAtEnd(it)
+                            viewModel.performSearch(it)
                             scope.launch {
                                 searchBarState.animateToCollapsed()
                             }
@@ -112,7 +101,7 @@ fun SearchScreen(
                         },
                         leadingIcon = {
                             val onDismiss: () -> Unit = {
-                                viewModel.onQueryChange(lastSearchedQuery)
+                                textFieldState.setTextAndPlaceCursorAtEnd(lastSearchedQuery)
                                 scope.launch { searchBarState.animateToCollapsed() }
                             }
 
@@ -135,10 +124,10 @@ fun SearchScreen(
                         },
                         trailingIcon = {
                             AnimatedVisibility(
-                                visible = searchBarState.currentValue == SearchBarValue.Expanded && query.isNotEmpty()
+                                visible = searchBarState.currentValue == SearchBarValue.Expanded && textFieldState.text.isNotEmpty()
                             ) {
                                 IconButton(onClick = {
-                                    viewModel.clearQuery()
+                                    textFieldState.clearText()
                                 }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
@@ -170,12 +159,12 @@ fun SearchScreen(
                         HistoryListItem(
                             suggestion = suggestion,
                             onRemove = { viewModel.removeHistoryEntry(suggestion) },
-                            onInsert = { viewModel.onQueryChange(suggestion) },
+                            onInsert = { textFieldState.setTextAndPlaceCursorAtEnd(suggestion) },
                             modifier = Modifier
                                 .animateItem()
                                 .clickable {
-                                    viewModel.onQueryChange(suggestion)
-                                    viewModel.performSearch()
+                                    textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
+                                    viewModel.performSearch(suggestion)
                                     scope.launch {
                                         searchBarState.animateToCollapsed()
                                     }
@@ -190,12 +179,12 @@ fun SearchScreen(
                     ) { suggestion ->
                         SuggestionListItem(
                             suggestion = suggestion,
-                            onInsert = { viewModel.onQueryChange(suggestion) },
+                            onInsert = { textFieldState.setTextAndPlaceCursorAtEnd(suggestion) },
                             modifier = Modifier
                                 .animateItem()
                                 .clickable {
-                                    viewModel.onQueryChange(suggestion)
-                                    viewModel.performSearch()
+                                    textFieldState.setTextAndPlaceCursorAtEnd(suggestion)
+                                    viewModel.performSearch(suggestion)
                                     scope.launch {
                                         searchBarState.animateToCollapsed()
                                     }

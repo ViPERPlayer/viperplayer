@@ -174,7 +174,7 @@ fun ArtistDetailScreen(
                                         type = SearchItem.Type.SONG,
                                         title = song.title,
                                         badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                                        subtitle = song.artistName,
+                                        subtitle = song.artistNames,
                                         trackNumber = song.trackNumber,
                                         durationMs = song.durationMs,
                                         isActive = currentSong?.id == song.id,

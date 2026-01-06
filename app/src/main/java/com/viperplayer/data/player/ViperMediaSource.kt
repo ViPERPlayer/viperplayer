@@ -5,8 +5,10 @@ import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.analytics.PlayerId
+import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.drm.DrmSessionEventListener
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaPeriod
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MediaSourceEventListener
@@ -15,45 +17,43 @@ import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import com.viperplayer.plugin.v1.StreamSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class ViperMediaSource(
     private val resolver: ViperPlayerResolver,
-    private val base: MediaSource,
-    private val dash: MediaSource,
+    private val defaultMediaSource: MediaSource,
+    private val dashMediaSource: MediaSource,
 ) : MediaSource {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private lateinit var real: MediaSource
+    private lateinit var chosenMediaSource: MediaSource
 
     class Factory(
         private val resolver: ViperPlayerResolver,
-        private val base: MediaSource.Factory,
-        private val dash: MediaSource.Factory,
+        private val defaultMediaSourceFactory: DefaultMediaSourceFactory,
+        private val dashMediaSourceFactory: DashMediaSource.Factory,
     ) : MediaSource.Factory {
         override fun setDrmSessionManagerProvider(drmSessionManagerProvider: DrmSessionManagerProvider): MediaSource.Factory {
-            base.setDrmSessionManagerProvider(drmSessionManagerProvider)
-            dash.setDrmSessionManagerProvider(drmSessionManagerProvider)
+            defaultMediaSourceFactory.setDrmSessionManagerProvider(drmSessionManagerProvider)
+            dashMediaSourceFactory.setDrmSessionManagerProvider(drmSessionManagerProvider)
             return this
         }
 
         override fun setLoadErrorHandlingPolicy(loadErrorHandlingPolicy: LoadErrorHandlingPolicy): MediaSource.Factory {
-            base.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
-            dash.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
+            defaultMediaSourceFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
+            dashMediaSourceFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
             return this
         }
 
         override fun getSupportedTypes(): IntArray {
-            val base = base.supportedTypes
-            val dash = dash.supportedTypes
+            val base = defaultMediaSourceFactory.supportedTypes
+            val dash = dashMediaSourceFactory.supportedTypes
             return (base + dash).distinct().toIntArray()
         }
 
         override fun createMediaSource(mediaItem: MediaItem): MediaSource {
-            val base = base.createMediaSource(mediaItem)
-            val dash = dash.createMediaSource(mediaItem)
-            return ViperMediaSource(resolver, base, dash)
+            val defaultMediaSource = defaultMediaSourceFactory.createMediaSource(mediaItem)
+            val dashMediaSource = dashMediaSourceFactory.createMediaSource(mediaItem)
+            return ViperMediaSource(resolver, defaultMediaSource, dashMediaSource)
         }
     }
 
@@ -61,34 +61,34 @@ class ViperMediaSource(
         handler: Handler,
         eventListener: MediaSourceEventListener
     ) {
-        base.addEventListener(handler, eventListener)
-        dash.addEventListener(handler, eventListener)
+        defaultMediaSource.addEventListener(handler, eventListener)
+        dashMediaSource.addEventListener(handler, eventListener)
     }
 
     override fun removeEventListener(eventListener: MediaSourceEventListener) {
-        base.removeEventListener(eventListener)
-        dash.removeEventListener(eventListener)
+        defaultMediaSource.removeEventListener(eventListener)
+        dashMediaSource.removeEventListener(eventListener)
     }
 
     override fun addDrmEventListener(
         handler: Handler,
         eventListener: DrmSessionEventListener
     ) {
-        base.addDrmEventListener(handler, eventListener)
-        dash.addDrmEventListener(handler, eventListener)
+        defaultMediaSource.addDrmEventListener(handler, eventListener)
+        dashMediaSource.addDrmEventListener(handler, eventListener)
     }
 
     override fun removeDrmEventListener(eventListener: DrmSessionEventListener) {
-        base.removeDrmEventListener(eventListener)
-        dash.removeDrmEventListener(eventListener)
+        defaultMediaSource.removeDrmEventListener(eventListener)
+        dashMediaSource.removeDrmEventListener(eventListener)
     }
 
     override fun getMediaItem(): MediaItem {
         Timber.d("getMediaItem() called")
-        return if (::real.isInitialized) {
-            real.mediaItem
+        return if (::chosenMediaSource.isInitialized) {
+            chosenMediaSource.mediaItem
         } else {
-            base.mediaItem
+            defaultMediaSource.mediaItem
         }
     }
 
@@ -97,33 +97,33 @@ class ViperMediaSource(
         mediaTransferListener: TransferListener?,
         playerId: PlayerId
     ) {
-        val looper = Looper.myLooper() ?: Looper.getMainLooper()
-        val handler = Handler(looper)
-
-        scope.launch {
+        val exoPlayerLooper = Looper.myLooper() ?: Looper.getMainLooper()
+        CoroutineScope(Dispatchers.Default).launch {
             val uri = mediaItem.localConfiguration?.uri ?: throw IllegalStateException("URI is null")
-            val response = resolver.resolve(uri).getOrNull()
-            handler.post {
-                real = when (response?.type) {
-                    StreamSource.Type.URL -> base
-                    StreamSource.Type.DASH -> dash
-                    else -> throw IllegalStateException("Unknown stream type")
+            val response = resolver.resolve(uri)
+            Handler(exoPlayerLooper).post {
+                chosenMediaSource = response.getOrThrow().let { source ->
+                    when (source.type) {
+                        StreamSource.Type.URL -> defaultMediaSource
+                        StreamSource.Type.DASH -> dashMediaSource
+                        StreamSource.Type.AUDIO_STREAM -> throw UnsupportedOperationException("Audio stream not supported")
+                    }
                 }
-                real.prepareSource(caller, mediaTransferListener, playerId)
+                chosenMediaSource.prepareSource(caller, mediaTransferListener, playerId)
             }
         }
     }
 
     override fun maybeThrowSourceInfoRefreshError() {
-        if (::real.isInitialized) {
-            real.maybeThrowSourceInfoRefreshError()
+        if (::chosenMediaSource.isInitialized) {
+            chosenMediaSource.maybeThrowSourceInfoRefreshError()
         } else {
-            base.maybeThrowSourceInfoRefreshError()
+            defaultMediaSource.maybeThrowSourceInfoRefreshError()
         }
     }
 
     override fun enable(caller: MediaSource.MediaSourceCaller) {
-        real.enable(caller)
+        chosenMediaSource.enable(caller)
     }
 
     override fun createPeriod(
@@ -131,18 +131,18 @@ class ViperMediaSource(
         allocator: Allocator,
         startPositionUs: Long
     ): MediaPeriod {
-        return real.createPeriod(id, allocator, startPositionUs)
+        return chosenMediaSource.createPeriod(id, allocator, startPositionUs)
     }
 
     override fun releasePeriod(mediaPeriod: MediaPeriod) {
-        real.releasePeriod(mediaPeriod)
+        chosenMediaSource.releasePeriod(mediaPeriod)
     }
 
     override fun disable(caller: MediaSource.MediaSourceCaller) {
-        real.disable(caller)
+        chosenMediaSource.disable(caller)
     }
 
     override fun releaseSource(caller: MediaSource.MediaSourceCaller) {
-        real.releaseSource(caller)
+        chosenMediaSource.releaseSource(caller)
     }
 }

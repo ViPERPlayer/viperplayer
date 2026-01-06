@@ -38,7 +38,7 @@ import com.viperplayer.data.local.entity.SongEntity
         ArtistGenreCrossRef::class,
         SearchHistoryEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(AlbumTypeConverter::class)

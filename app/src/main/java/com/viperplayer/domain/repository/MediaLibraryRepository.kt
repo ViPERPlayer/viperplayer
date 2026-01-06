@@ -46,6 +46,7 @@ interface MediaLibraryRepository {
     fun getPlaylist(mediaId: MediaId): Flow<Playlist?>
     fun getAllLikedPlaylists(): Flow<List<Playlist>>
     fun getAllSavedPlaylists(): Flow<List<Playlist>>
+    fun getLikedSongsPlaylist(): Flow<Playlist>
     suspend fun savePlaylist(playlist: Playlist)
     suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean)
     suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean)

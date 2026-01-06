@@ -60,7 +60,7 @@ import com.viperplayer.plugin.v1.Song as AidlSong
  */
 @Singleton
 class PluginDataSource @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val pluginPreferences: PluginPreferences,
     private val handlerFactory: PluginHandlerFactory
 ) {

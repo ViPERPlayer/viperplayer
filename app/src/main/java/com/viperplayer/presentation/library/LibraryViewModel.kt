@@ -6,12 +6,19 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,11 +49,27 @@ data class LibraryUiState(
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
-    private val playerRepository: PlayerRepository
+    private val playerRepository: PlayerRepository,
+    private val mediaLibraryRepository: MediaLibraryRepository,
+    private val networkConnectivityChecker: com.viperplayer.data.repository.NetworkConnectivityChecker
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+    
+    // Expose current song and playing state from player repository
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+        .map { it.isPlaying }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+    
+    // Track if we're already observing playlists to avoid multiple collectors
+    private var isObservingPlaylists = false
     
     init {
         loadContent(LibraryTab.SONGS)
@@ -65,11 +88,33 @@ class LibraryViewModel @Inject constructor(
                 when (tab) {
                     LibraryTab.SONGS -> {
                         val result = pluginRepository.getLibrarySongs(limit = 50)
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                songs = result.getOrNull()?.items.orEmpty()
-                            )
+                        val songs = result.getOrNull()?.items.orEmpty()
+                        
+                        // Update playability based on plugin connection, download status, and internet availability
+                        // Combine with connected plugins and internet availability flows to make it reactive
+                        combine(
+                            kotlinx.coroutines.flow.flowOf(songs),
+                            pluginRepository.connectedPlugins,
+                            networkConnectivityChecker.isInternetAvailable
+                        ) { songsList, connectedPlugins, isInternetAvailable ->
+                            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+                            
+                            songsList.map { song ->
+                                val isPluginConnected = song.id.pluginId in connectedPluginIds
+                                // Song is playable if:
+                                // 1. Song is downloaded (can play offline), OR
+                                // 2. Plugin is connected AND (song doesn't require internet OR internet is available)
+                                val isPlayable = song.isDownloaded || 
+                                    (isPluginConnected && (!song.requiresInternet || isInternetAvailable))
+                                song.copy(isPlayable = isPlayable)
+                            }
+                        }.collect { songsWithPlayability ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    songs = songsWithPlayability
+                                )
+                            }
                         }
                     }
                     LibraryTab.ALBUMS -> {
@@ -91,12 +136,54 @@ class LibraryViewModel @Inject constructor(
                         }
                     }
                     LibraryTab.PLAYLISTS -> {
+                        // Load plugin playlists
                         val result = pluginRepository.getLibraryPlaylists(limit = 50)
+                        val pluginPlaylists = result.getOrNull()?.items.orEmpty()
+                        
+                        // Get the "Liked Songs" playlist
+                        val likedSongsPlaylist = mediaLibraryRepository.getLikedSongsPlaylist()
+                            .first()
+                        
+                        // Combine plugin playlists with "Liked Songs" playlist
+                        // Always show "Liked Songs" at the top if it has any songs
+                        val allPlaylists = if (likedSongsPlaylist.songCount > 0) {
+                            listOf(likedSongsPlaylist) + pluginPlaylists
+                        } else {
+                            pluginPlaylists
+                        }
+                        
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                playlists = result.getOrNull()?.items.orEmpty()
+                                playlists = allPlaylists
                             )
+                        }
+                        
+                        // Observe changes to liked songs playlist reactively (only once)
+                        if (!isObservingPlaylists) {
+                            isObservingPlaylists = true
+                            viewModelScope.launch {
+                                mediaLibraryRepository.getLikedSongsPlaylist()
+                                    .collect { updatedLikedSongsPlaylist ->
+                                        // Only update if we're on playlists tab
+                                        if (_uiState.value.selectedTab == LibraryTab.PLAYLISTS) {
+                                            // Reload plugin playlists in case they changed
+                                            val pluginResult = pluginRepository.getLibraryPlaylists(limit = 50)
+                                            val updatedPluginPlaylists = pluginResult.getOrNull()?.items.orEmpty()
+                                            
+                                            // Always show "Liked Songs" at the top if it has any songs
+                                            val updatedAllPlaylists = if (updatedLikedSongsPlaylist.songCount > 0) {
+                                                listOf(updatedLikedSongsPlaylist) + updatedPluginPlaylists
+                                            } else {
+                                                updatedPluginPlaylists
+                                            }
+                                            
+                                            _uiState.update {
+                                                it.copy(playlists = updatedAllPlaylists)
+                                            }
+                                        }
+                                    }
+                            }
                         }
                     }
                 }

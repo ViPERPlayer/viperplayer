@@ -277,7 +277,16 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     override fun onPlayerError(error: PlaybackException) {
-        Timber.d("onPlayerError() called with: error = $error")
+        Timber.e(error, "onPlayerError() called with: error = $error")
+        
+        // Try to skip to next song if available
+        if (player.hasNextMediaItem()) {
+            Timber.d("Skipping to next song due to playback error")
+            player.seekToNextMediaItem()
+        } else {
+            Timber.d("No next song available, stopping playback")
+            player.stop()
+        }
     }
 
     override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) {

@@ -16,11 +16,17 @@ import com.viperplayer.presentation.search.model.SearchItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -53,18 +59,79 @@ class SearchViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val searchRepository: SearchRepository
 ) : ViewModel() {
+    // Expose current song and playing state from player repository
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+        .map { it.isPlaying }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     private val _searchSuggestionsState = MutableStateFlow(SearchSuggestionsState())
-    val searchSuggestionsState = _searchSuggestionsState.asStateFlow()
+    val searchSuggestionsState: StateFlow<SearchSuggestionsState> = _searchSuggestionsState
+        .combine(currentSong) { state, current ->
+            // Update isActive for songs when current song changes
+            val updatedItems = state.items.map { item ->
+                if (item.type == SearchItem.Type.SONG) {
+                    SearchItem(
+                        id = item.id,
+                        type = item.type,
+                        artworkUrl = item.artworkUrl,
+                        title = item.title,
+                        subtitle = item.subtitle,
+                        isActive = current?.id == item.id,
+                        badges = item.badges,
+                        song = item.song // Preserve the song object
+                    )
+                } else {
+                    item
+                }
+            }
+            state.copy(items = updatedItems)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SearchSuggestionsState()
+        )
 
     private val _searchResultsState = MutableStateFlow<SearchResultsState>(SearchResultsState.Idle)
-    val searchResultsState = _searchResultsState.asStateFlow()
-
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying = _isPlaying.asStateFlow()
+    val searchResultsState: StateFlow<SearchResultsState> = _searchResultsState
+        .combine(currentSong) { state, current ->
+            // Update isActive for songs when current song changes
+            when (state) {
+                is SearchResultsState.Results -> {
+                    val updatedItems = state.items.map { item ->
+                        if (item.type == SearchItem.Type.SONG) {
+                            SearchItem(
+                                id = item.id,
+                                type = item.type,
+                                artworkUrl = item.artworkUrl,
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                isActive = current?.id == item.id,
+                                badges = item.badges,
+                                song = item.song // Preserve the song object
+                            )
+                        } else {
+                            item
+                        }
+                    }
+                    SearchResultsState.Results(updatedItems)
+                }
+                else -> state
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SearchResultsState.Idle
+        )
 
     private val _query = MutableStateFlow("")
-    val query = _query.asStateFlow()
-    
+
     private val _lastSearchedQuery = MutableStateFlow("")
     val lastSearchedQuery = _lastSearchedQuery.asStateFlow()
 
@@ -101,7 +168,9 @@ class SearchViewModel @Inject constructor(
                 } else {
                     val successfulResults = suggestionsResults.mapNotNull { it.getOrNull() }
                     val suggestions = successfulResults.map { it.suggestions }.flatten().distinct()
-                    val items = successfulResults.map { it.items }.flatten().map { it.toSearchItem() }
+                    // Get current song to set isActive
+                    val current = currentSong.value
+                    val items = successfulResults.map { it.items }.flatten().map { it.toSearchItem(current) }
                     _searchSuggestionsState.update {
                         it.copy(
                             suggestions = suggestions,
@@ -117,11 +186,7 @@ class SearchViewModel @Inject constructor(
         _query.value = query
     }
 
-    fun clearQuery() {
-        _query.value = ""
-    }
-
-    private fun MediaItem.toSearchItem(): SearchItem {
+    private fun MediaItem.toSearchItem(currentSong: Song? = null): SearchItem {
         return when (this) {
             is Song -> this.let {
                 val subtitle = buildString {
@@ -153,12 +218,13 @@ class SearchViewModel @Inject constructor(
                     artworkUrl = it.artworkUrl,
                     title = it.title,
                     subtitle = subtitle,
-                    isActive = false,
+                    isActive = currentSong?.id == it.id,
                     badges = buildList {
                         if (it.isExplicit) {
                             add(ItemBadge.EXPLICIT)
                         }
-                    }
+                    },
+                    song = it // Store the full Song object
                 )
             }
 
@@ -234,24 +300,26 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun performSearch() {
-        if (query.value.isBlank()) {
+    fun performSearch(query: String) {
+        if (query.isBlank()) {
             _searchResultsState.value = SearchResultsState.Idle
             _lastSearchedQuery.value = ""
             return
         }
 
         _searchResultsState.value = SearchResultsState.Searching
-        _lastSearchedQuery.value = query.value
+        _lastSearchedQuery.value = query
         
         viewModelScope.launch {
             // Save search to history
-            searchRepository.saveSearchHistory(query.value)
+            searchRepository.saveSearchHistory(query)
             
-            pluginRepository.search(query.value)
+            pluginRepository.search(query)
                 .onSuccess { results ->
                     // Convert domain SearchSectionItem to presentation SearchItem
-                    val items = results.items.map { it.toSearchItem() }
+                    // Get current song to set isActive
+                    val current = currentSong.value
+                    val items = results.items.map { it.toSearchItem(current) }
                     _searchResultsState.value = if (items.isEmpty()) {
                         SearchResultsState.Empty
                     } else {
@@ -266,104 +334,47 @@ class SearchViewModel @Inject constructor(
     
     fun playSong(songId: MediaId) {
         viewModelScope.launch {
-//            playerRepository.play(song)
+            try {
+                // Try to find the song in search results first
+                val songFromResults = findSongInResults(songId)
+                if (songFromResults != null) {
+                    playerRepository.play(songFromResults)
+                    return@launch
+                }
+                
+                // If not found, fetch it from the repository
+                val songResult = pluginRepository.getSong(songId)
+                songResult.onSuccess { song ->
+                    playerRepository.play(song)
+                }.onFailure { error ->
+                    // Handle error - could show a toast or error message
+                    Timber.e(error, "Failed to play song: $songId")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Exception while playing song: $songId")
+            }
         }
+    }
+    
+    private fun findSongInResults(songId: MediaId): Song? {
+        // Check search results
+        val resultsState = _searchResultsState.value
+        if (resultsState is SearchResultsState.Results) {
+            val item = resultsState.items.find { it.id == songId && it.type == SearchItem.Type.SONG }
+            if (item?.song != null) {
+                return item.song
+            }
+        }
+        
+        // Check search suggestions
+        val suggestionsState = _searchSuggestionsState.value
+        val item = suggestionsState.items.find { it.id == songId && it.type == SearchItem.Type.SONG }
+        return item?.song
     }
 
     fun removeHistoryEntry(history: String) {
         viewModelScope.launch {
             searchRepository.removeHistoryEntry(history)
         }
-    }
-
-    // Extension functions to convert domain models to SearchItem
-    private fun com.viperplayer.domain.model.Song.toSearchItem(): SearchItem {
-        val subtitle = buildString {
-            if (artists.size > 1) {
-                artists.forEachIndexed { index, artist ->
-                    if (index == artists.size - 1) {
-                        append(" and ")
-                    } else if (index > 0) {
-                        append(", ")
-                    }
-                    append(artist.name)
-                }
-            } else {
-                append(artists.joinToString { it.name })
-            }
-            album?.let { album ->
-                if (artists.isNotEmpty()) append(" • ")
-                append(album.name)
-            }
-        }
-
-        return SearchItem(
-            id = id,
-            type = SearchItem.Type.SONG,
-            artworkUrl = effectiveArtworkUrl,
-            title = title,
-            subtitle = subtitle,
-            isActive = false,
-            badges = buildList {
-                if (isExplicit) {
-                    add(ItemBadge.EXPLICIT)
-                }
-            }
-        )
-    }
-
-    private fun com.viperplayer.domain.model.Artist.toSearchItem(): SearchItem {
-        return SearchItem(
-            id = id,
-            type = SearchItem.Type.ARTIST,
-            artworkUrl = imageUrl,
-            title = name,
-            subtitle = null,
-            isActive = false,
-            badges = emptyList()
-        )
-    }
-
-    private fun com.viperplayer.domain.model.Album.toSearchItem(): SearchItem {
-        val subtitle = buildString {
-            if (artists.size > 1) {
-                artists.forEachIndexed { index, artist ->
-                    if (index == artists.size - 1) {
-                        append(" and ")
-                    } else if (index > 0) {
-                        append(", ")
-                    }
-                    append(artist.name)
-                }
-            } else {
-                append(artists.joinToString { it.name })
-            }
-            releaseYear?.let { year ->
-                if (artists.isNotEmpty()) append(" • ")
-                append(year)
-            }
-        }
-
-        return SearchItem(
-            id = id,
-            type = SearchItem.Type.ALBUM,
-            artworkUrl = artworkUrl,
-            title = name,
-            subtitle = subtitle,
-            isActive = false,
-            badges = emptyList()
-        )
-    }
-
-    private fun com.viperplayer.domain.model.Playlist.toSearchItem(): SearchItem {
-        return SearchItem(
-            id = id,
-            type = SearchItem.Type.PLAYLIST,
-            artworkUrl = artworkUrl,
-            title = name,
-            subtitle = ownerName,
-            isActive = false,
-            badges = emptyList()
-        )
     }
 }

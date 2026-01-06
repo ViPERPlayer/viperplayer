@@ -20,7 +20,7 @@ import kotlinx.coroutines.guava.future
 class CoilBitmapLoader(
     private val context: Context
 ) : BitmapLoader {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun supportsMimeType(mimeType: String): Boolean {
         return Util.isBitmapFactorySupportedMimeType(mimeType)
