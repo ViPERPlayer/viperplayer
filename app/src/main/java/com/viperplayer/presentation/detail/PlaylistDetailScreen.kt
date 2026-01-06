@@ -47,8 +47,7 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
-import com.viperplayer.presentation.ktx.bottom
-import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 
@@ -62,38 +61,36 @@ fun PlaylistDetailScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(rootPadding.with(bottom = 0.dp))
-    ) {
-        TopAppBar(
-            title = { 
-                Text(
-                    when (val state = uiState) {
-                        is PlaylistDetailUiState.Success -> state.playlist.name
-                        else -> "Playlist"
+    ViperScaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        when (val state = uiState) {
+                            is PlaylistDetailUiState.Success -> state.playlist.name
+                            else -> "Playlist"
+                        }
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
-            },
-            actions = {
-                IconButton(onClick = { viewModel.refresh() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                }
-            }
-        )
-
+            )
+        }
+    ) { contentPadding ->
         when (val state = uiState) {
             is PlaylistDetailUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(rootPadding.bottom()),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -103,7 +100,7 @@ fun PlaylistDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(rootPadding.bottom()),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -123,9 +120,8 @@ fun PlaylistDetailScreen(
             }
             is PlaylistDetailUiState.Success -> {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    contentPadding = rootPadding.bottom()
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = contentPadding
                 ) {
                     // Playlist header
                     item {
@@ -156,12 +152,10 @@ fun PlaylistDetailScreen(
                     } else {
                         items(state.songs) { song ->
                             ListItem(
-                                type = SearchItem.Type.SONG,
                                 title = song.title,
                                 badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
                                 subtitle = song.artistNames,
                                 isActive = currentSong?.id == song.id,
-                                isPlaying = currentSong?.id == song.id && isPlaying,
                                 leadingContent = {
                                     ListItemLeadingArtwork(
                                         artworkUrl = song.artworkUrl,
@@ -176,6 +170,7 @@ fun PlaylistDetailScreen(
                                     )
                                 },
                                 modifier = Modifier
+                                    .animateItem()
                                     .clickable(enabled = song.isPlayable) { 
                                         if (song.isPlayable) {
                                             viewModel.playSong(song)

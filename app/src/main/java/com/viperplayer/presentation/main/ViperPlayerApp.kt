@@ -2,6 +2,7 @@ package com.viperplayer.presentation.main
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -61,9 +62,19 @@ fun ViperPlayerApp(
     viewModel: ViperPlayerAppViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val systemDarkTheme = isSystemInDarkTheme()
+    
+    val darkTheme = when (uiState.themeMode) {
+        com.viperplayer.domain.repository.ThemeMode.LIGHT -> false
+        com.viperplayer.domain.repository.ThemeMode.DARK -> true
+        com.viperplayer.domain.repository.ThemeMode.SYSTEM -> systemDarkTheme
+    }
 
     ViPERPlayerTheme(
-        seedColor = uiState.themeColor
+        darkTheme = darkTheme,
+        pureDark = uiState.pureBlack && (uiState.themeMode == com.viperplayer.domain.repository.ThemeMode.DARK || uiState.themeMode == com.viperplayer.domain.repository.ThemeMode.SYSTEM),
+        dynamicColor = uiState.dynamicTheme,
+        seedColor = if (uiState.dynamicTheme) uiState.themeColor else null
     ) {
         Surface(
             modifier = Modifier.fillMaxSize()

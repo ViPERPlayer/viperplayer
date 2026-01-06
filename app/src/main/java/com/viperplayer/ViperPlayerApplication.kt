@@ -4,15 +4,15 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
 import com.viperplayer.domain.repository.SettingsRepository
-import com.viperplayer.ktx.awaitBlocking
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -21,15 +21,10 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    private val cacheSizeDeferred = CompletableDeferred<Long>()
-    
     override fun onCreate() {
         super.onCreate()
-        
+
         initializeTimber()
-        prefetchCacheSize()
     }
 
     private fun initializeTimber() {
@@ -47,27 +42,26 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
         }
     }
 
-    private fun prefetchCacheSize() {
-        scope.launch {
-            val size = settingsRepository.cacheSize.first()
-            cacheSizeDeferred.complete(size)
-        }
-    }
-
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = cacheSizeDeferred.awaitBlocking()
+        val maxImageCacheSize = runBlocking(Dispatchers.IO) { settingsRepository.maxImageCacheSize.first() }
 
         return ImageLoader.Builder(this)
-//            .apply {
-//                if (cacheSize == 0L)
-//                    diskCachePolicy(CachePolicy.DISABLED)
-//                else
-//                    diskCache {
-//                        DiskCache.Builder()
-//                            .maxSizeBytes(cacheSize)
-//                            .build()
-//                    }
-//            }
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25) // 25% of app memory
+                    .build()
+            }
+            .diskCache {
+                if (maxImageCacheSize == 0L) {
+                    null // Disable disk cache if size is 0
+                } else {
+                    DiskCache.Builder()
+                        .directory(context.cacheDir.resolve("image_cache"))
+                        .maxSizeBytes(maxImageCacheSize)
+                        .build()
+                }
+            }
+            .diskCachePolicy(CachePolicy.ENABLED)
             .build()
     }
 }

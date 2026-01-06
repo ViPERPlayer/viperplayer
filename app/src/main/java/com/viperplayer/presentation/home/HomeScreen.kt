@@ -55,6 +55,7 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.with
 
 @Composable
@@ -63,6 +64,9 @@ fun HomeScreen(
     onNavigateToAlbum: (MediaId) -> Unit = {},
     onNavigateToArtist: (MediaId) -> Unit = {},
     onNavigateToPlaylist: (MediaId) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -92,66 +96,68 @@ fun HomeScreen(
         }
     }
 
-    Column {
-        var titleOverflowed by remember { mutableStateOf(false) }
-        val title = uiState.userName.let { userName ->
-            if (userName != null && !titleOverflowed) {
-                val resId = when (uiState.greetingType) {
-                    GreetingType.MORNING -> R.string.greeting_good_morning_personalized
-                    GreetingType.AFTERNOON -> R.string.greeting_good_afternoon_personalized
-                    GreetingType.EVENING -> R.string.greeting_good_evening_personalized
-                    GreetingType.NIGHT -> R.string.greeting_good_night_personalized
-                }
-                stringResource(resId, userName)
-            } else {
-                val resId = when (uiState.greetingType) {
-                    GreetingType.MORNING -> R.string.greeting_good_morning
-                    GreetingType.AFTERNOON -> R.string.greeting_good_afternoon
-                    GreetingType.EVENING -> R.string.greeting_good_evening
-                    GreetingType.NIGHT -> R.string.greeting_good_night
-                }
-                stringResource(resId)
+    var titleOverflowed by remember { mutableStateOf(false) }
+    val title = uiState.userName.let { userName ->
+        if (userName != null && !titleOverflowed) {
+            val resId = when (uiState.greetingType) {
+                GreetingType.MORNING -> R.string.greeting_good_morning_personalized
+                GreetingType.AFTERNOON -> R.string.greeting_good_afternoon_personalized
+                GreetingType.EVENING -> R.string.greeting_good_evening_personalized
+                GreetingType.NIGHT -> R.string.greeting_good_night_personalized
             }
+            stringResource(resId, userName)
+        } else {
+            val resId = when (uiState.greetingType) {
+                GreetingType.MORNING -> R.string.greeting_good_morning
+                GreetingType.AFTERNOON -> R.string.greeting_good_afternoon
+                GreetingType.EVENING -> R.string.greeting_good_evening
+                GreetingType.NIGHT -> R.string.greeting_good_night
+            }
+            stringResource(resId)
         }
+    }
 
-        TopAppBar(
-            title = {
-                Text(
-                    text = title,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                    onTextLayout = { textLayoutResult ->
-                        if (textLayoutResult.hasVisualOverflow && !titleOverflowed) {
-                            titleOverflowed = true
+    ViperScaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = title,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        onTextLayout = { textLayoutResult ->
+                            if (textLayoutResult.hasVisualOverflow && !titleOverflowed) {
+                                titleOverflowed = true
+                            }
                         }
+                    )
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToHistory) {
+                        Icon(
+                            imageVector = Icons.Rounded.History,
+                            contentDescription = "History",
+                        )
                     }
-                )
-            },
-            actions = {
-                IconButton(onClick = {  }) {
-                    Icon(
-                        imageVector = Icons.Rounded.History,
-                        contentDescription = "History",
-                    )
-                }
-                IconButton(onClick = {  }) {
-                    Icon(
-                        imageVector = Icons.Rounded.QueryStats,
-                        contentDescription = "Stats",
-                    )
-                }
-                IconButton(onClick = {  }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = "Settings",
-                    )
-                }
-            },
-        )
-
+                    IconButton(onClick = onNavigateToAnalytics) {
+                        Icon(
+                            imageVector = Icons.Rounded.QueryStats,
+                            contentDescription = "Stats",
+                        )
+                    }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = "Settings",
+                        )
+                    }
+                },
+            )
+        }
+    ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = rootPadding.with(top = 0.dp)
+            contentPadding = contentPadding.with(top = 0.dp)
         ) {
 //            item {
 //                Row(

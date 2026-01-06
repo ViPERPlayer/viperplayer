@@ -20,6 +20,9 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE id = :id")
     fun getById(id: Long): Flow<SongEntity?>
     
+    @Query("SELECT * FROM songs WHERE id = :id LIMIT 1")
+    suspend fun getByIdSync(id: Long): SongEntity?
+    
     @Query("SELECT * FROM songs WHERE pluginId = :pluginId AND sourceId = :sourceId")
     fun getByMediaIdFlow(pluginId: String, sourceId: String): Flow<SongEntity?>
     
@@ -76,5 +79,19 @@ interface SongDao {
     
     @Query("DELETE FROM songs")
     suspend fun deleteAll()
+    
+    /**
+     * Deletes songs that are not referenced anywhere (not liked, saved, downloaded, in playlists, or in queue).
+     * This helps clean up orphaned songs.
+     */
+    @Query("""
+        DELETE FROM songs 
+        WHERE isLiked = 0 
+        AND isSaved = 0 
+        AND isDownloaded = 0
+        AND id NOT IN (SELECT DISTINCT songId FROM playlist_songs)
+        AND id NOT IN (SELECT DISTINCT songId FROM queue_songs)
+    """)
+    suspend fun deleteOrphanedSongs(): Int
 }
 

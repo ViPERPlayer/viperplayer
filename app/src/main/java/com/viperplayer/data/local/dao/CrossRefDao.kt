@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.viperplayer.data.local.entity.AlbumArtistCrossRef
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
+import com.viperplayer.data.local.entity.QueueSongCrossRef
 import com.viperplayer.data.local.entity.SongArtistCrossRef
 
 /**
@@ -93,5 +94,24 @@ interface CrossRefDao {
     
     @Query("DELETE FROM artist_genres WHERE genreId = :genreId")
     suspend fun deleteGenreArtists(genreId: Long)
+    
+    // Queue-Song relationships
+    @Query("SELECT songId FROM queue_songs ORDER BY position ASC")
+    suspend fun getSongIdsForQueue(): List<Long>
+    
+    @Query("SELECT position FROM queue_songs WHERE songId = :songId LIMIT 1")
+    suspend fun getQueuePositionForSong(songId: Long): Int?
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQueueSong(crossRef: QueueSongCrossRef)
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQueueSongs(crossRefs: List<QueueSongCrossRef>)
+    
+    @Query("DELETE FROM queue_songs")
+    suspend fun clearQueue()
+    
+    @Query("DELETE FROM queue_songs WHERE songId = :songId")
+    suspend fun removeSongFromQueue(songId: Long)
 }
 

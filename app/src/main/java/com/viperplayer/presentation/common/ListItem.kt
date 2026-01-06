@@ -175,12 +175,10 @@ fun ListItemTrailingWithDuration(
 
 @Composable
 fun ListItem(
-    type: SearchItem.Type,
     title: String,
     badges: List<ItemBadge>,
     subtitle: String?,
     isActive: Boolean,
-    isPlaying: Boolean,
     leadingContent: @Composable () -> Unit,
     trailingContent: @Composable () -> Unit = {
         IconButton(onClick = {}) {
@@ -265,12 +263,10 @@ fun ListItem(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
-        type = type,
         title = title,
         badges = badges,
         subtitle = subtitle,
         isActive = isActive,
-        isPlaying = isPlaying,
         leadingContent = {
             ListItemLeadingArtwork(
                 artworkUrl = artworkUrl,
@@ -300,12 +296,10 @@ fun ListItem(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
-        type = type,
         title = title,
         badges = badges,
         subtitle = subtitle,
         isActive = isActive,
-        isPlaying = isPlaying,
         leadingContent = {
             ListItemLeadingTrackNumber(
                 trackNumber = trackNumber,

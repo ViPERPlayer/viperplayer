@@ -15,6 +15,8 @@ data class Song(
     val isExplicit: Boolean = false,
     val isPlayable: Boolean = true,
     val requiresInternet: Boolean = true, // Default to true for streaming services
+    val replayGainDb: Float? = null, // Optional ReplayGain value in dB (converted to linear when applied to player)
+    val peakAmplitude: Float? = null, // Peak amplitude (0.0-1.0+)
     val isLiked: Boolean = false,
     val isDownloaded: Boolean = false
 ) : MediaItem {

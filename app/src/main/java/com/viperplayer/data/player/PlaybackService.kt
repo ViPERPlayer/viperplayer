@@ -12,6 +12,7 @@ import androidx.lifecycle.ServiceLifecycleDispatcher
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -20,6 +21,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.RenderersFactory
@@ -37,18 +39,33 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import com.viperplayer.R
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.RepeatMode
+import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.math.min
+import kotlin.math.pow
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
 class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, PlaybackStatsListener.Callback {
     @Inject
     lateinit var viperPlayerResolver: ViperPlayerResolver
+    
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+    
+    @Inject
+    lateinit var exoPlayerCache: ExoPlayerCache
+    
+    @Inject
+    lateinit var playerStatePersistence: PlayerStatePersistence
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -75,52 +92,90 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
         
         // Create MediaSession
         mediaLibrarySession = createMediaLibrarySession()
-
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // PELIGROSA
-//                .setUri("https://files.catbox.moe/umacii.flac")
-//                .build()
-//        )
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // Gata Only
-//                .setUri("https://files.catbox.moe/e05tep.flac")
-//                .build()
-//        )
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // Uptown Funk
-//                .setUri("https://files.catbox.moe/xl4c54.flac")
-//                .build()
-//        )
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // Perfect (Exceeder)
-//                .setUri("https://files.catbox.moe/9axqe4.flac")
-//                .build()
-//        )
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // Alejandro
-//                .setUri("https://files.catbox.moe/ul596p.flac")
-//                .build()
-//        )
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // Telephone
-//                .setUri("https://files.catbox.moe/9cd4t7.flac")
-//                .build()
-//        )
-//        player.addMediaItem(
-//            MediaItem.Builder()
-//                // Just Dance
-//                .setUri("https://files.catbox.moe/nqk69n.flac")
-//                .build()
-//        )
-//        player.shuffleModeEnabled = true
-        player.prepare()
-        player.playWhenReady = true
+        
+        // Restore player state if available
+        restorePlayerState()
+    }
+    
+    /**
+     * Restores the player state from persistence.
+     */
+    private fun restorePlayerState() {
+        lifecycleScope.launch {
+            val savedState = playerStatePersistence.loadState()
+            if (savedState == null) {
+                Timber.d("No saved player state to restore")
+                return@launch
+            }
+            
+            Timber.d("Restoring player state: song=${savedState.currentSong?.title}, position=${savedState.currentPositionMs}ms, queueSize=${savedState.queue.size}")
+            
+            try {
+                if (savedState.queue.isNotEmpty()) {
+                    // Create MediaItems directly from persisted metadata (no network calls!)
+                    val mediaItems = savedState.queue.mapNotNull { songMetadata ->
+                        try {
+                            val mediaId = MediaId.fromString(songMetadata.mediaId)
+                            
+                            // Build MediaMetadata from persisted data
+                            val metadataBuilder = androidx.media3.common.MediaMetadata.Builder()
+                                .setTitle(songMetadata.title)
+                                .setArtist(songMetadata.artistName)
+                                .setAlbumTitle(songMetadata.albumName)
+                                .setArtworkUri(songMetadata.artworkUrl?.let { android.net.Uri.parse(it) })
+                                .setDurationMs(songMetadata.durationMs)
+                                .setTrackNumber(songMetadata.trackNumber)
+                                .setDiscNumber(songMetadata.discNumber)
+                            
+                            // Store MediaId in extras for ViperPlayerResolver
+                            val extras = android.os.Bundle().apply {
+                                putString("pluginId", mediaId.pluginId)
+                                putString("sourceId", mediaId.sourceId)
+                                putString("title", songMetadata.title)
+                                putString("artistName", songMetadata.artistName)
+                                putString("albumName", songMetadata.albumName)
+                                putString("artworkUrl", songMetadata.artworkUrl)
+                                songMetadata.durationMs?.let { putLong("durationMs", it) }
+                            }
+                            metadataBuilder.setExtras(extras)
+                            
+                            MediaItem.Builder()
+                                .setMediaId(songMetadata.mediaId)
+                                .setUri(songMetadata.mediaId) // ViperPlayerResolver will handle resolution
+                                .setMediaMetadata(metadataBuilder.build())
+                                .build()
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to create MediaItem from metadata: ${songMetadata.title}")
+                            null
+                        }
+                    }
+                    
+                    if (mediaItems.isNotEmpty()) {
+                        val startIndex = savedState.queuePosition.coerceIn(0, mediaItems.lastIndex)
+                        player.setMediaItems(mediaItems, startIndex, savedState.currentPositionMs)
+                        
+                        // Restore shuffle and repeat mode
+                        player.shuffleModeEnabled = savedState.shuffleEnabled
+                        player.repeatMode = when (savedState.repeatMode) {
+                            RepeatMode.OFF.name -> Player.REPEAT_MODE_OFF
+                            RepeatMode.ONE.name -> Player.REPEAT_MODE_ONE
+                            RepeatMode.ALL.name -> Player.REPEAT_MODE_ALL
+                            else -> Player.REPEAT_MODE_OFF
+                        }
+                        
+                        player.prepare()
+                        
+                        Timber.d("Restored player state successfully")
+                    } else {
+                        Timber.w("No valid songs found to restore")
+                    }
+                } else {
+                    Timber.w("No queue to restore")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to restore player state")
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -184,10 +239,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     private fun createExoPlayerDataSourceFactory(): DataSource.Factory {
-        return ResolvingDataSource.Factory(
+        val upstreamFactory = ResolvingDataSource.Factory(
             DefaultDataSource.Factory(this),
             viperPlayerResolver
         )
+        
+        return CacheDataSource.Factory()
+            .setCache(exoPlayerCache.cache)
+            .setUpstreamDataSourceFactory(upstreamFactory)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 
     private fun createExoPlayerRenderersFactory(): RenderersFactory {
@@ -255,6 +315,61 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
                 openAudioEffectControlSession()
             } else {
                 closeAudioEffectControlSession()
+            }
+        }
+    }
+
+    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        Timber.d("onMediaItemTransition() called with: mediaItem = $mediaItem, reason = $reason")
+        
+        // Apply ReplayGain as volume when a new media item starts playing
+        // Convert from dB to linear: linear = 10^(dB/20)
+        if (mediaItem != null) {
+            val replayGainDb = mediaItem.mediaMetadata.extras?.getFloat("replayGainDb")
+                ?: try {
+                    val mediaId = MediaId.fromString(mediaItem.mediaId)
+                    viperPlayerResolver.getReplayGain(mediaId)
+                } catch (e: Exception) {
+                    null
+                }
+
+            val peakAmplitude = mediaItem.mediaMetadata.extras?.getFloat("peakAmplitude")
+                ?: try {
+                    val mediaId = MediaId.fromString(mediaItem.mediaId)
+                    viperPlayerResolver.getPeakAmplitude(mediaId)
+                } catch (e: Exception) {
+                    null
+                }
+
+            // Check if ReplayGain is enabled
+            lifecycleScope.launch {
+                val replayGainEnabled = settingsRepository.replayGainEnabled.first()
+                
+                val volume = if (replayGainEnabled && replayGainDb != null) {
+                    // Get preamp from settings and add it to ReplayGain
+                    val preampDb = settingsRepository.replayGainPreampDb.first()
+                    val finalGainDb = replayGainDb + preampDb
+                    
+                    // Convert from dB to linear: linear = 10^(dB/20)
+                    val replayGain = if (finalGainDb == 0f) {
+                        1.0f // 0 dB = 1.0 linear
+                    } else {
+                        10f.pow(finalGainDb / 20f)
+                    }
+                    
+                    // Apply peak amplitude limiting if available
+                    if (peakAmplitude != null && peakAmplitude > 0f) {
+                        min(replayGain, 1f / peakAmplitude)
+                    } else {
+                        replayGain
+                    }
+                } else {
+                    1f
+                }
+
+                Timber.d("onMediaItemTransition: volume=$volume (replayGainEnabled=$replayGainEnabled, replayGainDb=$replayGainDb, preampDb=${settingsRepository.replayGainPreampDb.first()}, peakAmplitude=$peakAmplitude)")
+
+                player.volume = volume.coerceIn(0f, 1f)
             }
         }
     }

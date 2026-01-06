@@ -70,19 +70,23 @@ object PluginMapper {
     fun AidlSong.toDomain(
         pluginId: String,
         trackNumber: Int? = null,
-    ): Song = Song(
-        id = this.id.toDomain(pluginId),
-        title = this.title,
-        artists = this.artists.map { it.toDomain(pluginId) },
-        album = this.album?.toDomain(pluginId),
-        durationMs = this.durationMs,
-        artworkUrl = this.artworkUrl,
-        trackNumber = this.trackNumber ?: trackNumber,
-        discNumber = this.discNumber,
-        isExplicit = this.isExplicit,
-        isPlayable = this.isPlayable,
-        requiresInternet = this.requiresInternet
-    )
+    ): Song {
+        return Song(
+            id = this.id.toDomain(pluginId),
+            title = this.title,
+            artists = this.artists.map { it.toDomain(pluginId) },
+            album = this.album?.toDomain(pluginId),
+            durationMs = this.durationMs,
+            artworkUrl = this.artworkUrl,
+            trackNumber = this.trackNumber ?: trackNumber,
+            discNumber = this.discNumber,
+            isExplicit = this.isExplicit,
+            isPlayable = this.isPlayable,
+            requiresInternet = this.requiresInternet,
+            replayGainDb = this.replayGainDb,
+            peakAmplitude = this.peakAmplitude
+        )
+    }
     
     fun AidlPlaylist.toDomain(pluginId: String): Playlist = Playlist(
         id = id.toDomain(pluginId),

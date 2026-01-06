@@ -11,6 +11,8 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.materialkolor.ktx.themeColorOrNull
 import com.viperplayer.domain.repository.PlayerRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -24,18 +26,23 @@ import javax.inject.Inject
 data class ViperPlayerAppUiState(
     val themeColor: Color? = null,
     val hasCurrentSong: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val dynamicTheme: Boolean = true,
+    val pureBlack: Boolean = false
 )
 
 @HiltViewModel
 class ViperPlayerAppViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val playerRepository: PlayerRepository
+    private val playerRepository: PlayerRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ViperPlayerAppUiState())
     val uiState = _uiState.asStateFlow()
 
     init {
         observeThemeColor()
+        observeThemeSettings()
     }
 
     private fun observeThemeColor() {
@@ -57,6 +64,26 @@ class ViperPlayerAppViewModel @Inject constructor(
                     themeColor = themeColor,
                     hasCurrentSong = song != null
                 ) }
+            }
+        }
+    }
+    
+    private fun observeThemeSettings() {
+        viewModelScope.launch {
+            settingsRepository.themeMode.collect { themeMode ->
+                _uiState.update { 
+                    it.copy(themeMode = themeMode)
+                }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.dynamicTheme.collect { enabled ->
+                _uiState.update { it.copy(dynamicTheme = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.pureBlack.collect { enabled ->
+                _uiState.update { it.copy(pureBlack = enabled) }
             }
         }
     }

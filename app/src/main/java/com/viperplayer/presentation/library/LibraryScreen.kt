@@ -125,6 +125,7 @@ fun LibraryScreen(
                                         isActive = currentSong?.id == song.id,
                                         isPlaying = currentSong?.id == song.id && isPlaying,
                                         modifier = Modifier
+                                            .animateItem()
                                             .clickable(enabled = song.isPlayable) { 
                                                 if (song.isPlayable) {
                                                     viewModel.playSong(song)
@@ -161,6 +162,7 @@ fun LibraryScreen(
                                         isActive = false,
                                         isPlaying = false,
                                         modifier = Modifier
+                                            .animateItem()
                                             .clickable { onNavigateToAlbum(album.id) }
                                             .fillMaxWidth()
                                     )
@@ -186,6 +188,7 @@ fun LibraryScreen(
                                         isActive = false,
                                         isPlaying = false,
                                         modifier = Modifier
+                                            .animateItem()
                                             .clickable { onNavigateToArtist(artist.id) }
                                             .fillMaxWidth()
                                     )
@@ -213,6 +216,7 @@ fun LibraryScreen(
                                         isActive = false,
                                         isPlaying = false,
                                         modifier = Modifier
+                                            .animateItem()
                                             .clickable { onNavigateToPlaylist(playlist.id) }
                                             .fillMaxWidth()
                                     )

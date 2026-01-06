@@ -580,7 +580,7 @@ class SliderPositions(
 @ExperimentalMaterial3Api
 class SliderState(
     value: Float = 0f,
-    @IntRange(from = 0)
+    @param:IntRange(from = 0)
     val steps: Int = 0,
     val onValueChangeFinished: (() -> Unit)? = null,
     val valueRange: ClosedFloatingPointRange<Float> = 0f..1f

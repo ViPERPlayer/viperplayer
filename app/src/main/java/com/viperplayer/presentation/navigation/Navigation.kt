@@ -6,14 +6,22 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.viperplayer.presentation.analytics.AnalyticsScreen
 import com.viperplayer.presentation.detail.AlbumDetailScreen
 import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
+import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.library.LibraryScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
 import com.viperplayer.presentation.settings.SettingsScreen
+import com.viperplayer.presentation.settings.about.AboutSettingsScreen
+import com.viperplayer.presentation.settings.appearance.AppearanceSettingsScreen
+import com.viperplayer.presentation.settings.content.ContentSettingsScreen
+import com.viperplayer.presentation.settings.player.PlayerSettingsScreen
+import com.viperplayer.presentation.settings.storage.StorageSettingsScreen
+import com.viperplayer.presentation.settings.updater.UpdaterSettingsScreen
 import com.viperplayer.presentation.viper.ViperScreen
 import kotlinx.serialization.Serializable
 
@@ -37,6 +45,30 @@ object Plugins
 
 @Serializable
 object Settings
+
+@Serializable
+object History
+
+@Serializable
+object Analytics
+
+@Serializable
+object SettingsAppearance
+
+@Serializable
+object SettingsPlayer
+
+@Serializable
+object SettingsContent
+
+@Serializable
+object SettingsStorage
+
+@Serializable
+object SettingsAbout
+
+@Serializable
+object SettingsUpdater
 
 @Serializable
 data class AlbumDetail(
@@ -78,7 +110,10 @@ fun ViperNavHost(
                 },
                 onNavigateToPlaylist = { playlistId ->
                     navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
-                }
+                },
+                onNavigateToSettings = { navController.navigate(Settings) },
+                onNavigateToHistory = { navController.navigate(History) },
+                onNavigateToAnalytics = { navController.navigate(Analytics) }
             )
         }
         
@@ -126,6 +161,68 @@ fun ViperNavHost(
         
         composable<Settings> {
             SettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAppearance = { navController.navigate(SettingsAppearance) },
+                onNavigateToPlayer = { navController.navigate(SettingsPlayer) },
+                onNavigateToContent = { navController.navigate(SettingsContent) },
+                onNavigateToStorage = { navController.navigate(SettingsStorage) },
+                onNavigateToAbout = { navController.navigate(SettingsAbout) },
+                onNavigateToUpdater = { navController.navigate(SettingsUpdater) }
+            )
+        }
+        
+        composable<SettingsAppearance> {
+            AppearanceSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<SettingsPlayer> {
+            PlayerSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<SettingsContent> {
+            ContentSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<SettingsStorage> {
+            StorageSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<SettingsAbout> {
+            AboutSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<SettingsUpdater> {
+            UpdaterSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<History> {
+            HistoryScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable<Analytics> {
+            AnalyticsScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navController.popBackStack() }
             )

@@ -255,7 +255,8 @@ class PluginRepositoryImpl @Inject constructor(
     }
     
     override suspend fun getSong(mediaId: MediaId): Result<Song> {
-        TODO()
+        Timber.e("getSong() not implemented")
+        return Result.failure(UnsupportedOperationException())
     }
     
     override suspend fun getAlbum(mediaId: MediaId): Result<Album> {

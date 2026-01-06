@@ -18,6 +18,7 @@ import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
 import com.viperplayer.data.local.entity.PlaylistEntity
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
+import com.viperplayer.data.local.entity.QueueSongCrossRef
 import com.viperplayer.data.local.entity.SearchHistoryEntity
 import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
@@ -36,9 +37,10 @@ import com.viperplayer.data.local.entity.SongEntity
         AlbumArtistCrossRef::class,
         PlaylistSongCrossRef::class,
         ArtistGenreCrossRef::class,
-        SearchHistoryEntity::class
+        SearchHistoryEntity::class,
+        QueueSongCrossRef::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(AlbumTypeConverter::class)

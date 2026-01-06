@@ -89,14 +89,12 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
             
             // Create cross-ref
-            if (genreId != null) {
-                crossRefDao.insertArtistGenre(
-                    ArtistGenreCrossRef(
-                        artistId = artistId,
-                        genreId = genreId
-                    )
+            crossRefDao.insertArtistGenre(
+                ArtistGenreCrossRef(
+                    artistId = artistId,
+                    genreId = genreId
                 )
-            }
+            )
         }
     }
     

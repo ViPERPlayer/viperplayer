@@ -42,8 +42,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.common.ListItem
-import com.viperplayer.presentation.ktx.bottom
-import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 
@@ -58,38 +57,36 @@ fun ArtistDetailScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(rootPadding.with(bottom = 0.dp))
-    ) {
-        TopAppBar(
-            title = { 
-                Text(
-                    when (val state = uiState) {
-                        is ArtistDetailUiState.Success -> state.artist.name
-                        else -> "Artist"
+    ViperScaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        when (val state = uiState) {
+                            is ArtistDetailUiState.Success -> state.artist.name
+                            else -> "Artist"
+                        }
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
-            },
-            actions = {
-                IconButton(onClick = { viewModel.refresh() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                }
-            }
-        )
-
+            )
+        }
+    ) { contentPadding ->
         when (val state = uiState) {
             is ArtistDetailUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(rootPadding.bottom()),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -99,7 +96,7 @@ fun ArtistDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(rootPadding.bottom()),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -119,10 +116,8 @@ fun ArtistDetailScreen(
             }
             is ArtistDetailUiState.Success -> {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(rootPadding.bottom()),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = contentPadding
                 ) {
                     // Artist header
                     item {
@@ -180,6 +175,7 @@ fun ArtistDetailScreen(
                                         isActive = currentSong?.id == song.id,
                                         isPlaying = currentSong?.id == song.id && isPlaying,
                                         modifier = Modifier
+                                            .animateItem()
                                             .clickable { viewModel.playSong(song) }
                                             .fillMaxWidth()
                                     )

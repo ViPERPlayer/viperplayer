@@ -32,10 +32,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -52,7 +55,9 @@ import javax.inject.Singleton
 @Singleton
 class PlayerRepositoryImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val mediaControllerManager: MediaControllerManager
+    private val mediaControllerManager: MediaControllerManager,
+    private val viperPlayerResolver: com.viperplayer.data.player.ViperPlayerResolver,
+    private val playerStatePersistence: com.viperplayer.data.player.PlayerStatePersistence
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -256,6 +261,14 @@ class PlayerRepositoryImpl @Inject constructor(
             null
         }
 
+        // Get replayGainDb from extras (may come from song data or StreamSource)
+        val replayGainDb = mediaMetadata.extras?.getFloat("replayGainDb")
+            ?: viperPlayerResolver.getReplayGain(mediaId)
+        
+        // Get peakAmplitude from extras (may come from song data or StreamSource)
+        val peakAmplitude = mediaMetadata.extras?.getFloat("peakAmplitude")?.takeIf { it > 0f }
+            ?: viperPlayerResolver.getPeakAmplitude(mediaId)?.takeIf { it > 0f }
+        
         val song = Song(
             id = mediaId,
             title = title,
@@ -265,7 +278,9 @@ class PlayerRepositoryImpl @Inject constructor(
             artworkUrl = artworkUrl?.toString(),
             trackNumber = mediaMetadata.trackNumber,
             discNumber = mediaMetadata.discNumber,
-            isExplicit = mediaMetadata.extras?.getBoolean("isExplicit") ?: false
+            isExplicit = mediaMetadata.extras?.getBoolean("isExplicit") ?: false,
+            replayGainDb = replayGainDb,
+            peakAmplitude = peakAmplitude
         )
         
         Timber.d("createSongFromController: created song - title=${song.title}, artist=${song.artistNames}")
@@ -400,6 +415,70 @@ class PlayerRepositoryImpl @Inject constructor(
                 }
             }
             .distinctUntilChanged()
+    
+    init {
+        // Persist player state whenever it changes
+        observeAndPersistPlayerState()
+    }
+    
+    /**
+     * Observes player state changes and persists them.
+     */
+    private fun observeAndPersistPlayerState() {
+        // Combine all state that needs to be persisted
+        combine(
+            currentSong,
+            playbackState,
+            queue,
+            mediaControllerManager.controllerFlow
+        ) { song, playback, queueSongs, controller ->
+            // Convert songs to persisted metadata (no network calls needed)
+            val queueMetadata = queueSongs.map { song ->
+                com.viperplayer.data.player.PersistedSongMetadata(
+                    mediaId = song.id.toString(),
+                    title = song.title,
+                    artistName = song.artistNames,
+                    albumName = song.album?.name,
+                    artworkUrl = song.artworkUrl,
+                    durationMs = song.durationMs,
+                    trackNumber = song.trackNumber,
+                    discNumber = song.discNumber
+                )
+            }
+            
+            val currentSongMetadata = song?.let {
+                com.viperplayer.data.player.PersistedSongMetadata(
+                    mediaId = it.id.toString(),
+                    title = it.title,
+                    artistName = it.artistNames,
+                    albumName = it.album?.name,
+                    artworkUrl = it.artworkUrl,
+                    durationMs = it.durationMs,
+                    trackNumber = it.trackNumber,
+                    discNumber = it.discNumber
+                )
+            }
+            
+            // Get current position and queue position from controller
+            val position = controller.currentPosition.coerceAtLeast(0)
+            val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
+            
+            com.viperplayer.data.player.PersistedPlayerState(
+                currentSong = currentSongMetadata,
+                currentPositionMs = position,
+                queue = queueMetadata,
+                queuePosition = queuePosition,
+                shuffleEnabled = playback.shuffleEnabled,
+                repeatMode = playback.repeatMode.name,
+            )
+        }
+            .debounce(2000) // Save at most every 2 seconds to avoid excessive writes
+            .onEach { state ->
+                // saveState will ensure songs exist in database
+                playerStatePersistence.saveState(state)
+            }
+            .launchIn(scope)
+    }
 
     override suspend fun play(song: Song) {
         withContext(Dispatchers.Main) {

@@ -52,8 +52,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.common.ListItem
-import com.viperplayer.presentation.ktx.bottom
-import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 
@@ -68,40 +67,38 @@ fun AlbumDetailScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(rootPadding.with(bottom = 0.dp))
-    ) {
-        TopAppBar(
-            title = { 
-                Text(
-                    text = when (val state = uiState) {
-                        is AlbumDetailUiState.Success -> state.album.name
-                        else -> "Album"
-                    },
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    ViperScaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        text = when (val state = uiState) {
+                            is AlbumDetailUiState.Success -> state.album.name
+                            else -> "Album"
+                        },
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
-            },
-            actions = {
-                IconButton(onClick = { viewModel.refresh() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                }
-            }
-        )
-
+            )
+        }
+    ) { contentPadding ->
         when (val state = uiState) {
             is AlbumDetailUiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(rootPadding.bottom()),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -111,7 +108,7 @@ fun AlbumDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(rootPadding.bottom()),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -132,7 +129,7 @@ fun AlbumDetailScreen(
             is AlbumDetailUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = rootPadding.bottom()
+                    contentPadding = contentPadding
                 ) {
                     // Album header
                     item {
@@ -175,6 +172,7 @@ fun AlbumDetailScreen(
                                 isActive = currentSong?.id == song.id,
                                 isPlaying = currentSong?.id == song.id && isPlaying,
                                 modifier = Modifier
+                                    .animateItem()
                                     .clickable { viewModel.playSong(song) }
                                     .fillMaxWidth()
                             )

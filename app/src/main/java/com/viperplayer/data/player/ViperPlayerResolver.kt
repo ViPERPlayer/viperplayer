@@ -22,6 +22,9 @@ class ViperPlayerResolver @Inject constructor(
     private val pluginDataSource: PluginDataSource
 ) : ResolvingDataSource.Resolver {
     private var lastResolved: Result<StreamSource> = Result.failure(Exception())
+    // Store replayGain and peakAmplitude per mediaId for later retrieval
+    private val replayGainCache = mutableMapOf<String, Float?>()
+    private val peakAmplitudeCache = mutableMapOf<String, Float?>()
 
     suspend fun resolve(uri: Uri): Result<StreamSource> {
         val mediaId = try {
@@ -32,9 +35,34 @@ class ViperPlayerResolver @Inject constructor(
 
         Timber.d("resolve: Getting stream from plugin: $mediaId")
 
-        return pluginDataSource.getStream(mediaId).also {
-            lastResolved = it
+        return pluginDataSource.getStream(mediaId).also { result ->
+            lastResolved = result
+            val streamSource = result.getOrNull()
+            // Store replayGain from StreamSource if available
+            streamSource?.replayGain?.let { replayGain ->
+                replayGainCache[mediaId.toString()] = replayGain
+                Timber.d("resolve: Stored replayGain=$replayGain for $mediaId")
+            }
+            // Store peakAmplitude from StreamSource if available
+            streamSource?.peakAmplitude?.let { peakAmplitude ->
+                peakAmplitudeCache[mediaId.toString()] = peakAmplitude
+                Timber.d("resolve: Stored peakAmplitude=$peakAmplitude for $mediaId")
+            }
         }
+    }
+    
+    /**
+     * Gets the replayGain for a mediaId, if available from StreamSource.
+     */
+    fun getReplayGain(mediaId: MediaId): Float? {
+        return replayGainCache[mediaId.toString()]
+    }
+    
+    /**
+     * Gets the peakAmplitude for a mediaId, if available from StreamSource.
+     */
+    fun getPeakAmplitude(mediaId: MediaId): Float? {
+        return peakAmplitudeCache[mediaId.toString()]
     }
     
     override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
