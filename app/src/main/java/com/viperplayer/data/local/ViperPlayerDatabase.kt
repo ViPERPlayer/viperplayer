@@ -40,7 +40,7 @@ import com.viperplayer.data.local.entity.SongEntity
         SearchHistoryEntity::class,
         QueueSongCrossRef::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(AlbumTypeConverter::class)

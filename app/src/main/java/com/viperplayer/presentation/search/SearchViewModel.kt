@@ -8,6 +8,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -57,7 +59,8 @@ sealed class SearchResultsState {
 class SearchViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
-    private val searchRepository: SearchRepository
+    private val searchRepository: SearchRepository,
+    private val mediaLibraryRepository: MediaLibraryRepository
 ) : ViewModel() {
     // Expose current song and playing state from player repository
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
@@ -376,5 +379,48 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             searchRepository.removeHistoryEntry(history)
         }
+    }
+
+    fun playNext(song: Song) {
+        viewModelScope.launch {
+            playerRepository.playNext(song)
+        }
+    }
+
+    fun addToQueue(song: Song) {
+        viewModelScope.launch {
+            playerRepository.addToQueue(song)
+        }
+    }
+
+    fun toggleLike(song: Song) {
+        viewModelScope.launch {
+            try {
+                mediaLibraryRepository.saveSong(song)
+                val currentSongFromDb = mediaLibraryRepository.getSong(song.id).first()
+                val isCurrentlyLiked = currentSongFromDb?.isLiked ?: false
+                mediaLibraryRepository.setSongLiked(song.id, !isCurrentlyLiked)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to toggle like for song: ${song.title}")
+            }
+        }
+    }
+
+    suspend fun getSong(mediaId: MediaId): Song? {
+        return findSongInResults(mediaId) ?: run {
+            pluginRepository.getSong(mediaId).getOrNull()
+        }
+    }
+
+    suspend fun getAlbum(mediaId: MediaId): Album? {
+        return pluginRepository.getAlbum(mediaId).getOrNull()
+    }
+
+    suspend fun getArtist(mediaId: MediaId): Artist? {
+        return pluginRepository.getArtist(mediaId).getOrNull()
+    }
+
+    suspend fun getPlaylist(mediaId: MediaId): Playlist? {
+        return pluginRepository.getPlaylist(mediaId).getOrNull()
     }
 }

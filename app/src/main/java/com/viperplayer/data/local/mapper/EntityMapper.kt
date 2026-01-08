@@ -93,8 +93,10 @@ object EntityMapper {
             isExplicit = isExplicit,
             isPlayable = isPlayable,
             requiresInternet = requiresInternet,
+            replayGainDb = replayGainDb,
+            peakAmplitude = peakAmplitude,
             isLiked = isLiked,
-            isDownloaded = isDownloaded
+            isDownloaded = isDownloaded,
         )
     }
     
@@ -109,12 +111,16 @@ object EntityMapper {
             trackNumber = trackNumber,
             discNumber = discNumber,
             isExplicit = isExplicit,
-            isLiked = false,
+            isLiked = isLiked,
             isSaved = false,
-            isDownloaded = false,
+            isDownloaded = isDownloaded,
+            downloadPath = null,
+            localArtworkPath = null,
             playCount = 0,
             lastPlayed = null,
-            lastUpdated = System.currentTimeMillis()
+            lastUpdated = System.currentTimeMillis(),
+            replayGainDb = replayGainDb,
+            peakAmplitude = peakAmplitude,
         )
     }
     

@@ -18,7 +18,7 @@ data class Song(
     val replayGainDb: Float? = null, // Optional ReplayGain value in dB (converted to linear when applied to player)
     val peakAmplitude: Float? = null, // Peak amplitude (0.0-1.0+)
     val isLiked: Boolean = false,
-    val isDownloaded: Boolean = false
+    val isDownloaded: Boolean = false,
 ) : MediaItem {
     val artistNames: String?
         get() = artists.joinToString { it.name }.takeIf { it.isNotEmpty() }

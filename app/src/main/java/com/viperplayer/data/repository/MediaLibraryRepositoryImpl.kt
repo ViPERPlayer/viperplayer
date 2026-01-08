@@ -394,15 +394,29 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             albumDao.insert(albumEntity)
         }
         
-        // Check if song already exists to preserve liked/downloaded/artwork status
+        // Check if song already exists to preserve ID and other status fields
         val existingSong = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
         val songEntity = song.toEntity(albumId).copy(
+            // CRITICAL: Preserve the existing ID to avoid breaking foreign key relationships
+            id = existingSong?.id ?: 0L,
             isLiked = existingSong?.isLiked ?: song.isLiked,
             isDownloaded = existingSong?.isDownloaded ?: song.isDownloaded,
             downloadPath = existingSong?.downloadPath ?: null,
-            localArtworkPath = existingSong?.localArtworkPath ?: null
+            localArtworkPath = existingSong?.localArtworkPath ?: null,
+            playCount = existingSong?.playCount ?: 0L,
+            lastPlayed = existingSong?.lastPlayed,
+            // Preserve audio format and normalization if not provided in new song data
+            replayGainDb = song.replayGainDb ?: existingSong?.replayGainDb,
+            peakAmplitude = song.peakAmplitude ?: existingSong?.peakAmplitude,
         )
-        val songId = songDao.insert(songEntity)
+        
+        // Use update() for existing songs to preserve ID, insert() for new songs
+        val songId = if (existingSong != null) {
+            songDao.update(songEntity)
+            existingSong.id // Return existing ID
+        } else {
+            songDao.insert(songEntity) // Insert new song with auto-generated ID
+        }
         
         // Download artwork if song is liked or saved
         if ((existingSong?.isLiked ?: song.isLiked) || (existingSong?.isSaved ?: false)) {

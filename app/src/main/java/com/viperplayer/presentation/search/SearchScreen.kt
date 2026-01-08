@@ -23,31 +23,42 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.search.model.SearchItem
@@ -65,6 +76,9 @@ fun SearchScreen(
     val searchResultsState by viewModel.searchResultsState.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
+    
+    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
+    val scope = rememberCoroutineScope()
 
     ViperScaffold(
         modifier = Modifier.fillMaxSize(),
@@ -216,16 +230,52 @@ fun SearchScreen(
                             artworkUrl = item.artworkUrl,
                             isActive = item.isActive,
                             isPlaying = isPlaying,
-                            modifier = Modifier
-                                .animateItem()
-                                .clickable {
-                                    when (item.type) {
-                                        SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                        SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
-                                        SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
-                                        SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
+                            onClick = {
+                                when (item.type) {
+                                    SearchItem.Type.SONG -> viewModel.playSong(item.id)
+                                    SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
+                                    SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
+                                    SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
+                                }
+                            },
+                            onMoreClick = {
+                                scope.launch {
+                                    selectedMediaItem = when (item.type) {
+                                        SearchItem.Type.SONG -> {
+                                            item.song ?: viewModel.getSong(item.id)
+                                        }
+                                        SearchItem.Type.ALBUM -> {
+                                            viewModel.getAlbum(item.id)
+                                        }
+                                        SearchItem.Type.ARTIST -> {
+                                            viewModel.getArtist(item.id)
+                                        }
+                                        SearchItem.Type.PLAYLIST -> {
+                                            viewModel.getPlaylist(item.id)
+                                        }
                                     }
                                 }
+                            },
+                            onLongClick = {
+                                scope.launch {
+                                    selectedMediaItem = when (item.type) {
+                                        SearchItem.Type.SONG -> {
+                                            item.song ?: viewModel.getSong(item.id)
+                                        }
+                                        SearchItem.Type.ALBUM -> {
+                                            viewModel.getAlbum(item.id)
+                                        }
+                                        SearchItem.Type.ARTIST -> {
+                                            viewModel.getArtist(item.id)
+                                        }
+                                        SearchItem.Type.PLAYLIST -> {
+                                            viewModel.getPlaylist(item.id)
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .animateItem()
                                 .fillMaxWidth()
                         )
                     }
@@ -301,18 +351,52 @@ fun SearchScreen(
                                     artworkUrl = item.artworkUrl,
                                     isActive = item.isActive,
                                     isPlaying = isPlaying,
-                                    modifier = Modifier
-                                        .animateItem()
-                                        .clickable {
-                                            when (item.type) {
-                                                SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                                SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
-                                                SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
-                                                SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(
-                                                    item.id
-                                                )
+                                    onClick = {
+                                        when (item.type) {
+                                            SearchItem.Type.SONG -> viewModel.playSong(item.id)
+                                            SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
+                                            SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
+                                            SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
+                                        }
+                                    },
+                                    onMoreClick = {
+                                        scope.launch {
+                                            selectedMediaItem = when (item.type) {
+                                                SearchItem.Type.SONG -> {
+                                                    item.song ?: viewModel.getSong(item.id)
+                                                }
+                                                SearchItem.Type.ALBUM -> {
+                                                    viewModel.getAlbum(item.id)
+                                                }
+                                                SearchItem.Type.ARTIST -> {
+                                                    viewModel.getArtist(item.id)
+                                                }
+                                                SearchItem.Type.PLAYLIST -> {
+                                                    viewModel.getPlaylist(item.id)
+                                                }
                                             }
                                         }
+                                    },
+                                    onLongClick = {
+                                        scope.launch {
+                                            selectedMediaItem = when (item.type) {
+                                                SearchItem.Type.SONG -> {
+                                                    item.song ?: viewModel.getSong(item.id)
+                                                }
+                                                SearchItem.Type.ALBUM -> {
+                                                    viewModel.getAlbum(item.id)
+                                                }
+                                                SearchItem.Type.ARTIST -> {
+                                                    viewModel.getArtist(item.id)
+                                                }
+                                                SearchItem.Type.PLAYLIST -> {
+                                                    viewModel.getPlaylist(item.id)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .animateItem()
                                         .fillMaxWidth()
                                 )
                             }
@@ -341,6 +425,76 @@ fun SearchScreen(
                         }
                     }
                 }
+            }
+        }
+        
+        // Media item options bottom sheet
+        selectedMediaItem?.let { item ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedMediaItem = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                MediaItemOptionsBottomSheet(
+                    item = item,
+                    onDismiss = { selectedMediaItem = null },
+                    onPlay = {
+                        scope.launch {
+                            when (item) {
+                                is Song -> viewModel.playSong(item.id)
+                                is Album -> {
+                                    // TODO: Implement play album
+                                }
+                                is Playlist -> {
+                                    // TODO: Implement play playlist
+                                }
+                                else -> {}
+                            }
+                            selectedMediaItem = null
+                        }
+                    },
+                    onPlayNext = {
+                        scope.launch {
+                            when (item) {
+                                is Song -> viewModel.playNext(item)
+                                else -> {}
+                            }
+                            selectedMediaItem = null
+                        }
+                    },
+                    onAddToQueue = {
+                        scope.launch {
+                            when (item) {
+                                is Song -> viewModel.addToQueue(item)
+                                is Album -> {
+                                    // TODO: Implement add album to queue
+                                }
+                                is Playlist -> {
+                                    // TODO: Implement add playlist to queue
+                                }
+                                else -> {}
+                            }
+                            selectedMediaItem = null
+                        }
+                    },
+                    onLike = {
+                        scope.launch {
+                            when (item) {
+                                is Song -> viewModel.toggleLike(item)
+                                else -> {}
+                            }
+                            selectedMediaItem = null
+                        }
+                    },
+                    onViewArtist = { artistId ->
+                        onNavigateToArtist(artistId)
+                        selectedMediaItem = null
+                    },
+                    onViewAlbum = { albumId ->
+                        onNavigateToAlbum(albumId)
+                        selectedMediaItem = null
+                    }
+                )
             }
         }
     }

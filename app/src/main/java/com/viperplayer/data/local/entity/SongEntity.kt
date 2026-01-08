@@ -43,8 +43,11 @@ data class SongEntity(
     val isDownloaded: Boolean = false,
     val downloadPath: String? = null,
     val localArtworkPath: String? = null, // Local path to cached artwork
+    // Audio normalization
+    val replayGainDb: Float? = null, // ReplayGain value in dB
+    val peakAmplitude: Float? = null, // Peak amplitude (0.0-1.0+)
     val playCount: Long = 0,
     val lastPlayed: Long? = null,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
 )
 

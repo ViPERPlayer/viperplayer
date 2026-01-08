@@ -20,13 +20,17 @@ data class MediaId(
 
     companion object {
         fun fromString(string: String): MediaId {
-            val params = string.split("&").associate {
-                val (key, value) = it.split("=")
-                key to Uri.decode(value)
+            try {
+                val params = string.split("&").associate {
+                    val (key, value) = it.split("=")
+                    key to Uri.decode(value)
+                }
+                val pluginId = params["pluginId"] ?: error("Missing pluginId in MediaId")
+                val sourceId = params["sourceId"] ?: error("Missing sourceId in MediaId")
+                return MediaId(pluginId, sourceId)
+            } catch (e: Exception) {
+                throw IllegalArgumentException("Invalid MediaId format: $string", e)
             }
-            val pluginId = params["pluginId"] ?: error("Missing pluginId in MediaId")
-            val sourceId = params["sourceId"] ?: error("Missing sourceId in MediaId")
-            return MediaId(pluginId, sourceId)
         }
     }
 }

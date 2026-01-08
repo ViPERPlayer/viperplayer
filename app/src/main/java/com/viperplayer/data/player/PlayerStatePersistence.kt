@@ -12,9 +12,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.QueueSongCrossRef
-import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RepeatMode
+import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -24,28 +25,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Minimal song metadata for persistence (no network calls needed for restoration).
- * This is used as an intermediate format when saving/loading state.
- */
-data class PersistedSongMetadata(
-    val mediaId: String,
-    val title: String,
-    val artistName: String? = null,
-    val albumName: String? = null,
-    val artworkUrl: String? = null,
-    val durationMs: Long? = null,
-    val trackNumber: Int? = null,
-    val discNumber: Int? = null
-)
-
-/**
  * Persisted player state that can be restored on app restart.
- * Queue is stored in Room, simple settings in DataStore.
+ * Queue is stored in Room (via QueueSongCrossRef), simple settings in DataStore.
+ * Songs are loaded from database on restoration.
  */
 data class PersistedPlayerState(
-    val currentSong: PersistedSongMetadata? = null,
+    val currentSongMediaId: String? = null,
     val currentPositionMs: Long = 0L,
-    val queue: List<PersistedSongMetadata> = emptyList(),
     val queuePosition: Int = 0,
     val shuffleEnabled: Boolean = false,
     val repeatMode: String = RepeatMode.OFF.name,
@@ -59,7 +45,8 @@ data class PersistedPlayerState(
 class PlayerStatePersistence @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val crossRefDao: CrossRefDao,
-    private val songDao: SongDao
+    private val songDao: SongDao,
+    private val mediaLibraryRepository: MediaLibraryRepository
 ) {
     companion object {
         private val Context.playerStateDataStore: DataStore<Preferences> by preferencesDataStore(name = "player_state")
@@ -76,42 +63,32 @@ class PlayerStatePersistence @Inject constructor(
     /**
      * Saves the current player state.
      * Queue is saved to Room (songs must already exist in SongEntity), simple settings to DataStore.
+     * Only MediaIds are saved - full song data is loaded from database on restoration.
      */
-    suspend fun saveState(state: PersistedPlayerState) = withContext(Dispatchers.IO) {
+    suspend fun saveState(state: PersistedPlayerState, queue: List<Song>) = withContext(Dispatchers.IO) {
         try {
             // Clear existing queue
             crossRefDao.clearQueue()
             
-            // Save queue to Room - ensure songs exist in SongEntity first
-            if (state.queue.isNotEmpty()) {
-                val queueCrossRefs = state.queue.mapIndexedNotNull { index, songMetadata ->
+            // Save queue to Room - songs should already be saved via MediaLibraryRepository.saveSong()
+            // when they were played or added to queue
+            if (queue.isNotEmpty()) {
+                val queueCrossRefs = queue.mapIndexedNotNull { index, song ->
                     try {
-                        val mediaId = MediaId.fromString(songMetadata.mediaId)
-                        // Get or create song entity
-                        var songEntity = songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)
+                        // Get song entity (should already exist from play/addToQueue)
+                        val songEntity = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+                        
                         if (songEntity == null) {
-                            // Song doesn't exist, create minimal entity
-                            val newEntity = SongEntity(
-                                pluginId = mediaId.pluginId,
-                                sourceId = mediaId.sourceId,
-                                title = songMetadata.title,
-                                durationMs = songMetadata.durationMs,
-                                artworkUrl = songMetadata.artworkUrl,
-                                trackNumber = songMetadata.trackNumber,
-                                discNumber = songMetadata.discNumber
-                            )
-                            songDao.insert(newEntity)
-                            songEntity = songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)
+                            Timber.w("Song not found in database when saving queue: ${song.title}. It should have been saved when played/added to queue.")
+                            return@mapIndexedNotNull null
                         }
                         
-                        songEntity?.let {
-                            QueueSongCrossRef(
-                                songId = it.id,
-                                position = index
-                            )
-                        }
+                        QueueSongCrossRef(
+                            songId = songEntity.id,
+                            position = index
+                        )
                     } catch (e: Exception) {
-                        Timber.e(e, "Failed to create queue cross-ref for song: ${songMetadata.title}")
+                        Timber.e(e, "Failed to create queue cross-ref for song: ${song.title}")
                         null
                     }
                 }
@@ -123,13 +100,13 @@ class PlayerStatePersistence @Inject constructor(
             
             // Save simple settings to DataStore
             dataStore.edit { preferences ->
-                preferences[CURRENT_SONG_MEDIA_ID_KEY] = state.currentSong?.mediaId ?: ""
+                preferences[CURRENT_SONG_MEDIA_ID_KEY] = state.currentSongMediaId ?: ""
                 preferences[CURRENT_POSITION_MS_KEY] = state.currentPositionMs
                 preferences[QUEUE_POSITION_KEY] = state.queuePosition
                 preferences[SHUFFLE_ENABLED_KEY] = state.shuffleEnabled
                 preferences[REPEAT_MODE_KEY] = state.repeatMode
             }
-            Timber.d("PlayerStatePersistence: Saved state - song=${state.currentSong?.title}, position=${state.currentPositionMs}ms, queueSize=${state.queue.size}")
+            Timber.d("PlayerStatePersistence: Saved state - song=${state.currentSongMediaId}, position=${state.currentPositionMs}ms, queueSize=${queue.size}")
         } catch (e: Exception) {
             Timber.e(e, "Failed to save player state")
         }
@@ -138,52 +115,40 @@ class PlayerStatePersistence @Inject constructor(
     /**
      * Loads the persisted player state.
      * Queue is loaded from Room (via QueueSongCrossRef -> SongEntity), simple settings from DataStore.
+     * Returns the state and the full queue of Song objects loaded from database.
      */
-    suspend fun loadState(): PersistedPlayerState? = withContext(Dispatchers.IO) {
+    suspend fun loadState(): Pair<PersistedPlayerState?, List<Song>> = withContext(Dispatchers.IO) {
         try {
             val preferences = dataStore.data.first()
             val currentSongMediaId = preferences[CURRENT_SONG_MEDIA_ID_KEY]?.takeIf { it.isNotEmpty() }
             
             if (currentSongMediaId == null) {
                 Timber.d("PlayerStatePersistence: No saved state found")
-                return@withContext null
+                return@withContext Pair(null, emptyList())
             }
             
-            // Load queue from Room via cross-refs
+            // Load queue from Room via cross-refs - get full Song objects from database
             val queueSongIds = crossRefDao.getSongIdsForQueue()
             val queue = queueSongIds.mapNotNull { songId ->
-                val songEntity = songDao.getByIdSync(songId)
-                songEntity?.let {
-                    PersistedSongMetadata(
-                        mediaId = "${it.pluginId}:${it.sourceId}",
-                        title = it.title,
-                        artistName = null, // Will be loaded when needed from cross-refs
-                        albumName = null, // Will be loaded when needed from album
-                        artworkUrl = it.artworkUrl,
-                        durationMs = it.durationMs,
-                        trackNumber = it.trackNumber,
-                        discNumber = it.discNumber
-                    )
-                }
+                val songEntity = songDao.getByIdSync(songId) ?: return@mapNotNull null
+                val mediaId = MediaId(songEntity.pluginId, songEntity.sourceId)
+                // Load full song from MediaLibraryRepository (includes artists, album, etc.)
+                mediaLibraryRepository.getSong(mediaId).first()
             }
             
-            // Find current song from queue based on mediaId
-            val currentSong = queue.find { it.mediaId == currentSongMediaId }
-            
             val state = PersistedPlayerState(
-                currentSong = currentSong,
+                currentSongMediaId = currentSongMediaId,
                 currentPositionMs = preferences[CURRENT_POSITION_MS_KEY] ?: 0L,
-                queue = queue,
                 queuePosition = preferences[QUEUE_POSITION_KEY] ?: 0,
                 shuffleEnabled = preferences[SHUFFLE_ENABLED_KEY] ?: false,
                 repeatMode = preferences[REPEAT_MODE_KEY] ?: RepeatMode.OFF.name,
             )
             
-            Timber.d("PlayerStatePersistence: Loaded state - song=${currentSong?.title}, position=${state.currentPositionMs}ms, queueSize=${queue.size}")
-            return@withContext state
+            Timber.d("PlayerStatePersistence: Loaded state - song=$currentSongMediaId, position=${state.currentPositionMs}ms, queueSize=${queue.size}")
+            return@withContext Pair(state, queue)
         } catch (e: Exception) {
             Timber.e(e, "Failed to load player state")
-            return@withContext null
+            return@withContext Pair(null, emptyList())
         }
     }
     

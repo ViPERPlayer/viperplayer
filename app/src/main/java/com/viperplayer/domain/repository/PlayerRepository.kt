@@ -89,6 +89,11 @@ interface PlayerRepository {
     suspend fun skipToPrevious()
     
     /**
+     * Play a song from the queue by index.
+     */
+    suspend fun playFromQueue(index: Int)
+    
+    /**
      * Seek to position.
      */
     suspend fun seekTo(positionMs: Long)
@@ -104,9 +109,19 @@ interface PlayerRepository {
     suspend fun playNext(song: Song)
     
     /**
+     * Duplicate a song in the queue at the specified index and add it as the next item.
+     */
+    suspend fun duplicateInQueue(index: Int)
+    
+    /**
      * Remove song from queue.
      */
     suspend fun removeFromQueue(index: Int)
+    
+    /**
+     * Reorder queue by moving an item from one position to another.
+     */
+    suspend fun reorderQueue(fromIndex: Int, toIndex: Int)
     
     /**
      * Clear queue.
@@ -122,5 +137,21 @@ interface PlayerRepository {
      * Set repeat mode.
      */
     suspend fun setRepeatMode(mode: RepeatMode)
+    
+    /**
+     * Gets the current audio format from ExoPlayer (sample rate, bitrate, channels, bit depth).
+     * Returns null if no track is playing or format information is not available.
+     */
+    suspend fun getAudioFormat(): AudioFormat?
 }
+
+/**
+ * Audio format information from ExoPlayer.
+ */
+data class AudioFormat(
+    val sampleRate: Int?,
+    val bitDepth: Int?,
+    val bitrate: Int?,
+    val channelCount: Int?
+)
 

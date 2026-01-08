@@ -1,6 +1,5 @@
 package com.viperplayer.presentation.detail
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,18 +17,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +46,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
@@ -56,6 +64,8 @@ fun ArtistDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    
+    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
     ViperScaffold(
         topBar = {
@@ -174,9 +184,11 @@ fun ArtistDetailScreen(
                                         durationMs = song.durationMs,
                                         isActive = currentSong?.id == song.id,
                                         isPlaying = currentSong?.id == song.id && isPlaying,
+                                        onClick = { viewModel.playSong(song) },
+                                        onMoreClick = { selectedMediaItem = song },
+                                        onLongClick = { selectedMediaItem = song },
                                         modifier = Modifier
                                             .animateItem()
-                                            .clickable { viewModel.playSong(song) }
                                             .fillMaxWidth()
                                     )
                                 }
@@ -209,6 +221,47 @@ fun ArtistDetailScreen(
                         }
                     }
                 }
+            }
+        }
+        
+        // Media item options bottom sheet
+        selectedMediaItem?.let { item ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedMediaItem = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                MediaItemOptionsBottomSheet(
+                    item = item,
+                    onDismiss = { selectedMediaItem = null },
+                    onPlay = {
+                        when (item) {
+                            is Song -> viewModel.playSong(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                    onPlayNext = {
+                        // TODO: Implement play next
+                        selectedMediaItem = null
+                    },
+                    onAddToQueue = {
+                        // TODO: Implement add to queue
+                        selectedMediaItem = null
+                    },
+                    onLike = {
+                        // TODO: Implement toggle like
+                        selectedMediaItem = null
+                    },
+                    onViewArtist = { artistId ->
+                        // Already on artist detail screen
+                        selectedMediaItem = null
+                    },
+                    onViewAlbum = { albumId ->
+                        onNavigateToAlbum(albumId)
+                        selectedMediaItem = null
+                    }
+                )
             }
         }
     }

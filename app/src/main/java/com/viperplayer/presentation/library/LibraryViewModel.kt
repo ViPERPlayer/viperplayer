@@ -204,6 +204,118 @@ class LibraryViewModel @Inject constructor(
         }
     }
     
+    fun playNext(song: Song) {
+        viewModelScope.launch {
+            playerRepository.playNext(song)
+        }
+    }
+    
+    fun addToQueue(song: Song) {
+        viewModelScope.launch {
+            playerRepository.addToQueue(song)
+        }
+    }
+    
+    fun toggleLike(song: Song) {
+        viewModelScope.launch {
+            mediaLibraryRepository.saveSong(song)
+            val currentLiked = mediaLibraryRepository.getSong(song.id).first()?.isLiked ?: false
+            mediaLibraryRepository.setSongLiked(song.id, !currentLiked)
+        }
+    }
+    
+    fun downloadSong(song: Song) {
+        // TODO: Implement download
+        viewModelScope.launch {
+            // mediaLibraryRepository.setSongDownloaded(song.id, true, downloadPath)
+        }
+    }
+    
+    fun playAlbum(album: Album) {
+        viewModelScope.launch {
+            // Load album songs and play
+            val albumWithSongs = mediaLibraryRepository.getAlbum(album.id).first()
+            albumWithSongs?.songs?.let { songs ->
+                if (songs.isNotEmpty()) {
+                    playerRepository.playAll(songs, 0)
+                }
+            }
+        }
+    }
+    
+    fun shuffleAlbum(album: Album) {
+        viewModelScope.launch {
+            val albumWithSongs = mediaLibraryRepository.getAlbum(album.id).first()
+            albumWithSongs?.songs?.let { songs ->
+                if (songs.isNotEmpty()) {
+                    val shuffled = songs.shuffled()
+                    playerRepository.playAll(shuffled, 0)
+                }
+            }
+        }
+    }
+    
+    fun addAlbumToQueue(album: Album) {
+        viewModelScope.launch {
+            val albumWithSongs = mediaLibraryRepository.getAlbum(album.id).first()
+            albumWithSongs?.songs?.forEach { song ->
+                playerRepository.addToQueue(song)
+            }
+        }
+    }
+    
+    fun playPlaylist(playlist: Playlist) {
+        viewModelScope.launch {
+            val playlistWithSongs = mediaLibraryRepository.getPlaylist(playlist.id).first()
+            playlistWithSongs?.songs?.let { songs ->
+                if (songs.isNotEmpty()) {
+                    playerRepository.playAll(songs, 0)
+                }
+            }
+        }
+    }
+    
+    fun shufflePlaylist(playlist: Playlist) {
+        viewModelScope.launch {
+            val playlistWithSongs = mediaLibraryRepository.getPlaylist(playlist.id).first()
+            playlistWithSongs?.songs?.let { songs ->
+                if (songs.isNotEmpty()) {
+                    val shuffled = songs.shuffled()
+                    playerRepository.playAll(shuffled, 0)
+                }
+            }
+        }
+    }
+    
+    fun playPlaylistNext(playlist: Playlist) {
+        viewModelScope.launch {
+            val playlistWithSongs = mediaLibraryRepository.getPlaylist(playlist.id).first()
+            playlistWithSongs?.songs?.forEach { song ->
+                playerRepository.playNext(song)
+            }
+        }
+    }
+    
+    fun addPlaylistToQueue(playlist: Playlist) {
+        viewModelScope.launch {
+            val playlistWithSongs = mediaLibraryRepository.getPlaylist(playlist.id).first()
+            playlistWithSongs?.songs?.forEach { song ->
+                playerRepository.addToQueue(song)
+            }
+        }
+    }
+    
+    fun togglePlaylistLike(playlist: Playlist) {
+        viewModelScope.launch {
+            val currentSaved = mediaLibraryRepository.getPlaylist(playlist.id).first()?.let {
+                // Check if it's saved (liked)
+                // For now, we'll use setPlaylistSaved
+                false // TODO: Get actual saved state
+            } ?: false
+            mediaLibraryRepository.setPlaylistSaved(playlist.id, !currentSaved)
+        }
+    }
+    
     fun refresh() {
         loadContent(_uiState.value.selectedTab)
     }

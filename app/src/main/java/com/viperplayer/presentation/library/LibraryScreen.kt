@@ -1,6 +1,5 @@
 package com.viperplayer.presentation.library
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -35,8 +37,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
@@ -53,6 +60,8 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    
+    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
     
     val tabs = listOf("Songs", "Albums", "Artists", "Playlists")
 
@@ -124,13 +133,11 @@ fun LibraryScreen(
                                         artworkUrl = song.artworkUrl,
                                         isActive = currentSong?.id == song.id,
                                         isPlaying = currentSong?.id == song.id && isPlaying,
+                                        onClick = if (song.isPlayable) { { viewModel.playSong(song) } } else null,
+                                        onMoreClick = { selectedMediaItem = song },
+                                        onLongClick = { selectedMediaItem = song },
                                         modifier = Modifier
                                             .animateItem()
-                                            .clickable(enabled = song.isPlayable) { 
-                                                if (song.isPlayable) {
-                                                    viewModel.playSong(song)
-                                                }
-                                            }
                                             .fillMaxWidth()
                                             .then(
                                                 if (!song.isPlayable) {
@@ -161,9 +168,11 @@ fun LibraryScreen(
                                         artworkUrl = album.artworkUrl,
                                         isActive = false,
                                         isPlaying = false,
+                                        onClick = { onNavigateToAlbum(album.id) },
+                                        onMoreClick = { selectedMediaItem = album },
+                                        onLongClick = { selectedMediaItem = album },
                                         modifier = Modifier
                                             .animateItem()
-                                            .clickable { onNavigateToAlbum(album.id) }
                                             .fillMaxWidth()
                                     )
                                 }
@@ -187,9 +196,11 @@ fun LibraryScreen(
                                         artworkUrl = artist.imageUrl,
                                         isActive = false,
                                         isPlaying = false,
+                                        onClick = { onNavigateToArtist(artist.id) },
+                                        onMoreClick = { selectedMediaItem = artist },
+                                        onLongClick = { selectedMediaItem = artist },
                                         modifier = Modifier
                                             .animateItem()
-                                            .clickable { onNavigateToArtist(artist.id) }
                                             .fillMaxWidth()
                                     )
                                 }
@@ -215,9 +226,11 @@ fun LibraryScreen(
                                         artworkUrl = playlist.artworkUrl,
                                         isActive = false,
                                         isPlaying = false,
+                                        onClick = { onNavigateToPlaylist(playlist.id) },
+                                        onMoreClick = { selectedMediaItem = playlist },
+                                        onLongClick = { selectedMediaItem = playlist },
                                         modifier = Modifier
                                             .animateItem()
-                                            .clickable { onNavigateToPlaylist(playlist.id) }
                                             .fillMaxWidth()
                                     )
                                 }
@@ -226,6 +239,83 @@ fun LibraryScreen(
                     }
                 }
             }
+        }
+        
+        // Media item options bottom sheet
+        selectedMediaItem?.let { item ->
+            MediaItemOptionsBottomSheet(
+                item = item,
+                onDismiss = { selectedMediaItem = null },
+                    onPlay = {
+                        when (item) {
+                            is Song -> viewModel.playSong(item)
+                            is Album -> viewModel.playAlbum(item)
+                            is Playlist -> viewModel.playPlaylist(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                    onPlayNext = {
+                        when (item) {
+                            is Song -> viewModel.playNext(item)
+                            is Playlist -> viewModel.playPlaylistNext(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                    onAddToQueue = {
+                        when (item) {
+                            is Song -> viewModel.addToQueue(item)
+                            is Album -> viewModel.addAlbumToQueue(item)
+                            is Playlist -> viewModel.addPlaylistToQueue(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                    onShuffle = {
+                        when (item) {
+                            is Album -> viewModel.shuffleAlbum(item)
+                            is Playlist -> viewModel.shufflePlaylist(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                    onStartRadio = {
+                        // TODO: Implement start radio
+                        selectedMediaItem = null
+                    },
+                    onLike = {
+                        when (item) {
+                            is Song -> viewModel.toggleLike(item)
+                            is Playlist -> viewModel.togglePlaylistLike(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                    onDownload = {
+                        when (item) {
+                            is Song -> viewModel.downloadSong(item)
+                            else -> {}
+                        }
+                        selectedMediaItem = null
+                    },
+                onShare = {
+                    // TODO: Implement share
+                    selectedMediaItem = null
+                },
+                onViewArtist = { artistId ->
+                    onNavigateToArtist(artistId)
+                    selectedMediaItem = null
+                },
+                onViewAlbum = { albumId ->
+                    onNavigateToAlbum(albumId)
+                    selectedMediaItem = null
+                },
+                onViewDetails = {
+                    // TODO: Show details (plugin name, etc.)
+                    selectedMediaItem = null
+                }
+            )
         }
     }
 }

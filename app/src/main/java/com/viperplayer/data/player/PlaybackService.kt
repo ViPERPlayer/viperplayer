@@ -20,7 +20,6 @@ import androidx.media3.common.audio.AudioProcessorChain
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -39,7 +38,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import com.viperplayer.R
-import com.viperplayer.domain.model.MediaId
+import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -56,10 +55,10 @@ import kotlin.math.pow
 @AndroidEntryPoint
 class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, PlaybackStatsListener.Callback {
     @Inject
-    lateinit var viperPlayerResolver: ViperPlayerResolver
-    
-    @Inject
     lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var pluginDataSource: PluginDataSource
     
     @Inject
     lateinit var exoPlayerCache: ExoPlayerCache
@@ -99,82 +98,54 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     
     /**
      * Restores the player state from persistence.
+     * Songs are loaded from database with full metadata (artists, album, etc.).
      */
     private fun restorePlayerState() {
         lifecycleScope.launch {
-            val savedState = playerStatePersistence.loadState()
-            if (savedState == null) {
-                Timber.d("No saved player state to restore")
+            val (savedState, queueSongs) = playerStatePersistence.loadState()
+            if (savedState == null || queueSongs.isEmpty()) {
+                Timber.d("No saved player state or queue to restore")
+                player.prepare()
                 return@launch
             }
             
-            Timber.d("Restoring player state: song=${savedState.currentSong?.title}, position=${savedState.currentPositionMs}ms, queueSize=${savedState.queue.size}")
+            Timber.d("Restoring player state: song=${savedState.currentSongMediaId}, position=${savedState.currentPositionMs}ms, queueSize=${queueSongs.size}")
             
             try {
-                if (savedState.queue.isNotEmpty()) {
-                    // Create MediaItems directly from persisted metadata (no network calls!)
-                    val mediaItems = savedState.queue.mapNotNull { songMetadata ->
-                        try {
-                            val mediaId = MediaId.fromString(songMetadata.mediaId)
-                            
-                            // Build MediaMetadata from persisted data
-                            val metadataBuilder = androidx.media3.common.MediaMetadata.Builder()
-                                .setTitle(songMetadata.title)
-                                .setArtist(songMetadata.artistName)
-                                .setAlbumTitle(songMetadata.albumName)
-                                .setArtworkUri(songMetadata.artworkUrl?.let { android.net.Uri.parse(it) })
-                                .setDurationMs(songMetadata.durationMs)
-                                .setTrackNumber(songMetadata.trackNumber)
-                                .setDiscNumber(songMetadata.discNumber)
-                            
-                            // Store MediaId in extras for ViperPlayerResolver
-                            val extras = android.os.Bundle().apply {
-                                putString("pluginId", mediaId.pluginId)
-                                putString("sourceId", mediaId.sourceId)
-                                putString("title", songMetadata.title)
-                                putString("artistName", songMetadata.artistName)
-                                putString("albumName", songMetadata.albumName)
-                                putString("artworkUrl", songMetadata.artworkUrl)
-                                songMetadata.durationMs?.let { putLong("durationMs", it) }
-                            }
-                            metadataBuilder.setExtras(extras)
-                            
-                            MediaItem.Builder()
-                                .setMediaId(songMetadata.mediaId)
-                                .setUri(songMetadata.mediaId) // ViperPlayerResolver will handle resolution
-                                .setMediaMetadata(metadataBuilder.build())
-                                .build()
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to create MediaItem from metadata: ${songMetadata.title}")
-                            null
+                // Convert Songs to MediaItems using MediaItemMapper (songs already have full metadata from database)
+                val mediaItems = queueSongs.mapNotNull { song ->
+                    try {
+                        MediaItemMapper.run {
+                            song.toMediaItem()
                         }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to create MediaItem from Song: ${song.title}")
+                        null
+                    }
+                }
+                
+                if (mediaItems.isNotEmpty()) {
+                    val startIndex = savedState.queuePosition.coerceIn(0, mediaItems.lastIndex)
+                    player.setMediaItems(mediaItems, startIndex, savedState.currentPositionMs)
+                    
+                    // Restore shuffle and repeat mode
+                    player.shuffleModeEnabled = savedState.shuffleEnabled
+                    player.repeatMode = when (savedState.repeatMode) {
+                        RepeatMode.OFF.name -> Player.REPEAT_MODE_OFF
+                        RepeatMode.ONE.name -> Player.REPEAT_MODE_ONE
+                        RepeatMode.ALL.name -> Player.REPEAT_MODE_ALL
+                        else -> Player.REPEAT_MODE_OFF
                     }
                     
-                    if (mediaItems.isNotEmpty()) {
-                        val startIndex = savedState.queuePosition.coerceIn(0, mediaItems.lastIndex)
-                        player.setMediaItems(mediaItems, startIndex, savedState.currentPositionMs)
-                        
-                        // Restore shuffle and repeat mode
-                        player.shuffleModeEnabled = savedState.shuffleEnabled
-                        player.repeatMode = when (savedState.repeatMode) {
-                            RepeatMode.OFF.name -> Player.REPEAT_MODE_OFF
-                            RepeatMode.ONE.name -> Player.REPEAT_MODE_ONE
-                            RepeatMode.ALL.name -> Player.REPEAT_MODE_ALL
-                            else -> Player.REPEAT_MODE_OFF
-                        }
-                        
-                        player.prepare()
-                        
-                        Timber.d("Restored player state successfully")
-                    } else {
-                        Timber.w("No valid songs found to restore")
-                    }
+                    Timber.d("Restored player state successfully")
                 } else {
-                    Timber.w("No queue to restore")
+                    Timber.w("No valid songs found in queue to restore")
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to restore player state")
             }
+
+            player.prepare()
         }
     }
 
@@ -235,18 +206,13 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
         val dataSourceFactory = createExoPlayerDataSourceFactory()
         val base = DefaultMediaSourceFactory(dataSourceFactory)
         val dash = DashMediaSource.Factory(dataSourceFactory)
-        return ViperMediaSource.Factory(viperPlayerResolver, base, dash)
+        return ViperMediaSource.Factory(this, pluginDataSource, base, dash)
     }
 
     private fun createExoPlayerDataSourceFactory(): DataSource.Factory {
-        val upstreamFactory = ResolvingDataSource.Factory(
-            DefaultDataSource.Factory(this),
-            viperPlayerResolver
-        )
-        
         return CacheDataSource.Factory()
             .setCache(exoPlayerCache.cache)
-            .setUpstreamDataSourceFactory(upstreamFactory)
+            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(this))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 
@@ -267,6 +233,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     private fun createAudioProcessorChain(): AudioProcessorChain {
+        // TODO: Add ViPER4Android here
         return DefaultAudioSink.DefaultAudioProcessorChain()
     }
 
@@ -325,21 +292,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
         // Apply ReplayGain as volume when a new media item starts playing
         // Convert from dB to linear: linear = 10^(dB/20)
         if (mediaItem != null) {
+            // TODO: Move to flow in order to observe replayGainEnabled and replayGainPreampDb
             val replayGainDb = mediaItem.mediaMetadata.extras?.getFloat("replayGainDb")
-                ?: try {
-                    val mediaId = MediaId.fromString(mediaItem.mediaId)
-                    viperPlayerResolver.getReplayGain(mediaId)
-                } catch (e: Exception) {
-                    null
-                }
-
             val peakAmplitude = mediaItem.mediaMetadata.extras?.getFloat("peakAmplitude")
-                ?: try {
-                    val mediaId = MediaId.fromString(mediaItem.mediaId)
-                    viperPlayerResolver.getPeakAmplitude(mediaId)
-                } catch (e: Exception) {
-                    null
-                }
 
             // Check if ReplayGain is enabled
             lifecycleScope.launch {

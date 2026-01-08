@@ -1,28 +1,25 @@
 package com.viperplayer.data.repository
 
-import android.content.Context
-import android.net.Uri
 import androidx.annotation.OptIn
-import androidx.core.net.toUri
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import com.viperplayer.data.player.MediaControllerManager
 import com.viperplayer.data.player.MediaItemMapper
 import com.viperplayer.data.player.PlayerStateMapper
-import com.viperplayer.domain.model.Album
-import com.viperplayer.domain.model.Artist
+import com.viperplayer.data.player.PlayerStatePersistence
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.PlayerState
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,13 +33,13 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,10 +51,9 @@ import javax.inject.Singleton
 @OptIn(UnstableApi::class)
 @Singleton
 class PlayerRepositoryImpl @Inject constructor(
-    @param:ApplicationContext private val context: Context,
     private val mediaControllerManager: MediaControllerManager,
-    private val viperPlayerResolver: com.viperplayer.data.player.ViperPlayerResolver,
-    private val playerStatePersistence: com.viperplayer.data.player.PlayerStatePersistence
+    private val playerStatePersistence: PlayerStatePersistence,
+    private val mediaLibraryRepository: MediaLibraryRepository
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -131,41 +127,54 @@ class PlayerRepositoryImpl @Inject constructor(
                 initialValue = PlaybackInfo()
             )
 
-    // Current song - only emits when track changes or metadata updates
+    // Current song - loads from database as single source of truth
     override val currentSong: StateFlow<Song?> =
         mediaControllerManager.controllerFlow
             .flatMapLatest { controller ->
-                callbackFlow {
+                // Flow of MediaId changes from controller
+                callbackFlow<MediaId?> {
                     val listener = object : Player.Listener {
                         override fun onMediaItemTransition(
                             mediaItem: MediaItem?,
                             reason: Int
                         ) {
-                            trySend(createSongFromController(controller))
+                            val mediaId = extractMediaIdFromController(controller)
+                            trySend(mediaId)
                         }
                         
                         override fun onTimelineChanged(
                             timeline: Timeline,
                             reason: Int
                         ) {
-                            trySend(createSongFromController(controller))
+                            val mediaId = extractMediaIdFromController(controller)
+                            trySend(mediaId)
                         }
                         
-                        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-                            // Metadata might be populated asynchronously by ExoPlayer
-                            // Update the song when metadata becomes available
-                            trySend(createSongFromController(controller))
+                        override fun onTracksChanged(tracks: Tracks) {
+                            // Format information becomes available when tracks are loaded
+                            val mediaId = extractMediaIdFromController(controller)
+                            // MediaId doesn't change, but we want to reload to get updated format
+                            trySend(mediaId)
                         }
                     }
                     controller.addListener(listener)
-                    trySend(createSongFromController(controller))
+                    
+                    // Initial MediaId
+                    val initialMediaId = extractMediaIdFromController(controller)
+                    trySend(initialMediaId)
+                    
                     awaitClose { controller.removeListener(listener) }
                 }
             }
-//            .distinctUntilChanged { old, new ->
-//                // Only emit if song ID changed OR if title/artist changed (metadata update)
-//                old?.id != new?.id || old?.title != new?.title || old?.artistName != new?.artistName
-//            }
+            .distinctUntilChanged() // Only reload when MediaId actually changes
+            .flatMapLatest { mediaId: MediaId? ->
+                // Load song from database for each MediaId
+                if (mediaId != null) {
+                    mediaLibraryRepository.getSong(mediaId)
+                } else {
+                    kotlinx.coroutines.flow.flowOf<Song?>(null)
+                }
+            }
             .stateIn(
                 scope = scope,
                 started = SharingStarted.Eagerly,
@@ -173,153 +182,48 @@ class PlayerRepositoryImpl @Inject constructor(
             )
     
     /**
-     * Creates a Song from the controller's current state, using both MediaItem and player metadata.
-     * This ensures we get metadata that ExoPlayer might have loaded asynchronously.
+     * Extracts MediaId from the controller's current MediaItem.
+     * Returns null if no MediaItem is available or MediaId cannot be parsed.
      */
-    private fun createSongFromController(player: Player): Song? {
-        val mediaItem = player.currentMediaItem
-        if (mediaItem == null) {
-            Timber.d("createSongFromController: currentMediaItem is null")
-            return null
-        }
-
-        val mediaMetadata = player.mediaMetadata
-        if (mediaMetadata == MediaMetadata.EMPTY) {
-            Timber.d("createSongFromController: mediaMetadata is empty")
-            return null
-        }
-
-        Timber.d("createSongFromController: mediaId=${mediaItem.mediaId}")
-        Timber.d("createSongFromController: title=${mediaMetadata.title}")
-        Timber.d("createSongFromController: artist=${mediaMetadata.artist}")
-
-        // Get the URI from the MediaItem - try localConfiguration first (actual loaded URI), 
-        // then requestMetadata (original request), then mediaId as fallback
-        val uriString = try {
-            mediaItem.localConfiguration?.uri?.toString()
-                ?: mediaItem.requestMetadata.mediaUri?.toString()
-                ?: mediaItem.mediaId
+    private fun extractMediaIdFromController(player: Player): MediaId? {
+        val mediaItem = player.currentMediaItem ?: return null
+        
+        return try {
+            MediaId.fromString(mediaItem.mediaId)
         } catch (e: Exception) {
-            mediaItem.mediaId
-        }
-        
-        Timber.d("createSongFromController: uriString=$uriString, mediaId=${mediaItem.mediaId}")
-        
-        // Try to parse MediaId from string format "pluginId:sourceId"
-        val mediaId = try {
-            MediaId.fromString(uriString)
-        } catch (e: Exception) {
-            // If parsing fails, it might be a URI - create a default MediaId
-            val identifier = try {
-                val uri = uriString.toUri()
-                uri.lastPathSegment ?: uri.host ?: uriString.hashCode().toString()
-            } catch (e2: Exception) {
-                uriString.hashCode().toString()
-            }
-            MediaId("unknown", identifier)
-        }
-
-        // Try to get title from merged metadata first (most up-to-date), then fallbacks
-        val title = mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() }
-            ?: "Unknown Title"
-        
-        Timber.d("createSongFromController: extracted title=$title")
-        
-        // Try to get artist from merged metadata first (most up-to-date), then fallbacks
-        val artistName = mediaMetadata.artist?.toString()?.takeIf { it.isNotBlank() }
-            ?: "Unknown Artist"
-        
-        Timber.d("createSongFromController: extracted artist=$artistName")
-        
-        val albumName = mediaMetadata.albumTitle?.toString()?.takeIf { it.isNotBlank() }
-        
-        // Handle artwork: prefer artworkUri, but if null, save artworkData to cache and return file URI
-        val artworkUrl = mediaMetadata.artworkUri
-            ?: mediaMetadata.artworkData?.let { artworkData ->
-                saveArtworkToCache(artworkData, mediaId)
-            }
-
-        Timber.d("createSongFromController: extracted album=$albumName, artwork=$artworkUrl")
-        
-        val durationMs = mediaMetadata.extras?.getLong("durationMs")?.takeIf { it > 0 }
-            ?: player.duration.takeIf { it != C.TIME_UNSET && it > 0 }
-
-        // Create minimal Artist and Album objects
-        val artist = Artist(
-            id = MediaId(mediaId.pluginId, "artist_${artistName.hashCode()}"),
-            name = artistName
-        )
-
-        val album = if (!albumName.isNullOrEmpty()) {
-            Album(
-                id = MediaId(mediaId.pluginId, "album_${albumName.hashCode()}"),
-                name = albumName,
-                artists = listOf(artist),
-                artworkUrl = artworkUrl?.toString()
-            )
-        } else {
+            Timber.e(e, "Failed to parse MediaId from controller: ${mediaItem.mediaId}")
             null
         }
-
-        // Get replayGainDb from extras (may come from song data or StreamSource)
-        val replayGainDb = mediaMetadata.extras?.getFloat("replayGainDb")
-            ?: viperPlayerResolver.getReplayGain(mediaId)
-        
-        // Get peakAmplitude from extras (may come from song data or StreamSource)
-        val peakAmplitude = mediaMetadata.extras?.getFloat("peakAmplitude")?.takeIf { it > 0f }
-            ?: viperPlayerResolver.getPeakAmplitude(mediaId)?.takeIf { it > 0f }
-        
-        val song = Song(
-            id = mediaId,
-            title = title,
-            artists = listOf(artist),
-            album = album,
-            durationMs = durationMs,
-            artworkUrl = artworkUrl?.toString(),
-            trackNumber = mediaMetadata.trackNumber,
-            discNumber = mediaMetadata.discNumber,
-            isExplicit = mediaMetadata.extras?.getBoolean("isExplicit") ?: false,
-            replayGainDb = replayGainDb,
-            peakAmplitude = peakAmplitude
-        )
-        
-        Timber.d("createSongFromController: created song - title=${song.title}, artist=${song.artistNames}")
-        
-        return song
     }
     
     /**
-     * Saves artwork ByteArray to cache directory and returns a file:// URI.
-     * This allows Coil to load the artwork even when only artworkData is available.
-     * 
-     * Note: We keep the domain model (Song) instead of exposing MediaMetadata directly
-     * to maintain clean architecture - the domain layer should be framework-agnostic.
+     * Extracts audio Format information from ExoPlayer's current tracks.
+     * This provides the actual playback format (sample rate, bitrate, channels, etc.)
      */
-    private fun saveArtworkToCache(artworkData: ByteArray, mediaId: MediaId): Uri? {
+    private fun getAudioFormatFromPlayer(player: Player): Format? {
         return try {
-            // Create a cache directory for artwork if it doesn't exist
-            val artworkCacheDir = File(context.cacheDir, "artwork")
-            if (!artworkCacheDir.exists()) {
-                artworkCacheDir.mkdirs()
+            val tracks = player.currentTracks
+            // Find the audio track that's currently selected/playing
+            tracks.groups.forEach { trackGroup ->
+                if (trackGroup.type == C.TRACK_TYPE_AUDIO && trackGroup.isSelected) {
+                    // Get the format for the selected track
+                    val mediaTrackGroup = trackGroup.mediaTrackGroup
+                    for (i in 0 until mediaTrackGroup.length) {
+                        val format = mediaTrackGroup.getFormat(i)
+                        if (format != null) {
+                            Timber.d("getAudioFormatFromPlayer: sampleRate=${format.sampleRate}, bitrate=${format.bitrate}, channels=${format.channelCount}, pcmEncoding=${format.pcmEncoding}")
+                            return format
+                        }
+                    }
+                }
             }
-            
-            // Create a unique filename based on mediaId to avoid collisions
-            val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
-            val artworkFile = artworkCacheDir.resolve(filename)
-
-            // Write the artwork data to the file
-            artworkFile.writeBytes(artworkData)
-            
-            // Return the file URI - using Uri.fromFile() for cache files
-            // Note: This is safe for internal cache files, though FileProvider would be better for shared files
-            artworkFile.toUri().also {
-                Timber.d("saveArtworkToCache: saved artwork to $it (${artworkData.size} bytes)")
-            }
+            null
         } catch (e: Exception) {
-            Timber.e(e, "saveArtworkToCache: failed to save artwork to cache")
+            Timber.e(e, "Failed to get audio format from player")
             null
         }
     }
+    
 
     // Duration - only emits when track changes
     override val duration: StateFlow<Long> =
@@ -378,43 +282,77 @@ class PlayerRepositoryImpl @Inject constructor(
     override val queue: Flow<List<Song>> =
         mediaControllerManager.controllerFlow
             .flatMapLatest { controller ->
+                // Flow of MediaId lists from controller
                 callbackFlow {
                     val listener = object : Player.Listener {
                         override fun onMediaItemTransition(
                             mediaItem: MediaItem?,
                             reason: Int
                         ) {
-                            trySend(
-                                (0 until controller.mediaItemCount)
-                                    .mapNotNull { index ->
-                                        controller.getMediaItemAt(index)?.toSong()
+                            val mediaIds = (0 until controller.mediaItemCount)
+                                .mapNotNull { index ->
+                                    controller.getMediaItemAt(index)?.mediaId?.let { mediaIdString ->
+                                        try {
+                                            MediaId.fromString(mediaIdString)
+                                        } catch (e: Exception) {
+                                            Timber.e(e, "Failed to parse MediaId: $mediaIdString")
+                                            null
+                                        }
                                     }
-                            )
+                                }
+                            trySend(mediaIds)
                         }
                         
                         override fun onTimelineChanged(
                             timeline: androidx.media3.common.Timeline,
                             reason: Int
                         ) {
-                            trySend(
-                                (0 until controller.mediaItemCount)
-                                    .mapNotNull { index ->
-                                        controller.getMediaItemAt(index)?.toSong()
+                            val mediaIds = (0 until controller.mediaItemCount)
+                                .mapNotNull { index ->
+                                    controller.getMediaItemAt(index)?.mediaId?.let { mediaIdString ->
+                                        try {
+                                            MediaId.fromString(mediaIdString)
+                                        } catch (e: Exception) {
+                                            Timber.e(e, "Failed to parse MediaId: $mediaIdString")
+                                            null
+                                        }
                                     }
-                            )
+                                }
+                            trySend(mediaIds)
                         }
                     }
                     controller.addListener(listener)
-                    trySend(
-                        (0 until controller.mediaItemCount)
-                            .mapNotNull { index ->
-                                controller.getMediaItemAt(index)?.toSong()
+                    
+                    // Initial MediaIds
+                    val initialMediaIds = (0 until controller.mediaItemCount)
+                        .mapNotNull { index ->
+                            controller.getMediaItemAt(index)?.mediaId?.let { mediaIdString ->
+                                try {
+                                    MediaId.fromString(mediaIdString)
+                                } catch (e: Exception) {
+                                    Timber.e(e, "Failed to parse MediaId: $mediaIdString")
+                                    null
+                                }
                             }
-                    )
+                        }
+                    trySend(initialMediaIds)
+                    
                     awaitClose { controller.removeListener(listener) }
                 }
             }
             .distinctUntilChanged()
+            .flatMapLatest { mediaIds: List<MediaId> ->
+                // Load all songs from database
+                if (mediaIds.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    combine(
+                        mediaIds.map { mediaId ->
+                            mediaLibraryRepository.getSong(mediaId)
+                        }
+                    ) { songs: Array<Song?> -> songs.filterNotNull() }
+                }
+            }
     
     init {
         // Persist player state whenever it changes
@@ -432,56 +370,32 @@ class PlayerRepositoryImpl @Inject constructor(
             queue,
             mediaControllerManager.controllerFlow
         ) { song, playback, queueSongs, controller ->
-            // Convert songs to persisted metadata (no network calls needed)
-            val queueMetadata = queueSongs.map { song ->
-                com.viperplayer.data.player.PersistedSongMetadata(
-                    mediaId = song.id.toString(),
-                    title = song.title,
-                    artistName = song.artistNames,
-                    albumName = song.album?.name,
-                    artworkUrl = song.artworkUrl,
-                    durationMs = song.durationMs,
-                    trackNumber = song.trackNumber,
-                    discNumber = song.discNumber
-                )
-            }
-            
-            val currentSongMetadata = song?.let {
-                com.viperplayer.data.player.PersistedSongMetadata(
-                    mediaId = it.id.toString(),
-                    title = it.title,
-                    artistName = it.artistNames,
-                    albumName = it.album?.name,
-                    artworkUrl = it.artworkUrl,
-                    durationMs = it.durationMs,
-                    trackNumber = it.trackNumber,
-                    discNumber = it.discNumber
-                )
-            }
-            
             // Get current position and queue position from controller
             val position = controller.currentPosition.coerceAtLeast(0)
             val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
             
             com.viperplayer.data.player.PersistedPlayerState(
-                currentSong = currentSongMetadata,
+                currentSongMediaId = song?.id?.toString(),
                 currentPositionMs = position,
-                queue = queueMetadata,
                 queuePosition = queuePosition,
                 shuffleEnabled = playback.shuffleEnabled,
                 repeatMode = playback.repeatMode.name,
-            )
+            ) to queueSongs // Return state and queue together
         }
             .debounce(2000) // Save at most every 2 seconds to avoid excessive writes
-            .onEach { state ->
-                // saveState will ensure songs exist in database
-                playerStatePersistence.saveState(state)
+            .onEach { (state, queueSongs) ->
+                // saveState will save queue to Room and settings to DataStore
+                // Songs should already be saved to database when played/added to queue
+                playerStatePersistence.saveState(state, queueSongs)
             }
             .launchIn(scope)
     }
 
     override suspend fun play(song: Song) {
         withContext(Dispatchers.Main) {
+            // Save song with full metadata (album, artists, etc.)
+            mediaLibraryRepository.saveSong(song)
+            
             val controller = mediaControllerManager.controllerFlow.first()
             val mediaItem = song.toMediaItem()
             controller.setMediaItem(mediaItem)
@@ -494,6 +408,15 @@ class PlayerRepositoryImpl @Inject constructor(
         if (songs.isEmpty()) return
         
         withContext(Dispatchers.Main) {
+            // Save all songs with full metadata (album, artists, etc.)
+            songs.forEach { song ->
+                try {
+                    mediaLibraryRepository.saveSong(song)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to save song to database: ${song.title}")
+                }
+            }
+            
             val controller = mediaControllerManager.controllerFlow.first()
             val mediaItems = songs.toMediaItems()
             val safeStartIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
@@ -556,6 +479,17 @@ class PlayerRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun playFromQueue(index: Int) {
+        withContext(Dispatchers.Main) {
+            val controller = mediaControllerManager.controllerFlow.first()
+            if (index in 0 until controller.mediaItemCount) {
+                controller.seekTo(index, 0)
+                controller.prepare()
+                controller.play()
+            }
+        }
+    }
+
     override suspend fun seekTo(positionMs: Long) {
         withContext(Dispatchers.Main) {
             mediaControllerManager.controllerFlow.first().seekTo(positionMs.coerceAtLeast(0))
@@ -571,6 +505,9 @@ class PlayerRepositoryImpl @Inject constructor(
 
     override suspend fun addToQueue(song: Song) {
         withContext(Dispatchers.Main) {
+            // Save song with full metadata (album, artists, etc.)
+            mediaLibraryRepository.saveSong(song)
+            
             val controller = mediaControllerManager.controllerFlow.first()
             val mediaItem = song.toMediaItem()
             controller.addMediaItem(mediaItem)
@@ -579,10 +516,26 @@ class PlayerRepositoryImpl @Inject constructor(
 
     override suspend fun playNext(song: Song) {
         withContext(Dispatchers.Main) {
+            // Save song with full metadata (album, artists, etc.)
+            mediaLibraryRepository.saveSong(song)
+            
             val controller = mediaControllerManager.controllerFlow.first()
             val mediaItem = song.toMediaItem()
             val nextIndex = controller.currentMediaItemIndex + 1
             controller.addMediaItem(nextIndex, mediaItem)
+        }
+    }
+
+    override suspend fun duplicateInQueue(index: Int) {
+        withContext(Dispatchers.Main) {
+            val controller = mediaControllerManager.controllerFlow.first()
+            if (index in 0 until controller.mediaItemCount) {
+                val mediaItem = controller.getMediaItemAt(index)
+                if (mediaItem != null) {
+                    val nextIndex = controller.currentMediaItemIndex + 1
+                    controller.addMediaItem(nextIndex, mediaItem)
+                }
+            }
         }
     }
 
@@ -591,6 +544,16 @@ class PlayerRepositoryImpl @Inject constructor(
             val controller = mediaControllerManager.controllerFlow.first()
             if (index in 0 until controller.mediaItemCount) {
                 controller.removeMediaItem(index)
+            }
+        }
+    }
+
+    override suspend fun reorderQueue(fromIndex: Int, toIndex: Int) {
+        withContext(Dispatchers.Main) {
+            val controller = mediaControllerManager.controllerFlow.first()
+            val itemCount = controller.mediaItemCount
+            if (fromIndex in 0 until itemCount && toIndex in 0 until itemCount && fromIndex != toIndex) {
+                controller.moveMediaItem(fromIndex, toIndex)
             }
         }
     }
@@ -612,6 +575,33 @@ class PlayerRepositoryImpl @Inject constructor(
             mediaControllerManager.controllerFlow.first().repeatMode = mode.toMedia3RepeatMode()
         }
     }
+    
+    override suspend fun getAudioFormat(): com.viperplayer.domain.repository.AudioFormat? {
+        return withContext(Dispatchers.Main) {
+            val controller = mediaControllerManager.controllerFlow.first()
+            val format = getAudioFormatFromPlayer(controller) ?: return@withContext null
+            
+            val sampleRate = format.sampleRate.takeIf { it > 0 }
+            val bitDepth = format.pcmEncoding.let { encoding ->
+                when (encoding) {
+                    C.ENCODING_PCM_16BIT -> 16
+                    C.ENCODING_PCM_24BIT -> 24
+                    C.ENCODING_PCM_32BIT -> 32
+                    C.ENCODING_PCM_FLOAT -> 32
+                    else -> null
+                }
+            }
+            val bitrate = format.bitrate.takeIf { it > 0 }?.let { it / 1000 } // Convert to kbps
+            val channelCount = format.channelCount.takeIf { it > 0 }
+            
+            com.viperplayer.domain.repository.AudioFormat(
+                sampleRate = sampleRate,
+                bitDepth = bitDepth,
+                bitrate = bitrate,
+                channelCount = channelCount
+            )
+        }
+    }
 
     private fun Int.toRepeatMode(): RepeatMode = PlayerStateMapper.run {
         this@toRepeatMode.toRepeatMode()
@@ -629,7 +619,4 @@ class PlayerRepositoryImpl @Inject constructor(
         this@toMediaItems.toMediaItems()
     }
 
-    private fun MediaItem.toSong() = MediaItemMapper.run {
-        this@toSong.toSong()
-    }
 }

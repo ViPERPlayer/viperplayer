@@ -1,8 +1,13 @@
 package com.viperplayer.data.player
 
+import android.content.Context
+import android.net.Uri
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Timeline
 import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.dash.DashMediaSource
@@ -14,21 +19,26 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MediaSourceEventListener
 import androidx.media3.exoplayer.upstream.Allocator
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.plugin.v1.StreamSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.File
 
 class ViperMediaSource(
-    private val resolver: ViperPlayerResolver,
+    private val context: Context,
+    private val pluginDataSource: PluginDataSource,
     private val defaultMediaSource: MediaSource,
-    private val dashMediaSource: MediaSource,
+    private val dashMediaSource: DashMediaSource,
 ) : MediaSource {
     private lateinit var chosenMediaSource: MediaSource
 
     class Factory(
-        private val resolver: ViperPlayerResolver,
+        private val context: Context,
+        private val pluginDataSource: PluginDataSource,
         private val defaultMediaSourceFactory: DefaultMediaSourceFactory,
         private val dashMediaSourceFactory: DashMediaSource.Factory,
     ) : MediaSource.Factory {
@@ -53,7 +63,7 @@ class ViperMediaSource(
         override fun createMediaSource(mediaItem: MediaItem): MediaSource {
             val defaultMediaSource = defaultMediaSourceFactory.createMediaSource(mediaItem)
             val dashMediaSource = dashMediaSourceFactory.createMediaSource(mediaItem)
-            return ViperMediaSource(resolver, defaultMediaSource, dashMediaSource)
+            return ViperMediaSource(context, pluginDataSource, defaultMediaSource, dashMediaSource)
         }
     }
 
@@ -83,6 +93,22 @@ class ViperMediaSource(
         dashMediaSource.removeDrmEventListener(eventListener)
     }
 
+    override fun getInitialTimeline(): Timeline? {
+        return if (::chosenMediaSource.isInitialized) {
+            chosenMediaSource.initialTimeline
+        } else {
+            defaultMediaSource.initialTimeline
+        }
+    }
+
+    override fun isSingleWindow(): Boolean {
+        return if (::chosenMediaSource.isInitialized) {
+            chosenMediaSource.isSingleWindow
+        } else {
+            defaultMediaSource.isSingleWindow
+        }
+    }
+
     override fun getMediaItem(): MediaItem {
         Timber.d("getMediaItem() called")
         return if (::chosenMediaSource.isInitialized) {
@@ -92,22 +118,92 @@ class ViperMediaSource(
         }
     }
 
+    override fun canUpdateMediaItem(mediaItem: MediaItem): Boolean {
+        Timber.d("canUpdateMediaItem() called with: mediaItem = $mediaItem")
+        return chosenMediaSource.canUpdateMediaItem(mediaItem)
+    }
+
+    override fun updateMediaItem(mediaItem: MediaItem) {
+        Timber.d("updateMediaItem() called with: mediaItem = $mediaItem")
+        chosenMediaSource.updateMediaItem(mediaItem)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun prepareSource(
+        caller: MediaSource.MediaSourceCaller,
+        mediaTransferListener: TransferListener?
+    ) {
+        @Suppress("DEPRECATION")
+        chosenMediaSource.prepareSource(caller, mediaTransferListener)
+    }
+
     override fun prepareSource(
         caller: MediaSource.MediaSourceCaller,
         mediaTransferListener: TransferListener?,
         playerId: PlayerId
     ) {
+        Timber.d("prepareSource() called with: caller = $caller, mediaTransferListener = $mediaTransferListener, playerId = $playerId")
         val exoPlayerLooper = Looper.myLooper() ?: Looper.getMainLooper()
         CoroutineScope(Dispatchers.Default).launch {
-            val uri = mediaItem.localConfiguration?.uri ?: throw IllegalStateException("URI is null")
-            val response = resolver.resolve(uri)
+            val mediaId = try {
+                MediaId.fromString(mediaItem.mediaId)
+            } catch (e: Exception) {
+                throw IllegalArgumentException("Invalid mediaId: ${mediaItem.mediaId}")
+            }
+
+            val stream = pluginDataSource.getStream(mediaId).getOrThrow()
+            val updatedMediaItemBuilder = mediaItem.buildUpon()
+                .setMediaMetadata(
+                    mediaItem.mediaMetadata.buildUpon()
+                        .setExtras(
+                            Bundle().apply {
+                                mediaItem.mediaMetadata.extras?.let { putAll(it) }
+                                stream.replayGainDb?.let { putFloat("replayGainDb", it) }
+                                stream.peakAmplitude?.let { putFloat("peakAmplitude", it) }
+                            }
+                        )
+                        .build()
+                )
+
+            val updatedMediaItem = when (stream.type) {
+                StreamSource.Type.URL -> {
+                    val url = stream.url ?: throw IllegalArgumentException("URL is null")
+                    Timber.d("resolveDataSpec: Got stream URL: $url")
+                    // Return a DataSpec with the direct URL
+                    updatedMediaItemBuilder
+                        .setUri(url.toUri())
+                        .build()
+                }
+                StreamSource.Type.DASH -> {
+                    val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
+                    Timber.d("resolveDataSpec: Got DASH XML, length: ${xml.length}")
+                    val dashUri = saveDashXmlToFile(xml)
+                    updatedMediaItemBuilder
+                        .setUri(dashUri)
+                        .build()
+                }
+                StreamSource.Type.AUDIO_STREAM -> {
+                    val stream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
+                    Timber.d("resolveDataSpec: Got audio stream, streamId: ${stream.streamId}")
+                    // Return a DataSpec with a custom URI that our custom DataSource can handle
+                    updatedMediaItemBuilder
+                        .setUri("viper://stream/${stream.streamId}".toUri())
+                        .build()
+                }
+            }
+
             Handler(exoPlayerLooper).post {
-                chosenMediaSource = response.getOrThrow().let { source ->
-                    when (source.type) {
-                        StreamSource.Type.URL -> defaultMediaSource
-                        StreamSource.Type.DASH -> dashMediaSource
-                        StreamSource.Type.AUDIO_STREAM -> throw UnsupportedOperationException("Audio stream not supported")
+                chosenMediaSource = when (stream.type) {
+                    StreamSource.Type.URL -> {
+                        defaultMediaSource.updateMediaItem(updatedMediaItem)
+                        defaultMediaSource
                     }
+                    StreamSource.Type.DASH -> {
+                        dashMediaSource.updateMediaItem(updatedMediaItem)
+                        dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
+                        dashMediaSource
+                    }
+                    StreamSource.Type.AUDIO_STREAM -> throw UnsupportedOperationException("Audio stream not supported")
                 }
                 chosenMediaSource.prepareSource(caller, mediaTransferListener, playerId)
             }
@@ -144,5 +240,25 @@ class ViperMediaSource(
 
     override fun releaseSource(caller: MediaSource.MediaSourceCaller) {
         chosenMediaSource.releaseSource(caller)
+    }
+
+    /**
+     * Save DASH XML content to a temporary file and return the file URI.
+     */
+    private fun saveDashXmlToFile(dashXml: String): Uri {
+        val dashDir = context.cacheDir.resolve("dash_manifests").apply {
+            if (!exists()) mkdirs()
+        }
+
+        // Generate unique filename based on current time to avoid collisions
+        val filename = "manifest_${System.currentTimeMillis()}.mpd"
+        val file = File(dashDir, filename)
+
+        // Write DASH XML to file
+        file.writeText(dashXml)
+
+        Timber.d("saveDashXmlToFile: DASH XML saved to: ${file.absolutePath}")
+
+        return file.toUri()
     }
 }

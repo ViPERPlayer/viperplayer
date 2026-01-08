@@ -114,6 +114,30 @@ class PlayerViewModel @Inject constructor(
             playerRepository.addToQueue(song)
         }
     }
+    
+    fun reorderQueue(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            playerRepository.reorderQueue(fromIndex, toIndex)
+        }
+    }
+    
+    fun removeFromQueue(index: Int) {
+        viewModelScope.launch {
+            playerRepository.removeFromQueue(index)
+        }
+    }
+    
+    fun duplicateInQueue(index: Int) {
+        viewModelScope.launch {
+            playerRepository.duplicateInQueue(index)
+        }
+    }
+    
+    fun playFromQueue(index: Int) {
+        viewModelScope.launch {
+            playerRepository.playFromQueue(index)
+        }
+    }
 
     fun toggleLike() {
         viewModelScope.launch {
@@ -127,6 +151,14 @@ class PlayerViewModel @Inject constructor(
                 mediaLibraryRepository.setSongLiked(song.id, !currentLiked)
             }
         }
+    }
+    
+    /**
+     * Gets the current audio format from ExoPlayer.
+     * Returns null if no track is playing or format information is not available.
+     */
+    suspend fun getAudioFormat(): com.viperplayer.domain.repository.AudioFormat? {
+        return playerRepository.getAudioFormat()
     }
 }
 

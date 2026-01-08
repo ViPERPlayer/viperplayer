@@ -56,7 +56,6 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.common.ViperScaffold
-import com.viperplayer.presentation.ktx.with
 
 @Composable
 fun HomeScreen(
@@ -156,8 +155,8 @@ fun HomeScreen(
         }
     ) { contentPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding.with(top = 0.dp)
+            modifier = Modifier.padding(contentPadding).fillMaxSize(),
+            contentPadding = rootPadding
         ) {
 //            item {
 //                Row(

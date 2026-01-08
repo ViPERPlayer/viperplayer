@@ -2,6 +2,7 @@ package com.viperplayer.presentation.common
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -173,6 +174,15 @@ fun ListItemTrailingWithDuration(
     }
 }
 
+/**
+ * Base ListItem composable that handles click interactions.
+ * 
+ * This component is a pure UI component that accepts callbacks for user interactions.
+ * It uses [combinedClickable] internally for convenience when callbacks are provided.
+ * 
+ * Note: Bottom sheets and other stateful UI should be managed at the screen level,
+ * not inside this component, to maintain separation of concerns.
+ */
 @Composable
 fun ListItem(
     title: String,
@@ -185,8 +195,21 @@ fun ListItem(
             Icon(Icons.Rounded.MoreVert, contentDescription = "More")
         }
     },
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    // Apply combinedClickable only when callbacks are provided
+    // This allows the component to handle both click and long-click interactions
+    val clickModifier = if (onClick != null || onLongClick != null) {
+        Modifier.combinedClickable(
+            onClick = onClick ?: {},
+            onLongClick = onLongClick
+        )
+    } else {
+        Modifier
+    }
+    
     ListItem(
         headlineContent = {
             Column {
@@ -244,7 +267,7 @@ fun ListItem(
         leadingContent = leadingContent,
         trailingContent = trailingContent,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = modifier
+        modifier = modifier.then(clickModifier)
     )
 }
 
@@ -260,6 +283,9 @@ fun ListItem(
     artworkUrl: String?,
     isActive: Boolean,
     isPlaying: Boolean,
+    onClick: (() -> Unit)? = null,
+    onMoreClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     ListItem(
@@ -275,6 +301,13 @@ fun ListItem(
                 isPlaying = isPlaying
             )
         },
+        trailingContent = {
+            IconButton(onClick = onMoreClick) {
+                Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+            }
+        },
+        onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier
     )
 }
@@ -292,7 +325,9 @@ fun ListItem(
     durationMs: Long?,
     isActive: Boolean,
     isPlaying: Boolean,
+    onClick: (() -> Unit)? = null,
     onMoreClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     ListItem(
@@ -313,6 +348,8 @@ fun ListItem(
                 onMoreClick = onMoreClick
             )
         },
+        onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier
     )
 }
