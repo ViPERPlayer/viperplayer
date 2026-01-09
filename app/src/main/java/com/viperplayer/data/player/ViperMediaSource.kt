@@ -151,21 +151,21 @@ class ViperMediaSource(
                 throw IllegalArgumentException("Invalid mediaId: ${mediaItem.mediaId}")
             }
 
-            val stream = pluginDataSource.getStream(mediaId).getOrThrow()
+            val stream = pluginDataSource.getStream(mediaId).getOrNull() // TODO: Fix app crash when this method throws (also wait to restore all plugins before restoring state)
             val updatedMediaItemBuilder = mediaItem.buildUpon()
                 .setMediaMetadata(
                     mediaItem.mediaMetadata.buildUpon()
                         .setExtras(
                             Bundle().apply {
                                 mediaItem.mediaMetadata.extras?.let { putAll(it) }
-                                stream.replayGainDb?.let { putFloat("replayGainDb", it) }
-                                stream.peakAmplitude?.let { putFloat("peakAmplitude", it) }
+                                stream?.replayGainDb?.let { putFloat("replayGainDb", it) }
+                                stream?.peakAmplitude?.let { putFloat("peakAmplitude", it) }
                             }
                         )
                         .build()
                 )
 
-            val updatedMediaItem = when (stream.type) {
+            val updatedMediaItem = when (stream?.type) {
                 StreamSource.Type.URL -> {
                     val url = stream.url ?: throw IllegalArgumentException("URL is null")
                     Timber.d("resolveDataSpec: Got stream URL: $url")
@@ -190,20 +190,22 @@ class ViperMediaSource(
                         .setUri("viper://stream/${stream.streamId}".toUri())
                         .build()
                 }
+                else -> null
             }
 
             Handler(exoPlayerLooper).post {
-                chosenMediaSource = when (stream.type) {
+                chosenMediaSource = when (stream?.type) {
                     StreamSource.Type.URL -> {
-                        defaultMediaSource.updateMediaItem(updatedMediaItem)
+                        defaultMediaSource.updateMediaItem(updatedMediaItem!!)
                         defaultMediaSource
                     }
                     StreamSource.Type.DASH -> {
-                        dashMediaSource.updateMediaItem(updatedMediaItem)
-                        dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
+                        dashMediaSource.updateMediaItem(updatedMediaItem!!)
+                        dashMediaSource.replaceManifestUri(updatedMediaItem!!.localConfiguration!!.uri)
                         dashMediaSource
                     }
                     StreamSource.Type.AUDIO_STREAM -> throw UnsupportedOperationException("Audio stream not supported")
+                    else -> throw UnsupportedOperationException("Unsupported stream type: ${stream?.type}")
                 }
                 chosenMediaSource.prepareSource(caller, mediaTransferListener, playerId)
             }
