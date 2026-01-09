@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,6 +84,7 @@ import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -192,9 +192,8 @@ fun PlayerScreen(
         // Album artwork
         Card(
             modifier = Modifier
-                .fillMaxWidth()
                 .aspectRatio(1f)
-                .weight(1f, fill = false),
+                .weight(1f),
             shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -221,7 +220,7 @@ fun PlayerScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                    modifier = Modifier.infiniteBasicMarquee(),
                     maxLines = 1
                 )
             }
@@ -239,7 +238,7 @@ fun PlayerScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                    modifier = Modifier.infiniteBasicMarquee(),
                     maxLines = 1
                 )
             }

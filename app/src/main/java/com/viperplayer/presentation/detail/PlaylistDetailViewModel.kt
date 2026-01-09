@@ -168,6 +168,30 @@ class PlaylistDetailViewModel @Inject constructor(
         }
     }
 
+    fun playNext(song: Song) {
+        viewModelScope.launch {
+            try {
+                if (song.isPlayable) {
+                    playerRepository.playNext(song)
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    fun addToQueue(song: Song) {
+        viewModelScope.launch {
+            try {
+                if (song.isPlayable) {
+                    playerRepository.addToQueue(song)
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
     fun refresh() {
         loadPlaylistDetails()
     }

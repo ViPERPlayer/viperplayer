@@ -1,18 +1,29 @@
 package com.viperplayer.presentation.common
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.basicMarquee
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AddToQueue
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.Explicit
@@ -20,6 +31,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.LibraryAddCheck
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.QueuePlayNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -27,19 +39,30 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.PlayingIndicator
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Formats milliseconds to MM:SS format.
@@ -197,6 +220,8 @@ fun ListItem(
     },
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    onPlayNext: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Apply combinedClickable only when callbacks are provided
@@ -209,66 +234,154 @@ fun ListItem(
     } else {
         Modifier
     }
+
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    // Max drag distance: capped, consistent
+    val maxOffset = with(density) { 112.dp.toPx() }
+    // Threshold: ~55% of max drag distance
+    val threshold = maxOffset * 0.55f
+
+    val offset = remember { Animatable(0f) }
     
-    ListItem(
-        headlineContent = {
-            Column {
-                Text(
-                    text = title,
-                    modifier = Modifier.basicMarquee(
-                        iterations = Int.MAX_VALUE
-                    ),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                )
+    val draggableState = rememberDraggableState { delta ->
+        scope.launch {
+            val coercedOffset = (offset.value + delta).coerceIn(-maxOffset, maxOffset)
 
-                if (badges.isNotEmpty() || subtitle != null) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (badges.isNotEmpty()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                badges.forEach { badge ->
-                                    val icon = when (badge) {
-                                        ItemBadge.FAVORITE -> Icons.Rounded.Favorite
-                                        ItemBadge.EXPLICIT -> Icons.Rounded.Explicit
-                                        ItemBadge.LIBRARY -> Icons.Rounded.LibraryAddCheck
-                                        ItemBadge.DOWNLOADING -> Icons.Rounded.Downloading
-                                        ItemBadge.DOWNLOADED -> Icons.Rounded.Download
+            val wasPastThreshold = abs(offset.value) >= threshold
+            val isPastThreshold = abs(coercedOffset) >= threshold
+            if (isPastThreshold != wasPastThreshold) {
+                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            }
+            
+            offset.snapTo(coercedOffset)
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .draggable(
+                state = draggableState,
+                orientation = Orientation.Horizontal,
+                onDragStopped = { velocity ->
+                    scope.launch {
+                        when {
+                            offset.value < -threshold -> onPlayNext?.invoke()
+                            offset.value > threshold -> onAddToQueue?.invoke()
+                        }
+                        offset.animateTo(0f)
+                    }
+                }
+            )
+    ) {
+        val absOffsetDp = with(density) { abs(offset.value).toDp() }
+        when {
+            // dragged to the left, show right ui
+            offset.value < 0 -> {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .fillMaxHeight()
+                        .width(absOffsetDp)
+                        .clipToBounds()
+                ) {
+                    Icon(
+                        Icons.Rounded.QueuePlayNext,
+                        contentDescription = "Play next",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .requiredSize(24.dp)
+                    )
+                }
+            }
+
+            // dragged to the right, show left ui
+            offset.value > 0 -> {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .fillMaxHeight()
+                        .width(absOffsetDp)
+                        .clipToBounds()
+                ) {
+                    Icon(
+                        Icons.Rounded.AddToQueue,
+                        contentDescription = "Add to Queue",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .requiredSize(24.dp)
+                    )
+                }
+            }
+        }
+
+        ListItem(
+            headlineContent = {
+                Column {
+                    Text(
+                        text = title,
+                        modifier = Modifier.infiniteBasicMarquee(),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+
+                    if (badges.isNotEmpty() || subtitle != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (badges.isNotEmpty()) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    badges.forEach { badge ->
+                                        val icon = when (badge) {
+                                            ItemBadge.FAVORITE -> Icons.Rounded.Favorite
+                                            ItemBadge.EXPLICIT -> Icons.Rounded.Explicit
+                                            ItemBadge.LIBRARY -> Icons.Rounded.LibraryAddCheck
+                                            ItemBadge.DOWNLOADING -> Icons.Rounded.Downloading
+                                            ItemBadge.DOWNLOADED -> Icons.Rounded.Download
+                                        }
+
+                                        Icon(
+                                            icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
-
-                                    Icon(
-                                        icon,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
                                 }
                             }
-                        }
 
-                        if (subtitle != null) {
-                            Text(
-                                subtitle,
-                                modifier = Modifier.basicMarquee(
-                                    iterations = Int.MAX_VALUE
-                                ),
-                                color = MaterialTheme.colorScheme.secondary,
-                                fontSize = 12.sp
-                            )
+                            if (subtitle != null) {
+                                Text(
+                                    subtitle,
+                                    modifier = Modifier.infiniteBasicMarquee(),
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
-            }
-        },
-        leadingContent = leadingContent,
-        trailingContent = trailingContent,
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = modifier.then(clickModifier)
-    )
+            },
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(x = offset.value.roundToInt(), y = 0) }
+                .then(clickModifier)
+        )
+    }
 }
 
 /**
@@ -286,6 +399,8 @@ fun ListItem(
     onClick: (() -> Unit)? = null,
     onMoreClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
+    onPlayNext: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     ListItem(
@@ -308,6 +423,8 @@ fun ListItem(
         },
         onClick = onClick,
         onLongClick = onLongClick,
+        onPlayNext = onPlayNext,
+        onAddToQueue = onAddToQueue,
         modifier = modifier
     )
 }
@@ -328,6 +445,8 @@ fun ListItem(
     onClick: (() -> Unit)? = null,
     onMoreClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
+    onPlayNext: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     ListItem(
@@ -350,6 +469,8 @@ fun ListItem(
         },
         onClick = onClick,
         onLongClick = onLongClick,
+        onPlayNext = onPlayNext,
+        onAddToQueue = onAddToQueue,
         modifier = modifier
     )
 }

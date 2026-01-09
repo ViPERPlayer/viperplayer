@@ -51,6 +51,69 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         return artistEntity.toDomain(genres)
     }
     
+    /**
+     * Upsert an artist: insert if doesn't exist, update if exists.
+     * Returns the artist ID, preserving existing ID to maintain foreign key relationships.
+     */
+    private suspend fun upsertArtist(artist: Artist): Long {
+        val existing = artistDao.getByMediaId(artist.id.pluginId, artist.id.sourceId)
+        val entity = artist.toEntity()
+        
+        return if (existing != null) {
+            // Update existing artist, preserving ID and status fields
+            val updatedEntity = entity.copy(
+                id = existing.id,
+                isLiked = existing.isLiked,
+                isSaved = existing.isSaved,
+                lastUpdated = System.currentTimeMillis()
+            )
+            artistDao.update(updatedEntity)
+            existing.id
+        } else {
+            // Insert new artist
+            val insertedId = artistDao.insert(entity)
+            if (insertedId == -1L) {
+                // Insert was ignored due to conflict, try to get existing
+                artistDao.getByMediaId(artist.id.pluginId, artist.id.sourceId)?.id
+                    ?: throw IllegalStateException("Failed to insert or find artist: ${artist.id}")
+            } else {
+                insertedId
+            }
+        }
+    }
+    
+    /**
+     * Upsert an album: insert if doesn't exist, update if exists.
+     * Returns the album ID, preserving existing ID to maintain foreign key relationships.
+     */
+    private suspend fun upsertAlbum(album: Album, primaryArtistId: Long?): Long {
+        val existing = albumDao.getByMediaId(album.id.pluginId, album.id.sourceId)
+        val entity = album.toEntity(primaryArtistId)
+        
+        return if (existing != null) {
+            // Update existing album, preserving ID and status fields
+            val updatedEntity = entity.copy(
+                id = existing.id,
+                isLiked = existing.isLiked,
+                isSaved = existing.isSaved,
+                isDownloaded = existing.isDownloaded,
+                lastUpdated = System.currentTimeMillis()
+            )
+            albumDao.update(updatedEntity)
+            existing.id
+        } else {
+            // Insert new album
+            val insertedId = albumDao.insert(entity)
+            if (insertedId == -1L) {
+                // Insert was ignored due to conflict, try to get existing
+                albumDao.getByMediaId(album.id.pluginId, album.id.sourceId)?.id
+                    ?: throw IllegalStateException("Failed to insert or find album: ${album.id}")
+            } else {
+                insertedId
+            }
+        }
+    }
+    
     // Helper function to compute isPlayable at runtime based on plugin connection, download status, and internet availability
     private fun computeIsPlayable(
         songEntity: com.viperplayer.data.local.entity.SongEntity,
@@ -142,17 +205,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
     
     override suspend fun saveArtist(artist: Artist) {
-        val entity = artist.toEntity()
-        val artistId = artistDao.insert(entity)
+        val artistId = upsertArtist(artist)
         
         // Save genres and create cross-refs
         saveArtistGenres(artistId, artist.genres)
-        
-        // Update liked/saved status if needed
-        if (artistDao.getByMediaId(artist.id.pluginId, artist.id.sourceId) != null) {
-            artistDao.updateLiked(artist.id.pluginId, artist.id.sourceId, false)
-            artistDao.updateSaved(artist.id.pluginId, artist.id.sourceId, false)
-        }
     }
     
     override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean) {
@@ -220,22 +276,22 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
     
     override suspend fun saveAlbum(album: Album) {
-        val primaryArtist = album.artists.firstOrNull()
-        val primaryArtistId = primaryArtist?.let {
-            val artistEntity = it.toEntity()
-            val artistId = artistDao.insert(artistEntity)
-            saveArtistGenres(artistId, it.genres)
+        // Upsert all artists first, preserving their IDs
+        val artistIds = album.artists.map { artist ->
+            val artistId = upsertArtist(artist)
+            saveArtistGenres(artistId, artist.genres)
             artistId
         }
         
-        val albumEntity = album.toEntity(primaryArtistId)
-        val albumId = albumDao.insert(albumEntity)
+        val primaryArtistId = artistIds.firstOrNull()
+        val albumId = upsertAlbum(album, primaryArtistId)
         
-        // Save artists and create cross-refs
+        // Clear existing album-artist relationships and recreate them
+        crossRefDao.deleteAlbumArtists(albumId)
+        
+        // Create cross-refs for all artists
         album.artists.forEachIndexed { index, artist ->
-            val artistEntity = artist.toEntity()
-            val artistId = artistDao.insert(artistEntity)
-            saveArtistGenres(artistId, artist.genres)
+            val artistId = artistIds[index]
             crossRefDao.insertAlbumArtist(
                 com.viperplayer.data.local.entity.AlbumArtistCrossRef(
                     albumId = albumId,
@@ -381,17 +437,34 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
     
     override suspend fun saveSong(song: Song) {
-        // Save album first if exists
+        // Upsert album first if exists, preserving its ID
         val albumId = song.album?.let { album ->
-            val primaryArtist = album.artists.firstOrNull()
-            val primaryArtistId = primaryArtist?.let {
-                val artistEntity = it.toEntity()
-                val artistId = artistDao.insert(artistEntity)
-                saveArtistGenres(artistId, it.genres)
+            // Upsert all album artists first, preserving their IDs
+            val albumArtistIds = album.artists.map { artist ->
+                val artistId = upsertArtist(artist)
+                saveArtistGenres(artistId, artist.genres)
                 artistId
             }
-            val albumEntity = album.toEntity(primaryArtistId)
-            albumDao.insert(albumEntity)
+            
+            val primaryArtistId = albumArtistIds.firstOrNull()
+            val albumId = upsertAlbum(album, primaryArtistId)
+            
+            // Clear existing album-artist relationships and recreate them
+            crossRefDao.deleteAlbumArtists(albumId)
+            
+            // Create cross-refs for all album artists
+            album.artists.forEachIndexed { index, artist ->
+                val artistId = albumArtistIds[index]
+                crossRefDao.insertAlbumArtist(
+                    com.viperplayer.data.local.entity.AlbumArtistCrossRef(
+                        albumId = albumId,
+                        artistId = artistId,
+                        order = index
+                    )
+                )
+            }
+            
+            albumId
         }
         
         // Check if song already exists to preserve ID and other status fields
@@ -415,7 +488,14 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             songDao.update(songEntity)
             existingSong.id // Return existing ID
         } else {
-            songDao.insert(songEntity) // Insert new song with auto-generated ID
+            val insertedId = songDao.insert(songEntity)
+            if (insertedId == -1L) {
+                // Insert was ignored due to conflict, try to get existing
+                songDao.getByMediaId(song.id.pluginId, song.id.sourceId)?.id
+                    ?: throw IllegalStateException("Failed to insert or find song: ${song.id}")
+            } else {
+                insertedId
+            }
         }
         
         // Download artwork if song is liked or saved
@@ -430,10 +510,12 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
         
-        // Save artists and create cross-refs
+        // Clear existing song-artist relationships
+        crossRefDao.deleteSongArtists(songId)
+        
+        // Upsert all song artists, preserving their IDs, and create cross-refs
         song.artists.forEachIndexed { index, artist ->
-            val artistEntity = artist.toEntity()
-            val artistId = artistDao.insert(artistEntity)
+            val artistId = upsertArtist(artist)
             saveArtistGenres(artistId, artist.genres)
             crossRefDao.insertSongArtist(
                 com.viperplayer.data.local.entity.SongArtistCrossRef(

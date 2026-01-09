@@ -136,6 +136,8 @@ fun LibraryScreen(
                                         onClick = if (song.isPlayable) { { viewModel.playSong(song) } } else null,
                                         onMoreClick = { selectedMediaItem = song },
                                         onLongClick = { selectedMediaItem = song },
+                                        onPlayNext = if (song.isPlayable) { { viewModel.playNext(song) } } else null,
+                                        onAddToQueue = if (song.isPlayable) { { viewModel.addToQueue(song) } } else null,
                                         modifier = Modifier
                                             .animateItem()
                                             .fillMaxWidth()

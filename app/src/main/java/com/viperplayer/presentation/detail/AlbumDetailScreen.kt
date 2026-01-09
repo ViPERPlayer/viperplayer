@@ -181,6 +181,8 @@ fun AlbumDetailScreen(
                                 onClick = { viewModel.playSong(song) },
                                 onMoreClick = { selectedMediaItem = song },
                                 onLongClick = { selectedMediaItem = song },
+                                onPlayNext = { viewModel.playNext(song) },
+                                onAddToQueue = { viewModel.addToQueue(song) },
                                 modifier = Modifier
                                     .animateItem()
                                     .fillMaxWidth()

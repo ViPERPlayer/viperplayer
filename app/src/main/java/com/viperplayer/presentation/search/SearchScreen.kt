@@ -274,6 +274,26 @@ fun SearchScreen(
                                     }
                                 }
                             },
+                            onPlayNext = if (item.type == SearchItem.Type.SONG) {
+                                {
+                                    scope.launch {
+                                        val song = item.song ?: viewModel.getSong(item.id)
+                                        if (song != null) {
+                                            viewModel.playNext(song)
+                                        }
+                                    }
+                                }
+                            } else null,
+                            onAddToQueue = if (item.type == SearchItem.Type.SONG) {
+                                {
+                                    scope.launch {
+                                        val song = item.song ?: viewModel.getSong(item.id)
+                                        if (song != null) {
+                                            viewModel.addToQueue(song)
+                                        }
+                                    }
+                                }
+                            } else null,
                             modifier = Modifier
                                 .animateItem()
                                 .fillMaxWidth()
@@ -395,6 +415,26 @@ fun SearchScreen(
                                             }
                                         }
                                     },
+                                    onPlayNext = if (item.type == SearchItem.Type.SONG) {
+                                        {
+                                            scope.launch {
+                                                val song = item.song ?: viewModel.getSong(item.id)
+                                                if (song != null) {
+                                                    viewModel.playNext(song)
+                                                }
+                                            }
+                                        }
+                                    } else null,
+                                    onAddToQueue = if (item.type == SearchItem.Type.SONG) {
+                                        {
+                                            scope.launch {
+                                                val song = item.song ?: viewModel.getSong(item.id)
+                                                if (song != null) {
+                                                    viewModel.addToQueue(song)
+                                                }
+                                            }
+                                        }
+                                    } else null,
                                     modifier = Modifier
                                         .animateItem()
                                         .fillMaxWidth()

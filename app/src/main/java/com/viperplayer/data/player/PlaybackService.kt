@@ -230,6 +230,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
                     .build()
             }
         }
+            .setEnableAudioFloatOutput(true)
     }
 
     private fun createAudioProcessorChain(): AudioProcessorChain {

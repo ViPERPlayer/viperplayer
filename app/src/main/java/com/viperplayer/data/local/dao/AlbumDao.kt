@@ -38,10 +38,10 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE name LIKE :query ORDER BY name ASC")
     fun search(query: String): Flow<List<AlbumEntity>>
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(album: AlbumEntity): Long
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(albums: List<AlbumEntity>)
     
     @Update

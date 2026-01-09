@@ -35,10 +35,10 @@ interface ArtistDao {
     @Query("SELECT * FROM artists WHERE name LIKE :query ORDER BY name ASC")
     fun search(query: String): Flow<List<ArtistEntity>>
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(artist: ArtistEntity): Long
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(artists: List<ArtistEntity>)
     
     @Update

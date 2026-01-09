@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -64,6 +63,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -313,7 +313,7 @@ fun MiniPlayerContent(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                        modifier = Modifier.infiniteBasicMarquee(),
                     )
                 }
 
@@ -328,7 +328,7 @@ fun MiniPlayerContent(
                             text = targetState,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             fontSize = 12.sp,
-                            modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                            modifier = Modifier.infiniteBasicMarquee(),
                         )
                     }
                 }
