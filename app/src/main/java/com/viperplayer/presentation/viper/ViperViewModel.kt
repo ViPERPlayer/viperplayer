@@ -1,34 +1,44 @@
 package com.viperplayer.presentation.viper
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.repository.ViperRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * UI State for Search screen.
+ * UI State for ViPER screen.
  */
 data class ViperUiState(
     val enabled: Boolean = false,
 )
 
 /**
- * ViewModel for Search screen.
+ * ViewModel for ViPER screen.
  */
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class ViperViewModel @Inject constructor(
-    // TODO: Inject repository
+    private val viperRepository: ViperRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ViperUiState())
-    val uiState: StateFlow<ViperUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<ViperUiState> = viperRepository.enabled
+        .map { enabled -> ViperUiState(enabled = enabled) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ViperUiState(enabled = false)
+        )
 
     fun setEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(enabled = enabled) }
+        viewModelScope.launch {
+            viperRepository.setEnabled(enabled)
+        }
     }
 }
 

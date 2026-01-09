@@ -46,8 +46,8 @@ import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -457,7 +457,7 @@ fun SongDetailsBottomSheet(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         
-        Divider()
+        HorizontalDivider()
         
         // Audio format details - from ExoPlayer on demand
         if (audioFormat != null && (audioFormat!!.sampleRate != null || audioFormat!!.bitDepth != null || 
@@ -655,8 +655,8 @@ fun QueueBottomSheet(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
-        Divider()
+
+        HorizontalDivider()
         
         if (queue.isEmpty()) {
             Text(

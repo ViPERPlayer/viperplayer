@@ -65,6 +65,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     
     @Inject
     lateinit var playerStatePersistence: PlayerStatePersistence
+    
+    @Inject
+    lateinit var viperAudioProcessor: ViperAudioProcessor
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -234,8 +237,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     private fun createAudioProcessorChain(): AudioProcessorChain {
-        // TODO: Add ViPER4Android here
-        return DefaultAudioSink.DefaultAudioProcessorChain()
+        return DefaultAudioSink.DefaultAudioProcessorChain(viperAudioProcessor)
     }
 
     private fun createMediaLibrarySession(): MediaLibrarySession {

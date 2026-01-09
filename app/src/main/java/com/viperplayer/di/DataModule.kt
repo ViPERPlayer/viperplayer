@@ -6,12 +6,14 @@ import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
+import com.viperplayer.data.repository.ViperRepositoryImpl
 import com.viperplayer.domain.repository.CacheRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.ViperRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -60,5 +62,11 @@ abstract class DataModule {
     abstract fun bindCacheRepository(
         impl: CacheRepositoryImpl
     ): CacheRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindViperRepository(
+        impl: ViperRepositoryImpl
+    ): ViperRepository
 }
 
