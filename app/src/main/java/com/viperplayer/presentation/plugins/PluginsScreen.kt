@@ -200,14 +200,14 @@ fun PluginsScreen(
             title = { Text(text = plugin.name) },
             text = {
                 Column {
-                    if (!plugin.author.isNullOrEmpty()) {
+                    if (!plugin.author.isNullOrBlank()) {
                         Text(text = "Author: ${plugin.author}", style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     Text(text = "Version: ${plugin.version}", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "API Version: ${plugin.apiVersion}", style = MaterialTheme.typography.bodyMedium)
-                    if (!plugin.description.isNullOrEmpty()) {
+                    if (!plugin.description.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = plugin.description, style = MaterialTheme.typography.bodyMedium)
                     }
@@ -281,7 +281,7 @@ fun PluginCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 
-                if (!plugin.author.isNullOrEmpty()) {
+                if (!plugin.author.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "by ${plugin.author}",
@@ -290,7 +290,7 @@ fun PluginCard(
                     )
                 }
                 
-                if (!plugin.description.isNullOrEmpty()) {
+                if (!plugin.description.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = plugin.description,

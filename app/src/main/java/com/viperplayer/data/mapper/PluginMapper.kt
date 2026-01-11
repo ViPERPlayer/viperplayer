@@ -43,10 +43,13 @@ object PluginMapper {
     fun AidlArtist.toDomain(pluginId: String): Artist = Artist(
         id = id.toDomain(pluginId),
         name = name,
-        imageUrl = imageUrl,
-        genres = genres,
-        followerCount = followerCount,
-        bio = bio
+        imageUrl = artwork?.full,
+        topSongs = topSongs.map { it.toDomain(pluginId) },
+        albums = albums.map { it.toDomain(pluginId) },
+        playlists = playlists.map { it.toDomain(pluginId) },
+        featuring = featuring.map { it.toDomain(pluginId) },
+        appearsOn = appearsOn.map { it.toDomain(pluginId) },
+        similarArtists = similarArtists.map { it.toDomain(pluginId) }
     )
     
     fun AidlAlbumType.toDomain(): AlbumType = when (this) {
@@ -60,7 +63,7 @@ object PluginMapper {
         id = id.toDomain(pluginId),
         name = name,
         artists = artists.map { it.toDomain(pluginId) },
-        artworkUrl = artworkUrl,
+        artworkUrl = artwork?.full,
         releaseYear = releaseYear,
         trackCount = trackCount,
         type = type.toDomain(),
@@ -77,7 +80,7 @@ object PluginMapper {
             artists = this.artists.map { it.toDomain(pluginId) },
             album = this.album?.toDomain(pluginId),
             durationMs = this.durationMs,
-            artworkUrl = this.artworkUrl,
+            artworkUrl = this.artwork?.full,
             trackNumber = this.trackNumber ?: trackNumber,
             discNumber = this.discNumber,
             isExplicit = this.isExplicit,
@@ -92,7 +95,7 @@ object PluginMapper {
         id = id.toDomain(pluginId),
         name = name,
         description = description,
-        artworkUrl = artworkUrl,
+        artworkUrl = artwork?.full,
         ownerName = ownerName,
         songCount = songCount,
         isPublic = true,

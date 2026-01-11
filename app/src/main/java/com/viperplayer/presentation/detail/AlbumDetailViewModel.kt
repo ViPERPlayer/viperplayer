@@ -7,6 +7,7 @@ import androidx.navigation.toRoute
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.AlbumDetail
@@ -39,6 +40,7 @@ sealed class AlbumDetailUiState {
 class AlbumDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val pluginRepository: PluginRepository,
+    private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
@@ -80,6 +82,9 @@ class AlbumDetailViewModel @Inject constructor(
                 }
 
                 val album = albumResult.getOrNull()!!
+
+                // Save album and all related data to database
+                mediaLibraryRepository.saveAlbum(album)
 
                 // Songs should be included in album object
                 val songs = album.songs.orEmpty()

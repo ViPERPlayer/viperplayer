@@ -16,15 +16,15 @@ import com.viperplayer.domain.model.Song
  */
 object EntityMapper {
     
-    // Artist mappings (requires genres to be loaded separately)
-    fun ArtistEntity.toDomain(genres: List<String> = emptyList()): Artist {
+    // Artist mappings
+    // Note: topSongs and albums are only available from plugin API, not stored in database
+    fun ArtistEntity.toDomain(): Artist {
         return Artist(
             id = MediaId(pluginId, sourceId),
             name = name,
             imageUrl = imageUrl,
-            genres = genres,
-            followerCount = followerCount,
-            bio = bio
+            topSongs = emptyList(), // Not stored in database, only from plugin API
+            albums = emptyList() // Not stored in database, only from plugin API
         )
     }
     
@@ -34,8 +34,6 @@ object EntityMapper {
             sourceId = id.sourceId,
             name = name,
             imageUrl = imageUrl,
-            followerCount = followerCount,
-            bio = bio,
             isLiked = false, // Will be updated separately
             isSaved = false,
             lastUpdated = System.currentTimeMillis()

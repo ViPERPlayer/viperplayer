@@ -41,14 +41,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val networkConnectivityChecker: NetworkConnectivityChecker
 ) : MediaLibraryRepository {
     
-    // Helper function to load artist with genres
-    private suspend fun loadArtistWithGenres(artistId: Long): Artist? {
+    // Helper function to load artist
+    private suspend fun loadArtist(artistId: Long): Artist? {
         val artistEntity = artistDao.getById(artistId).first() ?: return null
-        val genreIds = crossRefDao.getGenreIdsForArtist(artistId)
-        val genres = genreIds.mapNotNull { genreId ->
-            genreDao.getById(genreId)?.name
-        }
-        return artistEntity.toDomain(genres)
+        return artistEntity.toDomain()
     }
     
     /**
@@ -166,15 +162,9 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         return combine(
             artistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
             artistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id }
-        ) { artistEntity, artistId ->
+        ) { artistEntity, _ ->
             if (artistEntity == null) return@combine null
-            
-            val genreIds = artistId?.let { crossRefDao.getGenreIdsForArtist(it) } ?: emptyList()
-            val genres = genreIds.mapNotNull { genreId ->
-                genreDao.getById(genreId)?.name
-            }
-            
-            artistEntity.toDomain(genres)
+            artistEntity.toDomain()
         }
     }
     
@@ -182,11 +172,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         return artistDao.getAllLiked()
             .map { entities ->
                 entities.map { entity ->
-                    val genreIds = crossRefDao.getGenreIdsForArtist(entity.id)
-                    val genres = genreIds.mapNotNull { genreId ->
-                        genreDao.getById(genreId)?.name
-                    }
-                    entity.toDomain(genres)
+                    entity.toDomain()
                 }
             }
     }
@@ -195,11 +181,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         return artistDao.getAllSaved()
             .map { entities ->
                 entities.map { entity ->
-                    val genreIds = crossRefDao.getGenreIdsForArtist(entity.id)
-                    val genres = genreIds.mapNotNull { genreId ->
-                        genreDao.getById(genreId)?.name
-                    }
-                    entity.toDomain(genres)
+                    entity.toDomain()
                 }
             }
     }
@@ -207,8 +189,39 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun saveArtist(artist: Artist) {
         val artistId = upsertArtist(artist)
         
-        // Save genres and create cross-refs
-        saveArtistGenres(artistId, artist.genres)
+        // Save topSongs and albums from artist
+        artist.topSongs.forEach { song ->
+            saveSong(song)
+        }
+        artist.albums.forEach { album ->
+            saveAlbum(album)
+        }
+        
+        // Save playlists
+        artist.playlists.forEach { playlist ->
+            savePlaylist(playlist)
+        }
+        
+        // Save featuring playlists
+        artist.featuring.forEach { playlist ->
+            savePlaylist(playlist)
+        }
+        
+        // Save appearsOn items (albums, songs, playlists, artists)
+        artist.appearsOn.forEach { item ->
+            when (item) {
+                is Album -> saveAlbum(item)
+                is Song -> saveSong(item)
+                is Playlist -> savePlaylist(item)
+                is Artist -> saveArtist(item)
+                else -> {}
+            }
+        }
+        
+        // Save similar artists
+        artist.similarArtists.forEach { similarArtist ->
+            saveArtist(similarArtist)
+        }
     }
     
     override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean) {
@@ -229,7 +242,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             
             val artistIds = albumId?.let { crossRefDao.getArtistIdsForAlbum(it) } ?: emptyList()
             val artists = artistIds.mapNotNull { artistId ->
-                loadArtistWithGenres(artistId)
+                loadArtist(artistId)
             }
             
             albumEntity.toDomain(artists)
@@ -242,7 +255,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 entities.map { entity ->
                     val artistIds = crossRefDao.getArtistIdsForAlbum(entity.id)
                     val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
+                        loadArtist(artistId)
                     }
                     entity.toDomain(artists)
                 }
@@ -255,7 +268,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 entities.map { entity ->
                     val artistIds = crossRefDao.getArtistIdsForAlbum(entity.id)
                     val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
+                        loadArtist(artistId)
                     }
                     entity.toDomain(artists)
                 }
@@ -268,7 +281,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 entities.map { entity ->
                     val artistIds = crossRefDao.getArtistIdsForAlbum(entity.id)
                     val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
+                        loadArtist(artistId)
                     }
                     entity.toDomain(artists)
                 }
@@ -278,9 +291,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun saveAlbum(album: Album) {
         // Upsert all artists first, preserving their IDs
         val artistIds = album.artists.map { artist ->
-            val artistId = upsertArtist(artist)
-            saveArtistGenres(artistId, artist.genres)
-            artistId
+            upsertArtist(artist)
         }
         
         val primaryArtistId = artistIds.firstOrNull()
@@ -332,14 +343,14 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             
             val artistIds = songId?.let { crossRefDao.getArtistIdsForSong(it) } ?: emptyList()
             val artists = artistIds.mapNotNull { artistId ->
-                loadArtistWithGenres(artistId)
+                loadArtist(artistId)
             }
             
             val album = albumId?.let {
                 albumDao.getById(it).first()?.let { albumEntity ->
                     val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
                     val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
+                        loadArtist(artistId)
                     }
                     albumEntity.toDomain(albumArtists)
                 }
@@ -359,13 +370,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             entities.map { entity ->
                 val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
                 val artists = artistIds.mapNotNull { artistId ->
-                    loadArtistWithGenres(artistId)
+                    loadArtist(artistId)
                 }
                 val album = entity.albumId?.let {
                     albumDao.getById(it).first()?.let { albumEntity ->
                         val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
                         val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                            loadArtistWithGenres(artistId)
+                            loadArtist(artistId)
                         }
                         albumEntity.toDomain(albumArtists)
                     }
@@ -388,13 +399,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             entities.map { entity ->
                 val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
                 val artists = artistIds.mapNotNull { artistId ->
-                    loadArtistWithGenres(artistId)
+                    loadArtist(artistId)
                 }
                 val album = entity.albumId?.let {
                     albumDao.getById(it).first()?.let { albumEntity ->
                         val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
                         val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                            loadArtistWithGenres(artistId)
+                            loadArtist(artistId)
                         }
                         albumEntity.toDomain(albumArtists)
                     }
@@ -417,13 +428,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             entities.map { entity ->
                 val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
                 val artists = artistIds.mapNotNull { artistId ->
-                    loadArtistWithGenres(artistId)
+                    loadArtist(artistId)
                 }
                 val album = entity.albumId?.let {
                     albumDao.getById(it).first()?.let { albumEntity ->
                         val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
                         val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                            loadArtistWithGenres(artistId)
+                            loadArtist(artistId)
                         }
                         albumEntity.toDomain(albumArtists)
                     }
@@ -441,9 +452,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         val albumId = song.album?.let { album ->
             // Upsert all album artists first, preserving their IDs
             val albumArtistIds = album.artists.map { artist ->
-                val artistId = upsertArtist(artist)
-                saveArtistGenres(artistId, artist.genres)
-                artistId
+                upsertArtist(artist)
             }
             
             val primaryArtistId = albumArtistIds.firstOrNull()
@@ -516,7 +525,6 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         // Upsert all song artists, preserving their IDs, and create cross-refs
         song.artists.forEachIndexed { index, artist ->
             val artistId = upsertArtist(artist)
-            saveArtistGenres(artistId, artist.genres)
             crossRefDao.insertSongArtist(
                 com.viperplayer.data.local.entity.SongArtistCrossRef(
                     songId = songId,
@@ -585,13 +593,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
                 val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
                 val artists = artistIds.mapNotNull { artistId ->
-                    loadArtistWithGenres(artistId)
+                    loadArtist(artistId)
                 }
                 val album = songEntity.albumId?.let {
                     albumDao.getById(it).first()?.let { albumEntity ->
                         val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
                         val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                            loadArtistWithGenres(artistId)
+                            loadArtist(artistId)
                         }
                         albumEntity.toDomain(albumArtists)
                     }
@@ -624,7 +632,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
                     val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
                     val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
+                        loadArtist(artistId)
                     }
                     val album = songEntity.albumId?.let {
                         albumDao.getById(it).first()?.let { albumEntity ->
@@ -662,7 +670,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
                     val artistIds = crossRefDao.getArtistIdsForSong(songEntity.id)
                     val artists = artistIds.mapNotNull { artistId ->
-                        loadArtistWithGenres(artistId)
+                        loadArtist(artistId)
                     }
                     val album = songEntity.albumId?.let {
                         albumDao.getById(it).first()?.let { albumEntity ->

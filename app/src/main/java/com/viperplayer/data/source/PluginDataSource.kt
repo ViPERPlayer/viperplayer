@@ -26,6 +26,7 @@ import com.viperplayer.plugin.IConnectCallback
 import com.viperplayer.plugin.PluginConstants
 import com.viperplayer.plugin.v1.IHostCallbackV1
 import com.viperplayer.plugin.v1.IViperPluginV1
+import com.viperplayer.plugin.v1.StreamSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -698,6 +699,16 @@ class PluginDataSource @Inject constructor(
     }
     
     /**
+     * Get song details from a plugin.
+     */
+    suspend fun getSong(id: MediaId): Result<Song> {
+        return runCatching {
+            val plugin = getPlugin(id.pluginId)
+            plugin.handler.getSong(id.sourceId)
+        }
+    }
+
+    /**
      * Get artist details from a plugin.
      */
     suspend fun getArtist(id: MediaId): Result<Artist> {
@@ -774,7 +785,7 @@ class PluginDataSource @Inject constructor(
      * Get a stream source for playback from a plugin.
      * Can return a URL, DASH XML, or AudioStream based on what the plugin supports.
      */
-    suspend fun getStream(mediaId: MediaId): Result<com.viperplayer.plugin.v1.StreamSource> {
+    suspend fun getStream(mediaId: MediaId): Result<StreamSource> {
         return runCatching {
             val plugin = getPlugin(mediaId.pluginId)
             plugin.handler.getStream(mediaId.sourceId)

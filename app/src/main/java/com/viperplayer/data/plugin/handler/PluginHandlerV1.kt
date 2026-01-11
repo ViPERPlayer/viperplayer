@@ -10,11 +10,13 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.plugin.v1.IAlbumCallback
 import com.viperplayer.plugin.v1.IAlbumsCallback
+import com.viperplayer.plugin.v1.IArtistCallback
 import com.viperplayer.plugin.v1.IArtistsCallback
 import com.viperplayer.plugin.v1.IPlaylistCallback
 import com.viperplayer.plugin.v1.IPlaylistsCallback
 import com.viperplayer.plugin.v1.ISearchCallback
 import com.viperplayer.plugin.v1.ISearchSuggestionsCallback
+import com.viperplayer.plugin.v1.ISongCallback
 import com.viperplayer.plugin.v1.ISongsCallback
 import com.viperplayer.plugin.v1.IStreamSourceCallback
 import com.viperplayer.plugin.v1.IViperPluginV1
@@ -206,7 +208,25 @@ class PluginHandlerV1(
     }
     
     override suspend fun getSong(id: String): Song {
-        TODO("Implement getSong for V1 API")
+        Timber.d("Getting song from plugin: $pluginId, songId: $id")
+        return suspendCancellableCoroutine { cont ->
+            try {
+                service.getSong(id, object : ISongCallback.Stub() {
+                    override fun onSuccess(song: AidlSong) {
+                        try {
+                            Timber.d("Song received from plugin: $pluginId, title: ${song.title}")
+                            cont.resume(song.toDomain(pluginId))
+                        } catch (e: Exception) {
+                            Timber.e(e, "Error processing song from plugin $pluginId")
+                            cont.resumeWithException(e)
+                        }
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get song from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     override suspend fun getAlbum(id: String): Album {
@@ -237,7 +257,32 @@ class PluginHandlerV1(
     }
     
     override suspend fun getArtist(id: String): Artist {
-        TODO("Implement getArtist for V1 API")
+        Timber.d("Getting artist from plugin: $pluginId, artistId: $id")
+        return suspendCancellableCoroutine { cont ->
+            try {
+                service.getArtist(id, object : IArtistCallback.Stub() {
+                    override fun onSuccess(aidlArtist: AidlArtist) {
+                        try {
+                            Timber.d("Artist received from plugin: $pluginId, name: ${aidlArtist.name}, topSongs: ${aidlArtist.topSongs.size}, albums: ${aidlArtist.albums.size}")
+                            // Map the artist - topSongs and albums are already included in the AIDL Artist
+                            // and will be available through the artist object
+                            cont.resume(aidlArtist.toDomain(pluginId))
+                        } catch (e: Exception) {
+                            Timber.e(e, "Error processing artist from plugin $pluginId")
+                            cont.resumeWithException(e)
+                        }
+                    }
+
+                    override fun onFailure(errorCode: Int, message: String?) {
+                        Timber.e("Artist failed from plugin: $pluginId, error: $errorCode, message: $message")
+                        cont.resumeWithException(PluginException(errorCode, message))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get artist from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     override suspend fun getPlaylist(id: String): Playlist {
@@ -272,7 +317,20 @@ class PluginHandlerV1(
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
-        TODO("Implement getArtistSongs for V1 API")
+        Timber.d("Getting artist songs from plugin: $pluginId, artistId: $artistId, cursor: $cursor, limit: $limit")
+        return suspendCancellableCoroutine { cont ->
+            try {
+                service.getArtistSongs(artistId, cursor, limit, object : ISongsCallback.Stub() {
+                    override fun onSuccess(songs: MutableList<AidlSong>, nextCursor: String?) {
+                        Timber.d("Artist songs received from plugin: $pluginId, count: ${songs.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(songs.map { it.toDomain(pluginId) }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get artist songs from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     override suspend fun getArtistAlbums(
@@ -280,7 +338,20 @@ class PluginHandlerV1(
         cursor: String?,
         limit: Int
     ): PagedResult<Album> {
-        TODO("Implement getArtistAlbums for V1 API")
+        Timber.d("Getting artist albums from plugin: $pluginId, artistId: $artistId, cursor: $cursor, limit: $limit")
+        return suspendCancellableCoroutine { cont ->
+            try {
+                service.getArtistAlbums(artistId, cursor, limit, object : IAlbumsCallback.Stub() {
+                    override fun onSuccess(albums: MutableList<AidlAlbum>, nextCursor: String?) {
+                        Timber.d("Artist albums received from plugin: $pluginId, count: ${albums.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(albums.map { it.toDomain(pluginId) }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get artist albums from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     override suspend fun getPlaylistSongs(
@@ -288,7 +359,20 @@ class PluginHandlerV1(
         cursor: String?,
         limit: Int
     ): PagedResult<Song> {
-        TODO("Implement getPlaylistSongs for V1 API")
+        Timber.d("Getting playlist songs from plugin: $pluginId, playlistId: $playlistId, cursor: $cursor, limit: $limit")
+        return suspendCancellableCoroutine { cont ->
+            try {
+                service.getPlaylistSongs(playlistId, cursor, limit, object : ISongsCallback.Stub() {
+                    override fun onSuccess(songs: MutableList<AidlSong>, nextCursor: String?) {
+                        Timber.d("Playlist songs received from plugin: $pluginId, count: ${songs.size}, nextCursor: $nextCursor")
+                        cont.resume(PagedResult(songs.map { it.toDomain(pluginId) }, nextCursor))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get playlist songs from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
     }
     
     override suspend fun getStream(mediaId: String): com.viperplayer.plugin.v1.StreamSource {

@@ -18,8 +18,6 @@ data class ArtistEntity(
     val sourceId: String,
     val name: String,
     val imageUrl: String? = null,
-    val followerCount: Long? = null,
-    val bio: String? = null,
     val isLiked: Boolean = false,
     val isSaved: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis()

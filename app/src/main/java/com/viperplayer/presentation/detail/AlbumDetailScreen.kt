@@ -60,6 +60,15 @@ import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import kotlin.collections.buildList
+
+/**
+ * Sealed class to represent items in the album song list (disc headers or songs).
+ */
+private sealed class DiscItem {
+    data class HeaderItem(val discNumber: Int) : DiscItem()
+    data class SongItem(val song: Song) : DiscItem()
+}
 
 @Composable
 fun AlbumDetailScreen(
@@ -105,7 +114,8 @@ fun AlbumDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(contentPadding),
+                        .padding(contentPadding)
+                        .padding(rootPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -115,7 +125,8 @@ fun AlbumDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(contentPadding),
+                        .padding(contentPadding)
+                        .padding(rootPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -135,8 +146,10 @@ fun AlbumDetailScreen(
             }
             is AlbumDetailUiState.Success -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = contentPadding
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding),
+                    contentPadding = rootPadding
                 ) {
                     // Album header
                     item {
@@ -168,25 +181,87 @@ fun AlbumDetailScreen(
                             }
                         }
                     } else {
-                        items(state.songs) { song ->
-                            ListItem(
-                                type = SearchItem.Type.SONG,
-                                title = song.title,
-                                badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                                subtitle = song.artistNames,
-                                trackNumber = song.trackNumber,
-                                durationMs = song.durationMs,
-                                isActive = currentSong?.id == song.id,
-                                isPlaying = currentSong?.id == song.id && isPlaying,
-                                onClick = { viewModel.playSong(song) },
-                                onMoreClick = { selectedMediaItem = song },
-                                onLongClick = { selectedMediaItem = song },
-                                onPlayNext = { viewModel.playNext(song) },
-                                onAddToQueue = { viewModel.addToQueue(song) },
-                                modifier = Modifier
-                                    .animateItem()
-                                    .fillMaxWidth()
-                            )
+                        // Group songs by disc number and check if we have multiple discs
+                        val sortedSongs = state.songs.sortedWith(compareBy(
+                            { it.discNumber ?: 1 },
+                            { it.trackNumber ?: 0 }
+                        ))
+                        val songsByDisc = sortedSongs.groupBy { it.discNumber ?: 1 }
+                        val hasMultipleDiscs = songsByDisc.size > 1
+                        
+                        if (hasMultipleDiscs) {
+                            // Create a list of items (disc headers + songs) for the LazyColumn
+                            val items = buildList {
+                                songsByDisc.toSortedMap().forEach { (discNumber, songs) ->
+                                    add(DiscItem.HeaderItem(discNumber))
+                                    songs.forEach { song ->
+                                        add(DiscItem.SongItem(song))
+                                    }
+                                }
+                            }
+                            
+                            items(
+                                items = items,
+                                key = { item ->
+                                    when (item) {
+                                        is DiscItem.HeaderItem -> "disc_${item.discNumber}"
+                                        is DiscItem.SongItem -> item.song.id.toString()
+                                    }
+                                }
+                            ) { item ->
+                                when (item) {
+                                    is DiscItem.HeaderItem -> {
+                                        DiscHeader(
+                                            discNumber = item.discNumber,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                    is DiscItem.SongItem -> {
+                                        val song = item.song
+                                        ListItem(
+                                            type = SearchItem.Type.SONG,
+                                            title = song.title,
+                                            badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
+                                            subtitle = song.artistNames,
+                                            trackNumber = song.trackNumber,
+                                            durationMs = song.durationMs,
+                                            isActive = currentSong?.id == song.id,
+                                            isPlaying = currentSong?.id == song.id && isPlaying,
+                                            onClick = { viewModel.playSong(song) },
+                                            onMoreClick = { selectedMediaItem = song },
+                                            onLongClick = { selectedMediaItem = song },
+                                            onPlayNext = { viewModel.playNext(song) },
+                                            onAddToQueue = { viewModel.addToQueue(song) },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // Single disc or no disc numbers - display normally
+                            items(
+                                items = sortedSongs,
+                                key = { song -> song.id.toString() }
+                            ) { song ->
+                                ListItem(
+                                    type = SearchItem.Type.SONG,
+                                    title = song.title,
+                                    badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
+                                    subtitle = song.artistNames,
+                                    trackNumber = song.trackNumber,
+                                    durationMs = song.durationMs,
+                                    isActive = currentSong?.id == song.id,
+                                    isPlaying = currentSong?.id == song.id && isPlaying,
+                                    onClick = { viewModel.playSong(song) },
+                                    onMoreClick = { selectedMediaItem = song },
+                                    onLongClick = { selectedMediaItem = song },
+                                    onPlayNext = { viewModel.playNext(song) },
+                                    onAddToQueue = { viewModel.addToQueue(song) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                )
+                            }
                         }
                     }
                 }
@@ -380,6 +455,26 @@ private fun AlbumHeader(
                 Text("Shuffle")
             }
         }
+    }
+}
+
+@Composable
+private fun DiscHeader(
+    discNumber: Int,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Text(
+            text = "Disc $discNumber",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 

@@ -277,13 +277,6 @@ private fun ArtistHeader(artist: Artist) {
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            if (artist.followerCount != null) {
-                Text(
-                    text = "${artist.followerCount} followers",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 }

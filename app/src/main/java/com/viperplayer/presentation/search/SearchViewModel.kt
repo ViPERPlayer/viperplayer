@@ -348,6 +348,8 @@ class SearchViewModel @Inject constructor(
                 // If not found, fetch it from the repository
                 val songResult = pluginRepository.getSong(songId)
                 songResult.onSuccess { song ->
+                    // Save song to database
+                    mediaLibraryRepository.saveSong(song)
                     playerRepository.play(song)
                 }.onFailure { error ->
                     // Handle error - could show a toast or error message
@@ -408,19 +410,27 @@ class SearchViewModel @Inject constructor(
 
     suspend fun getSong(mediaId: MediaId): Song? {
         return findSongInResults(mediaId) ?: run {
-            pluginRepository.getSong(mediaId).getOrNull()
+            val song = pluginRepository.getSong(mediaId).getOrNull()
+            song?.let { mediaLibraryRepository.saveSong(it) }
+            song
         }
     }
 
     suspend fun getAlbum(mediaId: MediaId): Album? {
-        return pluginRepository.getAlbum(mediaId).getOrNull()
+        val album = pluginRepository.getAlbum(mediaId).getOrNull()
+        album?.let { mediaLibraryRepository.saveAlbum(it) }
+        return album
     }
 
     suspend fun getArtist(mediaId: MediaId): Artist? {
-        return pluginRepository.getArtist(mediaId).getOrNull()
+        val artist = pluginRepository.getArtist(mediaId).getOrNull()
+        artist?.let { mediaLibraryRepository.saveArtist(it) }
+        return artist
     }
 
     suspend fun getPlaylist(mediaId: MediaId): Playlist? {
-        return pluginRepository.getPlaylist(mediaId).getOrNull()
+        val playlist = pluginRepository.getPlaylist(mediaId).getOrNull()
+        playlist?.let { mediaLibraryRepository.savePlaylist(it) }
+        return playlist
     }
 }

@@ -8,6 +8,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.ArtistDetail
@@ -27,16 +28,9 @@ import javax.inject.Inject
 sealed class ArtistDetailUiState {
     data object Loading : ArtistDetailUiState()
     data class Success(
-        val artist: Artist,
-        val topSongs: List<Song>,
-        val albums: List<Album>,
-        val selectedTab: ArtistTab = ArtistTab.SONGS
+        val artist: Artist
     ) : ArtistDetailUiState()
     data class Error(val message: String) : ArtistDetailUiState()
-}
-
-enum class ArtistTab {
-    SONGS, ALBUMS
 }
 
 /**
@@ -46,6 +40,7 @@ enum class ArtistTab {
 class ArtistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val pluginRepository: PluginRepository,
+    private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
@@ -77,7 +72,7 @@ class ArtistDetailViewModel @Inject constructor(
             _uiState.value = ArtistDetailUiState.Loading
 
             try {
-                // Load artist details
+                // Load artist details - the artist object from AIDL already contains topSongs and albums
                 val artistResult = pluginRepository.getArtist(artistId)
                 if (artistResult.isFailure) {
                     _uiState.value = ArtistDetailUiState.Error(
@@ -88,31 +83,18 @@ class ArtistDetailViewModel @Inject constructor(
 
                 val artist = artistResult.getOrNull()!!
 
-                // Load artist songs
-                val songsResult = pluginRepository.getArtistSongs(artistId, limit = 20)
-                val topSongs = songsResult.getOrNull()?.items.orEmpty()
+                // Save artist and all related data to database
+                mediaLibraryRepository.saveArtist(artist)
 
-                // Load artist albums
-                val albumsResult = pluginRepository.getArtistAlbums(artistId, limit = 20)
-                val albums = albumsResult.getOrNull()?.items.orEmpty()
-
+                // Use all data directly from the artist object
                 _uiState.value = ArtistDetailUiState.Success(
-                    artist = artist,
-                    topSongs = topSongs,
-                    albums = albums
+                    artist = artist
                 )
             } catch (e: Exception) {
                 _uiState.value = ArtistDetailUiState.Error(
                     e.message ?: "Failed to load artist details"
                 )
             }
-        }
-    }
-
-    fun selectTab(tab: ArtistTab) {
-        _uiState.value = when (val state = _uiState.value) {
-            is ArtistDetailUiState.Success -> state.copy(selectedTab = tab)
-            else -> state
         }
     }
 
@@ -130,7 +112,7 @@ class ArtistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val songs = when (val state = _uiState.value) {
-                    is ArtistDetailUiState.Success -> state.topSongs
+                    is ArtistDetailUiState.Success -> state.artist.topSongs
                     else -> emptyList()
                 }
                 if (songs.isNotEmpty()) {
