@@ -1,38 +1,61 @@
-
-# For more information about using CMake with Android Studio, read the
-# documentation: https://d.android.com/studio/projects/add-native-code.html.
-# For more examples on how to use CMake, see https://github.com/android/ndk-samples.
-
-# Sets the minimum CMake version required for this project.
 cmake_minimum_required(VERSION 3.22.1)
 
-# Declares the project name. The project name can be accessed via ${ PROJECT_NAME},
-# Since this is the top level CMakeLists.txt, the project name is also accessible
-# with ${CMAKE_PROJECT_NAME} (both CMake variables are in-sync within the top level
-# build script scope).
 project("viper")
 
-# Creates and names a library, sets it as either STATIC
-# or SHARED, and provides the relative paths to its source code.
-# You can define multiple libraries, and CMake builds them for you.
-# Gradle automatically packages shared libraries with your APK.
-#
-# In this top level CMakeLists.txt, ${CMAKE_PROJECT_NAME} is used to define
-# the target library name; in the sub-module's CMakeLists.txt, ${PROJECT_NAME}
-# is preferred for the same purpose.
-#
-# In order to load a library into your app from Java/Kotlin, you must call
-# System.loadLibrary() and pass the name of the library defined here;
-# for GameActivity/NativeActivity derived applications, the same library name must be
-# used in the AndroidManifest.xml file.
 add_library(${CMAKE_PROJECT_NAME} SHARED
-    # List C/C++ source files with relative paths to this CMakeLists.txt.
-    viperplayer.cpp)
+        # Common
+        viper/ViPER.cpp
 
-# Specifies libraries CMake should link to your target library. You
-# can link libraries from various origins, such as libraries defined in this
-# build script, prebuilt third-party libraries, or Android system libraries.
+        # Effects
+        viper/effects/AnalogX.cpp
+        viper/effects/ColorfulMusic.cpp
+        viper/effects/Convolver.cpp
+        viper/effects/Cure.cpp
+        viper/effects/DiffSurround.cpp
+        viper/effects/DynamicSystem.cpp
+        viper/effects/FETCompressor.cpp
+        viper/effects/IIRFilter.cpp
+        viper/effects/PlaybackGain.cpp
+        viper/effects/Reverberation.cpp
+        viper/effects/SoftwareLimiter.cpp
+        viper/effects/SpeakerCorrection.cpp
+        viper/effects/SpectrumExtend.cpp
+        viper/effects/TubeSimulator.cpp
+        viper/effects/VHE.cpp
+        viper/effects/ViPERBass.cpp
+        viper/effects/ViPERClarity.cpp
+        viper/effects/ViPERDDC.cpp
+
+        # Utils
+        viper/utils/AdaptiveBuffer.cpp
+        viper/utils/Biquad.cpp
+        viper/utils/CAllpassFilter.cpp
+        viper/utils/CCombFilter.cpp
+        viper/utils/CRevModel.cpp
+        viper/utils/Crossfeed.cpp
+        viper/utils/DepthSurround.cpp
+        viper/utils/DynamicBass.cpp
+        viper/utils/FIR.cpp
+        viper/utils/Harmonic.cpp
+        viper/utils/HiFi.cpp
+        viper/utils/HighShelf.cpp
+        viper/utils/IIR_1st.cpp
+        viper/utils/IIR_NOrder_BW_BP.cpp
+        viper/utils/IIR_NOrder_BW_LH.cpp
+        viper/utils/MinPhaseIIRCoeffs.cpp
+        viper/utils/MultiBiquad.cpp
+        viper/utils/NoiseSharpening.cpp
+        viper/utils/PassFilter.cpp
+        viper/utils/PConvSingle.cpp
+        viper/utils/PolesFilter.cpp
+        viper/utils/Polyphase.cpp
+        viper/utils/Stereo3DSurround.cpp
+        viper/utils/Subwoofer.cpp
+        viper/utils/TimeConstDelay.cpp
+        viper/utils/WaveBuffer.cpp
+
+        viperplayer.cpp)
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
-    # List libraries link to the target library
-    android
-    log)
+        android
+        log)
