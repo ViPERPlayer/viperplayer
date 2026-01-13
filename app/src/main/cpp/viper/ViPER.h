@@ -57,7 +57,6 @@ public:
 
 private:
     std::array<SoftwareLimiter, 2> softwareLimiters;
-    uint64_t frameCount;
     uint32_t samplingRate;
     float gainL;
     float gainR;

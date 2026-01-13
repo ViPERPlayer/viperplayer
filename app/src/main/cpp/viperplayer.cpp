@@ -1,17 +1,16 @@
-// Write C++ code here.
-//
-// Do not forget to dynamically load the C++ library into your application.
-//
-// For instance,
-//
-// In MainActivity.java:
-//    static {
-//       System.loadLibrary("viperplayer");
-//    }
-//
-// Or, in MainActivity.kt:
-//    companion object {
-//      init {
-//         System.loadLibrary("viperplayer")
-//      }
-//    }
+#include <jni.h>
+#include "viper/ViPER.h"
+
+static ViPER viper = ViPER();
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperAudioProcessor_process(JNIEnv *env, jobject thiz,
+                                                             jbyteArray buffer, jint size) {
+    jboolean isCopy;
+    jbyte *data = env->GetByteArrayElements(buffer, &isCopy);
+
+    viper.process((float *) data, size);
+
+    env->ReleaseByteArrayElements(buffer, data, JNI_ABORT);
+}

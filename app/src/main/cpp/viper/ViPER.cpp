@@ -11,8 +11,6 @@ ViPER::ViPER() :
     samplingRate(VIPER_DEFAULT_SAMPLING_RATE),
     gainL(1.0),
     gainR(1.0) {
-    ALOGI("Welcome to ViPER FX");
-//    ALOGI("Current version is %d", VIPER_VERSION);
 
     this->convolver.SetEnable(false);
     this->convolver.SetSamplingRate(this->samplingRate);
@@ -87,8 +85,6 @@ ViPER::ViPER() :
 }
 
 void ViPER::process(float *buffer, uint32_t size) {
-    this->frameCount += size;
-
     uint32_t ret;
     float *tmpBuf;
     uint32_t tmpBufSize;
@@ -235,10 +231,6 @@ void ViPER::reset() {
 void ViPER::setSamplingRate(uint32_t samplingRate) {
     this->samplingRate = samplingRate;
     // TODO: Set sampling rate to all other effects
-}
-
-uint64_t ViPER::getFrameCount() {
-    return this->frameCount;
 }
 
 void ViPER::setGain(float gainL, float gainR) {

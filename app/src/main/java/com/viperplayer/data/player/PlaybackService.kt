@@ -29,6 +29,7 @@ import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.ToFloatPcmAudioProcessor
 import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
@@ -237,7 +238,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     private fun createAudioProcessorChain(): AudioProcessorChain {
-        return DefaultAudioSink.DefaultAudioProcessorChain(viperAudioProcessor)
+        return DefaultAudioSink.DefaultAudioProcessorChain(
+            ToFloatPcmAudioProcessor(), // ViPER requires 32-bit float samples
+            viperAudioProcessor
+        )
     }
 
     private fun createMediaLibrarySession(): MediaLibrarySession {
