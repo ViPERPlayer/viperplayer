@@ -134,6 +134,9 @@ dependencies {
 
     // Rebugger
     implementation("io.github.theapache64:rebugger:1.0.1")
+
+    // Pine hook
+    implementation("top.canyie.pine:core:0.3.0")
     
     // Testing
     testImplementation(libs.junit)

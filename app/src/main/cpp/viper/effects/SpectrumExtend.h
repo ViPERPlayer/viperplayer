@@ -7,7 +7,7 @@
 
 class SpectrumExtend {
 public:
-    SpectrumExtend();
+    SpectrumExtend(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -20,10 +20,10 @@ private:
     std::array<MultiBiquad, 2> highpass;
     std::array<MultiBiquad, 2> lowpass;
     std::array<Harmonic, 2> harmonics;
-    bool enabled;
+    bool enable = false;
     uint32_t samplingRate;
-    uint32_t referenceFreq;
-    float exciter;
+    uint32_t referenceFreq = 7600;
+    float exciter = 0;
 };
 
 

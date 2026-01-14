@@ -18,7 +18,7 @@ public:
 
 private:
     CRevModel model;
-    bool enable;
+    bool enable = false;
 };
 
 

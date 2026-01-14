@@ -1,19 +1,8 @@
 #include "ViPERClarity.h"
-#include <constants.h>
 
 // Iscle: Verified with the latest version at 13/12/2022
 
-ViPERClarity::ViPERClarity() {
-    for (auto &highShelf : this->highShelf) {
-        highShelf.SetFrequency(12000.0);
-        highShelf.SetGain(1.0);
-        highShelf.SetSamplingRate(VIPER_DEFAULT_SAMPLING_RATE);
-    }
-
-    this->enable = false;
-    this->processMode = ClarityMode::NATURAL;
-    this->clarityGainPercent = 0.0;
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
+ViPERClarity::ViPERClarity(uint32_t samplingRate) : noiseSharpening(samplingRate), hifi(samplingRate), samplingRate(samplingRate) {
     Reset();
 }
 

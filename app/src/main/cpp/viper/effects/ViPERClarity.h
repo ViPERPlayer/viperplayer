@@ -15,7 +15,7 @@ public:
         XHIFI
     };
 
-    ViPERClarity();
+    ViPERClarity(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -29,10 +29,10 @@ private:
     NoiseSharpening noiseSharpening;
     HighShelf highShelf[2];
     HiFi hifi;
-    bool enable;
-    ClarityMode processMode;
+    bool enable = false;
+    ClarityMode processMode = ClarityMode::NATURAL;
     uint32_t samplingRate;
-    float clarityGainPercent;
+    float clarityGainPercent = 0;
 };
 
 

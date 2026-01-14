@@ -6,7 +6,7 @@
 
 class ViPERDDC {
 public:
-    ViPERDDC();
+    ViPERDDC(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -15,7 +15,7 @@ public:
     void SetSamplingRate(uint32_t samplingRate);
 
 private:
-    bool enable;
+    bool enable = false;
     bool setCoeffsOk;
     uint32_t samplingRate;
     uint32_t arrSize;

@@ -8,7 +8,7 @@
 
 class IIRFilter {
 public:
-    IIRFilter(uint32_t bands);
+    IIRFilter(uint32_t samplingRate, uint32_t bands);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -19,13 +19,13 @@ public:
 private:
     uint32_t bands;
     uint32_t samplingRate;
-    bool enable;
+    bool enable = false;
     MinPhaseIIRCoeffs minPhaseIirCoeffs;
-    double buf[496];
-    uint32_t unknown2;
-    uint32_t unknown3;
-    uint32_t unknown4;
-    std::array<float, 31> bandLevelsWithQ;
+    double state[496];
+    uint32_t writeIndex;
+    uint32_t delay1Index;
+    uint32_t delay2Index;
+    std::array<float, 31> bandGainLinear;
 };
 
 

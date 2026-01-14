@@ -9,19 +9,15 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         # Effects
         viper/effects/AnalogX.cpp
         viper/effects/ColorfulMusic.cpp
-        viper/effects/Convolver.cpp
         viper/effects/Cure.cpp
         viper/effects/DiffSurround.cpp
         viper/effects/DynamicSystem.cpp
-        viper/effects/FETCompressor.cpp
         viper/effects/IIRFilter.cpp
-        viper/effects/PlaybackGain.cpp
         viper/effects/Reverberation.cpp
         viper/effects/SoftwareLimiter.cpp
         viper/effects/SpeakerCorrection.cpp
         viper/effects/SpectrumExtend.cpp
         viper/effects/TubeSimulator.cpp
-        viper/effects/VHE.cpp
         viper/effects/ViPERBass.cpp
         viper/effects/ViPERClarity.cpp
         viper/effects/ViPERDDC.cpp
@@ -46,7 +42,6 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         viper/utils/MultiBiquad.cpp
         viper/utils/NoiseSharpening.cpp
         viper/utils/PassFilter.cpp
-        viper/utils/PConvSingle.cpp
         viper/utils/PolesFilter.cpp
         viper/utils/Polyphase.cpp
         viper/utils/Stereo3DSurround.cpp

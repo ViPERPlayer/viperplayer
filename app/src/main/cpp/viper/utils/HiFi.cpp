@@ -1,9 +1,7 @@
 #include "HiFi.h"
-#include <constants.h>
 
-HiFi::HiFi() {
+HiFi::HiFi(uint32_t samplingRate) : samplingRate(samplingRate) {
     this->gain = 1.f;
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
     for (int i = 0; i < 2; i++) {
         this->buffers[i] = new WaveBuffer(2, 0x800);
         this->filters[i].lowpass = new IIR_NOrder_BW_LH(1);

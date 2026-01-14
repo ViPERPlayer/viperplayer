@@ -1,12 +1,10 @@
 #include "ViPERDDC.h"
-#include <log/log.h>
-#include <constants.h>
 #include <cstring>
 
-ViPERDDC::ViPERDDC() :
+ViPERDDC::ViPERDDC(uint32_t samplingRate) :
     enable(false),
     setCoeffsOk(false),
-    samplingRate(VIPER_DEFAULT_SAMPLING_RATE),
+    samplingRate(samplingRate),
     arrSize(0) {}
 
 void ViPERDDC::Process(float *samples, uint32_t size) {
@@ -146,7 +144,7 @@ void ViPERDDC::SetSamplingRate(uint32_t samplingRate) {
     if (this->samplingRate != samplingRate) {
         this->samplingRate = samplingRate;
         if (!isSamplingRateValid()) {
-            ALOGE("ViPERDDC::SetSamplingRate() -> Invalid sampling rate: %d", this->samplingRate);
+//            ALOGE("ViPERDDC::SetSamplingRate() -> Invalid sampling rate: %d", this->samplingRate);
         }
         Reset();
     }

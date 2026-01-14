@@ -6,7 +6,7 @@
 
 class DiffSurround {
 public:
-    DiffSurround();
+    DiffSurround(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -15,8 +15,8 @@ public:
     void SetSamplingRate(uint32_t samplingRate);
 
     uint32_t samplingRate;
-    bool enable;
-    float delayTime;
+    bool enable = false;
+    float delayTime = 0;
     std::array<WaveBuffer, 2> buffers;
 };
 

@@ -9,7 +9,7 @@ public:
         uint16_t feedback;
     };
 
-    Crossfeed();
+    Crossfeed(uint32_t samplingRate);
 
     void Reset();
     void ProcessFrames(float *buffer, uint32_t size);

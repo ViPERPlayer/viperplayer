@@ -2,12 +2,6 @@
 
 // Iscle: Verified with the latest version at 13/12/2022
 
-TubeSimulator::TubeSimulator() :
-    acc({
-        0.0, 0.0
-    }),
-    enable(false) {}
-
 void TubeSimulator::Reset() {
     this->acc[0] = 0.0;
     this->acc[1] = 0.0;

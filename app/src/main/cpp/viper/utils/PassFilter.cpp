@@ -1,13 +1,11 @@
 #include "PassFilter.h"
-#include <constants.h>
 
-PassFilter::PassFilter() : filters({
+PassFilter::PassFilter(uint32_t samplingRate) : filters({
     IIR_NOrder_BW_LH(3),
     IIR_NOrder_BW_LH(3),
     IIR_NOrder_BW_LH(1),
     IIR_NOrder_BW_LH(1)
-}) {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
+}), samplingRate(samplingRate) {
     Reset();
 }
 
@@ -28,6 +26,7 @@ void PassFilter::ProcessFrames(float *buffer, uint32_t size) {
 
 void PassFilter::Reset() {
     float cutoff;
+
     if (this->samplingRate < 44100) {
         cutoff = (float) this->samplingRate - 100.0f;
     } else {

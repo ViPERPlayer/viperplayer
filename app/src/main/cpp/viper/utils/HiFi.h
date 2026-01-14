@@ -7,7 +7,7 @@
 
 class HiFi {
 public:
-    HiFi();
+    HiFi(uint32_t samplingRate);
 
     ~HiFi();
 
@@ -19,6 +19,7 @@ public:
 
     void SetSamplingRate(uint32_t samplingRate);
 
+    // TODO: use cpp arrays
     WaveBuffer *buffers[2];
     struct {
         IIR_NOrder_BW_LH *lowpass;

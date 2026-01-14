@@ -6,7 +6,7 @@
 
 class DynamicBass {
 public:
-    DynamicBass();
+    DynamicBass(uint32_t samplingRate);
 
     void FilterSamples(float *samples, uint32_t size);
 

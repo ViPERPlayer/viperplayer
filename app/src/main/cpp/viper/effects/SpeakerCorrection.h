@@ -9,7 +9,7 @@
 
 class SpeakerCorrection {
 public:
-    SpeakerCorrection();
+    SpeakerCorrection(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -18,7 +18,7 @@ public:
 
 private:
     uint32_t samplingRate;
-    bool enable;
+    bool enable = false;
     std::array<MultiBiquad, 2> highPass;
     std::array<Biquad, 2> lowPass;
     std::array<Biquad, 2> bandPass;

@@ -3,34 +3,34 @@
 #include <cstdint>
 
 typedef struct {
-    float lower_angle;
-    float upper_angle;
+    float lowPoleCoeff;
+    float highPoleCoeff;
 
-    float in[3];
-    float x[4];
-    float y[4];
-} channel;
+    float inputDelay[3];
+    float lowPole[4];
+    float highPole[4];
+} ChannelState;
 
 
 class PolesFilter {
 public:
-    PolesFilter();
+    PolesFilter(uint32_t samplingRate);
 
     void Reset();
 
     void UpdateCoeff();
 
-    void DoFilterLeft(float sample, float *out1, float *out2, float *out3);
+    void DoFilterLeft(float inputSample, float *lowOut, float *highOut, float *bandOut);
 
-    void DoFilterRight(float sample, float *out1, float *out2, float *out3);
+    void DoFilterRight(float inputSample, float *lowOut, float *highOut, float *bandOut);
 
-    void SetPassFilter(uint32_t lower_freq, uint32_t upper_freq);
+    void SetPassFilter(uint32_t lowCutFreq, uint32_t highCutFreq);
 
     void SetSamplingRate(uint32_t samplingRate);
 
-    channel channels[2];
-    uint32_t lower_freq;
-    uint32_t upper_freq;
+    ChannelState channels[2];
+    uint32_t lowCutFreq = 160;
+    uint32_t highCutFreq = 8000;
     uint32_t samplingRate;
 };
 

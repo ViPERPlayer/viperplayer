@@ -1,12 +1,11 @@
 #include <cstring>
 #include <cmath>
 #include "Crossfeed.h"
-#include <constants.h>
 
 // Basically Bauer-to-Stereophonic Binaural filter
 // See: http://bs2b.sourceforge.net/
 
-Crossfeed::Crossfeed() {
+Crossfeed::Crossfeed(uint32_t samplingRate) : samplingRate(samplingRate) {
     this->a0_lo = 0.f;
     this->b1_lo = 0.f;
     this->a0_hi = 0.f;
@@ -14,9 +13,9 @@ Crossfeed::Crossfeed() {
     this->b1_hi = 0.f;
     this->gain = 0.f;
     memset(&this->lfs, 0, 6 * sizeof(float));
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
     this->preset.cutoff = 700;
     this->preset.feedback = 45;
+    Reset();
 }
 
 #define lo_filter(in, out_1) (this->a0_lo * (in) + this->b1_lo * (out_1))

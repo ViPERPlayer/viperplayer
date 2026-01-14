@@ -6,7 +6,7 @@
 
 class PassFilter {
 public:
-    PassFilter();
+    PassFilter(uint32_t samplingRate);
 
     void Reset();
     void ProcessFrames(float *buffer, uint32_t size);

@@ -16,7 +16,7 @@ public:
         SUBWOOFER,
     };
 
-    ViPERBass();
+    ViPERBass(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -31,11 +31,11 @@ private:
     Biquad biquad[2];
     Subwoofer subwoofer;
     WaveBuffer waveBuffer;
-    bool enable;
-    ProcessMode processMode;
+    bool enable = false;
+    ProcessMode processMode = ProcessMode::NATURAL_BASS;
     uint32_t samplingRate;
     float samplingRatePeriod;
-    float antiPop;
-    uint32_t speaker;
-    float bassFactor;
+    float antiPop = 0;
+    uint32_t speaker = 60;
+    float bassFactor = 0;
 };

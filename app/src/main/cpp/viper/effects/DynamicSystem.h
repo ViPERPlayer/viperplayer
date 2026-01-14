@@ -5,7 +5,7 @@
 
 class DynamicSystem {
 public:
-    DynamicSystem();
+    DynamicSystem(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -19,7 +19,7 @@ public:
 private:
     DynamicBass dynamicBass;
     uint32_t samplingRate;
-    bool enable;
+    bool enable = false;
 };
 
 

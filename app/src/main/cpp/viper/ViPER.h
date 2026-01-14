@@ -10,42 +10,31 @@
 #include "effects/TubeSimulator.h"
 #include "effects/Cure.h"
 #include "effects/DiffSurround.h"
-#include "effects/VHE.h"
 #include "utils/AdaptiveBuffer.h"
-#include "effects/Convolver.h"
 #include "effects/ViPERDDC.h"
 #include "effects/IIRFilter.h"
 #include "effects/ColorfulMusic.h"
-#include "effects/FETCompressor.h"
 #include "effects/ViPERBass.h"
 #include "effects/SoftwareLimiter.h"
-#include "effects/PlaybackGain.h"
-#include "../ViPER4Android.h"
 #include <array>
 
 class ViPER {
 public:
-    ViPER();
+    ViPER(uint32_t samplingRate);
 
     void process(float *buffer, uint32_t size);
     void reset();
-    uint64_t getFrameCount();
     void setSamplingRate(uint32_t samplingRate);
     void setGain(float gainL, float gainR);
     void setThresholdLimit(float thresholdLimit);
 
     // Effects
-    AdaptiveBuffer adaptiveBuffer;
-    WaveBuffer waveBuffer;
-    Convolver convolver;
-    VHE vhe;
+    AdaptiveBuffer adaptiveBuffer = AdaptiveBuffer(2, 4096);
     ViPERDDC viperDdc;
     SpectrumExtend spectrumExtend;
     IIRFilter iirFilter;
     ColorfulMusic colorfulMusic;
     Reverberation reverberation;
-    PlaybackGain playbackGain;
-    FETCompressor fetCompressor;
     DynamicSystem dynamicSystem;
     ViPERBass viperBass;
     ViPERClarity viperClarity;
@@ -58,6 +47,6 @@ public:
 private:
     std::array<SoftwareLimiter, 2> softwareLimiters;
     uint32_t samplingRate;
-    float gainL;
-    float gainR;
+    float gainL = 1;
+    float gainR = 1;
 };

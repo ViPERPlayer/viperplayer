@@ -6,19 +6,19 @@
 
 class DepthSurround {
 public:
-    DepthSurround();
+    DepthSurround(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
-    void RefreshStrength(short strength);
+    void RefreshStrength();
     void SetSamplingRate(uint32_t samplingRate);
     void SetStrength(short strength);
 
 private:
-    short strength;
-    bool enabled;
-    bool strengthAtLeast500;
-    float gain;
-    float prev[2];
+    short strength = 0;
+    bool enabled = false;
+    bool strengthAtLeast500 = false;
+    float gain = 0;
+    float prev[2] = {0, 0};
     TimeConstDelay timeConstDelay[2];
     Biquad highpass;
 };

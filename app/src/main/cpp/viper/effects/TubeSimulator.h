@@ -7,14 +7,12 @@
 
 class TubeSimulator {
 public:
-    TubeSimulator();
-
     void Reset();
     void SetEnable(bool enable);
     void TubeProcess(float *buffer, uint32_t size);
 
 private:
-    std::array<double, 2> acc;
-    bool enable;
+    std::array<double, 2> acc = { 0, 0 };
+    bool enable = false;
 };
 

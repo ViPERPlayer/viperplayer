@@ -1,13 +1,10 @@
 #include <cmath>
 #include <cstring>
 #include "IIRFilter.h"
-#include <constants.h>
 
 // Iscle: Verified with the latest version at 13/12/2022
 
-IIRFilter::IIRFilter(uint32_t bands) {
-    this->enable = false;
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
+IIRFilter::IIRFilter(uint32_t samplingRate, uint32_t bands) : samplingRate(samplingRate) {
     if (bands == 10 || bands == 15 || bands == 25 || bands == 31) {
         this->bands = bands;
         this->minPhaseIirCoeffs.UpdateCoeffs(this->bands, this->samplingRate);
@@ -15,9 +12,7 @@ IIRFilter::IIRFilter(uint32_t bands) {
         this->bands = 0;
     }
 
-    for (auto &bandLevelWithQ : this->bandLevelsWithQ) {
-        bandLevelWithQ = 0.636;
-    }
+    this->bandGainLinear.fill(0.636f);
 
     Reset();
 }
@@ -34,43 +29,43 @@ void IIRFilter::Process(float *samples, uint32_t size) {
             double accumulated = 0.0;
 
             for (uint32_t k = 0; k < this->bands; k++) {
-                uint32_t bufIdx = this->unknown2 + j * 8 + k * 16;
-                this->buf[bufIdx] = sample;
+                uint32_t bufIdx = this->writeIndex + j * 8 + k * 16;
+                this->state[bufIdx] = sample;
 
                 double coeff1 = coeffs[k * 4];
                 double coeff2 = coeffs[k * 4 + 1];
                 double coeff3 = coeffs[k * 4 + 2];
 
-                double a = coeff3 * this->buf[bufIdx + ((this->unknown3 + 3) - this->unknown2)];
-                double b = coeff2 * (sample - this->buf[bufIdx + (this->unknown4 - this->unknown2)]);
-                double c = coeff1 * this->buf[bufIdx + ((this->unknown4 - this->unknown2) + 3)];
+                double a = coeff3 * this->state[bufIdx + ((this->delay1Index + 3) - this->writeIndex)];
+                double b = coeff2 * (sample - this->state[bufIdx + (this->delay2Index - this->writeIndex)]);
+                double c = coeff1 * this->state[bufIdx + ((this->delay2Index - this->writeIndex) + 3)];
 
                 double tmp = (a + b) - c;
 
-                this->buf[bufIdx + 3] = tmp;
-                accumulated += tmp * this->bandLevelsWithQ[k];
+                this->state[bufIdx + 3] = tmp;
+                accumulated += tmp * this->bandGainLinear[k];
             }
 
             samples[i * 2 + j] = (float) accumulated;
         }
 
-        this->unknown2 = (this->unknown2 + 1) % 3;
-        this->unknown3 = (this->unknown3 + 1) % 3;
-        this->unknown4 = (this->unknown4 + 1) % 3;
+        this->writeIndex = (this->writeIndex + 1) % 3;
+        this->delay1Index = (this->delay1Index + 1) % 3;
+        this->delay2Index = (this->delay2Index + 1) % 3;
     }
 }
 
 void IIRFilter::Reset() {
-    memset(this->buf,0,sizeof(buf));
-    this->unknown2 = 2;
-    this->unknown3 = 1;
-    this->unknown4 = 0;
+    memset(this->state, 0, sizeof(state));
+    this->writeIndex = 2;
+    this->delay1Index = 1;
+    this->delay2Index = 0;
 }
 
 void IIRFilter::SetBandLevel(uint32_t band, float level) {
     if (band > 30) return;
     double bandLevel = pow(10.0, (double) level / 20.0);
-    this->bandLevelsWithQ[band] = (float) (bandLevel * 0.636);
+    this->bandGainLinear[band] = (float) (bandLevel * 0.636);
 }
 
 void IIRFilter::SetEnable(bool enable) {

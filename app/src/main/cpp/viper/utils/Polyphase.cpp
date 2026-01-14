@@ -1,5 +1,4 @@
 #include "Polyphase.h"
-#include <constants.h>
 
 static const float POLYPHASE_COEFFICIENTS_2[] = {
         -0.002339,
@@ -133,9 +132,7 @@ static const float POLYPHASE_COEFFICIENTS_OTHER[] = {
         -0.032919
 };
 
-Polyphase::Polyphase(int param_1) : waveBuffer1(2, 0x1000), waveBuffer2(2, 0x1000) {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-
+Polyphase::Polyphase(uint32_t samplingRate, int param_1) : waveBuffer1(2, 0x1000), waveBuffer2(2, 0x1000), samplingRate(samplingRate) {
     if (param_1 == 2) {
         this->fir1.LoadCoefficients(POLYPHASE_COEFFICIENTS_2, 63, 1008);
         this->fir2.LoadCoefficients(POLYPHASE_COEFFICIENTS_2, 63, 1008);

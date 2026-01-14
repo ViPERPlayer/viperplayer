@@ -4,6 +4,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import timber.log.Timber
 import java.nio.ByteBuffer
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,15 +20,29 @@ import javax.inject.Singleton
 class ViperAudioProcessor @Inject constructor() : BaseAudioProcessor() {
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-
+        Timber.d("ViperAudioProcessor.onConfigure called: $inputAudioFormat")
         return inputAudioFormat
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
+        if (!inputBuffer.hasRemaining()) {
+            return
+        }
+
         val outputBuffer = replaceOutputBuffer(inputBuffer.remaining())
         outputBuffer.put(inputBuffer)
         outputBuffer.flip()
-        process(outputBuffer.array(), outputBuffer.remaining())
+        
+//        // Get the buffer data for native processing
+//        // For direct buffers, we need to copy to an array or use GetDirectBufferAddress
+//        val remaining = outputBuffer.remaining()
+//        if (remaining > 0) {
+//            val bufferArray = ByteArray(remaining)
+//            val position = outputBuffer.position()
+//            outputBuffer.get(bufferArray)
+//            outputBuffer.position(position) // Reset position for ExoPlayer
+//            process(bufferArray, remaining)
+//        }
     }
 
     override fun onReset() {

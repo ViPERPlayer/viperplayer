@@ -1,9 +1,8 @@
 #include "DynamicBass.h"
-#include <constants.h>
 
-DynamicBass::DynamicBass() {
+DynamicBass::DynamicBass(uint32_t samplingRate) : samplingRate(samplingRate), filterX(samplingRate),
+                                                  filterY(samplingRate) {
     this->qPeak = 0;
-    SetSamplingRate(VIPER_DEFAULT_SAMPLING_RATE);
     this->bassGain = 1.f;
     this->sideGainX = 1.f;
     this->sideGainY = 1.f;

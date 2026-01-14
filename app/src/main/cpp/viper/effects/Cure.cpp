@@ -2,8 +2,7 @@
 
 // Iscle: Verified with the latest version at 13/12/2022
 
-Cure::Cure() {
-    this->enabled = false;
+Cure::Cure(uint32_t samplingRate) : crossfeed(samplingRate), passFilter(samplingRate) {
     Reset();
 }
 

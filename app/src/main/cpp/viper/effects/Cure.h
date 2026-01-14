@@ -8,7 +8,7 @@
 
 class Cure {
 public:
-    Cure();
+    Cure(uint32_t samplingRate);
 
     uint16_t GetCutoff();
     float GetFeedback();
@@ -25,5 +25,5 @@ public:
 private:
     Crossfeed crossfeed;
     PassFilter passFilter;
-    bool enabled;
+    bool enabled = false;
 };

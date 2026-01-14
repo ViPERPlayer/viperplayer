@@ -1,7 +1,8 @@
 #include <jni.h>
 #include "viper/ViPER.h"
 
-static ViPER viper = ViPER();
+#define DEFAULT_SAMPLING_RATE 44100
+static ViPER viper = ViPER(DEFAULT_SAMPLING_RATE);
 
 extern "C"
 JNIEXPORT void JNICALL

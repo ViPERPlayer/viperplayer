@@ -1,5 +1,4 @@
 #include "SpectrumExtend.h"
-#include <constants.h>
 
 static const float SPECTRUM_HARMONICS[10] = {
         0.02f,
@@ -14,16 +13,12 @@ static const float SPECTRUM_HARMONICS[10] = {
         0.0f,
 };
 
-SpectrumExtend::SpectrumExtend() {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-    this->referenceFreq = 7600;
-    this->enabled = false;
-    this->exciter = 0.0;
+SpectrumExtend::SpectrumExtend(uint32_t samplingRate) : samplingRate(samplingRate) {
     Reset();
 }
 
 void SpectrumExtend::Process(float *samples, uint32_t size) {
-    if (!this->enabled) return;
+    if (!this->enable) return;
 
     for (uint32_t i = 0; i < size * 2; i += 2) {
         double tmp;
@@ -59,11 +54,11 @@ void SpectrumExtend::Reset() {
 }
 
 void SpectrumExtend::SetEnable(bool enable) {
-    if (this->enabled != enable) {
+    if (this->enable != enable) {
         if (enable) {
             Reset();
         }
-        this->enabled = enable;
+        this->enable = enable;
     }
 }
 

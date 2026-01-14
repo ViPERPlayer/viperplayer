@@ -1,17 +1,9 @@
 #include "DepthSurround.h"
 #include <cmath>
-#include <constants.h>
 
-DepthSurround::DepthSurround() {
-    this->strength = 0;
-    this->enabled = false;
-    this->strengthAtLeast500 = false;
-    this->gain = 0;
-    for (auto &prev : this->prev) {
-        prev = 0.0f;
-    }
-    this->SetSamplingRate(VIPER_DEFAULT_SAMPLING_RATE);
-    this->RefreshStrength(this->strength);
+DepthSurround::DepthSurround(uint32_t samplingRate) {
+    this->SetSamplingRate(samplingRate);
+    this->RefreshStrength();
 }
 
 void DepthSurround::Process(float *samples, uint32_t size) {
@@ -54,11 +46,11 @@ void DepthSurround::Process(float *samples, uint32_t size) {
     }
 }
 
-void DepthSurround::RefreshStrength(short strength) {
-    this->strengthAtLeast500 = strength >= 500;
-    this->enabled = strength != 0;
-    if (strength != 0) {
-        float gain = (float) pow(10.0, ((strength / 1000.0) * 10.0 - 15.0) / 20.0);
+void DepthSurround::RefreshStrength() {
+    this->strengthAtLeast500 = this->strength >= 500;
+    this->enabled = this->strength != 0;
+    if (this->strength != 0) {
+        float gain = (float) pow(10.0, ((this->strength / 1000.0) * 10.0 - 15.0) / 20.0);
         if (gain > 1.0) {
             gain = 1.0;
         }
@@ -79,5 +71,5 @@ void DepthSurround::SetSamplingRate(uint32_t samplingRate) {
 
 void DepthSurround::SetStrength(short strength) {
     this->strength = strength;
-    this->RefreshStrength(strength);
+    this->RefreshStrength();
 }

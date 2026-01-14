@@ -1,14 +1,10 @@
 #include <cstring>
 #include "DiffSurround.h"
-#include <constants.h>
 
-DiffSurround::DiffSurround() : buffers({
+DiffSurround::DiffSurround(uint32_t samplingRate) : buffers({
     WaveBuffer(1, 0x1000),
     WaveBuffer(1, 0x1000)
-}) {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-    this->delayTime = 0.0f;
-    this->enable = false;
+}), samplingRate(samplingRate) {
     Reset();
 }
 

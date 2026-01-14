@@ -1,9 +1,6 @@
 #include "NoiseSharpening.h"
-#include <constants.h>
 
-NoiseSharpening::NoiseSharpening() {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-    this->gain = 0.0;
+NoiseSharpening::NoiseSharpening(uint32_t samplingRate) : samplingRate(samplingRate) {
     Reset();
 }
 

@@ -6,7 +6,7 @@
 
 class ColorfulMusic {
 public:
-    ColorfulMusic();
+    ColorfulMusic(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -20,8 +20,7 @@ private:
     Stereo3DSurround stereo3dSurround;
     DepthSurround depthSurround;
     uint32_t samplingRate;
-    bool enabled;
-
+    bool enabled = false;
 };
 
 

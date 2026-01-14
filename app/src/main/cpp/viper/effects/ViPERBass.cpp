@@ -1,22 +1,8 @@
 #include "ViPERBass.h"
-#include <constants.h>
 
 // Iscle: Verified with the latest version at 13/12/2022
 
-ViPERBass::ViPERBass() : polyphase(2), waveBuffer(2, 4096) {
-    this->speaker = 60;
-    this->enable = false;
-    this->processMode = ProcessMode::NATURAL_BASS;
-    this->antiPop = 0.0;
-    this->bassFactor = 0.0;
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-    this->samplingRatePeriod = 1.0 / VIPER_DEFAULT_SAMPLING_RATE;
-
-    for (auto &biquad : this->biquad) {
-        biquad.Reset();
-        biquad.SetLowPassParameter((float) this->speaker, this->samplingRate, 0.53);
-    }
-    this->subwoofer.SetBassGain(this->samplingRate, 0.0);
+ViPERBass::ViPERBass(uint32_t samplingRate) : polyphase(samplingRate, 2), subwoofer(samplingRate), waveBuffer(2, 4096), samplingRate(samplingRate), samplingRatePeriod(1 / samplingRate) {
     Reset();
 }
 
@@ -109,9 +95,9 @@ void ViPERBass::SetSamplingRate(uint32_t samplingRate) {
         this->samplingRate = samplingRate;
         this->samplingRatePeriod = 1.0f / (float) samplingRate;
         this->polyphase.SetSamplingRate(this->samplingRate);
+        this->subwoofer.SetBassGain(this->samplingRate, this->bassFactor * 2.5f);
         this->biquad[0].SetLowPassParameter((float) this->speaker, this->samplingRate, 0.53);
         this->biquad[1].SetLowPassParameter((float) this->speaker, this->samplingRate, 0.53);
-        this->subwoofer.SetBassGain(this->samplingRate, this->bassFactor * 2.5f);
     }
 }
 

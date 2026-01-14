@@ -6,7 +6,7 @@
 
 class Polyphase {
 public:
-    Polyphase(int param_1);
+    Polyphase(uint32_t samplingRate, int param_1);
 
     uint32_t GetLatency();
     uint32_t Process(float *samples, uint32_t size);

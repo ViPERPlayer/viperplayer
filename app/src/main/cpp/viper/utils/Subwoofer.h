@@ -5,7 +5,7 @@
 
 class Subwoofer {
 public:
-    Subwoofer();
+    Subwoofer(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void SetBassGain(uint32_t samplingRate, float gainDb);

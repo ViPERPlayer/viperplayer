@@ -1,11 +1,7 @@
 #include "DynamicSystem.h"
-#include <constants.h>
 
-DynamicSystem::DynamicSystem() {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-    this->enable = false;
-    this->dynamicBass.SetSamplingRate(this->samplingRate);
-    this->dynamicBass.Reset();
+DynamicSystem::DynamicSystem(uint32_t samplingRate) : dynamicBass(samplingRate), samplingRate(samplingRate) {
+    Reset();
 }
 
 void DynamicSystem::Process(float *samples, uint32_t size) {

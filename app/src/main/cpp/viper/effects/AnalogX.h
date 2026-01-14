@@ -7,7 +7,7 @@
 
 class AnalogX {
 public:
-    AnalogX();
+    AnalogX(uint32_t samplingRate);
 
     void Process(float *samples, uint32_t size);
     void Reset();
@@ -21,11 +21,11 @@ private:
     std::array<MultiBiquad, 2> lowPass;
     std::array<MultiBiquad, 2> peak;
 
-    float gain;
-    uint32_t freqRange;
-    int processingModel;
+    float gain = 0.0;
+    uint32_t freqRange = 0;
+    int processingModel = 0;
     uint32_t samplingRate;
-    bool enable;
+    bool enable = false;
 };
 
 

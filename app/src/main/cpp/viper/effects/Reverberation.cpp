@@ -6,9 +6,7 @@ Reverberation::Reverberation() {
     this->model.SetDamp(0.0);
     this->model.SetWet(0.0);
     this->model.SetDry(0.5);
-    this->model.Reset();
-
-    this->enable = false;
+    Reset();
 }
 
 void Reverberation::Process(float *buffer, uint32_t size) {

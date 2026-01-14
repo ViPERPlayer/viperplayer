@@ -1,6 +1,5 @@
 #include "AnalogX.h"
 #include <cstring>
-#include <constants.h>
 
 static const float ANALOGX_HARMONICS[] = {
         0.01f,
@@ -15,12 +14,7 @@ static const float ANALOGX_HARMONICS[] = {
         0.0f,
 };
 
-AnalogX::AnalogX() {
-    this->samplingRate = VIPER_DEFAULT_SAMPLING_RATE;
-    this->processingModel = 0;
-    this->enable = false;
-    this->gain = 0.0;
-    this->freqRange = 0;
+AnalogX::AnalogX(uint32_t samplingRate) : samplingRate(samplingRate) {
     Reset();
 }
 
