@@ -23,3 +23,7 @@ rootProject.name = "ViPER Player"
 include(":app")
 include(":plugin-sdk")
 include(":plugin-example")
+
+// Media3
+(gradle as ExtensionAware).extra["androidxMediaModulePrefix"] = "media3-"
+apply(from = file("external/media/core_settings.gradle"))

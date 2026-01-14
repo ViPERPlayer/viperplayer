@@ -16,10 +16,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.audio.AudioProcessingPipeline
-import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessorChain
-import androidx.media3.common.audio.ToInt16PcmAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -32,8 +29,6 @@ import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
-import androidx.media3.exoplayer.audio.ToFloatPcmAudioProcessor
 import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
@@ -42,10 +37,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
-import com.google.common.collect.ImmutableList
 import com.viperplayer.R
-import com.viperplayer.data.player.ktx.audioProcessorChain
-import com.viperplayer.data.player.ktx.toFloatPcmAudioProcessor
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.repository.SettingsRepository
@@ -55,8 +47,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import top.canyie.pine.Pine
-import top.canyie.pine.callback.MethodHook
 import javax.inject.Inject
 import kotlin.math.min
 import kotlin.math.pow
@@ -236,46 +226,11 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
                 enableFloatOutput: Boolean,
                 enableAudioOutputPlaybackParams: Boolean
             ): AudioSink {
-                val audioSink = DefaultAudioSink.Builder(context)
+                return DefaultAudioSink.Builder(context)
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                     .setAudioProcessorChain(createAudioProcessorChain())
                     .build()
-
-                val filteredAudioProcessors = audioSink.audioProcessorChain.audioProcessors
-                    .filter { it !is SilenceSkippingAudioProcessor }
-
-                Pine.hook(AudioProcessingPipeline::class.java.getDeclaredConstructor(ImmutableList::class.java), object : MethodHook() {
-                    override fun beforeCall(callFrame: Pine.CallFrame?) {
-                        if (callFrame == null) return
-                        @Suppress("UNCHECKED_CAST")
-                        val audioProcessors = callFrame.args[0] as ImmutableList<AudioProcessor>
-                        val newProcessors = ImmutableList.Builder<AudioProcessor>()
-
-                        for (audioProcessor in audioProcessors) {
-                            if (audioProcessor is ToInt16PcmAudioProcessor) {
-                                newProcessors.add(audioSink.toFloatPcmAudioProcessor)
-                                continue
-                            }
-
-                            if (audioProcessor is SilenceSkippingAudioProcessor) {
-                                // Skip SilenceSkippingAudioProcessor as it does not support ENCODING_PCM_FLOAT
-                                continue
-                            }
-
-                            newProcessors.add(audioProcessor)
-
-                            if (audioProcessor is ToFloatPcmAudioProcessor) {
-                                newProcessors.addAll(filteredAudioProcessors)
-                                break
-                            }
-                        }
-
-                        callFrame.args[0] = newProcessors.build()
-                    }
-                })
-
-                return audioSink
             }
         }
             .setEnableAudioFloatOutput(true)

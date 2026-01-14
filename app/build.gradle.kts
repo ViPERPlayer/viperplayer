@@ -107,12 +107,12 @@ dependencies {
     implementation(libs.room.ktx)
 
     // Media3 / ExoPlayer
-    implementation(libs.media3.exoplayer)
-    implementation(libs.media3.exoplayer.dash)
-    implementation(libs.media3.session)
-    implementation(libs.media3.datasource)
-    implementation(libs.media3.datasource.okhttp)
-    implementation(libs.media3.cast)
+    implementation(project(":media3-lib-exoplayer"))
+    implementation(project(":media3-lib-exoplayer-dash"))
+    implementation(project(":media3-lib-session"))
+    implementation(project(":media3-lib-datasource"))
+    implementation(project(":media3-lib-datasource-okhttp"))
+    implementation(project(":media3-lib-cast"))
 
     // Image loading
     implementation(libs.coil.compose)
@@ -134,9 +134,6 @@ dependencies {
 
     // Rebugger
     implementation("io.github.theapache64:rebugger:1.0.1")
-
-    // Pine hook
-    implementation("top.canyie.pine:core:0.3.0")
     
     // Testing
     testImplementation(libs.junit)

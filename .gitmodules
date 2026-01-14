@@ -1,0 +1,3 @@
+[submodule "external/media"]
+	path = external/media
+	url = git@github.com:ViPERPlayer/media.git
