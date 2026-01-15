@@ -18,11 +18,11 @@ fun <T : Any> NavHostController.navigateSafe(
     navOptions: NavOptions? = null,
     navigatorExtras: Navigator.Extras? = null
 ) {
-    if (currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+//    if (currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
         navigate(
             route = route,
             navOptions = navOptions,
             navigatorExtras = navigatorExtras
         )
-    }
+//    }
 }
