@@ -12,6 +12,8 @@ import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
+import com.viperplayer.presentation.ktx.navigateSafe
+import com.viperplayer.presentation.ktx.popBackStackSafe
 import com.viperplayer.presentation.library.LibraryScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
@@ -103,17 +105,17 @@ fun ViperNavHost(
             HomeScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 },
                 onNavigateToPlaylist = { playlistId ->
-                    navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
                 },
-                onNavigateToSettings = { navController.navigate(Settings) },
-                onNavigateToHistory = { navController.navigate(History) },
-                onNavigateToAnalytics = { navController.navigate(Analytics) }
+                onNavigateToSettings = { navController.navigateSafe(Settings) },
+                onNavigateToHistory = { navController.navigateSafe(History) },
+                onNavigateToAnalytics = { navController.navigateSafe(Analytics) }
             )
         }
         
@@ -121,13 +123,13 @@ fun ViperNavHost(
             SearchScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 },
                 onNavigateToPlaylist = { playlistId ->
-                    navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
                 }
             )
         }
@@ -136,13 +138,13 @@ fun ViperNavHost(
             LibraryScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 },
                 onNavigateToPlaylist = { playlistId ->
-                    navController.navigate(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
                 }
             )
         }
@@ -162,78 +164,78 @@ fun ViperNavHost(
         composable<Settings> {
             SettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAppearance = { navController.navigate(SettingsAppearance) },
-                onNavigateToPlayer = { navController.navigate(SettingsPlayer) },
-                onNavigateToContent = { navController.navigate(SettingsContent) },
-                onNavigateToStorage = { navController.navigate(SettingsStorage) },
-                onNavigateToAbout = { navController.navigate(SettingsAbout) },
-                onNavigateToUpdater = { navController.navigate(SettingsUpdater) }
+                onNavigateBack = { navController.popBackStackSafe() },
+                onNavigateToAppearance = { navController.navigateSafe(SettingsAppearance) },
+                onNavigateToPlayer = { navController.navigateSafe(SettingsPlayer) },
+                onNavigateToContent = { navController.navigateSafe(SettingsContent) },
+                onNavigateToStorage = { navController.navigateSafe(SettingsStorage) },
+                onNavigateToAbout = { navController.navigateSafe(SettingsAbout) },
+                onNavigateToUpdater = { navController.navigateSafe(SettingsUpdater) }
             )
         }
         
         composable<SettingsAppearance> {
             AppearanceSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<SettingsPlayer> {
             PlayerSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<SettingsContent> {
             ContentSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<SettingsStorage> {
             StorageSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<SettingsAbout> {
             AboutSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<SettingsUpdater> {
             UpdaterSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<History> {
             HistoryScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
         composable<Analytics> {
             AnalyticsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
 
         composable<AlbumDetail> {
             AlbumDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackSafe() },
                 onNavigateToArtist = { artistId ->
-                    navController.navigate(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 }
             )
         }
@@ -241,9 +243,9 @@ fun ViperNavHost(
         composable<ArtistDetail> {
             ArtistDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackSafe() },
                 onNavigateToAlbum = { albumId ->
-                    navController.navigate(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
                 }
             )
         }
@@ -251,7 +253,7 @@ fun ViperNavHost(
         composable<PlaylistDetail> {
             PlaylistDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
     }

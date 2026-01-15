@@ -34,6 +34,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.determineLayoutVisibility
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
@@ -65,14 +66,14 @@ fun ViperPlayerApp(
     val systemDarkTheme = isSystemInDarkTheme()
     
     val darkTheme = when (uiState.themeMode) {
-        com.viperplayer.domain.repository.ThemeMode.LIGHT -> false
-        com.viperplayer.domain.repository.ThemeMode.DARK -> true
-        com.viperplayer.domain.repository.ThemeMode.SYSTEM -> systemDarkTheme
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> systemDarkTheme
     }
 
     ViPERPlayerTheme(
         darkTheme = darkTheme,
-        pureDark = uiState.pureBlack && (uiState.themeMode == com.viperplayer.domain.repository.ThemeMode.DARK || uiState.themeMode == com.viperplayer.domain.repository.ThemeMode.SYSTEM),
+        pureDark = uiState.pureBlack && (uiState.themeMode == ThemeMode.DARK || uiState.themeMode == ThemeMode.SYSTEM),
         dynamicColor = uiState.dynamicTheme,
         seedColor = if (uiState.dynamicTheme) uiState.themeColor else null
     ) {
