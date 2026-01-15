@@ -53,6 +53,7 @@ class ViperNativeDriver @Inject constructor() {
 
     // Auditory System Protection (Cure)
     external fun setAuditorySystemProtectionEnabled(enabled: Boolean)
+    external fun setAuditorySystemProtectionLevel(level: Int)
 
     // Analog X
     external fun setAnalogXEnabled(enabled: Boolean)

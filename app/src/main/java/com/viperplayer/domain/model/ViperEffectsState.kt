@@ -62,20 +62,20 @@ data class MasterLimiterState(
 @Serializable
 data class SpectrumExtensionState(
     val enabled: Boolean = false,
-    val strength: Int = 0, // 0-100
+    val strength: Int = 10, // 0-100
 )
 
 @Serializable
 data class FieldSurroundState(
     val enabled: Boolean = false,
-    val surroundStrength: Int = 0, // 0-100
-    val midImageStrength: Int = 0, // 0-100
+    val surroundStrength: Int = 0, // 1-9
+    val midImageStrength: Int = 5, // 1-11
 )
 
 @Serializable
 data class DifferentialSurroundState(
     val enabled: Boolean = false,
-    val delay: Int = 0, // 0-30 (ms)
+    val delay: Int = 5, // 1-20 (ms)
 )
 
 @Serializable
@@ -94,31 +94,31 @@ data class TubeSimulatorState(
 data class ViperBassState(
     val enabled: Boolean = false,
     val mode: Int = 0, // 0=Natural, 1=Pure Bass+, 2=Subwoofer
-    val frequency: Int = 60, // 15-150 Hz
-    val gain: Int = 6, // 1-12 (index in gainSummaryValues)
+    val frequency: Int = 70, // 15-150 Hz
+    val gain: Int = 0, // 1-12 (index in gainSummaryValues)
 )
 
 @Serializable
 data class ViperClarityState(
     val enabled: Boolean = false,
-    val mode: Int = 0, // Mode index
-    val gain: Int = 0, // 0-100
+    val mode: Int = 0, // Mode index (0-2)
+    val gain: Int = 1, // Gain index (0-9)
 )
 
 @Serializable
 data class AuditorySystemProtectionState(
     val enabled: Boolean = false,
+    val level: Int = 1, // 1-3
 )
 
 @Serializable
 data class AnalogXState(
     val enabled: Boolean = false,
-    val level: Int = 0, // 0-100
+    val level: Int = 2, // 1-3
 )
 
 @Serializable
 data class SpeakerOptimizationState(
     val enabled: Boolean = false,
-    val delay: Int = 0, // 0-30 (ms)
 )
 

@@ -148,7 +148,7 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setDynamicSystemDeviceType(state.dynamicSystem.deviceType.ordinal)
         }
         if (current == null || current.dynamicSystem.dynamicBassStrength != state.dynamicSystem.dynamicBassStrength) {
-            nativeDriver.setDynamicSystemBassStrength(state.dynamicSystem.dynamicBassStrength)
+            nativeDriver.setDynamicSystemBassStrength(100 + 20 * state.dynamicSystem.dynamicBassStrength)
         }
 
         // Tube Simulator
@@ -167,7 +167,7 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setViperBassFrequency(state.viperBass.frequency)
         }
         if (current == null || current.viperBass.gain != state.viperBass.gain) {
-            nativeDriver.setViperBassGain(state.viperBass.gain)
+            nativeDriver.setViperBassGain(state.viperBass.gain + 1)
         }
 
         // ViPER Clarity
@@ -184,6 +184,9 @@ class ViperAudioProcessor @Inject constructor(
         // Auditory System Protection
         if (current == null || current.auditorySystemProtection.enabled != state.auditorySystemProtection.enabled) {
             nativeDriver.setAuditorySystemProtectionEnabled(state.auditorySystemProtection.enabled)
+        }
+        if (current == null || current.auditorySystemProtection.level != state.auditorySystemProtection.level) {
+            nativeDriver.setAuditorySystemProtectionLevel(state.auditorySystemProtection.level)
         }
 
         // Analog X

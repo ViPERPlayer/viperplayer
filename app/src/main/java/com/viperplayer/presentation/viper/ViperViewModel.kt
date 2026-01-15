@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.DynamicSystemDeviceType
 import com.viperplayer.domain.model.ViperEffectsState
+import com.viperplayer.domain.model.ViperSteppedValues
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -69,7 +70,7 @@ class ViperViewModel @Inject constructor(
     fun resetMasterLimiterOutputGain() {
         viewModelScope.launch {
             viperRepository.updateEffectsState { 
-                it.copy(masterLimiter = it.masterLimiter.copy(outputGain = com.viperplayer.domain.model.ViperSteppedValues.DEFAULT_OUTPUT_GAIN_INDEX)) 
+                it.copy(masterLimiter = it.masterLimiter.copy(outputGain = ViperSteppedValues.DEFAULT_OUTPUT_GAIN_INDEX))
             }
         }
     }
@@ -83,7 +84,7 @@ class ViperViewModel @Inject constructor(
     fun resetMasterLimiterThresholdLimit() {
         viewModelScope.launch {
             viperRepository.updateEffectsState { 
-                it.copy(masterLimiter = it.masterLimiter.copy(thresholdLimit = com.viperplayer.domain.model.ViperSteppedValues.DEFAULT_THRESHOLD_LIMIT_INDEX)) 
+                it.copy(masterLimiter = it.masterLimiter.copy(thresholdLimit = ViperSteppedValues.DEFAULT_THRESHOLD_LIMIT_INDEX))
             }
         }
     }
@@ -103,7 +104,7 @@ class ViperViewModel @Inject constructor(
 
     fun resetSpectrumExtensionStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(spectrumExtension = it.spectrumExtension.copy(strength = 0)) }
+            viperRepository.updateEffectsState { it.copy(spectrumExtension = it.spectrumExtension.copy(strength = 10)) }
         }
     }
 
@@ -134,7 +135,7 @@ class ViperViewModel @Inject constructor(
 
     fun resetFieldSurroundMidImageStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(midImageStrength = 0)) }
+            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(midImageStrength = 5)) }
         }
     }
 
@@ -153,7 +154,7 @@ class ViperViewModel @Inject constructor(
 
     fun resetDifferentialSurroundDelay() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(differentialSurround = it.differentialSurround.copy(delay = 0)) }
+            viperRepository.updateEffectsState { it.copy(differentialSurround = it.differentialSurround.copy(delay = 5)) }
         }
     }
 
@@ -222,13 +223,13 @@ class ViperViewModel @Inject constructor(
 
     fun resetViperBassFrequency() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(viperBass = it.viperBass.copy(frequency = 60)) }
+            viperRepository.updateEffectsState { it.copy(viperBass = it.viperBass.copy(frequency = 70)) }
         }
     }
 
     fun resetViperBassGain() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(viperBass = it.viperBass.copy(gain = 6)) }
+            viperRepository.updateEffectsState { it.copy(viperBass = it.viperBass.copy(gain = 0)) }
         }
     }
 
@@ -259,7 +260,7 @@ class ViperViewModel @Inject constructor(
 
     fun resetViperClarityGain() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(viperClarity = it.viperClarity.copy(gain = 0)) }
+            viperRepository.updateEffectsState { it.copy(viperClarity = it.viperClarity.copy(gain = 1)) }
         }
     }
 
@@ -267,6 +268,18 @@ class ViperViewModel @Inject constructor(
     fun setAuditorySystemProtectionEnabled(enabled: Boolean) {
         viewModelScope.launch {
             viperRepository.updateEffectsState { it.copy(auditorySystemProtection = it.auditorySystemProtection.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setAuditorySystemProtectionLevel(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(auditorySystemProtection = it.auditorySystemProtection.copy(level = value)) }
+        }
+    }
+
+    fun resetAuditorySystemProtectionLevel() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(auditorySystemProtection = it.auditorySystemProtection.copy(level = 1)) }
         }
     }
 
@@ -285,7 +298,7 @@ class ViperViewModel @Inject constructor(
 
     fun resetAnalogXLevel() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(analogX = it.analogX.copy(level = 0)) }
+            viperRepository.updateEffectsState { it.copy(analogX = it.analogX.copy(level = 2)) }
         }
     }
 

@@ -47,4 +47,5 @@
     <string name="field_surround">Field surround</string>
     <string name="field_surround_surround_strength">Surround strength</string>
     <string name="field_surround_mid_image_strength">Mid image strength</string>
+    <string name="binaural_level">Binaural level</string>
 </resources>

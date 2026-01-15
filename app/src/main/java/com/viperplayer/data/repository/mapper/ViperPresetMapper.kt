@@ -65,6 +65,7 @@ object ViperPresetMapper {
                 ),
                 auditorySystemProtection = AuditorySystemProtectionState(
                     enabled = auditorySystemProtectionEnabled,
+                    level = auditorySystemProtectionLevel,
                 ),
                 analogX = AnalogXState(
                     enabled = analogXEnabled,
@@ -72,7 +73,6 @@ object ViperPresetMapper {
                 ),
                 speakerOptimization = SpeakerOptimizationState(
                     enabled = speakerOptimizationEnabled,
-                    delay = speakerOptimizationDelay,
                 ),
             ),
             createdAt = createdAt,
@@ -120,12 +120,12 @@ object ViperPresetMapper {
             viperClarityGain = effectsState.viperClarity.gain,
             // Auditory System Protection
             auditorySystemProtectionEnabled = effectsState.auditorySystemProtection.enabled,
+            auditorySystemProtectionLevel = effectsState.auditorySystemProtection.level,
             // Analog X
             analogXEnabled = effectsState.analogX.enabled,
             analogXLevel = effectsState.analogX.level,
             // Speaker Optimization
             speakerOptimizationEnabled = effectsState.speakerOptimization.enabled,
-            speakerOptimizationDelay = effectsState.speakerOptimization.delay,
         )
     }
 }

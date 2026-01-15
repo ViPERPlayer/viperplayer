@@ -34,16 +34,16 @@ data class ViperPresetEntity(
     
     // Spectrum Extension
     val spectrumExtensionEnabled: Boolean = false,
-    val spectrumExtensionStrength: Int = 0,
+    val spectrumExtensionStrength: Int = 10,
     
     // Field Surround
     val fieldSurroundEnabled: Boolean = false,
     val fieldSurroundStrength: Int = 0,
-    val fieldSurroundMidImageStrength: Int = 0,
+    val fieldSurroundMidImageStrength: Int = 5,
     
     // Differential Surround
     val differentialSurroundEnabled: Boolean = false,
-    val differentialSurroundDelay: Int = 0,
+    val differentialSurroundDelay: Int = 5,
     
     // Dynamic System
     val dynamicSystemEnabled: Boolean = false,
@@ -56,23 +56,23 @@ data class ViperPresetEntity(
     // ViPER Bass
     val viperBassEnabled: Boolean = false,
     val viperBassMode: Int = 0,
-    val viperBassFrequency: Int = 60,
-    val viperBassGain: Int = 6,
+    val viperBassFrequency: Int = 70,
+    val viperBassGain: Int = 0,
     
     // ViPER Clarity
     val viperClarityEnabled: Boolean = false,
     val viperClarityMode: Int = 0,
-    val viperClarityGain: Int = 0,
+    val viperClarityGain: Int = 1,
     
     // Auditory System Protection
     val auditorySystemProtectionEnabled: Boolean = false,
+    val auditorySystemProtectionLevel: Int = 1,
     
     // Analog X
     val analogXEnabled: Boolean = false,
-    val analogXLevel: Int = 0,
+    val analogXLevel: Int = 2,
     
     // Speaker Optimization
     val speakerOptimizationEnabled: Boolean = false,
-    val speakerOptimizationDelay: Int = 0,
 )
 

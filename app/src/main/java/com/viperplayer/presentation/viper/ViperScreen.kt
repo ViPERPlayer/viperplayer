@@ -173,7 +173,9 @@ fun ViperScreen(
                     )
                     AuditorySystemProtectionEffect(
                         state = effects.auditorySystemProtection,
-                        onEnabledChange = { viewModel.setAuditorySystemProtectionEnabled(it) }
+                        onEnabledChange = { viewModel.setAuditorySystemProtectionEnabled(it) },
+                        onLevelChange = { viewModel.setAuditorySystemProtectionLevel(it) },
+                        onLevelReset = { viewModel.resetAuditorySystemProtectionLevel() }
                     )
                     AnalogXEffect(
                         state = effects.analogX,

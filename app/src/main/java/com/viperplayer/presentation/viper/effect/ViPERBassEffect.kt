@@ -68,12 +68,12 @@ fun ViPERBassEffect(
         )
         ValueSlider(
             title = stringResource(R.string.bass_gain),
-            summary = gainSummaryValues[state.gain - 1],
+            summary = gainSummaryValues[state.gain],
             summaryUnit = "dB",
             value = state.gain,
             onValueChange = onGainChange,
             onValueReset = onGainReset,
-            valueRange = 1..12
+            valueRange = 0..11
         )
     }
 }

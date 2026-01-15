@@ -23,11 +23,11 @@ fun AnalogXEffect(
     ) {
         ValueSlider(
             title = stringResource(R.string.analogx_level),
-            summary = (state.level + 1).toString(),
+            summary = state.level.toString(),
             value = state.level,
             onValueChange = onLevelChange,
             onValueReset = onLevelReset,
-            valueRange = 0..2
+            valueRange = 1..3
         )
     }
 }
