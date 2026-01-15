@@ -26,7 +26,11 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.plugin.v1.StreamSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.android.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
@@ -37,7 +41,10 @@ class ViperMediaSource(
     private val defaultMediaSource: MediaSource,
     private val dashMediaSource: DashMediaSource,
 ) : MediaSource {
-    private lateinit var chosenMediaSource: MediaSource
+    private val sourceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var chosenMediaSource: MediaSource? = null
+    private val chosenOrDefaultMediaSource: MediaSource
+        get() = chosenMediaSource ?: defaultMediaSource
     private var sourceInfoRefreshError: Exception? = null
 
     class Factory(
@@ -98,44 +105,23 @@ class ViperMediaSource(
     }
 
     override fun getInitialTimeline(): Timeline? {
-        return if (::chosenMediaSource.isInitialized) {
-            chosenMediaSource.initialTimeline
-        } else {
-            defaultMediaSource.initialTimeline
-        }
+        return chosenOrDefaultMediaSource.initialTimeline
     }
 
     override fun isSingleWindow(): Boolean {
-        return if (::chosenMediaSource.isInitialized) {
-            chosenMediaSource.isSingleWindow
-        } else {
-            defaultMediaSource.isSingleWindow
-        }
+        return chosenOrDefaultMediaSource.isSingleWindow
     }
 
     override fun getMediaItem(): MediaItem {
-        return if (::chosenMediaSource.isInitialized) {
-            chosenMediaSource.mediaItem
-        } else {
-            defaultMediaSource.mediaItem
-        }
+        return chosenOrDefaultMediaSource.mediaItem
     }
 
     override fun canUpdateMediaItem(mediaItem: MediaItem): Boolean {
-        return chosenMediaSource.canUpdateMediaItem(mediaItem)
+        return chosenOrDefaultMediaSource.canUpdateMediaItem(mediaItem)
     }
 
     override fun updateMediaItem(mediaItem: MediaItem) {
-        chosenMediaSource.updateMediaItem(mediaItem)
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun prepareSource(
-        caller: MediaSource.MediaSourceCaller,
-        mediaTransferListener: TransferListener?
-    ) {
-        @Suppress("DEPRECATION")
-        chosenMediaSource.prepareSource(caller, mediaTransferListener)
+        chosenOrDefaultMediaSource.updateMediaItem(mediaItem)
     }
 
     @OptIn(UnstableApi::class)
@@ -145,56 +131,46 @@ class ViperMediaSource(
         playerId: PlayerId
     ) {
         Timber.d("prepareSource() called")
-        val exoPlayerLooper = Looper.myLooper() ?: Looper.getMainLooper()
-        CoroutineScope(Dispatchers.Default).launch {
+        val playbackLooper = Looper.myLooper() ?: throw IllegalStateException("playbackLooper is null!")
+        val playbackDispatcher = Handler(playbackLooper).asCoroutineDispatcher()
+
+        sourceScope.launch {
             try {
                 val mediaId = MediaId.fromString(mediaItem.mediaId)
                 val stream = pluginDataSource.getStream(mediaId).getOrThrow()
+
+                val extras = Bundle().apply {
+                    mediaItem.mediaMetadata.extras?.let { putAll(it) }
+                    stream.replayGainDb?.let { putFloat("replayGainDb", it) }
+                    stream.peakAmplitude?.let { putFloat("peakAmplitude", it) }
+                }
+
                 val updatedMediaItemBuilder = mediaItem.buildUpon()
                     .setMediaMetadata(
                         mediaItem.mediaMetadata.buildUpon()
-                            .setExtras(
-                                Bundle().apply {
-                                    mediaItem.mediaMetadata.extras?.let { putAll(it) }
-                                    stream.replayGainDb?.let { putFloat("replayGainDb", it) }
-                                    stream.peakAmplitude?.let { putFloat("peakAmplitude", it) }
-                                }
-                            )
+                            .setExtras(extras)
                             .build()
                     )
 
-                val updatedMediaItem = when (stream.type) {
+                when (stream.type) {
                     StreamSource.Type.URL -> {
                         val url = stream.url ?: throw IllegalArgumentException("URL is null")
-                        Timber.d("resolveDataSpec: Got stream URL: $url")
-                        // Return a DataSpec with the direct URL
-                        updatedMediaItemBuilder
-                            .setUri(url.toUri())
-                            .build()
+                        updatedMediaItemBuilder.setUri(url.toUri())
                     }
-
                     StreamSource.Type.DASH -> {
-                        val xml =
-                            stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
-                        Timber.d("resolveDataSpec: Got DASH XML, length: ${xml.length}")
-                        val dashUri = saveDashXmlToFile(xml)
-                        updatedMediaItemBuilder
-                            .setUri(dashUri)
-                            .build()
+                        val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
+                        val dashUri = saveDashXmlToFile(xml) // Assuming this is a blocking IO function
+                        updatedMediaItemBuilder.setUri(dashUri)
                     }
-
                     StreamSource.Type.AUDIO_STREAM -> {
-                        val stream = stream.audioStream
-                            ?: throw IllegalArgumentException("Audio stream is null")
-                        Timber.d("resolveDataSpec: Got audio stream, streamId: ${stream.streamId}")
-                        // Return a DataSpec with a custom URI that our custom DataSource can handle
-                        updatedMediaItemBuilder
-                            .setUri("viper://stream/${stream.streamId}".toUri())
-                            .build()
+                        val audioStream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
+                        updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
                     }
                 }
 
-                Handler(exoPlayerLooper).post {
+                val updatedMediaItem = updatedMediaItemBuilder.build()
+
+                withContext(playbackDispatcher) {
                     chosenMediaSource = when (stream.type) {
                         StreamSource.Type.URL -> {
                             defaultMediaSource.updateMediaItem(updatedMediaItem)
@@ -209,10 +185,10 @@ class ViperMediaSource(
 
                         StreamSource.Type.AUDIO_STREAM -> {
                             sourceInfoRefreshError = UnsupportedOperationException("Audio stream not supported")
-                            return@post
+                            return@withContext
                         }
                     }
-                    chosenMediaSource.prepareSource(caller, mediaTransferListener, playerId)
+                    chosenOrDefaultMediaSource.prepareSource(caller, mediaTransferListener, playerId)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to prepare source")
@@ -223,13 +199,11 @@ class ViperMediaSource(
 
     override fun maybeThrowSourceInfoRefreshError() {
         sourceInfoRefreshError?.let { throw it }
-        if (::chosenMediaSource.isInitialized) {
-            chosenMediaSource.maybeThrowSourceInfoRefreshError()
-        }
+        chosenOrDefaultMediaSource.maybeThrowSourceInfoRefreshError()
     }
 
     override fun enable(caller: MediaSource.MediaSourceCaller) {
-        chosenMediaSource.enable(caller)
+        chosenOrDefaultMediaSource.enable(caller)
     }
 
     override fun createPeriod(
@@ -237,21 +211,21 @@ class ViperMediaSource(
         allocator: Allocator,
         startPositionUs: Long
     ): MediaPeriod {
-        return chosenMediaSource.createPeriod(id, allocator, startPositionUs)
+        return chosenOrDefaultMediaSource.createPeriod(id, allocator, startPositionUs)
     }
 
     override fun releasePeriod(mediaPeriod: MediaPeriod) {
-        chosenMediaSource.releasePeriod(mediaPeriod)
+        chosenOrDefaultMediaSource.releasePeriod(mediaPeriod)
     }
 
     override fun disable(caller: MediaSource.MediaSourceCaller) {
-        chosenMediaSource.disable(caller)
+        chosenOrDefaultMediaSource.disable(caller)
     }
 
     override fun releaseSource(caller: MediaSource.MediaSourceCaller) {
-        if (::chosenMediaSource.isInitialized) {
-            chosenMediaSource.releaseSource(caller)
-        }
+        defaultMediaSource.releaseSource(caller)
+        dashMediaSource.releaseSource(caller)
+        sourceScope.cancel()
     }
 
     /**
