@@ -181,7 +181,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
         return DefaultMediaNotificationProvider.Builder(this)
             .build()
             .apply {
-                setSmallIcon(R.drawable.ic_launcher_foreground)
+                setSmallIcon(R.drawable.ic_notification)
             }
     }
 
