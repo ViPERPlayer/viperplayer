@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ViperEffectsState(
     // Global
-    val enabled: Boolean = false,
+    val enabled: Boolean = ViperDefaults.ENABLED,
 
     // Master Limiter
     val masterLimiter: MasterLimiterState = MasterLimiterState(),
@@ -54,71 +54,71 @@ data class ViperEffectsState(
 
 @Serializable
 data class MasterLimiterState(
-    val outputGain: Int = ViperSteppedValues.DEFAULT_OUTPUT_GAIN_INDEX,
-    val outputPan: Float = 0f, // -1.0 to 1.0, where 0 = center
-    val thresholdLimit: Int = ViperSteppedValues.DEFAULT_THRESHOLD_LIMIT_INDEX,
+    val outputGain: Int = ViperDefaults.OUTPUT_GAIN_INDEX,
+    val outputPan: Float = ViperDefaults.OUTPUT_PAN,
+    val thresholdLimit: Int = ViperDefaults.THRESHOLD_LIMIT_INDEX,
 )
 
 @Serializable
 data class SpectrumExtensionState(
-    val enabled: Boolean = false,
-    val strength: Int = 10, // 0-100
+    val enabled: Boolean = ViperDefaults.SPECTRUM_EXTENSION_ENABLED,
+    val strength: Int = ViperDefaults.SPECTRUM_EXTENSION_STRENGTH,
 )
 
 @Serializable
 data class FieldSurroundState(
-    val enabled: Boolean = false,
-    val surroundStrength: Int = 0, // 1-9
-    val midImageStrength: Int = 5, // 1-11
+    val enabled: Boolean = ViperDefaults.FIELD_SURROUND_ENABLED,
+    val surroundStrength: Int = ViperDefaults.FIELD_SURROUND_STRENGTH,
+    val midImageStrength: Int = ViperDefaults.FIELD_SURROUND_MID_IMAGE_STRENGTH,
 )
 
 @Serializable
 data class DifferentialSurroundState(
-    val enabled: Boolean = false,
-    val delay: Int = 5, // 1-20 (ms)
+    val enabled: Boolean = ViperDefaults.DIFFERENTIAL_SURROUND_ENABLED,
+    val delay: Int = ViperDefaults.DIFFERENTIAL_SURROUND_DELAY,
 )
 
 @Serializable
 data class DynamicSystemState(
-    val enabled: Boolean = false,
-    val deviceType: DynamicSystemDeviceType = DynamicSystemDeviceType.EXTREME_HEADPHONE_V2,
-    val dynamicBassStrength: Int = 0, // 0-100
+    val enabled: Boolean = ViperDefaults.DYNAMIC_SYSTEM_ENABLED,
+    val deviceType: DynamicSystemDeviceType = ViperDefaults.DYNAMIC_SYSTEM_DEVICE_TYPE,
+    val dynamicBassStrength: Int = ViperDefaults.DYNAMIC_SYSTEM_BASS_STRENGTH,
 )
 
 @Serializable
 data class TubeSimulatorState(
-    val enabled: Boolean = false,
+    val enabled: Boolean = ViperDefaults.TUBE_SIMULATOR_ENABLED,
 )
 
 @Serializable
 data class ViperBassState(
-    val enabled: Boolean = false,
-    val mode: Int = 0, // 0=Natural, 1=Pure Bass+, 2=Subwoofer
-    val frequency: Int = 70, // 15-150 Hz
-    val gain: Int = 0, // 1-12 (index in gainSummaryValues)
+    val enabled: Boolean = ViperDefaults.VIPER_BASS_ENABLED,
+    val mode: Int = ViperDefaults.VIPER_BASS_MODE,
+    val frequency: Int = ViperDefaults.VIPER_BASS_FREQUENCY,
+    val gain: Int = ViperDefaults.VIPER_BASS_GAIN,
 )
 
 @Serializable
 data class ViperClarityState(
-    val enabled: Boolean = false,
-    val mode: Int = 0, // Mode index (0-2)
-    val gain: Int = 1, // Gain index (0-9)
+    val enabled: Boolean = ViperDefaults.VIPER_CLARITY_ENABLED,
+    val mode: Int = ViperDefaults.VIPER_CLARITY_MODE,
+    val gain: Int = ViperDefaults.VIPER_CLARITY_GAIN,
 )
 
 @Serializable
 data class AuditorySystemProtectionState(
-    val enabled: Boolean = false,
-    val level: Int = 1, // 1-3
+    val enabled: Boolean = ViperDefaults.AUDITORY_SYSTEM_PROTECTION_ENABLED,
+    val level: Int = ViperDefaults.AUDITORY_SYSTEM_PROTECTION_LEVEL,
 )
 
 @Serializable
 data class AnalogXState(
-    val enabled: Boolean = false,
-    val level: Int = 2, // 1-3
+    val enabled: Boolean = ViperDefaults.ANALOG_X_ENABLED,
+    val level: Int = ViperDefaults.ANALOG_X_LEVEL,
 )
 
 @Serializable
 data class SpeakerOptimizationState(
-    val enabled: Boolean = false,
+    val enabled: Boolean = ViperDefaults.SPEAKER_OPTIMIZATION_ENABLED,
 )
 
