@@ -6,6 +6,7 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.viperplayer.domain.model.MediaId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,7 +28,7 @@ class ArtworkDownloader @Inject constructor(
      * @param mediaId The media ID to use for generating a unique filename
      * @return The local file path if successful, null otherwise
      */
-    suspend fun downloadArtwork(artworkUrl: String, mediaId: com.viperplayer.domain.model.MediaId): String? {
+    suspend fun downloadArtwork(artworkUrl: String, mediaId: MediaId): String? {
         if (artworkUrl.isBlank()) return null
         
         return try {
@@ -77,7 +78,7 @@ class ArtworkDownloader @Inject constructor(
     /**
      * Gets the local artwork path if it exists, otherwise returns null.
      */
-    fun getLocalArtworkPath(mediaId: com.viperplayer.domain.model.MediaId): String? {
+    fun getLocalArtworkPath(mediaId: MediaId): String? {
         val artworkCacheDir = File(context.filesDir, "artwork")
         val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
         val artworkFile = artworkCacheDir.resolve(filename)
@@ -92,7 +93,7 @@ class ArtworkDownloader @Inject constructor(
     /**
      * Deletes cached artwork for a given media ID.
      */
-    suspend fun deleteArtwork(mediaId: com.viperplayer.domain.model.MediaId) {
+    suspend fun deleteArtwork(mediaId: MediaId) {
         withContext(Dispatchers.IO) {
             try {
                 val artworkCacheDir = File(context.filesDir, "artwork")

@@ -54,7 +54,10 @@ fun SwitchBar(
             ) {
                 ProvideTextStyle(
                     MaterialTheme.typography.titleLarge.copy(
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = if (checked)
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            MaterialTheme.colorScheme.onSurface
                     )
                 ) {
                     title()

@@ -7,23 +7,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
+import com.viperplayer.domain.model.AuditorySystemProtectionState
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValueSlider
 
 @Composable
 fun AuditorySystemProtectionEffect(
-    viewModel: AuditorySystemProtectionViewModel = hiltViewModel()
+    state: AuditorySystemProtectionState,
+    onEnabledChange: (Boolean) -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
     Effect(
         icon = painterResource(R.drawable.ic_protection),
         title = stringResource(R.string.auditory_system_protection),
         checked = state.enabled,
-        onCheckedChange = viewModel::setEnabled
+        onCheckedChange = onEnabledChange
     ) {
         var value by remember { mutableIntStateOf(1) }
         ValueSlider(

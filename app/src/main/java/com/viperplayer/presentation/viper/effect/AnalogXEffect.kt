@@ -1,33 +1,32 @@
 package com.viperplayer.presentation.viper.effect
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
+import com.viperplayer.domain.model.AnalogXState
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValueSlider
 
 @Composable
 fun AnalogXEffect(
-    viewModel: AnalogXViewModel = hiltViewModel()
+    state: AnalogXState,
+    onEnabledChange: (Boolean) -> Unit,
+    onLevelChange: (Int) -> Unit,
+    onLevelReset: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
     Effect(
         icon = painterResource(R.drawable.ic_analogx),
         title = stringResource(R.string.analogx),
         checked = state.enabled,
-        onCheckedChange = viewModel::setEnabled
+        onCheckedChange = onEnabledChange
     ) {
         ValueSlider(
             title = stringResource(R.string.analogx_level),
             summary = (state.level + 1).toString(),
             value = state.level,
-            onValueChange = viewModel::setLevel,
-            onValueReset = viewModel::resetLevel,
+            onValueChange = onLevelChange,
+            onValueReset = onLevelReset,
             valueRange = 0..2
         )
     }

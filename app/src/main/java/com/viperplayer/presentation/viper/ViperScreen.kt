@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -78,47 +79,112 @@ fun ViperScreen(
                 modifier = Modifier.padding(horizontal = 24.dp),
                 title = {
                     Crossfade(
-                        targetState = state.enabled,
+                        targetState = state.effectsState.enabled,
                     ) { enabled ->
                         if (enabled) {
                             Text(
-                                text = stringResource(R.string.main_enabled)
+                                text = stringResource(R.string.main_enabled),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         } else {
                             Text(
-                                text = stringResource(R.string.main_disabled)
+                                text = stringResource(R.string.main_disabled),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 },
-                checked = state.enabled,
+                checked = state.effectsState.enabled,
                 onCheckedChange = viewModel::setEnabled
             )
 
             AnimatedVisibility(
-                visible = state.enabled
+                visible = state.effectsState.enabled
             ) {
                 Column {
                     Spacer(Modifier.height(24.dp))
 
-                    MasterLimiterEffect()
+                    val effects = state.effectsState
+
+                    MasterLimiterEffect(
+                        state = effects.masterLimiter,
+                        onOutputGainChange = { viewModel.setMasterLimiterOutputGain(it) },
+                        onOutputGainReset = { viewModel.resetMasterLimiterOutputGain() },
+                        onOutputPanChange = { viewModel.setMasterLimiterOutputPan(it) },
+                        onOutputPanReset = { viewModel.resetMasterLimiterOutputPan() },
+                        onThresholdLimitChange = { viewModel.setMasterLimiterThresholdLimit(it) },
+                        onThresholdLimitReset = { viewModel.resetMasterLimiterThresholdLimit() }
+                    )
 //                    PlaybackGainControlEffect()
 //                    FETCompressorEffect()
 //                    ViPERDDCEffect()
-                    SpectrumExtensionEffect()
+                    SpectrumExtensionEffect(
+                        state = effects.spectrumExtension,
+                        onEnabledChange = { viewModel.setSpectrumExtensionEnabled(it) },
+                        onStrengthChange = { viewModel.setSpectrumExtensionStrength(it) },
+                        onStrengthReset = { viewModel.resetSpectrumExtensionStrength() }
+                    )
 //                    FIREqualizerEffect()
 //                    ConvolverEffect()
-                    FieldSurroundEffect()
-                    DifferentialSurroundEffect()
+                    FieldSurroundEffect(
+                        state = effects.fieldSurround,
+                        onEnabledChange = { viewModel.setFieldSurroundEnabled(it) },
+                        onSurroundStrengthChange = { viewModel.setFieldSurroundStrength(it) },
+                        onSurroundStrengthReset = { viewModel.resetFieldSurroundStrength() },
+                        onMidImageStrengthChange = { viewModel.setFieldSurroundMidImageStrength(it) },
+                        onMidImageStrengthReset = { viewModel.resetFieldSurroundMidImageStrength() }
+                    )
+                    DifferentialSurroundEffect(
+                        state = effects.differentialSurround,
+                        onEnabledChange = { viewModel.setDifferentialSurroundEnabled(it) },
+                        onDelayChange = { viewModel.setDifferentialSurroundDelay(it) },
+                        onDelayReset = { viewModel.resetDifferentialSurroundDelay() }
+                    )
 //                    HeadphoneSurroundPlusEffect()
 //                    ReverberationEffect()
-                    DynamicSystemEffect()
-                    TubeSimulator6N1JEffect()
-                    ViPERBassEffect()
-                    ViPERClarityEffect()
-                    AuditorySystemProtectionEffect()
-                    AnalogXEffect()
-                    SpeakerOptimizationEffect()
+                    DynamicSystemEffect(
+                        state = effects.dynamicSystem,
+                        onEnabledChange = { viewModel.setDynamicSystemEnabled(it) },
+                        onDeviceTypeChange = { viewModel.setDynamicSystemDeviceType(it) },
+                        onBassStrengthChange = { viewModel.setDynamicSystemBassStrength(it) },
+                        onBassStrengthReset = { viewModel.resetDynamicSystemBassStrength() }
+                    )
+                    TubeSimulator6N1JEffect(
+                        state = effects.tubeSimulator,
+                        onEnabledChange = { viewModel.setTubeSimulatorEnabled(it) }
+                    )
+                    ViPERBassEffect(
+                        state = effects.viperBass,
+                        onEnabledChange = { viewModel.setViperBassEnabled(it) },
+                        onModeChange = { viewModel.setViperBassMode(it) },
+                        onModeReset = { viewModel.resetViperBassMode() },
+                        onFrequencyChange = { viewModel.setViperBassFrequency(it) },
+                        onFrequencyReset = { viewModel.resetViperBassFrequency() },
+                        onGainChange = { viewModel.setViperBassGain(it) },
+                        onGainReset = { viewModel.resetViperBassGain() }
+                    )
+                    ViPERClarityEffect(
+                        state = effects.viperClarity,
+                        onEnabledChange = { viewModel.setViperClarityEnabled(it) },
+                        onModeChange = { viewModel.setViperClarityMode(it) },
+                        onModeReset = { viewModel.resetViperClarityMode() },
+                        onGainChange = { viewModel.setViperClarityGain(it) },
+                        onGainReset = { viewModel.resetViperClarityGain() }
+                    )
+                    AuditorySystemProtectionEffect(
+                        state = effects.auditorySystemProtection,
+                        onEnabledChange = { viewModel.setAuditorySystemProtectionEnabled(it) }
+                    )
+                    AnalogXEffect(
+                        state = effects.analogX,
+                        onEnabledChange = { viewModel.setAnalogXEnabled(it) },
+                        onLevelChange = { viewModel.setAnalogXLevel(it) },
+                        onLevelReset = { viewModel.resetAnalogXLevel() }
+                    )
+                    SpeakerOptimizationEffect(
+                        state = effects.speakerOptimization,
+                        onEnabledChange = { viewModel.setSpeakerOptimizationEnabled(it) }
+                    )
                 }
             }
         }

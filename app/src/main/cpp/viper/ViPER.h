@@ -29,7 +29,6 @@ public:
     void setThresholdLimit(float thresholdLimit);
 
     // Effects
-    AdaptiveBuffer adaptiveBuffer = AdaptiveBuffer(2, 4096);
     ViPERDDC viperDdc;
     SpectrumExtend spectrumExtend;
     IIRFilter iirFilter;
@@ -47,6 +46,6 @@ public:
 private:
     std::array<SoftwareLimiter, 2> softwareLimiters;
     uint32_t samplingRate;
-    float gainL = 1;
-    float gainR = 1;
+    float leftGain = 1;
+    float rightGain = 1;
 };

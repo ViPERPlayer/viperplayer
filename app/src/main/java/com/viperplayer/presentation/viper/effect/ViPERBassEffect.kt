@@ -3,14 +3,12 @@ package com.viperplayer.presentation.viper.effect
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
+import com.viperplayer.domain.model.ViperBassState
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValuePicker
 import com.viperplayer.presentation.viper.component.ValueSlider
@@ -32,15 +30,20 @@ private val gainSummaryValues = arrayOf(
 
 @Composable
 fun ViPERBassEffect(
-    viewModel: ViPERBassViewModel = hiltViewModel()
+    state: ViperBassState,
+    onEnabledChange: (Boolean) -> Unit,
+    onModeChange: (Int) -> Unit,
+    onModeReset: () -> Unit,
+    onFrequencyChange: (Int) -> Unit,
+    onFrequencyReset: () -> Unit,
+    onGainChange: (Int) -> Unit,
+    onGainReset: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    
     Effect(
         icon = painterResource(R.drawable.ic_bass),
         title = stringResource(R.string.viper_bass),
         checked = state.enabled,
-        onCheckedChange = viewModel::setEnabled
+        onCheckedChange = onEnabledChange
     ) {
         ValuePicker(
             title = stringResource(R.string.bass_mode),
@@ -50,8 +53,8 @@ fun ViPERBassEffect(
                 stringResource(R.string.subwoofer),
             ),
             selectedIndex = state.mode,
-            onSelectedIndexChange = viewModel::setMode,
-            onSelectedIndexReset = viewModel::resetMode
+            onSelectedIndexChange = onModeChange,
+            onSelectedIndexReset = onModeReset
         )
         Spacer(modifier = Modifier.height(8.dp))
         ValueSlider(
@@ -59,8 +62,8 @@ fun ViPERBassEffect(
             summary = state.frequency.toString(),
             summaryUnit = "Hz",
             value = state.frequency,
-            onValueChange = viewModel::setFrequency,
-            onValueReset = viewModel::resetFrequency,
+            onValueChange = onFrequencyChange,
+            onValueReset = onFrequencyReset,
             valueRange = 15..150
         )
         ValueSlider(
@@ -68,8 +71,8 @@ fun ViPERBassEffect(
             summary = gainSummaryValues[state.gain - 1],
             summaryUnit = "dB",
             value = state.gain,
-            onValueChange = viewModel::setGain,
-            onValueReset = viewModel::resetGain,
+            onValueChange = onGainChange,
+            onValueReset = onGainReset,
             valueRange = 1..12
         )
     }

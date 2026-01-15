@@ -28,4 +28,3 @@ data class QueueSongCrossRef(
     val songId: Long,
     val position: Int = 0 // Position in queue (0-indexed)
 )
-

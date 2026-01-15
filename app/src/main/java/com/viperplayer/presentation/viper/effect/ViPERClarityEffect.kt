@@ -1,12 +1,10 @@
 package com.viperplayer.presentation.viper.effect
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
+import com.viperplayer.domain.model.ViperClarityState
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValuePicker
 import com.viperplayer.presentation.viper.component.ValueSlider
@@ -26,15 +24,18 @@ private val gainSummaryValues = arrayOf(
 
 @Composable
 fun ViPERClarityEffect(
-    viewModel: ViPERClarityViewModel = hiltViewModel()
+    state: ViperClarityState,
+    onEnabledChange: (Boolean) -> Unit,
+    onModeChange: (Int) -> Unit,
+    onModeReset: () -> Unit,
+    onGainChange: (Int) -> Unit,
+    onGainReset: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    
     Effect(
         icon = painterResource(R.drawable.ic_clarity),
         title = stringResource(R.string.viper_clarity),
         checked = state.enabled,
-        onCheckedChange = viewModel::setEnabled
+        onCheckedChange = onEnabledChange
     ) {
         ValuePicker(
             title = stringResource(R.string.clarity_mode),
@@ -44,16 +45,16 @@ fun ViPERClarityEffect(
                 stringResource(R.string.xhifi),
             ),
             selectedIndex = state.mode,
-            onSelectedIndexChange = viewModel::setMode,
-            onSelectedIndexReset = viewModel::resetMode
+            onSelectedIndexChange = onModeChange,
+            onSelectedIndexReset = onModeReset
         )
         ValueSlider(
             title = stringResource(R.string.clarity_gain),
             summary = gainSummaryValues[state.gain],
             summaryUnit = "dB",
             value = state.gain,
-            onValueChange = viewModel::setGain,
-            onValueReset = viewModel::resetGain,
+            onValueChange = onGainChange,
+            onValueReset = onGainReset,
             valueRange = gainSummaryValues.indices
         )
     }

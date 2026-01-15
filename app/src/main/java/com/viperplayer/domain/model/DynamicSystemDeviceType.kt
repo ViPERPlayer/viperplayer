@@ -1,5 +1,8 @@
 package com.viperplayer.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class DynamicSystemDeviceType(
     val xLow: Int, val xHigh: Int,
     val yLow: Int, val yHigh: Int,

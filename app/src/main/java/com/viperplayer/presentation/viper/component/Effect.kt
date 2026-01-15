@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -85,7 +86,9 @@ fun Effect(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                painter = icon, contentDescription = title
+                painter = icon,
+                contentDescription = title,
+                tint = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = title,
@@ -93,7 +96,8 @@ fun Effect(
                 fontSize = 18.sp,
                 letterSpacing = 0.5.sp,
                 overflow = TextOverflow.Ellipsis,
-                maxLines = 1
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onSurface
             )
             if (checked != null && onCheckedChange != null) {
                 Switch(checked = checked, onCheckedChange = onCheckedChange)

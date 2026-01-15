@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -102,12 +103,14 @@ private fun ValuePickerDialog(
                 Text(
                     text = title,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 IconButton(onClick = onSelectedIndexReset) {
                     Icon(
                         painter = painterResource(R.drawable.ic_restart),
-                        contentDescription = "Reset to default"
+                        contentDescription = "Reset to default",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -133,9 +136,15 @@ private fun ValuePickerDialog(
                     ) {
                         RadioButton(
                             selected = index == selectedIndex,
-                            onClick = null
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = MaterialTheme.colorScheme.primary
+                            )
                         )
-                        Text(text = value)
+                        Text(
+                            text = value,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }

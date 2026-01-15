@@ -1,14 +1,14 @@
 package com.viperplayer.presentation.viper.effect
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
+import com.viperplayer.domain.model.MasterLimiterState
+import com.viperplayer.domain.model.ViperSteppedValues
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValueSlider
+import kotlin.math.roundToInt
 
 private val outputGainSummaryValues = arrayOf(
     "-40.0",
@@ -46,10 +46,14 @@ private val thresholdLimitSummaryValues = arrayOf(
 
 @Composable
 fun MasterLimiterEffect(
-    viewModel: MasterLimiterViewModel = hiltViewModel()
+    state: MasterLimiterState,
+    onOutputGainChange: (Int) -> Unit,
+    onOutputGainReset: () -> Unit,
+    onOutputPanChange: (Float) -> Unit,
+    onOutputPanReset: () -> Unit,
+    onThresholdLimitChange: (Int) -> Unit,
+    onThresholdLimitReset: () -> Unit
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    
     Effect(
         icon = painterResource(R.drawable.ic_master_limiter),
         title = stringResource(R.string.master_limiter),
@@ -59,26 +63,26 @@ fun MasterLimiterEffect(
             summary = outputGainSummaryValues[state.outputGain],
             summaryUnit = "dB",
             value = state.outputGain,
-            onValueChange = viewModel::setOutputGain,
-            onValueReset = viewModel::resetOutputGain,
-            valueRange = outputGainSummaryValues.indices
+            onValueChange = onOutputGainChange,
+            onValueReset = onOutputGainReset,
+            valueRange = ViperSteppedValues.outputGainValues.indices
         )
         ValueSlider(
             title = stringResource(R.string.master_limiter_output_pan),
-            summary = "${100 - state.outputPan}:${state.outputPan}",
+            summary = "${((1f - state.outputPan) * 50f).roundToInt()}:${((1f + state.outputPan) * 50f).roundToInt()}",
             value = state.outputPan,
-            onValueChange = viewModel::setOutputPan,
-            onValueReset = viewModel::resetOutputPan,
-            valueRange = 0..100
+            onValueChange = onOutputPanChange,
+            onValueReset = onOutputPanReset,
+            valueRange = -1f..1f
         )
         ValueSlider(
             title = stringResource(R.string.master_limiter_threshold_limit),
             value = state.thresholdLimit,
             summary = thresholdLimitSummaryValues[state.thresholdLimit],
             summaryUnit = "dB",
-            onValueChange = viewModel::setThresholdLimit,
-            onValueReset = viewModel::resetThresholdLimit,
-            valueRange = thresholdLimitSummaryValues.indices
+            onValueChange = onThresholdLimitChange,
+            onValueReset = onThresholdLimitReset,
+            valueRange = ViperSteppedValues.thresholdLimitValues.indices
         )
     }
 }

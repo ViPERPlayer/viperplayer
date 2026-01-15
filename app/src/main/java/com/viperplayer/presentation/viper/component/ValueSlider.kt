@@ -58,7 +58,8 @@ fun ValueSlider(
             IconButton(onClick = onValueReset) {
                 Icon(
                     painter = painterResource(R.drawable.ic_restart),
-                    contentDescription = stringResource(R.string.value_slider_reset_to_default)
+                    contentDescription = stringResource(R.string.value_slider_reset_to_default),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -68,6 +69,59 @@ fun ValueSlider(
             modifier = Modifier.padding(horizontal = 21.dp),
             steps = steps,
             valueRange = valueRange.let { it.start.toFloat()..it.endInclusive.toFloat() }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ValueSlider(
+    title: String,
+    summary: String? = null,
+    summaryUnit: String = "",
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueReset: () -> Unit,
+    valueRange: ClosedRange<Float> = 0f..1f,
+    steps: Int = 0
+) {
+    Column(
+        modifier = Modifier.padding(vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = (summary ?: value.toString()) + summaryUnit,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                    letterSpacing = 0.25.sp
+                )
+            }
+            IconButton(onClick = onValueReset) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_restart),
+                    contentDescription = stringResource(R.string.value_slider_reset_to_default),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        WSTSlider(
+            value = value,
+            onValueChange = { onValueChange(it) },
+            modifier = Modifier.padding(horizontal = 21.dp),
+            steps = steps,
+            valueRange = valueRange.let { it.start..it.endInclusive }
         )
     }
 }
