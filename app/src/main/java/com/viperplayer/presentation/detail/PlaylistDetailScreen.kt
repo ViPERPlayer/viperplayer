@@ -100,7 +100,8 @@ fun PlaylistDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(contentPadding),
+                        .padding(contentPadding)
+                        .padding(rootPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -110,7 +111,8 @@ fun PlaylistDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(contentPadding),
+                        .padding(contentPadding)
+                        .padding(rootPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -130,8 +132,8 @@ fun PlaylistDetailScreen(
             }
             is PlaylistDetailUiState.Success -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = contentPadding
+                    modifier = Modifier.fillMaxSize().padding(contentPadding),
+                    contentPadding = rootPadding
                 ) {
                     // Playlist header
                     item {
