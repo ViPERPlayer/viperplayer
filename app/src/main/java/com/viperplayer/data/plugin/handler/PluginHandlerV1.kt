@@ -21,6 +21,7 @@ import com.viperplayer.plugin.v1.ISongsCallback
 import com.viperplayer.plugin.v1.IStreamSourceCallback
 import com.viperplayer.plugin.v1.IViperPluginV1
 import com.viperplayer.plugin.v1.PluginCapabilities
+import com.viperplayer.plugin.v1.SearchFilter
 import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
 import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
@@ -74,11 +75,18 @@ class PluginHandlerV1(
     
     override suspend fun search(
         query: String,
-        types: Int,
+        filter: SearchFilter?,
         cursor: String?,
         limit: Int
     ): AidlSearchResult {
-        Timber.d("Searching in plugin: $pluginId, query: $query, types: $types, limit: $limit")
+        val types = when (filter) {
+            SearchFilter.SONG -> AidlSearchResult.TYPE_SONG
+            SearchFilter.ALBUM -> AidlSearchResult.TYPE_ALBUM
+            SearchFilter.ARTIST -> AidlSearchResult.TYPE_ARTIST
+            SearchFilter.PLAYLIST -> AidlSearchResult.TYPE_PLAYLIST
+            else -> AidlSearchResult.TYPE_ALL
+        }
+        Timber.d("Searching in plugin: $pluginId, query: $query, filter: $filter (types: $types), limit: $limit")
         return suspendCancellableCoroutine { cont ->
             try {
                 service.search(query, types, cursor, limit, object : ISearchCallback.Stub() {

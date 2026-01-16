@@ -11,6 +11,9 @@
     <string name="greeting_good_afternoon">Good afternoon!</string>
     <string name="greeting_good_evening">Good evening!</string>
 
+    <!-- Search -->
+    <string name="search_placeholder">What\'s playing in your head?</string>
+
     <!-- ViPER effects -->
     <string name="viper_bass">ViPER bass</string>
     <string name="natural_bass">Natural bass</string>

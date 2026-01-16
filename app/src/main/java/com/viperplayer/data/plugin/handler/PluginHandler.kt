@@ -7,7 +7,9 @@ import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.plugin.v1.PluginCapabilities
+import com.viperplayer.plugin.v1.SearchFilter
 import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
+import com.viperplayer.plugin.v1.StreamSource
 import com.viperplayer.plugin.v1.SearchResult as AidlSearchResult
 
 /**
@@ -36,7 +38,7 @@ interface PluginHandler {
      */
     suspend fun search(
         query: String,
-        types: Int,
+        filter: SearchFilter?,
         cursor: String?,
         limit: Int
     ): AidlSearchResult
@@ -141,7 +143,7 @@ interface PluginHandler {
      * Get a stream source for playback.
      * Can return a URL, DASH XML, or AudioStream based on what the plugin supports.
      */
-    suspend fun getStream(mediaId: String): com.viperplayer.plugin.v1.StreamSource
+    suspend fun getStream(mediaId: String): StreamSource
     
     /**
      * Disconnect from the plugin.

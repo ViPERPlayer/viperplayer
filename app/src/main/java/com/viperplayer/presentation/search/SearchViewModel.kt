@@ -12,6 +12,8 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
+import com.viperplayer.domain.usecase.search.SearchUseCase
+import com.viperplayer.plugin.v1.SearchFilter
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,7 +62,8 @@ class SearchViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val searchRepository: SearchRepository,
-    private val mediaLibraryRepository: MediaLibraryRepository
+    private val mediaLibraryRepository: MediaLibraryRepository,
+    private val searchUseCase: SearchUseCase
 ) : ViewModel() {
     // Expose current song and playing state from player repository
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
@@ -138,6 +141,9 @@ class SearchViewModel @Inject constructor(
     private val _lastSearchedQuery = MutableStateFlow("")
     val lastSearchedQuery = _lastSearchedQuery.asStateFlow()
 
+    private val _selectedFilter = MutableStateFlow<SearchFilter?>(null)
+    val selectedFilter = _selectedFilter.asStateFlow()
+
     init {
         viewModelScope.launch {
             _query.flatMapLatest { query ->
@@ -187,6 +193,13 @@ class SearchViewModel @Inject constructor(
     
     fun onQueryChange(query: String) {
         _query.value = query
+    }
+
+    fun onFilterSelected(filter: SearchFilter?) {
+        _selectedFilter.value = filter
+        if (_query.value.isNotBlank()) {
+            performSearch(_query.value, resetFilter = false)
+        }
     }
 
     private fun MediaItem.toSearchItem(currentSong: Song? = null): SearchItem {
@@ -303,7 +316,11 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun performSearch(query: String) {
+    fun performSearch(query: String, resetFilter: Boolean = true) {
+        if (resetFilter) {
+            _selectedFilter.value = null
+        }
+
         if (query.isBlank()) {
             _searchResultsState.value = SearchResultsState.Idle
             _lastSearchedQuery.value = ""
@@ -314,10 +331,9 @@ class SearchViewModel @Inject constructor(
         _lastSearchedQuery.value = query
         
         viewModelScope.launch {
-            // Save search to history
             searchRepository.saveSearchHistory(query)
             
-            pluginRepository.search(query)
+            searchUseCase(query, _selectedFilter.value)
                 .onSuccess { results ->
                     // Convert domain SearchSectionItem to presentation SearchItem
                     // Get current song to set isActive

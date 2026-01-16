@@ -26,6 +26,7 @@ import com.viperplayer.plugin.IConnectCallback
 import com.viperplayer.plugin.PluginConstants
 import com.viperplayer.plugin.v1.IHostCallbackV1
 import com.viperplayer.plugin.v1.IViperPluginV1
+import com.viperplayer.plugin.v1.SearchFilter
 import com.viperplayer.plugin.v1.StreamSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -598,14 +599,16 @@ class PluginDataSource @Inject constructor(
     suspend fun search(
         pluginId: String,
         query: String,
-        types: Int,
+        filter: SearchFilter?,
         cursor: String?,
         limit: Int
     ): Result<AidlSearchResult> {
-        Timber.d("Searching in plugin: $pluginId, query: $query, types: $types, limit: $limit")
+        Timber.d("Searching in plugin: $pluginId, query: $query, filter: $filter, limit: $limit")
         return runCatching {
             val plugin = getPlugin(pluginId)
-            plugin.handler.search(query, types, cursor, limit)
+            plugin.handler.search(query, filter, cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error searching in plugin: $pluginId, query: $query")
         }
     }
     
@@ -624,6 +627,8 @@ class PluginDataSource @Inject constructor(
                 nextCursor = result.nextCursor,
                 totalCount = result.totalCount
             )
+        }.onFailure {
+            Timber.e(it, "Error getting browse categories from plugin: $pluginId")
         }
     }
     
@@ -639,6 +644,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(pluginId)
             plugin.handler.getCategoryContents(categoryId, cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting category contents from plugin: $pluginId, categoryId: $categoryId")
         }
     }
     
@@ -653,6 +660,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(pluginId)
             plugin.handler.getLibrarySongs(cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting library songs from plugin: $pluginId")
         }
     }
     
@@ -667,6 +676,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(pluginId)
             plugin.handler.getLibraryAlbums(cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting library albums from plugin: $pluginId")
         }
     }
     
@@ -681,6 +692,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(pluginId)
             plugin.handler.getLibraryArtists(cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting library artists from plugin: $pluginId")
         }
     }
     
@@ -695,6 +708,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(pluginId)
             plugin.handler.getLibraryPlaylists(cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting library playlists from plugin: $pluginId")
         }
     }
     
@@ -705,6 +720,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(id.pluginId)
             plugin.handler.getSong(id.sourceId)
+        }.onFailure {
+            Timber.e(it, "Error getting song from plugin: ${id.pluginId}, songId: ${id.sourceId}")
         }
     }
 
@@ -715,6 +732,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(id.pluginId)
             plugin.handler.getArtist(id.sourceId)
+        }.onFailure {
+            Timber.e(it, "Error getting artist from plugin: ${id.pluginId}, artistId: ${id.sourceId}")
         }
     }
 
@@ -726,6 +745,8 @@ class PluginDataSource @Inject constructor(
             Timber.d("getAlbum() called for: $id")
             val plugin = getPlugin(id.pluginId)
             plugin.handler.getAlbum(id.sourceId)
+        }.onFailure {
+            Timber.e(it, "Error getting album from plugin: ${id.pluginId}, albumId: ${id.sourceId}")
         }
     }
 
@@ -736,6 +757,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(id.pluginId)
             plugin.handler.getPlaylist(id.sourceId)
+        }.onFailure {
+            Timber.e(it, "Error getting playlist from plugin: ${id.pluginId}, playlistId: ${id.sourceId}")
         }
     }
 
@@ -750,6 +773,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(artistId.pluginId)
             plugin.handler.getArtistSongs(artistId.sourceId, cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting artist songs from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}")
         }
     }
 
@@ -764,6 +789,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(artistId.pluginId)
             plugin.handler.getArtistAlbums(artistId.sourceId, cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting artist albums from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}")
         }
     }
 
@@ -778,6 +805,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(playlistId.pluginId)
             plugin.handler.getPlaylistSongs(playlistId.sourceId, cursor, limit)
+        }.onFailure {
+            Timber.e(it, "Error getting playlist songs from plugin: ${playlistId.pluginId}, playlistId: ${playlistId.sourceId}")
         }
     }
     
@@ -789,6 +818,8 @@ class PluginDataSource @Inject constructor(
         return runCatching {
             val plugin = getPlugin(mediaId.pluginId)
             plugin.handler.getStream(mediaId.sourceId)
+        }.onFailure {
+            Timber.e(it, "Error getting stream from plugin: ${mediaId.pluginId}, mediaId: ${mediaId.sourceId}")
         }
     }
 
@@ -802,6 +833,7 @@ class PluginDataSource @Inject constructor(
                 launch {
                     val result = plugin.handler.getSearchSuggestions(query)
                         .mapCatching { it.toDomain(pluginId) }
+                        .onFailure { Timber.e(it, "Error getting search suggestions from plugin: $pluginId, query: $query") }
 
                     synchronized(results) {
                         results.add(result)

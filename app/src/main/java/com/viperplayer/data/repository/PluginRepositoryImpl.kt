@@ -14,6 +14,7 @@ import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.plugin.v1.SearchFilter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -94,7 +95,7 @@ class PluginRepositoryImpl @Inject constructor(
     
     override suspend fun search(
         query: String,
-        types: Int,
+        filter: SearchFilter?,
         cursor: String?,
         limit: Int
     ): Result<SearchResult> = coroutineScope {
@@ -106,7 +107,7 @@ class PluginRepositoryImpl @Inject constructor(
 
             val results = plugins.keys.map { pluginId ->
                 async {
-                    dataSource.search(pluginId, query, types, cursor, limit).map { it.toDomain(pluginId) }
+                    dataSource.search(pluginId, query, filter, cursor, limit).map { it.toDomain(pluginId) }
                 }
             }.awaitAll()
             
@@ -137,7 +138,7 @@ class PluginRepositoryImpl @Inject constructor(
             }.awaitAll()
             
             val successfulResults = results.mapNotNull { it.getOrNull() }
-            val merged = PagedResult<BrowseCategory>(
+            val merged = PagedResult(
                 items = successfulResults.flatMap { it.items }
             )
 

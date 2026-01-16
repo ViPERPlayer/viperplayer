@@ -11,6 +11,7 @@ import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
+import com.viperplayer.plugin.v1.SearchFilter
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -54,7 +55,7 @@ interface PluginRepository {
      */
     suspend fun search(
         query: String,
-        types: Int = SEARCH_TYPE_ALL,
+        filter: SearchFilter? = null,
         cursor: String? = null,
         limit: Int = 20
     ): Result<SearchResult>

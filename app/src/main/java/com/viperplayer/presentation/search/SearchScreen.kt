@@ -1,12 +1,16 @@
 package com.viperplayer.presentation.search
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,16 +20,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,15 +56,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.plugin.v1.SearchFilter
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold
@@ -64,6 +75,7 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.launch
 
+@SuppressLint("AutoboxingStateCreation")
 @Composable
 fun SearchScreen(
     rootPadding: PaddingValues,
@@ -76,6 +88,7 @@ fun SearchScreen(
     val searchResultsState by viewModel.searchResultsState.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
     val scope = rememberCoroutineScope()
@@ -111,7 +124,9 @@ fun SearchScreen(
                             }
                         },
                         placeholder = {
-                            Text(modifier = Modifier.clearAndSetSemantics {}, text = "What's playing in your head?")
+                            Text(modifier = Modifier.clearAndSetSemantics {}, text = stringResource(
+                                R.string.search_placeholder
+                            ))
                         },
                         leadingIcon = {
                             val onDismiss: () -> Unit = {
@@ -156,7 +171,10 @@ fun SearchScreen(
             SearchBar(
                 state = searchBarState,
                 inputField = inputField,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp)
             )
 
             ExpandedFullScreenSearchBar(
@@ -302,6 +320,13 @@ fun SearchScreen(
                 }
             }
 
+            if (searchResultsState !is SearchResultsState.Idle && searchResultsState !is SearchResultsState.Error) {
+                SearchFilterRow(
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = viewModel::onFilterSelected
+                )
+            }
+
             AnimatedContent(
                 targetState = searchResultsState,
                 label = "search_results",
@@ -312,7 +337,7 @@ fun SearchScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(32.dp),
+                                .padding(rootPadding.bottom()),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -356,92 +381,92 @@ fun SearchScreen(
                         }
                     }
                     is SearchResultsState.Results -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = rootPadding.bottom()
-                        ) {
-                            items(
-                                items = state.items,
-                            ) { item ->
-                                ListItem(
-                                    type = item.type,
-                                    title = item.title,
-                                    badges = item.badges,
-                                    subtitle = item.subtitle,
-                                    artworkUrl = item.artworkUrl,
-                                    isActive = item.isActive,
-                                    isPlaying = isPlaying,
-                                    onClick = {
-                                        when (item.type) {
-                                            SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                            SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
-                                            SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
-                                            SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
-                                        }
-                                    },
-                                    onMoreClick = {
-                                        scope.launch {
-                                            selectedMediaItem = when (item.type) {
-                                                SearchItem.Type.SONG -> {
-                                                    item.song ?: viewModel.getSong(item.id)
-                                                }
-                                                SearchItem.Type.ALBUM -> {
-                                                    viewModel.getAlbum(item.id)
-                                                }
-                                                SearchItem.Type.ARTIST -> {
-                                                    viewModel.getArtist(item.id)
-                                                }
-                                                SearchItem.Type.PLAYLIST -> {
-                                                    viewModel.getPlaylist(item.id)
-                                                }
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = rootPadding.bottom()
+                            ) {
+                                items(
+                                    items = state.items,
+                                ) { item ->
+                                    ListItem(
+                                        type = item.type,
+                                        title = item.title,
+                                        badges = item.badges,
+                                        subtitle = item.subtitle,
+                                        artworkUrl = item.artworkUrl,
+                                        isActive = item.isActive,
+                                        isPlaying = isPlaying,
+                                        onClick = {
+                                            when (item.type) {
+                                                SearchItem.Type.SONG -> viewModel.playSong(item.id)
+                                                SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
+                                                SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
+                                                SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
                                             }
-                                        }
-                                    },
-                                    onLongClick = {
-                                        scope.launch {
-                                            selectedMediaItem = when (item.type) {
-                                                SearchItem.Type.SONG -> {
-                                                    item.song ?: viewModel.getSong(item.id)
-                                                }
-                                                SearchItem.Type.ALBUM -> {
-                                                    viewModel.getAlbum(item.id)
-                                                }
-                                                SearchItem.Type.ARTIST -> {
-                                                    viewModel.getArtist(item.id)
-                                                }
-                                                SearchItem.Type.PLAYLIST -> {
-                                                    viewModel.getPlaylist(item.id)
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onPlayNext = if (item.type == SearchItem.Type.SONG) {
-                                        {
+                                        },
+                                        onMoreClick = {
                                             scope.launch {
-                                                val song = item.song ?: viewModel.getSong(item.id)
-                                                if (song != null) {
-                                                    viewModel.playNext(song)
+                                                selectedMediaItem = when (item.type) {
+                                                    SearchItem.Type.SONG -> {
+                                                        item.song ?: viewModel.getSong(item.id)
+                                                    }
+                                                    SearchItem.Type.ALBUM -> {
+                                                        viewModel.getAlbum(item.id)
+                                                    }
+                                                    SearchItem.Type.ARTIST -> {
+                                                        viewModel.getArtist(item.id)
+                                                    }
+                                                    SearchItem.Type.PLAYLIST -> {
+                                                        viewModel.getPlaylist(item.id)
+                                                    }
                                                 }
                                             }
-                                        }
-                                    } else null,
-                                    onAddToQueue = if (item.type == SearchItem.Type.SONG) {
-                                        {
+                                        },
+                                        onLongClick = {
                                             scope.launch {
-                                                val song = item.song ?: viewModel.getSong(item.id)
-                                                if (song != null) {
-                                                    viewModel.addToQueue(song)
+                                                selectedMediaItem = when (item.type) {
+                                                    SearchItem.Type.SONG -> {
+                                                        item.song ?: viewModel.getSong(item.id)
+                                                    }
+                                                    SearchItem.Type.ALBUM -> {
+                                                        viewModel.getAlbum(item.id)
+                                                    }
+                                                    SearchItem.Type.ARTIST -> {
+                                                        viewModel.getArtist(item.id)
+                                                    }
+                                                    SearchItem.Type.PLAYLIST -> {
+                                                        viewModel.getPlaylist(item.id)
+                                                    }
                                                 }
                                             }
-                                        }
-                                    } else null,
-                                    modifier = Modifier
-                                        .animateItem()
-                                        .fillMaxWidth()
-                                )
+                                        },
+                                        onPlayNext = if (item.type == SearchItem.Type.SONG) {
+                                            {
+                                                scope.launch {
+                                                    val song = item.song ?: viewModel.getSong(item.id)
+                                                    if (song != null) {
+                                                        viewModel.playNext(song)
+                                                    }
+                                                }
+                                            }
+                                        } else null,
+                                        onAddToQueue = if (item.type == SearchItem.Type.SONG) {
+                                            {
+                                                scope.launch {
+                                                    val song = item.song ?: viewModel.getSong(item.id)
+                                                    if (song != null) {
+                                                        viewModel.addToQueue(song)
+                                                    }
+                                                }
+                                            }
+                                        } else null,
+                                        modifier = Modifier
+                                            .animateItem()
+                                            .fillMaxWidth()
+                                    )
+                                }
                             }
                         }
-                    }
                     is SearchResultsState.Error -> {
                         Box(
                             modifier = Modifier
@@ -536,6 +561,52 @@ fun SearchScreen(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchFilterRow(
+    selectedFilter: SearchFilter?,
+    onFilterSelected: (SearchFilter?) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val filters = listOf(
+            "All" to null,
+            "Songs" to SearchFilter.SONG,
+            "Albums" to SearchFilter.ALBUM,
+            "Playlists" to SearchFilter.PLAYLIST,
+            "Artists" to SearchFilter.ARTIST
+        )
+
+        filters.forEach { (label, filter) ->
+            val isSelected = selectedFilter == filter
+            FilterChip(
+                onClick = {
+                    onFilterSelected(filter)
+                },
+                label = {
+                    Text(label)
+                },
+                selected = isSelected,
+                leadingIcon = if (isSelected) {
+                    {
+                        Icon(
+                            imageVector = Icons.Filled.Done,
+                            contentDescription = null,
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    }
+                } else {
+                    null
+                }
+            )
         }
     }
 }
