@@ -1,7 +1,6 @@
 package com.viperplayer.presentation.settings.updater
 
 import android.content.Context
-import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,7 +52,7 @@ class UpdaterSettingsViewModel @Inject constructor(
                 try {
                     val packageInfo = context.packageManager.getPackageInfo(
                         context.packageName,
-                        PackageManager.PackageInfoFlags.of(0)
+                        0
                     )
                     val versionName = packageInfo.versionName ?: "Unknown"
                     _uiState.update { 
