@@ -1,7 +1,7 @@
 package com.viperplayer.presentation.settings.about
 
 import android.content.Context
-import android.content.pm.PackageManager
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,12 +38,12 @@ class AboutSettingsViewModel @Inject constructor(
                 try {
                     val packageInfo = context.packageManager.getPackageInfo(
                         context.packageName,
-                        PackageManager.PackageInfoFlags.of(0)
+                        0
                     )
                     _uiState.update {
                         it.copy(
                             versionName = packageInfo.versionName ?: "Unknown",
-                            versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 packageInfo.longVersionCode
                             } else {
                                 @Suppress("DEPRECATION")
