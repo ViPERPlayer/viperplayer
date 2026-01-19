@@ -38,6 +38,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import com.viperplayer.R
+import com.viperplayer.data.player.MediaItemMapper.toMediaItem
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.repository.SettingsRepository
@@ -118,9 +119,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
                 // Convert Songs to MediaItems using MediaItemMapper (songs already have full metadata from database)
                 val mediaItems = queueSongs.mapNotNull { song ->
                     try {
-                        MediaItemMapper.run {
-                            song.toMediaItem()
-                        }
+                        song.toMediaItem()
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to create MediaItem from Song: ${song.title}")
                         null

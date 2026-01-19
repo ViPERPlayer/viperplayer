@@ -151,26 +151,5 @@ class PlayerStatePersistence @Inject constructor(
             return@withContext Pair(null, emptyList())
         }
     }
-    
-    /**
-     * Clears the persisted state.
-     */
-    suspend fun clearState() = withContext(Dispatchers.IO) {
-        try {
-            // Clear queue from Room
-            crossRefDao.clearQueue()
-            
-            // Optionally clean up orphaned songs (not liked, saved, downloaded, or in playlists)
-            songDao.deleteOrphanedSongs()
-            
-            // Clear settings from DataStore
-            dataStore.edit { preferences ->
-                preferences.clear()
-            }
-            Timber.d("PlayerStatePersistence: Cleared state")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to clear player state")
-        }
-    }
 }
 
