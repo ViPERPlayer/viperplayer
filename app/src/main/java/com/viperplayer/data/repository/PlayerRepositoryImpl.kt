@@ -14,6 +14,7 @@ import com.viperplayer.data.player.MediaItemMapper
 import com.viperplayer.data.player.PlayerStateMapper
 import com.viperplayer.data.player.PlayerStatePersistence
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.PlayerState
 import com.viperplayer.domain.model.RepeatMode
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
@@ -57,68 +57,33 @@ class PlayerRepositoryImpl @Inject constructor(
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    private val _playbackContext = kotlinx.coroutines.flow.MutableStateFlow<PlaybackContext?>(null)
+
     // Shared controller state extraction
     private val controllerStateFlow = mediaControllerManager.controllerFlow
         .flatMapLatest { controller ->
+            // ... callbackFlow implementation same as before ...
             callbackFlow {
                 val listener = object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        trySend(controller)
-                    }
-
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        trySend(controller)
-                    }
-
-                    override fun onPlayerError(error: PlaybackException) {
-                        trySend(controller)
-                    }
-
-                    override fun onMediaItemTransition(
-                        mediaItem: MediaItem?,
-                        reason: Int
-                    ) {
-                        trySend(controller)
-                    }
-
-                    override fun onRepeatModeChanged(repeatMode: Int) {
-                        trySend(controller)
-                    }
-
-                    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                        trySend(controller)
-                    }
-
-                    override fun onPositionDiscontinuity(
-                        oldPosition: Player.PositionInfo,
-                        newPosition: Player.PositionInfo,
-                        reason: Int
-                    ) {
-                        trySend(controller)
-                    }
-
-                    override fun onTimelineChanged(
-                        timeline: androidx.media3.common.Timeline,
-                        reason: Int
-                    ) {
-                        trySend(controller)
-                    }
+                    override fun onPlaybackStateChanged(playbackState: Int) { trySend(controller) }
+                    override fun onIsPlayingChanged(isPlaying: Boolean) { trySend(controller) }
+                    override fun onPlayerError(error: PlaybackException) { trySend(controller) }
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { trySend(controller) }
+                    override fun onRepeatModeChanged(repeatMode: Int) { trySend(controller) }
+                    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) { trySend(controller) }
+                    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) { trySend(controller) }
+                    override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) { trySend(controller) }
                 }
-
                 controller.addListener(listener)
                 trySend(controller)
-
-                awaitClose {
-                    controller.removeListener(listener)
-                }
+                awaitClose { controller.removeListener(listener) }
             }
         }
 
     // Playback state (state, shuffle, repeat, volume, queue info) - NO position, song, or duration
     override val playbackState: StateFlow<PlaybackInfo> =
-        controllerStateFlow
-            .map { controller ->
-                PlayerStateMapper.createPlaybackInfo(controller)
+        combine(controllerStateFlow, _playbackContext) { controller, context ->
+                PlayerStateMapper.createPlaybackInfo(controller).copy(playbackContext = context)
             }
             .distinctUntilChanged()
             .stateIn(
@@ -126,6 +91,52 @@ class PlayerRepositoryImpl @Inject constructor(
                 started = SharingStarted.Eagerly,
                 initialValue = PlaybackInfo()
             )
+
+    // ... queue implementation same as before ...
+
+    // ... init block ...
+
+    // ... observeAndPersistPlayerState same logic ...
+
+    override suspend fun play(song: Song, context: PlaybackContext?) {
+        withContext(Dispatchers.Main) {
+            _playbackContext.value = context
+            
+            // Save song with full metadata (album, artists, etc.)
+            mediaLibraryRepository.saveSong(song)
+            
+            val controller = mediaControllerManager.controllerFlow.first()
+            val mediaItem = song.toMediaItem()
+            controller.setMediaItem(mediaItem)
+            controller.prepare()
+            controller.play()
+        }
+    }
+
+    override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) {
+        if (songs.isEmpty()) return
+        
+        withContext(Dispatchers.Main) {
+            _playbackContext.value = context
+
+            // Save all songs with full metadata (album, artists, etc.)
+            songs.forEach { song ->
+                try {
+                    mediaLibraryRepository.saveSong(song)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to save song to database: ${song.title}")
+                }
+            }
+            
+            val controller = mediaControllerManager.controllerFlow.first()
+            val mediaItems = songs.toMediaItems()
+            val safeStartIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+
+            controller.setMediaItems(mediaItems, safeStartIndex, 0)
+            controller.prepare()
+            controller.play()
+        }
+    }
 
     // Current song - loads from database as single source of truth
     override val currentSong: StateFlow<Song?> =
@@ -270,7 +281,8 @@ class PlayerRepositoryImpl @Inject constructor(
                 repeatMode = playback.repeatMode,
                 volume = playback.volume,
                 queueSize = playback.queueSize,
-                queuePosition = playback.queuePosition
+                queuePosition = playback.queuePosition,
+                playbackContext = playback.playbackContext
             )
         }
             .stateIn(
@@ -391,41 +403,7 @@ class PlayerRepositoryImpl @Inject constructor(
             .launchIn(scope)
     }
 
-    override suspend fun play(song: Song) {
-        withContext(Dispatchers.Main) {
-            // Save song with full metadata (album, artists, etc.)
-            mediaLibraryRepository.saveSong(song)
-            
-            val controller = mediaControllerManager.controllerFlow.first()
-            val mediaItem = song.toMediaItem()
-            controller.setMediaItem(mediaItem)
-            controller.prepare()
-            controller.play()
-        }
-    }
 
-    override suspend fun playAll(songs: List<Song>, startIndex: Int) {
-        if (songs.isEmpty()) return
-        
-        withContext(Dispatchers.Main) {
-            // Save all songs with full metadata (album, artists, etc.)
-            songs.forEach { song ->
-                try {
-                    mediaLibraryRepository.saveSong(song)
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to save song to database: ${song.title}")
-                }
-            }
-            
-            val controller = mediaControllerManager.controllerFlow.first()
-            val mediaItems = songs.toMediaItems()
-            val safeStartIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
-
-            controller.setMediaItems(mediaItems, safeStartIndex, 0)
-            controller.prepare()
-            controller.play()
-        }
-    }
 
     override suspend fun pause() {
         withContext(Dispatchers.Main) {

@@ -6,6 +6,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -395,7 +396,7 @@ class SearchViewModel @Inject constructor(
                 // Try to find the song in search results first
                 val songFromResults = findSongInResults(songId)
                 if (songFromResults != null) {
-                    playerRepository.play(songFromResults)
+                    playerRepository.play(songFromResults, PlaybackContext.Search)
                     return@launch
                 }
                 
@@ -404,7 +405,7 @@ class SearchViewModel @Inject constructor(
                 songResult.onSuccess { song ->
                     // Save song to database
                     mediaLibraryRepository.saveSong(song)
-                    playerRepository.play(song)
+                    playerRepository.play(song, PlaybackContext.Search)
                 }.onFailure { error ->
                     // Handle error - could show a toast or error message
                     Timber.e(error, "Failed to play song: $songId")

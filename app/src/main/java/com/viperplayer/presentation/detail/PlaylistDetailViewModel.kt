@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -131,20 +132,22 @@ class PlaylistDetailViewModel @Inject constructor(
             try {
                 // Only play if song is playable
                 if (song.isPlayable) {
-                    val songs = when (val state = _uiState.value) {
-                        is PlaylistDetailUiState.Success -> state.songs.filter { it.isPlayable }
-                        else -> emptyList()
-                    }
+                    val state = _uiState.value
+                    if (state !is PlaylistDetailUiState.Success) return@launch
+                    
+                    val songs = state.songs.filter { it.isPlayable }
 
                     if (songs.isNotEmpty()) {
                         val index = songs.indexOfFirst { it.id == song.id }
+                        val context = PlaybackContext.Playlist(state.playlist.id, state.playlist.name)
                         if (index != -1) {
-                            playerRepository.playAll(songs, index)
+                            playerRepository.playAll(songs, index, context)
                         } else {
-                            playerRepository.play(song)
+                            playerRepository.play(song, context)
                         }
                     } else {
-                        playerRepository.play(song)
+                        val context = PlaybackContext.Playlist(state.playlist.id, state.playlist.name)
+                        playerRepository.play(song, context)
                     }
                 }
             } catch (e: Exception) {

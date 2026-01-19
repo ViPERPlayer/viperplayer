@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
@@ -104,20 +105,22 @@ class AlbumDetailViewModel @Inject constructor(
     fun playSong(song: Song) {
         viewModelScope.launch {
             try {
-                val songs = when (val state = _uiState.value) {
-                    is AlbumDetailUiState.Success -> state.songs
-                    else -> emptyList()
-                }
+                val state = _uiState.value
+                if (state !is AlbumDetailUiState.Success) return@launch
+                
+                val songs = state.songs
 
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
+                    val context = PlaybackContext.Album(state.album.id, state.album.name)
                     if (index != -1) {
-                        playerRepository.playAll(songs, index)
+                        playerRepository.playAll(songs, index, context)
                     } else {
-                        playerRepository.play(song)
+                        playerRepository.play(song, context)
                     }
                 } else {
-                    playerRepository.play(song)
+                    val context = PlaybackContext.Album(state.album.id, state.album.name)
+                    playerRepository.play(song, context)
                 }
             } catch (e: Exception) {
                 // Handle error

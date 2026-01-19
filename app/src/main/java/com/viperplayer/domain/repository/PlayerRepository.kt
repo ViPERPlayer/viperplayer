@@ -1,5 +1,6 @@
 package com.viperplayer.domain.repository
 
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.PlayerState
 import com.viperplayer.domain.model.RepeatMode
@@ -51,12 +52,12 @@ interface PlayerRepository {
     /**
      * Play a song.
      */
-    suspend fun play(song: Song)
+    suspend fun play(song: Song, context: PlaybackContext? = null)
     
     /**
      * Play a list of songs starting from a specific index.
      */
-    suspend fun playAll(songs: List<Song>, startIndex: Int = 0)
+    suspend fun playAll(songs: List<Song>, startIndex: Int = 0, context: PlaybackContext? = null)
     
     /**
      * Pause playback.

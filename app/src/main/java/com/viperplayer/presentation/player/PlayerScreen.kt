@@ -77,11 +77,13 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
@@ -163,9 +165,18 @@ fun PlayerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Now Playing",
+                text = when (val context = playbackState.playbackContext) {
+                    is PlaybackContext.Search -> "Playing from Search"
+                    is PlaybackContext.Album -> "Playing from Album: ${context.name}"
+                    is PlaybackContext.Artist -> "Playing from Artist: ${context.name}"
+                    is PlaybackContext.Playlist -> "Playing from Playlist: ${context.name}"
+                    null -> "Now Playing"
+                },
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

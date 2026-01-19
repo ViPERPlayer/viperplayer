@@ -25,7 +25,8 @@ data class PlaybackInfo(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val volume: Float = 1.0f,
     val queueSize: Int = 0,
-    val queuePosition: Int = 0
+    val queuePosition: Int = 0,
+    val playbackContext: PlaybackContext? = null
 ) {
     val isPlaying: Boolean get() = state == PlaybackState.BUFFERING || state == PlaybackState.PLAYING
     val isPaused: Boolean get() = state == PlaybackState.PAUSED
@@ -44,7 +45,8 @@ data class PlayerState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val volume: Float = 1.0f,
     val queueSize: Int = 0,
-    val queuePosition: Int = 0
+    val queuePosition: Int = 0,
+    val playbackContext: PlaybackContext? = null
 ) {
     val isPlaying: Boolean get() = state == PlaybackState.PLAYING
     val isPaused: Boolean get() = state == PlaybackState.PAUSED
