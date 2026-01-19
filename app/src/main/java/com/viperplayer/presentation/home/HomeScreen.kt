@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
@@ -70,10 +69,6 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-
-    // Collect playerState for debug output - this will cause recomposition of debug section only
-    // The debug section is isolated in its own item, so it won't affect the rest of the screen
-    val playerState by viewModel.playerState.collectAsStateWithLifecycle()
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -154,161 +149,176 @@ fun HomeScreen(
             )
         }
     ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier.padding(contentPadding).fillMaxSize(),
-            contentPadding = rootPadding
+        val isRefreshing = (uiState as? HomeUiState.Content)?.isRefreshing ?: false
+        
+        // Material3 PullToRefreshBox (available in newer M3 versions)
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(contentPadding).fillMaxSize()
         ) {
-//            item {
-//                Row(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(16.dp),
-//                    horizontalArrangement = Arrangement.SpaceBetween,
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Text(
-//                        text = "Good evening",
-//                        style = MaterialTheme.typography.headlineLarge,
-//                        fontWeight = FontWeight.Bold
-//                    )
-//
-//                    IconButton(onClick = { viewModel.refresh() }) {
-//                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-//                    }
-//                }
-//            }
-
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text("Player State Debug", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text("State: ${playerState.state}")
-                    Text("Current Song: ${playerState.currentSong?.title ?: "None"}")
-//                    Text("Position: ${playerState.positionMs} ms")
-                    Text("Duration: ${playerState.durationMs ?: "Unknown"} ms")
-                    Text("Shuffle Enabled: ${playerState.shuffleEnabled}")
-                    Text("Repeat Mode: ${playerState.repeatMode}")
-                    Text("Volume: ${playerState.volume}")
-                    Text("Queue Size: ${playerState.queueSize}")
-                    Text("Queue Position: ${playerState.queuePosition}")
-                }
-            }
-
-            if (uiState.isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = rootPadding
+            ) {
+            when (val state = uiState) {
+                is HomeUiState.Loading -> {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
-            }
-
-            uiState.error?.let { errorMsg ->
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Text(
-                            text = errorMsg,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
-            }
-
-            if (uiState.connectedPlugins.isEmpty() && !uiState.isLoading) {
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                is HomeUiState.Error -> {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
                         ) {
                             Text(
-                                text = "No plugins connected",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                text = state.message,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(16.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+                is HomeUiState.Content -> {
+                    // Empty state (no plugins)
+                    if (state.connectedPlugins.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "No plugins connected",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Go to Plugins tab to connect a music source",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Browse Categories
+                    if (state.categories.isNotEmpty()) {
+                        item {
                             Text(
-                                text = "Go to Plugins tab to connect a music source",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Browse",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
+                        }
+
+                        item {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(state.categories) { category ->
+                                    CategoryCard(
+                                        category = category,
+                                        onClick = { /* TODO: Navigate to category */ }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Home Content from Plugins
+                    state.homeContent.forEach { (pluginId, content) ->
+                        // Quick Picks
+                        content.quickPicks?.let { quickPicks ->
+                            if (quickPicks.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Text(
+                                        text = "Quick Picks",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                                item {
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(quickPicks) { item ->
+                                            MediaItemCard(
+                                                item = item,
+                                                onClick = {
+                                                    when (item) {
+                                                        is Album -> onNavigateToAlbum(item.id)
+                                                        is com.viperplayer.domain.model.Artist -> onNavigateToArtist(item.id)
+                                                        is com.viperplayer.domain.model.Playlist -> onNavigateToPlaylist(item.id)
+                                                        else -> {}
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Custom Sections
+                        content.sections.forEach { section ->
+                            item {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Text(
+                                    text = section.title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            item {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(section.items) { item ->
+                                        MediaItemCard(
+                                            item = item,
+                                            onClick = {
+                                                when (item) {
+                                                    is Album -> onNavigateToAlbum(item.id)
+                                                    is com.viperplayer.domain.model.Artist -> onNavigateToArtist(item.id)
+                                                    is com.viperplayer.domain.model.Playlist -> onNavigateToPlaylist(item.id)
+                                                    else -> {}
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-
-            // Browse Categories
-            if (uiState.categories.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Browse",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.categories) { category ->
-                            CategoryCard(
-                                category = category,
-                                onClick = { /* TODO: Navigate to category */ }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Recent Albums
-            if (uiState.recentAlbums.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = "Albums",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.recentAlbums) { album ->
-                            AlbumCard(
-                                album = album,
-                                onClick = { onNavigateToAlbum(album.id) }
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -343,6 +353,66 @@ fun CategoryCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun MediaItemCard(
+    item: com.viperplayer.domain.model.MediaItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val title = when (item) {
+        is com.viperplayer.domain.model.Song -> item.title
+        is Album -> item.name
+        is com.viperplayer.domain.model.Artist -> item.name
+        is com.viperplayer.domain.model.Playlist -> item.name
+    }
+
+    val subtitle = when (item) {
+        is com.viperplayer.domain.model.Song -> item.artistNames
+        is Album -> item.artistName
+        is com.viperplayer.domain.model.Artist -> null
+        is com.viperplayer.domain.model.Playlist -> item.description
+    }
+
+    val artworkUrl = when (item) {
+        is com.viperplayer.domain.model.Song -> item.artworkUrl
+        is Album -> item.artworkUrl
+        is com.viperplayer.domain.model.Artist -> item.imageUrl
+        is com.viperplayer.domain.model.Playlist -> item.artworkUrl
+    }
+
+    Column(
+        modifier = modifier
+            .width(140.dp)
+            .clickable(onClick = onClick)
+    ) {
+        AsyncImage(
+            model = artworkUrl,
+            contentDescription = title,
+            modifier = Modifier
+                .size(140.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        subtitle?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

@@ -61,6 +61,12 @@ interface PluginRepository {
     ): Result<SearchResult>
     
     /**
+     * Get home content from all connected plugins.
+     * Returns a list of pairs: (PluginName, HomeContent)
+     */
+    suspend fun getHomeContent(): Result<List<Pair<String, com.viperplayer.domain.model.HomeContent>>>
+
+    /**
      * Get browse categories from all plugins.
      */
     suspend fun getBrowseCategories(

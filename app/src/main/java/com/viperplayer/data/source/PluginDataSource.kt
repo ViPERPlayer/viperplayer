@@ -24,6 +24,7 @@ import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
 import com.viperplayer.plugin.IConnectCallback
 import com.viperplayer.plugin.PluginConstants
+import com.viperplayer.plugin.v1.HomeContent
 import com.viperplayer.plugin.v1.IHostCallbackV1
 import com.viperplayer.plugin.v1.IViperPluginV1
 import com.viperplayer.plugin.v1.SearchFilter
@@ -756,7 +757,9 @@ class PluginDataSource @Inject constructor(
     suspend fun getPlaylist(id: MediaId): Result<Playlist> {
         return runCatching {
             val plugin = getPlugin(id.pluginId)
-            plugin.handler.getPlaylist(id.sourceId)
+            val playlist = plugin.handler.getPlaylist(id.sourceId)
+            Timber.d("getPlaylist() finished")
+            playlist
         }.onFailure {
             Timber.e(it, "Error getting playlist from plugin: ${id.pluginId}, playlistId: ${id.sourceId}")
         }
@@ -791,6 +794,18 @@ class PluginDataSource @Inject constructor(
             plugin.handler.getArtistAlbums(artistId.sourceId, cursor, limit)
         }.onFailure {
             Timber.e(it, "Error getting artist albums from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}")
+        }
+    }
+
+    /**
+     * Get home content from a plugin.
+     */
+    suspend fun getHomeContent(pluginId: String): Result<HomeContent> {
+        return runCatching {
+            val plugin = getPlugin(pluginId)
+            plugin.handler.getHomeSections()
+        }.onFailure {
+            Timber.e(it, "Error getting home sections from plugin: $pluginId")
         }
     }
 

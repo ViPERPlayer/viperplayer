@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.viperplayer.domain.repository.AudioQuality
+import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
@@ -28,7 +29,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
         
         // Appearance
-        private val DYNAMIC_THEME_KEY = booleanPreferencesKey("dynamic_theme")
+        private val DYNAMIC_THEME_MODE_KEY = stringPreferencesKey("dynamic_theme_mode")
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val PURE_BLACK_KEY = booleanPreferencesKey("pure_black")
         
@@ -51,13 +52,19 @@ class SettingsRepositoryImpl @Inject constructor(
     private val dataStore = context.settingsDataStore
     
     // Appearance
-    override val dynamicTheme: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[DYNAMIC_THEME_KEY] ?: true // Default to enabled
+    override val dynamicThemeMode: Flow<DynamicThemeMode> = dataStore.data.map { preferences ->
+        preferences[DYNAMIC_THEME_MODE_KEY]?.let {
+            try {
+                DynamicThemeMode.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                DynamicThemeMode.DYNAMIC
+            }
+        } ?: DynamicThemeMode.DYNAMIC
     }
     
-    override suspend fun setDynamicTheme(enabled: Boolean) {
+    override suspend fun setDynamicThemeMode(mode: DynamicThemeMode) {
         dataStore.edit { preferences ->
-            preferences[DYNAMIC_THEME_KEY] = enabled
+            preferences[DYNAMIC_THEME_MODE_KEY] = mode.name
         }
     }
     

@@ -13,8 +13,9 @@ class SearchUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         query: String,
-        filter: SearchFilter? = null
+        filter: SearchFilter? = null,
+        cursor: String? = null
     ): Result<SearchResult> {
-        return pluginRepository.search(query, filter)
+        return pluginRepository.search(query, filter, cursor)
     }
 }

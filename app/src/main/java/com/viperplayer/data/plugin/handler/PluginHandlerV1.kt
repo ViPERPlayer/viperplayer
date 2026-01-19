@@ -8,10 +8,13 @@ import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.plugin.ErrorCodes
+import com.viperplayer.plugin.v1.HomeContent
 import com.viperplayer.plugin.v1.IAlbumCallback
 import com.viperplayer.plugin.v1.IAlbumsCallback
 import com.viperplayer.plugin.v1.IArtistCallback
 import com.viperplayer.plugin.v1.IArtistsCallback
+import com.viperplayer.plugin.v1.IHomeContentCallback
 import com.viperplayer.plugin.v1.IPlaylistCallback
 import com.viperplayer.plugin.v1.IPlaylistsCallback
 import com.viperplayer.plugin.v1.ISearchCallback
@@ -139,6 +142,28 @@ class PluginHandlerV1(
                 })
             } catch (e: Exception) {
                 Timber.e(e, "Failed to get library songs from plugin $pluginId")
+                cont.resumeWithException(e)
+            }
+        }
+    }
+
+    override suspend fun getHomeSections(): HomeContent {
+        Timber.d("Getting home content from plugin: $pluginId")
+        return suspendCancellableCoroutine { cont ->
+            try {
+                service.getHomeSections(object : IHomeContentCallback.Stub() {
+                    override fun onSuccess(content: HomeContent) {
+                        Timber.d("Home content received from plugin: $pluginId, quickPicks: ${content.quickPicks?.size}, sections: ${content.sections.size}")
+                        cont.resume(content)
+                    }
+
+                    override fun onFailure(errorMessage: String?) {
+                        Timber.e("Home content failed from plugin: $pluginId, error: $errorMessage")
+                        cont.resumeWithException(PluginException(ErrorCodes.UNKNOWN, errorMessage))
+                    }
+                })
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get home content from plugin $pluginId")
                 cont.resumeWithException(e)
             }
         }

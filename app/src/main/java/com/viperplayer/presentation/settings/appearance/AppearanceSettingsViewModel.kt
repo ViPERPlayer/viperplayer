@@ -2,6 +2,7 @@ package com.viperplayer.presentation.settings.appearance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AppearanceSettingsUiState(
-    val dynamicTheme: Boolean = true,
+    val dynamicThemeMode: DynamicThemeMode = DynamicThemeMode.DYNAMIC,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val pureBlack: Boolean = false
 )
@@ -28,8 +29,8 @@ class AppearanceSettingsViewModel @Inject constructor(
     
     init {
         viewModelScope.launch {
-            settingsRepository.dynamicTheme.collect { enabled ->
-                _uiState.update { it.copy(dynamicTheme = enabled) }
+            settingsRepository.dynamicThemeMode.collect { mode ->
+                _uiState.update { it.copy(dynamicThemeMode = mode) }
             }
         }
         viewModelScope.launch {
@@ -44,9 +45,9 @@ class AppearanceSettingsViewModel @Inject constructor(
         }
     }
     
-    fun setDynamicTheme(enabled: Boolean) {
+    fun setDynamicThemeMode(mode: DynamicThemeMode) {
         viewModelScope.launch {
-            settingsRepository.setDynamicTheme(enabled)
+            settingsRepository.setDynamicThemeMode(mode)
         }
     }
     

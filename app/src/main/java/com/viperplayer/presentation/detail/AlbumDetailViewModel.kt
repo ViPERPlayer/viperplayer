@@ -104,7 +104,21 @@ class AlbumDetailViewModel @Inject constructor(
     fun playSong(song: Song) {
         viewModelScope.launch {
             try {
-                playerRepository.play(song)
+                val songs = when (val state = _uiState.value) {
+                    is AlbumDetailUiState.Success -> state.songs
+                    else -> emptyList()
+                }
+
+                if (songs.isNotEmpty()) {
+                    val index = songs.indexOfFirst { it.id == song.id }
+                    if (index != -1) {
+                        playerRepository.playAll(songs, index)
+                    } else {
+                        playerRepository.play(song)
+                    }
+                } else {
+                    playerRepository.play(song)
+                }
             } catch (e: Exception) {
                 // Handle error
             }

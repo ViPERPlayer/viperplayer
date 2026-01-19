@@ -2,8 +2,8 @@ package com.viperplayer.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -19,15 +19,30 @@ import javax.inject.Inject
 /**
  * UI State for Home screen.
  */
-data class HomeUiState(
-    val isLoading: Boolean = true,
-    val categories: List<BrowseCategory> = emptyList(),
-    val recentAlbums: List<Album> = emptyList(),
-    val connectedPlugins: List<Plugin> = emptyList(),
-    val error: String? = null,
-    val greetingType: GreetingType = GreetingType.MORNING,
-    val userName: String? = null
-)
+sealed interface HomeUiState {
+    val greetingType: GreetingType
+    val userName: String?
+
+    data class Loading(
+        override val greetingType: GreetingType = GreetingType.MORNING,
+        override val userName: String? = null
+    ) : HomeUiState
+
+    data class Content(
+        override val greetingType: GreetingType,
+        override val userName: String?,
+        val categories: List<BrowseCategory>,
+        val homeContent: List<Pair<String, HomeContent>>,
+        val connectedPlugins: List<Plugin>,
+        val isRefreshing: Boolean = false
+    ) : HomeUiState
+
+    data class Error(
+        override val greetingType: GreetingType,
+        override val userName: String?,
+        val message: String
+    ) : HomeUiState
+}
 
 /**
  * ViewModel for Home screen.
@@ -38,49 +53,90 @@ class HomeViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
 ) : ViewModel() {
     
-    private val _uiState = MutableStateFlow(HomeUiState())
+    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     val playerState = playerRepository.playerState
+
+    private var lastConnectedPlugins: List<Plugin> = emptyList()
     
     init {
+        onTimeChanged()
         observeConnectedPlugins()
-        loadContent()
+        // loadContent() // observeConnectedPlugins will trigger initial load
     }
     
     private fun observeConnectedPlugins() {
         viewModelScope.launch {
             pluginRepository.connectedPlugins.collect { plugins ->
-                _uiState.update { it.copy(connectedPlugins = plugins) }
+                lastConnectedPlugins = plugins
+                // Automatically reload content when plugins change
+                loadContent(fromAutoUpdate = true)
             }
         }
     }
     
-    fun loadContent() {
+    fun loadContent(isRefreshing: Boolean = false, fromAutoUpdate: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { state ->
+                when (state) {
+                    is HomeUiState.Loading -> state // Keep loading
+                    is HomeUiState.Content -> {
+                        if (isRefreshing) {
+                             state.copy(isRefreshing = true, connectedPlugins = lastConnectedPlugins)
+                        } else if (fromAutoUpdate) {
+                             state.copy(isRefreshing = false, connectedPlugins = lastConnectedPlugins)
+                        } else {
+                            // If just loading (neither refresh nor auto-update), show loading? 
+                            // Usually loadContent is called explicitly.
+                            // If we already have content, maybe just keep it.
+                            state.copy(connectedPlugins = lastConnectedPlugins)
+                        }
+                    }
+                    is HomeUiState.Error -> {
+                        if (isRefreshing) {
+                             // Switch to loading or keep error with indicator?
+                             // Better to switch to loading if we were in error
+                             HomeUiState.Loading(state.greetingType, state.userName)
+                        } else {
+                             state
+                        }
+                    }
+                }
+            }
             
+            // If we are not refreshing and not in content state, set loading (unless auto-update should be silent)
+            if (!isRefreshing && !fromAutoUpdate && _uiState.value !is HomeUiState.Content) {
+                 _uiState.update { state ->
+                     HomeUiState.Loading(state.greetingType, state.userName)
+                 }
+            }
+
             try {
                 // Load categories
                 val categoriesResult = pluginRepository.getBrowseCategories(limit = 10)
                 val categories = categoriesResult.getOrNull()?.items.orEmpty()
                 
-                // Load albums
-                val albumsResult = pluginRepository.getLibraryAlbums(limit = 10)
-                val albums = albumsResult.getOrNull()?.items.orEmpty()
+                // Load home content (Quick Picks & Custom Sections)
+                val homeContentResult = pluginRepository.getHomeContent()
+                val homeContent = homeContentResult.getOrNull().orEmpty()
                 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
+                _uiState.update { state ->
+                    HomeUiState.Content(
+                        greetingType = state.greetingType,
+                        userName = state.userName,
                         categories = categories,
-                        recentAlbums = albums
+                        homeContent = homeContent,
+                        connectedPlugins = lastConnectedPlugins,
+                        isRefreshing = false
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load content"
+                _uiState.update { state ->
+                    HomeUiState.Error(
+                        greetingType = state.greetingType,
+                        userName = state.userName,
+                        message = e.message ?: "Failed to load content"
                     )
                 }
             }
@@ -88,7 +144,7 @@ class HomeViewModel @Inject constructor(
     }
     
     fun refresh() {
-        loadContent()
+        loadContent(isRefreshing = true)
     }
 
     fun onTimeChanged() {
@@ -101,7 +157,13 @@ class HomeViewModel @Inject constructor(
             else -> GreetingType.NIGHT
         }
 
-        _uiState.update { it.copy(greetingType = greetingType) }
+        _uiState.update { state ->
+            when (state) {
+                is HomeUiState.Loading -> state.copy(greetingType = greetingType)
+                is HomeUiState.Content -> state.copy(greetingType = greetingType, isRefreshing = state.isRefreshing)
+                is HomeUiState.Error -> state.copy(greetingType = greetingType)
+            }
+        }
     }
 }
 

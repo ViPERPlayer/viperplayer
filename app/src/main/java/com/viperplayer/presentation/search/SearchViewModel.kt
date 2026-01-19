@@ -144,6 +144,9 @@ class SearchViewModel @Inject constructor(
     private val _selectedFilter = MutableStateFlow<SearchFilter?>(null)
     val selectedFilter = _selectedFilter.asStateFlow()
 
+    private var nextCursor: String? = null
+    private var isSearchingMore = false
+
     init {
         viewModelScope.launch {
             _query.flatMapLatest { query ->
@@ -324,17 +327,20 @@ class SearchViewModel @Inject constructor(
         if (query.isBlank()) {
             _searchResultsState.value = SearchResultsState.Idle
             _lastSearchedQuery.value = ""
+            nextCursor = null
             return
         }
 
         _searchResultsState.value = SearchResultsState.Searching
         _lastSearchedQuery.value = query
+        nextCursor = null
         
         viewModelScope.launch {
             searchRepository.saveSearchHistory(query)
             
             searchUseCase(query, _selectedFilter.value)
                 .onSuccess { results ->
+                    nextCursor = results.nextCursor
                     // Convert domain SearchSectionItem to presentation SearchItem
                     // Get current song to set isActive
                     val current = currentSong.value
@@ -347,6 +353,38 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     _searchResultsState.value = SearchResultsState.Error(e.message ?: "Search failed")
+                }
+        }
+    }
+
+    fun loadMore() {
+        if (isSearchingMore || nextCursor == null) return
+        val query = _lastSearchedQuery.value
+        if (query.isBlank()) return
+
+        isSearchingMore = true
+        viewModelScope.launch {
+            searchUseCase(query, _selectedFilter.value, nextCursor)
+                .onSuccess { results ->
+                    isSearchingMore = false
+                    nextCursor = results.nextCursor
+                    
+                    _searchResultsState.update { currentState ->
+                        if (currentState is SearchResultsState.Results) {
+                            val current = currentSong.value
+                            val newItems = results.items.map { it.toSearchItem(current) }
+                            // Filter out duplicates if any, though usually backend handles this
+                            val existingIds = currentState.items.map { it.id }.toSet()
+                            val uniqueNewItems = newItems.filter { !existingIds.contains(it.id) }
+                            
+                            SearchResultsState.Results(currentState.items + uniqueNewItems)
+                        } else {
+                            currentState
+                        }
+                    }
+                }
+                .onFailure {
+                    isSearchingMore = false
                 }
         }
     }

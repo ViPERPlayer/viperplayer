@@ -34,8 +34,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.determineLayoutVisibility
+import com.viperplayer.presentation.ktx.navigateSafe
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
 import com.viperplayer.presentation.navigation.Search
@@ -74,8 +76,8 @@ fun ViperPlayerApp(
     ViPERPlayerTheme(
         darkTheme = darkTheme,
         pureDark = uiState.pureBlack && (uiState.themeMode == ThemeMode.DARK || uiState.themeMode == ThemeMode.SYSTEM),
-        dynamicColor = uiState.dynamicTheme,
-        seedColor = if (uiState.dynamicTheme) uiState.themeColor else null
+        dynamicColor = uiState.dynamicThemeMode != DynamicThemeMode.OFF,
+        seedColor = if (uiState.dynamicThemeMode == DynamicThemeMode.DYNAMIC) uiState.themeColor else null
     ) {
         Surface(
             modifier = Modifier.fillMaxSize()
@@ -251,7 +253,26 @@ fun ViperPlayerApp(
                     dragHandle = null,
                     contentWindowInsets = { WindowInsets() }
                 ) {
-                    PlayerScreen()
+                    PlayerScreen(
+                        onNavigateToArtist = { artistId ->
+                            showPlayerBottomSheet = false
+                            navController.navigateSafe(
+                                com.viperplayer.presentation.navigation.ArtistDetail(
+                                    artistId.pluginId,
+                                    artistId.sourceId
+                                )
+                            )
+                        },
+                        onNavigateToAlbum = { albumId ->
+                            showPlayerBottomSheet = false
+                            navController.navigateSafe(
+                                com.viperplayer.presentation.navigation.AlbumDetail(
+                                    albumId.pluginId,
+                                    albumId.sourceId
+                                )
+                            )
+                        }
+                    )
                 }
             }
         }

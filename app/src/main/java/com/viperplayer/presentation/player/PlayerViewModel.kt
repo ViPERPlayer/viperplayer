@@ -148,7 +148,14 @@ class PlayerViewModel @Inject constructor(
                 
                 // Then update liked status
                 val currentLiked = isLiked.value
-                mediaLibraryRepository.setSongLiked(song.id, !currentLiked)
+                val newLiked = !currentLiked
+                
+                mediaLibraryRepository.setSongLiked(song.id, newLiked)
+                
+                // If liking, also add to library (saved songs)
+                if (newLiked) {
+                    mediaLibraryRepository.setSongSaved(song.id, true)
+                }
             }
         }
     }

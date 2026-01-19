@@ -131,7 +131,21 @@ class PlaylistDetailViewModel @Inject constructor(
             try {
                 // Only play if song is playable
                 if (song.isPlayable) {
-                    playerRepository.play(song)
+                    val songs = when (val state = _uiState.value) {
+                        is PlaylistDetailUiState.Success -> state.songs.filter { it.isPlayable }
+                        else -> emptyList()
+                    }
+
+                    if (songs.isNotEmpty()) {
+                        val index = songs.indexOfFirst { it.id == song.id }
+                        if (index != -1) {
+                            playerRepository.playAll(songs, index)
+                        } else {
+                            playerRepository.play(song)
+                        }
+                    } else {
+                        playerRepository.play(song)
+                    }
                 }
             } catch (e: Exception) {
                 // Handle error

@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
@@ -107,6 +109,8 @@ private fun formatDuration(millis: Long): String {
 fun PlayerScreen(
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
     viewModel: PlayerViewModel = hiltViewModel(),
+    onNavigateToArtist: (MediaId) -> Unit = {},
+    onNavigateToAlbum: (MediaId) -> Unit = {},
 ) {
     // Use separate flows for optimal performance
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
@@ -238,7 +242,28 @@ fun PlayerScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.infiniteBasicMarquee(),
+                    modifier = Modifier
+                        .clickable(enabled = currentSong!!.artists.isNotEmpty()) {
+                            currentSong!!.artists.firstOrNull()?.let { artist ->
+                                onNavigateToArtist(artist.id)
+                            }
+                        }
+                        .infiniteBasicMarquee(),
+                    maxLines = 1
+                )
+            }
+
+            // Album name
+            currentSong!!.album?.let { album ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = album.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clickable { onNavigateToAlbum(album.id) }
+                        .infiniteBasicMarquee(),
                     maxLines = 1
                 )
             }

@@ -148,5 +148,24 @@ object PluginMapper {
         supportsOffline = supportsOffline,
         hasSettings = hasSettings
     )
+
+    fun com.viperplayer.plugin.v1.HomeContent.toDomain(pluginId: String): com.viperplayer.domain.model.HomeContent {
+        return com.viperplayer.domain.model.HomeContent(
+            quickPicks = quickPicks?.map { it.toDomain(pluginId) },
+            sections = sections.map { it.toDomain(pluginId) }
+        )
+    }
+
+    fun com.viperplayer.plugin.v1.HomeSection.toDomain(pluginId: String): com.viperplayer.domain.model.HomeSection {
+        return com.viperplayer.domain.model.HomeSection(
+            id = id,
+            title = title,
+            items = items.map { it.toDomain(pluginId) },
+            layout = when (layout) {
+                com.viperplayer.plugin.v1.HomeSection.Layout.LIST -> com.viperplayer.domain.model.HomeSection.Layout.LIST
+                com.viperplayer.plugin.v1.HomeSection.Layout.GRID -> com.viperplayer.domain.model.HomeSection.Layout.GRID
+            }
+        )
+    }
 }
 

@@ -465,6 +465,12 @@ fun SearchScreen(
                                             .fillMaxWidth()
                                     )
                                 }
+                                
+                                item {
+                                    LaunchedEffect(Unit) {
+                                        viewModel.loadMore()
+                                    }
+                                }
                             }
                         }
                     is SearchResultsState.Error -> {

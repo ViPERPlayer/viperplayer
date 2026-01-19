@@ -124,6 +124,23 @@ class PluginRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun getHomeContent(): Result<List<Pair<String, com.viperplayer.domain.model.HomeContent>>> = coroutineScope {
+        try {
+            val plugins = dataSource.connectedPlugins.value
+            val results = plugins.keys.map { pluginId ->
+                async {
+                    val result = dataSource.getHomeContent(pluginId)
+                    result.map { pluginId to it.toDomain(pluginId) }
+                }
+            }.awaitAll()
+            
+            val successfulResults = results.mapNotNull { it.getOrNull() }
+            Result.success(successfulResults)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     
     override suspend fun getBrowseCategories(
         cursor: String?,

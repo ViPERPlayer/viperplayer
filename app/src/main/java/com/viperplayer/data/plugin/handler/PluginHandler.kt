@@ -6,6 +6,7 @@ import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.plugin.v1.HomeContent
 import com.viperplayer.plugin.v1.PluginCapabilities
 import com.viperplayer.plugin.v1.SearchFilter
 import com.viperplayer.plugin.v1.SearchSuggestionsResultV1
@@ -144,6 +145,11 @@ interface PluginHandler {
      * Can return a URL, DASH XML, or AudioStream based on what the plugin supports.
      */
     suspend fun getStream(mediaId: String): StreamSource
+    
+    /**
+     * Get content for the home screen.
+     */
+    suspend fun getHomeSections(): HomeContent
     
     /**
      * Disconnect from the plugin.

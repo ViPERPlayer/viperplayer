@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
@@ -48,6 +49,7 @@ fun AppearanceSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showDynamicThemeDialog by remember { mutableStateOf(false) }
     
     ViperScaffold(
         topBar = {
@@ -75,46 +77,12 @@ fun AppearanceSettingsScreen(
                 SettingsCategory("Theme")
             }
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-                ) {
-                    ListItem(
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        headlineContent = {
-                            Text(
-                                text = "Dynamic Theme",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = "Use colors from album artwork",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = uiState.dynamicTheme,
-                                onCheckedChange = viewModel::setDynamicTheme
-                            )
-                        },
-                        colors = ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        )
-                    )
-                }
+                SettingsItem(
+                    title = "Dynamic Theme",
+                    description = getDynamicThemeDescription(uiState.dynamicThemeMode),
+                    icon = Icons.Default.Palette,
+                    onClick = { showDynamicThemeDialog = true }
+                )
             }
             item {
                 SettingsItem(
@@ -178,6 +146,17 @@ fun AppearanceSettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    if (showDynamicThemeDialog) {
+        DynamicThemeDialog(
+            currentMode = uiState.dynamicThemeMode,
+            onModeSelected = { mode ->
+                viewModel.setDynamicThemeMode(mode)
+                showDynamicThemeDialog = false
+            },
+            onDismiss = { showDynamicThemeDialog = false }
         )
     }
 }
@@ -287,6 +266,54 @@ private fun getThemeDescription(theme: ThemeMode): String {
         ThemeMode.LIGHT -> "Light"
         ThemeMode.DARK -> "Dark"
         ThemeMode.SYSTEM -> "System Default"
+    }
+}
+
+@Composable
+private fun DynamicThemeDialog(
+    currentMode: DynamicThemeMode,
+    onModeSelected: (DynamicThemeMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Dynamic Theme") },
+        text = {
+            Column {
+                DynamicThemeMode.values().forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = mode == currentMode,
+                            onClick = { onModeSelected(mode) }
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(
+                                text = getDynamicThemeDescription(mode),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
+}
+
+private fun getDynamicThemeDescription(mode: DynamicThemeMode): String {
+    return when (mode) {
+        DynamicThemeMode.OFF -> "Off"
+        DynamicThemeMode.DYNAMIC -> "Dynamic (Album Art)"
+        DynamicThemeMode.SYSTEM -> "System (Material You)"
     }
 }
 

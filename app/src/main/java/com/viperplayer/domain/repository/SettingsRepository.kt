@@ -24,10 +24,16 @@ enum class HistoryDuration {
     FOREVER
 }
 
+enum class DynamicThemeMode {
+    OFF,
+    DYNAMIC,
+    SYSTEM
+}
+
 interface SettingsRepository {
     // Appearance
-    val dynamicTheme: Flow<Boolean>
-    suspend fun setDynamicTheme(enabled: Boolean)
+    val dynamicThemeMode: Flow<DynamicThemeMode>
+    suspend fun setDynamicThemeMode(mode: DynamicThemeMode)
     
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(mode: ThemeMode)

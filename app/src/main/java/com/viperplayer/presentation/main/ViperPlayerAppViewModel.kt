@@ -10,6 +10,7 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.materialkolor.ktx.themeColorOrNull
+import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
@@ -27,7 +28,7 @@ data class ViperPlayerAppUiState(
     val themeColor: Color? = null,
     val hasCurrentSong: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicTheme: Boolean = true,
+    val dynamicThemeMode: DynamicThemeMode = DynamicThemeMode.DYNAMIC,
     val pureBlack: Boolean = false
 )
 
@@ -77,8 +78,8 @@ class ViperPlayerAppViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            settingsRepository.dynamicTheme.collect { enabled ->
-                _uiState.update { it.copy(dynamicTheme = enabled) }
+            settingsRepository.dynamicThemeMode.collect { mode ->
+                _uiState.update { it.copy(dynamicThemeMode = mode) }
             }
         }
         viewModelScope.launch {

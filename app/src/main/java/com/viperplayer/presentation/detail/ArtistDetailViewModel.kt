@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
@@ -101,7 +100,21 @@ class ArtistDetailViewModel @Inject constructor(
     fun playSong(song: Song) {
         viewModelScope.launch {
             try {
-                playerRepository.play(song)
+                val songs = when (val state = _uiState.value) {
+                    is ArtistDetailUiState.Success -> state.artist.topSongs
+                    else -> emptyList()
+                }
+
+                if (songs.isNotEmpty()) {
+                    val index = songs.indexOfFirst { it.id == song.id }
+                    if (index != -1) {
+                        playerRepository.playAll(songs, index)
+                    } else {
+                        playerRepository.play(song)
+                    }
+                } else {
+                    playerRepository.play(song)
+                }
             } catch (e: Exception) {
                 // Handle error
             }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Download
@@ -346,7 +347,7 @@ private fun SongActions(
         onClick = onAddToQueue
     )
     ActionItem(
-        icon = Icons.Filled.PlaylistAdd,
+        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
         label = "Add to playlist",
         onClick = onAddToPlaylist
     )
