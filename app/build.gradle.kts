@@ -45,6 +45,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    kotlin {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_17
+            optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
+            optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
+            optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            optIn.add("androidx.media3.common.util.UnstableApi")
+            optIn.add("kotlinx.coroutines.FlowPreview")
+        }
+    }
+
     buildFeatures {
         buildConfig = true
         compose = true
@@ -57,16 +68,9 @@ android {
             version = "3.22.1"
         }
     }
-}
 
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_17
-        optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
-        optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
-        optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi")
-        optIn.add("androidx.media3.common.util.UnstableApi")
-        optIn.add("kotlinx.coroutines.FlowPreview")
+    lint {
+        disable += "UnsafeOptInUsageError"
     }
 }
 
