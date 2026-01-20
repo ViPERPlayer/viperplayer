@@ -29,7 +29,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v5
 
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew :app:build :plugin-sdk:build :plugin-example:build
 
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
