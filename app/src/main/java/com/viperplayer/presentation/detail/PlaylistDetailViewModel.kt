@@ -103,9 +103,6 @@ class PlaylistDetailViewModel @Inject constructor(
 
                     val playlist = playlistResult.getOrNull()!!
 
-                    // Save playlist and all related data to database
-                    mediaLibraryRepository.savePlaylist(playlist)
-
                     // Load playlist songs (use songs from playlist if available, otherwise fetch)
                     val songs = if (playlist.songs != null && playlist.songs.isNotEmpty()) {
                         playlist.songs

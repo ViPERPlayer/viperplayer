@@ -84,9 +84,6 @@ class AlbumDetailViewModel @Inject constructor(
 
                 val album = albumResult.getOrNull()!!
 
-                // Save album and all related data to database
-                mediaLibraryRepository.saveAlbum(album)
-
                 // Songs should be included in album object
                 val songs = album.songs.orEmpty()
 

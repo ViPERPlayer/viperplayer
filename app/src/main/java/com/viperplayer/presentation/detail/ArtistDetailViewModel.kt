@@ -83,9 +83,6 @@ class ArtistDetailViewModel @Inject constructor(
 
                 val artist = artistResult.getOrNull()!!
 
-                // Save artist and all related data to database
-                mediaLibraryRepository.saveArtist(artist)
-
                 // Use all data directly from the artist object
                 _uiState.value = ArtistDetailUiState.Success(
                     artist = artist
