@@ -40,8 +40,8 @@ android {
             if (signingKeyStorePath != null && signingKeyStorePassword != null && signingKeyAlias != null && signingKeyPassword != null) {
                 storeFile = file(signingKeyStorePath)
                 storePassword = signingKeyStorePassword
-                keyAlias = keyAlias
-                keyPassword = keyPassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
             }
         }
     }

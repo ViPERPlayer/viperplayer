@@ -26,7 +26,7 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v5
 
-    - name: Decode Keystore
+    - name: Decode keystore
       env:
         SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
       run: |
@@ -40,7 +40,7 @@ jobs:
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
       run: ./gradlew assembleRelease
 
-    - name: Create Release
+    - name: Create release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:

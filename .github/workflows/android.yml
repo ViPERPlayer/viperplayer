@@ -28,7 +28,18 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v5
 
+    - name: Decode keystore
+      env:
+        SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+      run: |
+        echo "$SIGNING_KEY_STORE_BASE64" | base64 --decode > release.jks
+
     - name: Build with Gradle
+      env:
+        SIGNING_KEY_STORE_PATH: ${{ github.workspace }}/release.jks
+        SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
       run: ./gradlew :app:build :plugin-sdk:build :plugin-example:build
 
     - name: Upload APK artifacts
