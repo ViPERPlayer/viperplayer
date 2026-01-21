@@ -214,7 +214,6 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 is Song -> saveSong(item)
                 is Playlist -> savePlaylist(item)
                 is Artist -> saveArtist(item)
-                else -> {}
             }
         }
         

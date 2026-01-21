@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
@@ -415,7 +414,7 @@ private fun AlbumActions(
         onClick = onAddToQueue
     )
     ActionItem(
-        icon = Icons.Filled.PlaylistAdd,
+        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
         label = "Add to playlist",
         onClick = onAddToPlaylist
     )
@@ -505,7 +504,7 @@ private fun PlaylistActions(
         onClick = onAddToQueue
     )
     ActionItem(
-        icon = Icons.Filled.PlaylistAdd,
+        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
         label = "Add to playlist",
         onClick = onAddToPlaylist
     )

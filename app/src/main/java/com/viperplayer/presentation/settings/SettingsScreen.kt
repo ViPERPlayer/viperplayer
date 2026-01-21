@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -82,7 +82,7 @@ fun SettingsScreen(
                 SettingsSectionItem(
                     title = "Player & Audio",
                     description = "Audio quality, playback, and normalization",
-                    icon = Icons.Default.VolumeUp,
+                    icon = Icons.AutoMirrored.Default.VolumeUp,
                     onClick = onNavigateToPlayer
                 )
             }
