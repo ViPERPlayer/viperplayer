@@ -60,7 +60,6 @@ import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
-import kotlin.collections.buildList
 
 /**
  * Sealed class to represent items in the album song list (disc headers or songs).
@@ -349,21 +348,23 @@ private fun AlbumHeader(
         if (album.artists.isNotEmpty()) {
             var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
-            val annotatedString = buildAnnotatedString {
-                album.artists.forEachIndexed { index, artist ->
-                    val startIndex = length
-                    append(artist.name)
-                    val endIndex = length
+            val annotatedString = remember(album.artists) {
+                buildAnnotatedString {
+                    album.artists.forEachIndexed { index, artist ->
+                        val startIndex = length
+                        append(artist.name)
+                        val endIndex = length
 
-                    addStringAnnotation(
-                        tag = "artist",
-                        annotation = index.toString(),
-                        start = startIndex,
-                        end = endIndex
-                    )
-                    
-                    if (index < album.artists.size - 1) {
-                        append(", ")
+                        addStringAnnotation(
+                            tag = "artist",
+                            annotation = index.toString(),
+                            start = startIndex,
+                            end = endIndex
+                        )
+
+                        if (index < album.artists.size - 1) {
+                            append(", ")
+                        }
                     }
                 }
             }

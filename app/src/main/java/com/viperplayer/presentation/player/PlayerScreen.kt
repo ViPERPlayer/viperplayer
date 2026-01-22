@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,6 +76,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -242,25 +245,57 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            val artistNames = currentSong!!.artists.joinToString { it.name }
+            val currentSongArtists = currentSong!!.artists
+
+            val artistText = remember(currentSongArtists) {
+                buildAnnotatedString {
+                    currentSongArtists.forEachIndexed { index, artist ->
+                        val startIndex = length
+                        append(artist.name)
+                        val endIndex = length
+                        
+                        addStringAnnotation(
+                            tag = "artist",
+                            annotation = index.toString(),
+                            start = startIndex,
+                            end = endIndex
+                        )
+                        
+                        if (index < currentSongArtists.size - 1) {
+                            append(", ")
+                        }
+                    }
+                }
+            }
+            
+            var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+            
             AnimatedContent(
-                targetState = artistNames,
+                targetState = artistText,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 label = "song_artist"
-            ) { artists ->
+            ) { text ->
                 Text(
-                    text = artists,
+                    text = text,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .clickable(enabled = currentSong!!.artists.isNotEmpty()) {
-                            currentSong!!.artists.firstOrNull()?.let { artist ->
-                                onNavigateToArtist(artist.id)
+                        .pointerInput(text) {
+                            detectTapGestures { pos ->
+                                textLayoutResult?.let { layoutResult ->
+                                    val offset = layoutResult.getOffsetForPosition(pos)
+                                    text.getStringAnnotations(tag = "artist", start = offset, end = offset)
+                                        .firstOrNull()?.let { annotation ->
+                                            val artistIndex = annotation.item.toInt()
+                                            if (artistIndex in currentSongArtists.indices) {
+                                                onNavigateToArtist(currentSongArtists[artistIndex].id)
+                                            }
+                                        }
+                                }
                             }
-                        }
-                        .infiniteBasicMarquee(),
-                    maxLines = 1
+                        },
+                    onTextLayout = { textLayoutResult = it }
                 )
             }
 
