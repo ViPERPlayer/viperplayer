@@ -831,6 +831,9 @@ class PluginDataSource @Inject constructor(
      */
     suspend fun getStream(mediaId: MediaId): Result<StreamSource> {
         return runCatching {
+            if (mediaId.pluginId == "local") {
+                return@runCatching StreamSource.url(mediaId.sourceId)
+            }
             val plugin = getPlugin(mediaId.pluginId)
             plugin.handler.getStream(mediaId.sourceId)
         }.onFailure {

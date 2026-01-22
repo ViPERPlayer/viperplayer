@@ -51,5 +51,8 @@ interface MediaLibraryRepository {
     suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean)
     suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean)
     suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean)
+    
+    // Local Files
+    suspend fun scanLocalFiles()
 }
 

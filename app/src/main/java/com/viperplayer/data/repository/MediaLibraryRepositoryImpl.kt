@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,7 +39,8 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val crossRefDao: CrossRefDao,
     private val pluginRepository: PluginRepository,
     private val artworkDownloader: ArtworkDownloader,
-    private val networkConnectivityChecker: NetworkConnectivityChecker
+    private val networkConnectivityChecker: NetworkConnectivityChecker,
+    private val localMediaDataSource: com.viperplayer.data.source.LocalMediaDataSource
 ) : MediaLibraryRepository {
     
     // Helper function to load artist
@@ -750,6 +752,18 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 isEditable = false,
                 songs = songs
             )
+        }
+    }
+
+    override suspend fun scanLocalFiles() {
+        val localSongs = localMediaDataSource.getAllSongs()
+        localSongs.forEach { song ->
+            try {
+                saveSong(song)
+            } catch (e: Exception) {
+                // Log and continue, one bad file shouldn't stop the scan
+                Timber.e(e, "Failed to save local song: ${song.title}")
+            }
         }
     }
 }

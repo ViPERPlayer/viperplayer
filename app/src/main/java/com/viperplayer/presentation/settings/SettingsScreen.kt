@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Card
@@ -27,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 
@@ -43,7 +45,8 @@ fun SettingsScreen(
     onNavigateToStorage: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdater: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     ViperScaffold(
         topBar = {
@@ -100,6 +103,15 @@ fun SettingsScreen(
                     description = "Cache and download management",
                     icon = Icons.Default.Storage,
                     onClick = onNavigateToStorage
+                )
+            }
+
+            item {
+                SettingsSectionItem(
+                    title = "Scan Local Files",
+                    description = "Scan device for local audio files",
+                    icon = Icons.Default.Refresh,
+                    onClick = viewModel::scanLocalFiles
                 )
             }
             

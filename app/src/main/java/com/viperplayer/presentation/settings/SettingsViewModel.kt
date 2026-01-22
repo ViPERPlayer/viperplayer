@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.CacheRepository
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +28,8 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    private val cacheRepository: CacheRepository
+    private val cacheRepository: CacheRepository,
+    private val mediaLibraryRepository: MediaLibraryRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -111,6 +113,12 @@ class SettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isClearingCache = false)
             }
+        }
+    }
+    
+    fun scanLocalFiles() {
+        viewModelScope.launch {
+            mediaLibraryRepository.scanLocalFiles()
         }
     }
 }
