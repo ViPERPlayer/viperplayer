@@ -12,7 +12,7 @@
 #include "effects/DiffSurround.h"
 #include "utils/AdaptiveBuffer.h"
 #include "effects/ViPERDDC.h"
-#include "effects/IIRFilter.h"
+#include "dsp/IIREqualizer.h"
 #include "effects/ColorfulMusic.h"
 #include "effects/ViPERBass.h"
 #include "effects/SoftwareLimiter.h"
@@ -25,13 +25,14 @@ public:
     void process(float *buffer, uint32_t size);
     void reset();
     void setSamplingRate(uint32_t samplingRate);
+    uint32_t getSamplingRate() const { return samplingRate; }
     void setGain(float gainL, float gainR);
     void setThresholdLimit(float thresholdLimit);
 
     // Effects
     ViPERDDC viperDdc;
     SpectrumExtend spectrumExtend;
-    IIRFilter iirFilter;
+    viper::dsp::IIREqualizer iirEqualizer;
     ColorfulMusic colorfulMusic;
     Reverberation reverberation;
     DynamicSystem dynamicSystem;

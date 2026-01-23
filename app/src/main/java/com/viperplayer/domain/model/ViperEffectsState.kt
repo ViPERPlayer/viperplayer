@@ -43,6 +43,9 @@ data class ViperEffectsState(
     
     // Speaker Optimization
     val speakerOptimization: SpeakerOptimizationState = SpeakerOptimizationState(),
+
+    // IIR Equalizer
+    val iirEqualizer: IirEqualizerState = IirEqualizerState(),
 ) {
     companion object {
         /**
@@ -120,5 +123,13 @@ data class AnalogXState(
 @Serializable
 data class SpeakerOptimizationState(
     val enabled: Boolean = ViperDefaults.SPEAKER_OPTIMIZATION_ENABLED,
+)
+
+@Serializable
+data class IirEqualizerState(
+    val enabled: Boolean = ViperDefaults.IIR_EQUALIZER_ENABLED,
+    val bandCount: Int = ViperDefaults.IIR_EQUALIZER_BAND_COUNT,
+    val preset: String = ViperDefaults.IIR_EQUALIZER_PRESET,
+    val bandGains: List<Float> = ViperDefaults.IIR_EQUALIZER_BAND_GAINS,
 )
 

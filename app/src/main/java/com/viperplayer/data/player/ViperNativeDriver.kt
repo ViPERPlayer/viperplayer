@@ -61,6 +61,11 @@ class ViperNativeDriver @Inject constructor() {
 
     // Speaker Optimization
     external fun setSpeakerOptimizationEnabled(enabled: Boolean)
+
+    // IIR Equalizer
+    external fun setIirEqualizerEnabled(enabled: Boolean)
+    external fun setIirEqualizerBandLevel(bandIndex: Int, level: Float)
+    external fun setIirEqualizerBandCount(bandCountOrdinal: Int)
     
     // Audio Processing
     external fun process(buffer: ByteBuffer, offset: Int, size: Int)

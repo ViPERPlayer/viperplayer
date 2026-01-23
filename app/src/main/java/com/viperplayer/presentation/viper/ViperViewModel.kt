@@ -3,6 +3,8 @@ package com.viperplayer.presentation.viper
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.DynamicSystemDeviceType
+import com.viperplayer.domain.model.IirEqualizerPresets
+import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.domain.model.ViperDefaults
 import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.repository.ViperRepository
@@ -306,6 +308,70 @@ class ViperViewModel @Inject constructor(
     fun setSpeakerOptimizationEnabled(enabled: Boolean) {
         viewModelScope.launch {
             viperRepository.updateEffectsState { it.copy(speakerOptimization = it.speakerOptimization.copy(enabled = enabled)) }
+        }
+    }
+
+    // IIR Equalizer
+    fun setIirEqualizerEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(iirEqualizer = it.iirEqualizer.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setIirEqualizerBandCount(count: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { state ->
+                // When changing band count, reset to defaults for that count
+                // or try to interpolate (too complex for now, just reset)
+                val newGains = IirEqualizerPresets.getPresetGains(state.iirEqualizer.preset, count)
+                state.copy(
+                    iirEqualizer = state.iirEqualizer.copy(
+                        bandCount = count,
+                        bandGains = newGains
+                    )
+                )
+            }
+        }
+    }
+
+    fun setIirEqualizerPreset(preset: String) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { state ->
+                val newGains = IirEqualizerPresets.getPresetGains(preset, state.iirEqualizer.bandCount)
+                state.copy(
+                    iirEqualizer = state.iirEqualizer.copy(
+                        preset = preset,
+                        bandGains = newGains
+                    )
+                )
+            }
+        }
+    }
+
+    fun setIirEqualizerBandGain(index: Int, gain: Float) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { state ->
+                val currentGains = state.iirEqualizer.bandGains.toMutableList()
+                if (index in currentGains.indices) {
+                    currentGains[index] = gain
+                }
+                state.copy(
+                    iirEqualizer = state.iirEqualizer.copy(
+                        preset = "Custom", // Auto-switch to Custom
+                        bandGains = currentGains
+                    )
+                )
+            }
+        }
+    }
+
+    fun resetIirEqualizer() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { state ->
+                state.copy(
+                    iirEqualizer = IirEqualizerState()
+                )
+            }
         }
     }
 }

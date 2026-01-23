@@ -31,6 +31,7 @@ import javax.inject.Singleton
 class ViperRepositoryImpl @Inject constructor(
     private val database: ViperPlayerDatabase,
     private val audioDeviceManager: AudioDeviceManager
+
 ) : ViperRepository {
     
     private val presetDao: ViperPresetDao = database.viperPresetDao()
@@ -57,13 +58,21 @@ class ViperRepositoryImpl @Inject constructor(
      */
     private fun observeAndPersistEffectsState() {
         _effectsState
-            .drop(1) // Skip initial value
-            .debounce(1000) // Debounce: wait 1s after last change
+            .drop(1) // Skip initial value for persistence
+            .onEach { state ->
+
+            }
+            .debounce(1000) // Debounce persistence
             .onEach { state ->
                 persistCurrentState(state)
             }
             .launchIn(repositoryScope)
+            
+        // Apply initial state
+
     }
+
+
     
     /**
      * Persists the current effects state.

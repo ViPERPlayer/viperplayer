@@ -55,5 +55,11 @@ object ViperDefaults {
     
     // Speaker Optimization
     const val SPEAKER_OPTIMIZATION_ENABLED = false
+
+    // IIR Equalizer
+    const val IIR_EQUALIZER_ENABLED = false
+    const val IIR_EQUALIZER_BAND_COUNT = 10
+    const val IIR_EQUALIZER_PRESET = "Flat"
+    val IIR_EQUALIZER_BAND_GAINS = List(IIR_EQUALIZER_BAND_COUNT) { 0f }
 }
 

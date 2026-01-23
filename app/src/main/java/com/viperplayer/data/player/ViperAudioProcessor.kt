@@ -113,6 +113,28 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setMasterLimiterThresholdLimit(thresholdValue)
         }
 
+        // IIR Equalizer
+        if (current == null || current.iirEqualizer.enabled != state.iirEqualizer.enabled) {
+            nativeDriver.setIirEqualizerEnabled(state.iirEqualizer.enabled)
+        }
+        if (current == null || current.iirEqualizer.bandCount != state.iirEqualizer.bandCount) {
+            nativeDriver.setIirEqualizerBandCount(when (state.iirEqualizer.bandCount) {
+                10 -> 0
+                15 -> 1
+                31 -> 2
+                else -> 0
+            })
+        }
+        // Always update bands if any relevant state changed, or do granular check.
+        // Granular check is better for performance if many bands.
+        state.iirEqualizer.bandGains.forEachIndexed { index, gain ->
+            if (current == null ||
+                current.iirEqualizer.bandGains.size <= index ||
+                current.iirEqualizer.bandGains[index] != gain) {
+                nativeDriver.setIirEqualizerBandLevel(index, gain)
+            }
+        }
+
         // Spectrum Extension
         if (current == null || current.spectrumExtension.enabled != state.spectrumExtension.enabled) {
             nativeDriver.setSpectrumExtensionEnabled(state.spectrumExtension.enabled)

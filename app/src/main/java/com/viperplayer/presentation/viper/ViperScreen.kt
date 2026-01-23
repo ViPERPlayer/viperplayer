@@ -30,6 +30,7 @@ import com.viperplayer.presentation.viper.effect.AuditorySystemProtectionEffect
 import com.viperplayer.presentation.viper.effect.DifferentialSurroundEffect
 import com.viperplayer.presentation.viper.effect.DynamicSystemEffect
 import com.viperplayer.presentation.viper.effect.FieldSurroundEffect
+import com.viperplayer.presentation.viper.effect.IirEqualizerEffect
 import com.viperplayer.presentation.viper.effect.MasterLimiterEffect
 import com.viperplayer.presentation.viper.effect.SpeakerOptimizationEffect
 import com.viperplayer.presentation.viper.effect.SpectrumExtensionEffect
@@ -124,7 +125,15 @@ fun ViperScreen(
                         onStrengthChange = { viewModel.setSpectrumExtensionStrength(it) },
                         onStrengthReset = { viewModel.resetSpectrumExtensionStrength() }
                     )
-//                    FIREqualizerEffect()
+
+                    IirEqualizerEffect(
+                        state = effects.iirEqualizer,
+                        onEnabledChange = { viewModel.setIirEqualizerEnabled(it) },
+                        onBandCountChange = { viewModel.setIirEqualizerBandCount(it) },
+                        onPresetChange = { viewModel.setIirEqualizerPreset(it) },
+                        onBandGainChange = { index, gain -> viewModel.setIirEqualizerBandGain(index, gain) },
+                        onReset = { viewModel.resetIirEqualizer() }
+                    )
 //                    ConvolverEffect()
                     FieldSurroundEffect(
                         state = effects.fieldSurround,

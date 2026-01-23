@@ -5,7 +5,7 @@
 ViPER::ViPER(uint32_t samplingRate) :
     viperDdc(samplingRate),
     spectrumExtend(samplingRate),
-    iirFilter(samplingRate, 10),
+    iirEqualizer(),
     colorfulMusic(samplingRate),
     dynamicSystem(samplingRate),
     viperBass(samplingRate),
@@ -21,6 +21,9 @@ ViPER::ViPER(uint32_t samplingRate) :
 
     this->spectrumExtend.SetReferenceFrequency(7600);
     this->spectrumExtend.Reset();
+    
+    // Initialize equalizer with default 10 bands
+    this->iirEqualizer.configure(samplingRate, viper::dsp::IIREqualizer::BandCount::BANDS_10);
 }
 
 void ViPER::process(float *buffer, uint32_t size) {
@@ -29,7 +32,11 @@ void ViPER::process(float *buffer, uint32_t size) {
     if (size != 0) {
         this->viperDdc.Process(buffer, size);
         this->spectrumExtend.Process(buffer, size);
-        this->iirFilter.Process(buffer, size);
+        
+        // IIR EQ Process - updated for new API (interleaved stereo = 2 channels)
+        // Note: The buffer here is stereo interleaved float.
+        this->iirEqualizer.process(buffer, size, 2);
+        
         this->colorfulMusic.Process(buffer, size);
         this->diffSurround.Process(buffer, size);
         this->reverberation.Process(buffer, size);
@@ -58,7 +65,7 @@ void ViPER::process(float *buffer, uint32_t size) {
 void ViPER::reset() {
     this->viperDdc.Reset();
     this->spectrumExtend.Reset();
-    this->iirFilter.Reset();
+    this->iirEqualizer.reset();
     this->colorfulMusic.Reset();
     this->reverberation.Reset();
     this->dynamicSystem.Reset();
