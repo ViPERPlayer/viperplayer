@@ -55,7 +55,10 @@ fun IirEqualizerEffect(
         onCheckedChange = onEnabledChange
     ) {
         // Band Count Selector
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+        ) {
             Text(
                 text = "Band Count",
                 style = MaterialTheme.typography.labelMedium,
@@ -85,6 +88,7 @@ fun IirEqualizerEffect(
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = it },
+            modifier = Modifier.padding(horizontal = 16.dp)
         ) {
             OutlinedTextField(
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
@@ -133,7 +137,8 @@ fun IirEqualizerEffect(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(scrollState),
+                .horizontalScroll(scrollState)
+                .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             frequencies.forEachIndexed { index, freq ->
