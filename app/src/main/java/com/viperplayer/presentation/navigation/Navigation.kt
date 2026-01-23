@@ -246,6 +246,12 @@ fun ViperNavHost(
                 onNavigateBack = { navController.popBackStackSafe() },
                 onNavigateToAlbum = { albumId ->
                     navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                },
+                onNavigateToPlaylist = { playlistId ->
+                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                },
+                onNavigateToArtist = { artistId ->
+                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
                 }
             )
         }

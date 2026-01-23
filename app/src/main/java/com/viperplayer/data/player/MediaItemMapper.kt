@@ -25,6 +25,8 @@ object MediaItemMapper {
             .setDurationMs(durationMs)
             .setTrackNumber(trackNumber)
             .setDiscNumber(discNumber)
+            .setIsPlayable(true)
+            .setIsBrowsable(false)
 //            .setIsExplicit(isExplicit)
 
         // Store domain model data in extras for later retrieval

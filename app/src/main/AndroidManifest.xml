@@ -25,6 +25,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ViPERPlayer">
         
+        <meta-data android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc"/>
+        
         <activity
             android:name="com.viperplayer.MainActivity"
             android:exported="true">

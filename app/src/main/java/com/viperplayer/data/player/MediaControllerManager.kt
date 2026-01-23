@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.guava.await
 import timber.log.Timber
@@ -64,9 +63,5 @@ class MediaControllerManager @Inject constructor(
             SharingStarted.Eagerly,
             null
         ).filterNotNull()
-
-    private suspend fun getController(): MediaController {
-        return controllerFlow.first()
-    }
 }
 

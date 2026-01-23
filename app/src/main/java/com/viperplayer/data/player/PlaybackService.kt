@@ -54,7 +54,7 @@ import kotlin.math.pow
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
-class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, PlaybackStatsListener.Callback {
+class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, PlaybackStatsListener.Callback {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
@@ -69,6 +69,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     
     @Inject
     lateinit var viperAudioProcessor: ViperAudioProcessor
+    
+    @Inject
+    lateinit var mediaLibrarySessionCallback: ViperMediaLibrarySessionCallback
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -245,7 +248,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, MediaLibraryServi
     }
 
     private fun createMediaLibrarySession(): MediaLibrarySession {
-        return MediaLibrarySession.Builder(this, player, this)
+        return MediaLibrarySession.Builder(this, player, mediaLibrarySessionCallback)
             .setBitmapLoader(CoilBitmapLoader(this))
             .setSessionActivity(createMediaLibrarySessionSessionActivity())
             .build()
