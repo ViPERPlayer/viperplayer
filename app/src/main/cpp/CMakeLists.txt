@@ -22,6 +22,8 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         viper/effects/ViPERDDC.cpp
         
         # DSP
+        viper/dsp/Convolver.cpp
+        viper/dsp/PartitionedConvolver.cpp
         viper/dsp/IIREqualizer.cpp
 
         # Utils
@@ -49,6 +51,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         viper/utils/Subwoofer.cpp
         viper/utils/TimeConstDelay.cpp
         viper/utils/WaveBuffer.cpp
+        viper/utils/FFT.cpp
 
         viperplayer.cpp)
 
