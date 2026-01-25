@@ -31,6 +31,8 @@ private:
 
   void ComputeTable();
   void Transform(std::complex<float> *data, bool inverse);
+
+  std::vector<std::complex<float>> scratchBuffer;
 };
 
 } // namespace utils

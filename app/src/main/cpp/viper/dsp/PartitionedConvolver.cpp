@@ -48,6 +48,12 @@ bool PartitionedConvolver::LoadKernel(const float *kernel, uint32_t length,
   // Resize Overlap-Add buffer
   overlapBuffer.resize(blockSize, 0.0f);
 
+  // Resize Scratch buffers
+  processTimeDomain.resize(blockSize * 2);
+  processPartition.resize(blockSize + 1);
+  processResultFreq.resize(blockSize + 1);
+  processResultTime.resize(blockSize * 2);
+
   // Prepare kernel partitions
   std::vector<float> timeDomainBuffer(blockSize * 2);
 
@@ -82,39 +88,41 @@ void PartitionedConvolver::ProcessBlock(const float *inBlock, float *outBlock) {
   }
 
   // 1. Prepare time domain buffer (Input block padded with zeros)
-  // Size 2N
-  std::vector<float> timeDomain(blockSize * 2, 0.0f);
-  std::memcpy(timeDomain.data(), inBlock, blockSize * sizeof(float));
+  // Use scratch buffer: processTimeDomain
+  std::fill(processTimeDomain.begin(), processTimeDomain.end(), 0.0f);
+  std::memcpy(processTimeDomain.data(), inBlock, blockSize * sizeof(float));
 
   // 2. FFT current block -> F[0]
-  std::vector<std::complex<float>> currentPartition(blockSize + 1);
-  fft->Forward(timeDomain.data(), currentPartition.data());
+  // Use scratch buffer: processPartition
+  fft->Forward(processTimeDomain.data(), processPartition.data());
 
   // 3. Shift input partitions history
   // inputPartitions[0] is most recent
   for (int i = segments - 1; i > 0; i--) {
     inputPartitions[i] = inputPartitions[i - 1];
   }
-  inputPartitions[0] = currentPartition;
+  inputPartitions[0] = processPartition;
 
   // 4. Frequency Domain Convolution
-  std::vector<std::complex<float>> resultFreq(blockSize + 1, {0.0f, 0.0f});
+  // Use scratch buffer: processResultFreq
+  std::fill(processResultFreq.begin(), processResultFreq.end(),
+            std::complex<float>(0.0f, 0.0f));
 
   for (uint32_t i = 0; i < segments; i++) {
     // Accumulate product
     for (uint32_t k = 0; k < blockSize + 1; k++) {
-      resultFreq[k] += inputPartitions[i][k] * kernelPartitions[i][k];
+      processResultFreq[k] += inputPartitions[i][k] * kernelPartitions[i][k];
     }
   }
 
   // 5. IFFT
-  std::vector<float> resultTime(blockSize * 2);
-  fft->Inverse(resultFreq.data(), resultTime.data());
+  // Use scratch buffer: processResultTime
+  fft->Inverse(processResultFreq.data(), processResultTime.data());
 
   // 6. Overlap-Add
   for (uint32_t i = 0; i < blockSize; i++) {
-    outBlock[i] = resultTime[i] + overlapBuffer[i];
-    overlapBuffer[i] = resultTime[i + blockSize];
+    outBlock[i] = processResultTime[i] + overlapBuffer[i];
+    overlapBuffer[i] = processResultTime[i + blockSize];
   }
 }
 

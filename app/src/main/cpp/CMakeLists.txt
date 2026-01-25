@@ -50,6 +50,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         viper/utils/Stereo3DSurround.cpp
         viper/utils/Subwoofer.cpp
         viper/utils/TimeConstDelay.cpp
+        viper/utils/CircularBuffer.cpp
         viper/utils/WaveBuffer.cpp
         viper/utils/FFT.cpp
 

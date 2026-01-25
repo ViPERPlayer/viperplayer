@@ -9,6 +9,7 @@ FFT::FFT(int n) : n(n) {
   while ((1 << logN) < n)
     logN++;
   ComputeTable();
+  scratchBuffer.resize(n);
 }
 
 FFT::~FFT() {}
@@ -66,33 +67,32 @@ void FFT::Transform(std::complex<float> *data, bool inverse) {
 
 void FFT::Forward(const float *input, std::complex<float> *output) {
   // Pack real input into complex buffer
-  std::vector<std::complex<float>> buffer(n);
+  // Use scratch buffer
   for (int i = 0; i < n; i++) {
-    buffer[i] = std::complex<float>(input[i], 0.0f);
+    scratchBuffer[i] = std::complex<float>(input[i], 0.0f);
   }
 
-  Transform(buffer.data(), false);
+  Transform(scratchBuffer.data(), false);
 
   // Store n/2 + 1 complex coefficients
   for (int i = 0; i <= n / 2; i++) {
-    output[i] = buffer[i];
+    output[i] = scratchBuffer[i];
   }
 }
 
 void FFT::Inverse(const std::complex<float> *input, float *output) {
   // Reconstruct full Hermitian symmetric spectrum
-  std::vector<std::complex<float>> buffer(n);
   for (int i = 0; i <= n / 2; i++) {
-    buffer[i] = input[i];
+    scratchBuffer[i] = input[i];
   }
   for (int i = n / 2 + 1; i < n; i++) {
-    buffer[i] = std::conj(input[n - i]);
+    scratchBuffer[i] = std::conj(input[n - i]);
   }
 
-  Transform(buffer.data(), true);
+  Transform(scratchBuffer.data(), true);
 
   for (int i = 0; i < n; i++) {
-    output[i] = buffer[i].real();
+    output[i] = scratchBuffer[i].real();
   }
 }
 

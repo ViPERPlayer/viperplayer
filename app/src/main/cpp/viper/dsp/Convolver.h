@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/WaveBuffer.h"
+#include "../utils/CircularBuffer.h"
 #include "PartitionedConvolver.h"
 #include <memory>
 #include <vector>
@@ -18,14 +18,23 @@ public:
 
   void SetSamplingRate(uint32_t samplingRate);
 
-  // Prepare internal buffers for a kernel of specific length
-  void PrepareKernelBuffer(uint32_t kernelId, uint32_t length);
+  // Load a Mono kernel (applies same response to both channels)
+  // kernel: Audio data
+  // samples: Number of samples in the kernel
+  void LoadKernelMono(const float *kernel, uint32_t samples);
 
-  // Load data into the prepared buffer
-  void SetKernelBuffer(uint32_t kernelId, const float *data, uint32_t size);
+  // Load a Stereo kernel (separate L/R responses)
+  // kernelL: Left channel data
+  // kernelR: Right channel data
+  // samples: Number of samples per channel
+  void LoadKernelStereo(const float *kernelL, const float *kernelR,
+                        uint32_t samples);
 
-  // Commit and finalize the kernel
-  void CommitKernelBuffer(uint32_t kernelId);
+  // Load a Stereo kernel from interleaved data
+  // kernelInterleaved: L R L R...
+  // frames: Number of frames (L+R pairs)
+  void LoadKernelStereoInterleaved(const float *kernelInterleaved,
+                                   uint32_t frames);
 
   void SetCrossChannel(float level);
 
@@ -44,14 +53,8 @@ private:
   std::unique_ptr<PartitionedConvolver> convRight;
 
   // Buffering for block processing
-  std::unique_ptr<WaveBuffer> inputBuffer;
-  std::unique_ptr<WaveBuffer> outputBuffer;
-
-  // Temporary kernel loading buffer
-  std::vector<float> kernelLoadBuffer;
-  uint32_t currentKernelId;
-  uint32_t kernelLoadIndex;
-  uint32_t kernelExpectedLength;
+  std::unique_ptr<viper::utils::CircularBuffer> inputBuffer;
+  std::unique_ptr<viper::utils::CircularBuffer> outputBuffer;
 
   // Cross channel handling (simplified for now as per decompiled hint)
   // Decompiled code has SetCrossChannel but logic was a bit obscure.
@@ -59,6 +62,14 @@ private:
   float crossChannelLevel;
 
   static const uint32_t CONVOLVER_BLOCK_SIZE = 4096;
+
+  // Scratch buffers for Process loop
+  std::vector<float> scratchInterleaved;
+  std::vector<float> scratchInputL;
+  std::vector<float> scratchInputR;
+  std::vector<float> scratchOutputL;
+  std::vector<float> scratchOutputR;
+  std::vector<float> scratchOutBlock;
 };
 
 } // namespace dsp

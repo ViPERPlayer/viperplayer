@@ -39,6 +39,12 @@ private:
 
   // Overlap-Add buffer
   std::vector<float> overlapBuffer;
+
+  // Scratch buffers
+  std::vector<float> processTimeDomain;
+  std::vector<std::complex<float>> processPartition;
+  std::vector<std::complex<float>> processResultFreq;
+  std::vector<float> processResultTime;
 };
 
 } // namespace dsp
