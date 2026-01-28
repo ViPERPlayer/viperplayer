@@ -45,30 +45,7 @@ fun ViperScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    var openPresetDialog by remember { mutableStateOf(false) }
-
-    ViperScaffold(
-//        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-//            MainTopAppBar(
-//                scrollBehavior = scrollBehavior,
-//                onOpenPresets = {
-//                    openPresetDialog = true
-//                },
-//                onOpenDriverStatus = {
-//                    openStatusDialog = true
-//                },
-//                onOpenSettings = onNavigateToSettings,
-//            )
-        },
-    ) { contentPadding ->
-//        BottomSheet(
-//            onDismissRequest = { /*TODO*/ }
-//        ) {
-//            Text("Hello, Bottom Sheet!")
-//        }
-//        EqualizerBottomSheetPreview()
-
+    ViperScaffold { contentPadding ->
         Column(
             modifier = Modifier
                 .padding(contentPadding)
@@ -206,9 +183,5 @@ fun ViperScreen(
                 }
             }
         }
-    }
-
-    if (openPresetDialog) {
-//        PresetDialog(onDismissRequest = { openPresetDialog = false })
     }
 }
