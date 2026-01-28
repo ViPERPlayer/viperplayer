@@ -51,10 +51,13 @@ object ViperDefaults {
     
     // Analog X
     const val ANALOG_X_ENABLED = false
-    const val ANALOG_X_LEVEL = 2 // 1-3
+    const val ANALOG_X_LEVEL = 1 // 1-3
     
     // Speaker Optimization
     const val SPEAKER_OPTIMIZATION_ENABLED = false
+
+    // DDC
+    const val DDC_ENABLED = false
 
     // IIR Equalizer
     const val IIR_EQUALIZER_ENABLED = false

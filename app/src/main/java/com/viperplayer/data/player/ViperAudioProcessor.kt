@@ -7,6 +7,7 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.model.ViperSteppedValues
+import com.viperplayer.domain.repository.DdcRepository
 import com.viperplayer.domain.repository.ViperRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ import javax.inject.Singleton
 @Singleton
 class ViperAudioProcessor @Inject constructor(
     private val viperRepository: ViperRepository,
+    private val ddcRepository: DdcRepository,
     private val nativeDriver: ViperNativeDriver
 ) : BaseAudioProcessor() {
 
@@ -222,6 +224,25 @@ class ViperAudioProcessor @Inject constructor(
         // Speaker Optimization
         if (current == null || current.speakerOptimization.enabled != state.speakerOptimization.enabled) {
             nativeDriver.setSpeakerOptimizationEnabled(state.speakerOptimization.enabled)
+        }
+
+        // ViPER DDC
+        if (current == null || current.viperDdc.enabled != state.viperDdc.enabled) {
+            nativeDriver.setViperDdcEnabled(state.viperDdc.enabled)
+        }
+        
+        // Check for coefficients change (content) rather than just file name
+        if (current == null || current.viperDdc.coeffs != state.viperDdc.coeffs) {
+            val coeffsMap = state.viperDdc.coeffs
+            
+            // Always clear first when content changes
+            nativeDriver.viperDdcClearCoeffs()
+            
+            if (coeffsMap != null && coeffsMap.isNotEmpty()) {
+                coeffsMap.forEach { (rate, coeffs) ->
+                     nativeDriver.viperDdcAddCoeffs(rate, coeffs.toFloatArray())
+                }
+            }
         }
         
         // Update previous state

@@ -1,6 +1,8 @@
 package com.viperplayer.data.repository.mapper
 
+import com.viperplayer.data.local.entity.ViperDdcCoeffEntity
 import com.viperplayer.data.local.entity.ViperPresetEntity
+import com.viperplayer.data.local.entity.relation.ViperPresetWithCoeffs
 import com.viperplayer.domain.model.AnalogXState
 import com.viperplayer.domain.model.AuditorySystemProtectionState
 import com.viperplayer.domain.model.DifferentialSurroundState
@@ -19,64 +21,76 @@ import com.viperplayer.domain.model.ViperPreset
  * Mapper functions to convert between Room entities and domain models.
  */
 object ViperPresetMapper {
-    fun ViperPresetEntity.toDomain(): ViperPreset {
+    fun ViperPresetWithCoeffs.toDomain(): ViperPreset {
+        val preset = this.preset
+        val coeffsMap = this.ddcCoeffs
+            .groupBy { it.sampleRate }
+            .mapValues { (_, entries) ->
+                entries.sortedBy { it.index }.map { it.value }
+            }
+        
         return ViperPreset(
-            id = id,
-            name = name,
-            deviceId = deviceId,
+            id = preset.id,
+            name = preset.name,
+            deviceId = preset.deviceId,
             effectsState = ViperEffectsState(
-                enabled = enabled,
+                enabled = preset.enabled,
                 masterLimiter = MasterLimiterState(
-                    outputGain = masterLimiterOutputGain,
-                    outputPan = masterLimiterOutputPan,
-                    thresholdLimit = masterLimiterThresholdLimit,
+                    outputGain = preset.masterLimiterOutputGain,
+                    outputPan = preset.masterLimiterOutputPan,
+                    thresholdLimit = preset.masterLimiterThresholdLimit,
                 ),
                 spectrumExtension = SpectrumExtensionState(
-                    enabled = spectrumExtensionEnabled,
-                    strength = spectrumExtensionStrength,
+                    enabled = preset.spectrumExtensionEnabled,
+                    strength = preset.spectrumExtensionStrength,
                 ),
                 fieldSurround = FieldSurroundState(
-                    enabled = fieldSurroundEnabled,
-                    surroundStrength = fieldSurroundStrength,
-                    midImageStrength = fieldSurroundMidImageStrength,
+                    enabled = preset.fieldSurroundEnabled,
+                    surroundStrength = preset.fieldSurroundStrength,
+                    midImageStrength = preset.fieldSurroundMidImageStrength,
                 ),
                 differentialSurround = DifferentialSurroundState(
-                    enabled = differentialSurroundEnabled,
-                    delay = differentialSurroundDelay,
+                    enabled = preset.differentialSurroundEnabled,
+                    delay = preset.differentialSurroundDelay,
                 ),
                 dynamicSystem = DynamicSystemState(
-                    enabled = dynamicSystemEnabled,
-                    deviceType = dynamicSystemDeviceType,
-                    dynamicBassStrength = dynamicSystemBassStrength,
+                    enabled = preset.dynamicSystemEnabled,
+                    deviceType = preset.dynamicSystemDeviceType,
+                    dynamicBassStrength = preset.dynamicSystemBassStrength,
                 ),
                 tubeSimulator = TubeSimulatorState(
-                    enabled = tubeSimulatorEnabled,
+                    enabled = preset.tubeSimulatorEnabled,
                 ),
                 viperBass = ViperBassState(
-                    enabled = viperBassEnabled,
-                    mode = viperBassMode,
-                    frequency = viperBassFrequency,
-                    gain = viperBassGain,
+                    enabled = preset.viperBassEnabled,
+                    mode = preset.viperBassMode,
+                    frequency = preset.viperBassFrequency,
+                    gain = preset.viperBassGain,
                 ),
                 viperClarity = ViperClarityState(
-                    enabled = viperClarityEnabled,
-                    mode = viperClarityMode,
-                    gain = viperClarityGain,
+                    enabled = preset.viperClarityEnabled,
+                    mode = preset.viperClarityMode,
+                    gain = preset.viperClarityGain,
                 ),
                 auditorySystemProtection = AuditorySystemProtectionState(
-                    enabled = auditorySystemProtectionEnabled,
-                    level = auditorySystemProtectionLevel,
+                    enabled = preset.auditorySystemProtectionEnabled,
+                    level = preset.auditorySystemProtectionLevel,
                 ),
                 analogX = AnalogXState(
-                    enabled = analogXEnabled,
-                    level = analogXLevel,
+                    enabled = preset.analogXEnabled,
+                    level = preset.analogXLevel,
                 ),
                 speakerOptimization = SpeakerOptimizationState(
-                    enabled = speakerOptimizationEnabled,
+                    enabled = preset.speakerOptimizationEnabled,
+                ),
+                viperDdc = com.viperplayer.domain.model.ViperDdcState(
+                    enabled = preset.viperDdcEnabled,
+                    selectedDdcFile = preset.viperDdcSelectedFile,
+                    coeffs = coeffsMap.ifEmpty { null }
                 ),
             ),
-            createdAt = createdAt,
-            updatedAt = updatedAt,
+            createdAt = preset.createdAt,
+            updatedAt = preset.updatedAt,
         )
     }
 
@@ -126,7 +140,30 @@ object ViperPresetMapper {
             analogXLevel = effectsState.analogX.level,
             // Speaker Optimization
             speakerOptimizationEnabled = effectsState.speakerOptimization.enabled,
+            // ViPER DDC
+            viperDdcEnabled = effectsState.viperDdc.enabled,
+            viperDdcSelectedFile = effectsState.viperDdc.selectedDdcFile,
+            // Coeffs handled separately
         )
+    }
+
+    fun ViperPreset.toCoeffEntities(presetId: Long): List<ViperDdcCoeffEntity> {
+        val coeffs = effectsState.viperDdc.coeffs ?: return emptyList()
+        val entities = mutableListOf<ViperDdcCoeffEntity>()
+        
+        coeffs.forEach { (rate, values) ->
+            values.forEachIndexed { index, value ->
+                entities.add(
+                    ViperDdcCoeffEntity(
+                        presetId = presetId,
+                        sampleRate = rate,
+                        index = index,
+                        value = value
+                    )
+                )
+            }
+        }
+        return entities
     }
 }
 

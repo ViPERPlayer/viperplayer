@@ -66,6 +66,11 @@ class ViperNativeDriver @Inject constructor() {
     external fun setIirEqualizerEnabled(enabled: Boolean)
     external fun setIirEqualizerBandLevel(bandIndex: Int, level: Float)
     external fun setIirEqualizerBandCount(bandCountOrdinal: Int)
+
+    // ViPER DDC
+    external fun setViperDdcEnabled(enabled: Boolean)
+    external fun viperDdcClearCoeffs()
+    external fun viperDdcAddCoeffs(samplingRate: Int, coeffs: FloatArray)
     
     // Audio Processing
     external fun process(buffer: ByteBuffer, offset: Int, size: Int)

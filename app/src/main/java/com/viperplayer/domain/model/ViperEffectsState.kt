@@ -44,6 +44,9 @@ data class ViperEffectsState(
     // Speaker Optimization
     val speakerOptimization: SpeakerOptimizationState = SpeakerOptimizationState(),
 
+    // ViPER DDC
+    val viperDdc: ViperDdcState = ViperDdcState(),
+
     // IIR Equalizer
     val iirEqualizer: IirEqualizerState = IirEqualizerState(),
 ) {

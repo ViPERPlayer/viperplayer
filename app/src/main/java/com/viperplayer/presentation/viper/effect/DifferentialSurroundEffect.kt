@@ -23,12 +23,12 @@ fun DifferentialSurroundEffect(
     ) {
         ValueSlider(
             title = stringResource(R.string.differential_surround_delay),
-            summary = (state.delay + 1).toString(),
+            summary = state.delay.toString(),
             summaryUnit = "ms",
             value = state.delay,
             onValueChange = onDelayChange,
             onValueReset = onDelayReset,
-            valueRange = 0..19
+            valueRange = 1..20
         )
     }
 }

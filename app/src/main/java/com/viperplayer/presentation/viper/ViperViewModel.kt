@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.viper
 
+import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.DynamicSystemDeviceType
@@ -7,14 +9,17 @@ import com.viperplayer.domain.model.IirEqualizerPresets
 import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.domain.model.ViperDefaults
 import com.viperplayer.domain.model.ViperEffectsState
+import com.viperplayer.domain.repository.DdcRepository
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -23,6 +28,7 @@ import javax.inject.Inject
 data class ViperUiState(
     val effectsState: ViperEffectsState = ViperEffectsState.default(),
     val activeDeviceId: String? = null,
+    val ddcFiles: List<File> = emptyList()
 )
 
 /**
@@ -32,11 +38,18 @@ data class ViperUiState(
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class ViperViewModel @Inject constructor(
-    private val viperRepository: ViperRepository
+    @ApplicationContext private val context: Context,
+    private val viperRepository: ViperRepository,
+    private val ddcRepository: DdcRepository
 ) : ViewModel() {
-    val uiState: StateFlow<ViperUiState> = viperRepository.effectsState.map { effectsState ->
+
+    val uiState: StateFlow<ViperUiState> = combine(
+        viperRepository.effectsState,
+        ddcRepository.ddcFiles
+    ) { effectsState, ddcFiles ->
         ViperUiState(
             effectsState = effectsState,
+            ddcFiles = ddcFiles
         )
     }.stateIn(
         scope = viewModelScope,
@@ -301,6 +314,60 @@ class ViperViewModel @Inject constructor(
     fun resetAnalogXLevel() {
         viewModelScope.launch {
             viperRepository.updateEffectsState { it.copy(analogX = it.analogX.copy(level = ViperDefaults.ANALOG_X_LEVEL)) }
+        }
+    }
+
+    // DDC
+    fun setViperDdcEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(viperDdc = it.viperDdc.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setViperDdcFile(fileName: String) {
+        viewModelScope.launch {
+            val coeffs = ddcRepository.parseDdcCoeffs(fileName)
+            viperRepository.updateEffectsState { 
+                it.copy(viperDdc = it.viperDdc.copy(
+                    selectedDdcFile = fileName,
+                    coeffs = coeffs
+                )) 
+            }
+        }
+    }
+
+    fun importDdcFile(uri: String) {
+        viewModelScope.launch {
+            val result = ddcRepository.importDdcFile(uri)
+            when (result) {
+                is DdcRepository.DdcImportResult.Success -> {
+                    android.widget.Toast.makeText(context, "DDC file imported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                    setViperDdcFile(result.fileName)
+                }
+                DdcRepository.DdcImportResult.InvalidExtension -> Toast.makeText(context, "Error: Invalid file extension (must be .vdc)", android.widget.Toast.LENGTH_SHORT).show()
+                DdcRepository.DdcImportResult.InvalidContent -> Toast.makeText(context, "Error: Invalid file content (parse failed)", android.widget.Toast.LENGTH_SHORT).show()
+                DdcRepository.DdcImportResult.IOError -> Toast.makeText(context, "Error: import failed (IO error)", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun deleteDdcFile(fileName: String) {
+        viewModelScope.launch {
+            ddcRepository.deleteDdcFile(fileName)
+            // If the deleted file was used, keep the logic (though now we store coeffs, so we could theoretically keep them)
+            // But usually user expects deletion to reset if selection is gone.
+            // Let's reset for consistency, or we could keep it as "Custom" if we wanted.
+            // For now, reset selection.
+            viperRepository.updateEffectsState { state ->
+                if (state.viperDdc.selectedDdcFile == fileName) {
+                    state.copy(viperDdc = state.viperDdc.copy(
+                        selectedDdcFile = null,
+                        coeffs = null
+                    ))
+                } else {
+                    state
+                }
+            }
         }
     }
 

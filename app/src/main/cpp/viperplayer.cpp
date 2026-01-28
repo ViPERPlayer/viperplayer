@@ -226,6 +226,46 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setIirEqualizerBandCount(JNIE
     viperEngine.iirEqualizer.configure(viperEngine.getSamplingRate(), count);
 }
 
+// ViPER DDC
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setViperDdcEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+    viperEngine.viperDdc.SetEnable(enabled);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_viperDdcClearCoeffs(JNIEnv *env, jobject thiz) {
+    viperEngine.viperDdc.ClearCoeffs();
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_viperDdcAddCoeffs(JNIEnv *env, jobject thiz, jint samplingRate, jfloatArray coeffs) {
+    jsize numCoeffs = env->GetArrayLength(coeffs);
+    if (numCoeffs == 0) return;
+
+    jfloat *coeffsBody = env->GetFloatArrayElements(coeffs, 0);
+
+    // Coeffs are flattened [L_b0, L_b1... R_b0...] for each band.
+    // Each biquad is 5 floats.
+    // Total coeffs = bands * 5.
+    uint32_t bands = numCoeffs / 5;
+    std::vector<std::array<float, 5>> rateCoeffs(bands);
+
+    for (uint32_t j = 0; j < bands; j++) {
+        rateCoeffs[j][0] = coeffsBody[j * 5 + 0];
+        rateCoeffs[j][1] = coeffsBody[j * 5 + 1];
+        rateCoeffs[j][2] = coeffsBody[j * 5 + 2];
+        rateCoeffs[j][3] = coeffsBody[j * 5 + 3];
+        rateCoeffs[j][4] = coeffsBody[j * 5 + 4];
+    }
+
+    viperEngine.viperDdc.AddCoeffs((uint32_t)samplingRate, rateCoeffs);
+
+    env->ReleaseFloatArrayElements(coeffs, coeffsBody, 0);
+}
+
 // Common
 extern "C"
 JNIEXPORT void JNICALL

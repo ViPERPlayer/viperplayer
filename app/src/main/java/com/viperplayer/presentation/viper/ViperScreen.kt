@@ -13,9 +13,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,16 +24,19 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.viper.component.SwitchBar
 import com.viperplayer.presentation.viper.effect.AnalogXEffect
 import com.viperplayer.presentation.viper.effect.AuditorySystemProtectionEffect
+import com.viperplayer.presentation.viper.effect.ConvolverEffect
 import com.viperplayer.presentation.viper.effect.DifferentialSurroundEffect
 import com.viperplayer.presentation.viper.effect.DynamicSystemEffect
 import com.viperplayer.presentation.viper.effect.FieldSurroundEffect
 import com.viperplayer.presentation.viper.effect.IirEqualizerEffect
 import com.viperplayer.presentation.viper.effect.MasterLimiterEffect
+import com.viperplayer.presentation.viper.effect.PlaybackGainControlEffect
 import com.viperplayer.presentation.viper.effect.SpeakerOptimizationEffect
 import com.viperplayer.presentation.viper.effect.SpectrumExtensionEffect
 import com.viperplayer.presentation.viper.effect.TubeSimulator6N1JEffect
 import com.viperplayer.presentation.viper.effect.ViPERBassEffect
 import com.viperplayer.presentation.viper.effect.ViPERClarityEffect
+import com.viperplayer.presentation.viper.effect.ViperDdcEffect
 
 @Composable
 fun ViperScreen(
@@ -118,7 +118,14 @@ fun ViperScreen(
                     )
 //                    PlaybackGainControlEffect()
 //                    FETCompressorEffect()
-//                    ViPERDDCEffect()
+                    ViperDdcEffect(
+                        state = effects.viperDdc,
+                        ddcFiles = state.ddcFiles,
+                        onEnabledChange = { viewModel.setViperDdcEnabled(it) },
+                        onFileSelect = { viewModel.setViperDdcFile(it) },
+                        onFileImport = { viewModel.importDdcFile(it) },
+                        onFileDelete = { viewModel.deleteDdcFile(it) }
+                    )
                     SpectrumExtensionEffect(
                         state = effects.spectrumExtension,
                         onEnabledChange = { viewModel.setSpectrumExtensionEnabled(it) },

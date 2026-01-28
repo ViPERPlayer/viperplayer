@@ -75,5 +75,9 @@ data class ViperPresetEntity(
     
     // Speaker Optimization
     val speakerOptimizationEnabled: Boolean = ViperDefaults.SPEAKER_OPTIMIZATION_ENABLED,
+
+    // ViPER DDC
+    val viperDdcEnabled: Boolean = ViperDefaults.DDC_ENABLED,
+    val viperDdcSelectedFile: String? = null,
 )
 

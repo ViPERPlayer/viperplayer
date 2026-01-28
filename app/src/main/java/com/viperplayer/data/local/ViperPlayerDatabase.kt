@@ -23,6 +23,7 @@ import com.viperplayer.data.local.entity.QueueSongCrossRef
 import com.viperplayer.data.local.entity.SearchHistoryEntity
 import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
+import com.viperplayer.data.local.entity.ViperDdcCoeffEntity
 import com.viperplayer.data.local.entity.ViperPresetEntity
 import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConverter
 
@@ -42,7 +43,8 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         ArtistGenreCrossRef::class,
         SearchHistoryEntity::class,
         QueueSongCrossRef::class,
-        ViperPresetEntity::class
+        ViperPresetEntity::class,
+        ViperDdcCoeffEntity::class
     ],
     version = 1,
     exportSchema = false

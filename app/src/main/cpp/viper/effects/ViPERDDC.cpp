@@ -1,5 +1,6 @@
 #include "ViPERDDC.h"
 #include <cstring>
+#include <algorithm>
 
 ViPERDDC::ViPERDDC(uint32_t samplingRate) :
     enable(false),
@@ -10,27 +11,18 @@ ViPERDDC::ViPERDDC(uint32_t samplingRate) :
 void ViPERDDC::Process(float *samples, uint32_t size) {
     if (!this->setCoeffsOk || this->arrSize == 0) return;
     if (!this->enable) return;
-    if (!isSamplingRateValid()) return;
 
-    std::vector<std::array<float, 5>> *coeffsArr;
+    auto it = this->coeffsMap.find(this->samplingRate);
+    if (it == this->coeffsMap.end()) return;
 
-    switch (this->samplingRate) {
-        case 44100: {
-            coeffsArr = &this->coeffsArr44100;
-            break;
-        }
-        case 48000: {
-            coeffsArr = &this->coeffsArr48000;
-            break;
-        }
-    }
+    const std::vector<std::array<float, 5>> *coeffsArr = &it->second;
 
     for (uint32_t i = 0; i < size * 2; i += 2) {
         float sampleL = samples[i];
         float sampleR = samples[i + 1];
 
         for (uint32_t j = 0; j < this->arrSize; j++) {
-            std::array<float, 5> *coeffs = &(*coeffsArr)[j];
+            const std::array<float, 5> *coeffs = &(*coeffsArr)[j];
 
             float b0 = (*coeffs)[0];
             float b1 = (*coeffs)[1];
@@ -74,61 +66,64 @@ void ViPERDDC::Process(float *samples, uint32_t size) {
 
 void ViPERDDC::ReleaseResources() {
     this->setCoeffsOk = false;
+    this->coeffsMap.clear();
 
-    this->coeffsArr44100.resize(0);
-    this->coeffsArr48000.resize(0);
-
-    this->x1L.resize(0);
-    this->x1R.resize(0);
-    this->x2L.resize(0);
-    this->x2R.resize(0);
-    this->y1L.resize(0);
-    this->y1R.resize(0);
-    this->y2L.resize(0);
-    this->y2R.resize(0);
+    this->x1L.clear();
+    this->x1R.clear();
+    this->x2L.clear();
+    this->x2R.clear();
+    this->y1L.clear();
+    this->y1R.clear();
+    this->y2L.clear();
+    this->y2R.clear();
 }
 
 void ViPERDDC::Reset() {
     if (!this->setCoeffsOk) return;
     if (this->arrSize == 0) return;
 
-    memset(this->x1L.data(), 0, this->arrSize * sizeof(float));
-    memset(this->x1R.data(), 0, this->arrSize * sizeof(float));
+    std::fill(this->x1L.begin(), this->x1L.end(), 0.0f);
+    std::fill(this->x1R.begin(), this->x1R.end(), 0.0f);
+    std::fill(this->x2L.begin(), this->x2L.end(), 0.0f);
+    std::fill(this->x2R.begin(), this->x2R.end(), 0.0f);
+    std::fill(this->y1L.begin(), this->y1L.end(), 0.0f);
+    std::fill(this->y1R.begin(), this->y1R.end(), 0.0f);
+    std::fill(this->y2L.begin(), this->y2L.end(), 0.0f);
+    std::fill(this->y2R.begin(), this->y2R.end(), 0.0f);
 }
 
-void ViPERDDC::SetCoeffs(uint32_t newCoeffsSize, const float *newCoeffs44100, const float *newCoeffs48000) {
+void ViPERDDC::ClearCoeffs() {
     ReleaseResources();
+}
 
-    if (newCoeffsSize == 0) return;
+void ViPERDDC::AddCoeffs(uint32_t rate, const std::vector<std::array<float, 5>>& coeffs) {
+    if (coeffs.empty()) return;
 
-    this->arrSize = newCoeffsSize / 5;
-    this->coeffsArr44100.resize(this->arrSize);
-    this->coeffsArr48000.resize(this->arrSize);
+    // If this is the first set of coeffs added, set up the buffer size
+    if (this->coeffsMap.empty()) {
+        this->arrSize = (uint32_t)coeffs.size();
+        if (this->arrSize == 0) return;
 
-    for (uint32_t i = 0; i < this->arrSize; i++) {
-        this->coeffsArr44100[i][0] = newCoeffs44100[i * 5];
-        this->coeffsArr44100[i][1] = newCoeffs44100[i * 5 + 1];
-        this->coeffsArr44100[i][2] = newCoeffs44100[i * 5 + 2];
-        this->coeffsArr44100[i][3] = newCoeffs44100[i * 5 + 3];
-        this->coeffsArr44100[i][4] = newCoeffs44100[i * 5 + 4];
-
-        this->coeffsArr48000[i][0] = newCoeffs48000[i * 5];
-        this->coeffsArr48000[i][1] = newCoeffs48000[i * 5 + 1];
-        this->coeffsArr48000[i][2] = newCoeffs48000[i * 5 + 2];
-        this->coeffsArr48000[i][3] = newCoeffs48000[i * 5 + 3];
-        this->coeffsArr48000[i][4] = newCoeffs48000[i * 5 + 4];
+        this->x1L.resize(this->arrSize);
+        this->x1R.resize(this->arrSize);
+        this->x2L.resize(this->arrSize);
+        this->x2R.resize(this->arrSize);
+        this->y1L.resize(this->arrSize);
+        this->y1R.resize(this->arrSize);
+        this->y2L.resize(this->arrSize);
+        this->y2R.resize(this->arrSize);
+        
+        // Clear buffers
+        Reset();
+        this->setCoeffsOk = true;
+    } else {
+        // Validation: subsequent rates must have same size
+        if (coeffs.size() != this->arrSize) {
+           return; 
+        }
     }
 
-    this->x1L.resize(this->arrSize);
-    this->x1R.resize(this->arrSize);
-    this->x2L.resize(this->arrSize);
-    this->x2R.resize(this->arrSize);
-    this->y1L.resize(this->arrSize);
-    this->y1R.resize(this->arrSize);
-    this->y2L.resize(this->arrSize);
-    this->y2R.resize(this->arrSize);
-
-    this->setCoeffsOk = true;
+    this->coeffsMap[rate] = coeffs;
 }
 
 void ViPERDDC::SetEnable(bool enable) {
@@ -143,13 +138,8 @@ void ViPERDDC::SetEnable(bool enable) {
 void ViPERDDC::SetSamplingRate(uint32_t samplingRate) {
     if (this->samplingRate != samplingRate) {
         this->samplingRate = samplingRate;
-        if (!isSamplingRateValid()) {
-//            ALOGE("ViPERDDC::SetSamplingRate() -> Invalid sampling rate: %d", this->samplingRate);
-        }
         Reset();
     }
 }
 
-bool ViPERDDC::isSamplingRateValid() const {
-    return this->samplingRate == 44100 || this->samplingRate == 48000;
-}
+

@@ -3,6 +3,7 @@ package com.viperplayer.data.repository
 import com.viperplayer.data.audio.AudioDeviceManager
 import com.viperplayer.data.local.ViperPlayerDatabase
 import com.viperplayer.data.local.dao.ViperPresetDao
+import com.viperplayer.data.repository.mapper.ViperPresetMapper.toCoeffEntities
 import com.viperplayer.data.repository.mapper.ViperPresetMapper.toDomain
 import com.viperplayer.data.repository.mapper.ViperPresetMapper.toEntity
 import com.viperplayer.domain.audio.AudioOutputDevice
@@ -83,13 +84,17 @@ class ViperRepositoryImpl @Inject constructor(
 
         if (currentDevice != null) {
             // Check if device has a preset, if so update it
-            val existingPreset = presetDao.getPresetByDeviceId(currentDevice.id)
-            if (existingPreset != null) {
-                val updated = existingPreset.toDomain().copy(
+            val existingPresetRelation = presetDao.getPresetByDeviceId(currentDevice.id)
+            if (existingPresetRelation != null) {
+                val existingPreset = existingPresetRelation.toDomain()
+                val updated = existingPreset.copy(
                     effectsState = state,
                     updatedAt = System.currentTimeMillis()
                 )
-                presetDao.updatePreset(updated.toEntity())
+                presetDao.updatePresetWithCoeffs(
+                    updated.toEntity(),
+                    updated.toCoeffEntities(updated.id)
+                )
                 Timber.d("Auto-saved state to device preset: ${existingPreset.id}")
                 return
             }
@@ -111,6 +116,10 @@ class ViperRepositoryImpl @Inject constructor(
             updatedAt = System.currentTimeMillis()
         )
         val id = presetDao.insertPreset(preset.toEntity())
+        val coeffs = preset.toCoeffEntities(id)
+        if (coeffs.isNotEmpty()) {
+            presetDao.insertCoeffs(coeffs)
+        }
         Timber.d("Auto-created device preset: $id for device: ${device.id}")
     }
     
@@ -140,7 +149,7 @@ class ViperRepositoryImpl @Inject constructor(
         Timber.d("Setting active device: $device, preset: $preset")
         if (preset != null) {
             // Load the device-specific preset
-            loadPreset(preset.id)
+            loadPreset(preset.preset.id)
         } else {
             // No preset for this device, use default state
             _effectsState.value = ViperEffectsState.default()

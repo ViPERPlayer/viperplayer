@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <array>
+#include <map>
 
 class ViPERDDC {
 public:
@@ -10,7 +11,8 @@ public:
 
     void Process(float *samples, uint32_t size);
     void Reset();
-    void SetCoeffs(uint32_t newCoeffsSize, const float *newCoeffs44100, const float *newCoeffs48000);
+    void ClearCoeffs();
+    void AddCoeffs(uint32_t rate, const std::vector<std::array<float, 5>>& coeffs);
     void SetEnable(bool enable);
     void SetSamplingRate(uint32_t samplingRate);
 
@@ -19,8 +21,7 @@ private:
     bool setCoeffsOk;
     uint32_t samplingRate;
     uint32_t arrSize;
-    std::vector<std::array<float, 5>> coeffsArr44100;
-    std::vector<std::array<float, 5>> coeffsArr48000;
+    std::map<uint32_t, std::vector<std::array<float, 5>>> coeffsMap;
     std::vector<float> x1L;
     std::vector<float> x1R;
     std::vector<float> x2L;
