@@ -64,6 +64,12 @@ object ViperDefaults {
     val CONVOLVER_IMPULSE_RESPONSE: String? = null
     const val CONVOLVER_CROSS_CHANNEL = 0 // 0-100
 
+    // Playback Gain Control
+    const val PLAYBACK_GAIN_ENABLED = false
+    const val PLAYBACK_GAIN_STRENGTH = 1 // 1-3
+    const val PLAYBACK_GAIN_MAX_GAIN = 1 // 1-10 + Infinite
+    const val PLAYBACK_GAIN_OUTPUT_THRESHOLD = 0f // -10.5, -6, -3, -1.9, -1, 0
+
     // IIR Equalizer
     const val IIR_EQUALIZER_ENABLED = false
     const val IIR_EQUALIZER_BAND_COUNT = 10

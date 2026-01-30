@@ -308,6 +308,36 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setConvolverCrossChannel(JNIE
     viperEngine.convolver.SetCrossChannel(level);
 }
 
+// Playback Gain Control
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainEnabled(JNIEnv *env, jobject thiz,
+                                                                         jboolean enabled) {
+    viperEngine.playbackGain.SetEnable(enabled);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainStrength(JNIEnv *env, jobject thiz,
+                                                                          jint strength) {
+    viperEngine.playbackGain.SetStrength(strength);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainMaxGain(JNIEnv *env, jobject thiz,
+                                                                         jint max_gain) {
+    viperEngine.playbackGain.SetMaxGain(max_gain);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainOutputThreshold(JNIEnv *env,
+                                                                                 jobject thiz,
+                                                                                 jfloat threshold) {
+    viperEngine.playbackGain.SetOutputThreshold(threshold);
+}
+
 // Common
 extern "C"
 JNIEXPORT void JNICALL

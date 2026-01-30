@@ -14,6 +14,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         viper/effects/DynamicSystem.cpp
         viper/effects/Reverberation.cpp
         viper/effects/SoftwareLimiter.cpp
+        viper/effects/PlaybackGain.cpp
         viper/effects/SpeakerCorrection.cpp
         viper/effects/SpectrumExtend.cpp
         viper/effects/TubeSimulator.cpp

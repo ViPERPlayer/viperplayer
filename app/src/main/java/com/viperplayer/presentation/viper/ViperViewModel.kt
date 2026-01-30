@@ -178,6 +178,49 @@ class ViperViewModel @Inject constructor(
         }
     }
 
+    // Playback Gain Control
+    fun setPlaybackGainEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setPlaybackGainStrength(strength: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(strength = strength)) }
+        }
+    }
+
+    fun resetPlaybackGainStrength() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(strength = ViperDefaults.PLAYBACK_GAIN_STRENGTH)) }
+        }
+    }
+
+    fun setPlaybackGainMaxGain(maxGain: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(maxGain = maxGain)) }
+        }
+    }
+
+    fun resetPlaybackGainMaxGain() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(maxGain = ViperDefaults.PLAYBACK_GAIN_MAX_GAIN)) }
+        }
+    }
+
+    fun setPlaybackGainOutputThreshold(threshold: Float) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(outputThreshold = threshold)) }
+        }
+    }
+
+    fun resetPlaybackGainOutputThreshold() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(outputThreshold = ViperDefaults.PLAYBACK_GAIN_OUTPUT_THRESHOLD)) }
+        }
+    }
+
     // Dynamic System
     fun setDynamicSystemEnabled(enabled: Boolean) {
         viewModelScope.launch {

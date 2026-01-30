@@ -166,17 +166,17 @@ class ViperAudioProcessor @Inject constructor(
         }
 
         // Differential Surround
-        if (current == null || current.differentialSurround.enabled != state.differentialSurround.enabled) {
-            nativeDriver.setDifferentialSurroundEnabled(state.differentialSurround.enabled)
-        }
-        if (current == null || current.differentialSurround.delay != state.differentialSurround.delay) {
-            nativeDriver.setDifferentialSurroundDelay(state.differentialSurround.delay)
-        }
+        nativeDriver.setDifferentialSurroundEnabled(state.differentialSurround.enabled)
+        nativeDriver.setDifferentialSurroundDelay(state.differentialSurround.delay)
+
+        // Playback Gain Control
+        nativeDriver.setPlaybackGainEnabled(state.playbackGain.enabled)
+        nativeDriver.setPlaybackGainStrength(state.playbackGain.strength)
+        nativeDriver.setPlaybackGainMaxGain(state.playbackGain.maxGain)
+        nativeDriver.setPlaybackGainOutputThreshold(state.playbackGain.outputThreshold)
 
         // Dynamic System
-        if (current == null || current.dynamicSystem.enabled != state.dynamicSystem.enabled) {
-            nativeDriver.setDynamicSystemEnabled(state.dynamicSystem.enabled)
-        }
+        nativeDriver.setDynamicSystemEnabled(state.dynamicSystem.enabled)
         if (current == null || current.dynamicSystem.deviceType != state.dynamicSystem.deviceType) {
             nativeDriver.setDynamicSystemDeviceType(state.dynamicSystem.deviceType.ordinal)
         }

@@ -76,6 +76,12 @@ class ViperNativeDriver @Inject constructor() {
     external fun setConvolverEnabled(enabled: Boolean)
     external fun setConvolverImpulseResponse(channels: Int, kernel: FloatArray)
     external fun setConvolverCrossChannel(crossChannel: Int) // 0-100
+
+    // Playback Gain Control
+    external fun setPlaybackGainEnabled(enabled: Boolean)
+    external fun setPlaybackGainStrength(strength: Int)
+    external fun setPlaybackGainMaxGain(maxGain: Int)
+    external fun setPlaybackGainOutputThreshold(threshold: Float)
     
     // Audio Processing
     external fun process(buffer: ByteBuffer, offset: Int, size: Int)

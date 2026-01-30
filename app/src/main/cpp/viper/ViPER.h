@@ -17,6 +17,7 @@
 #include "effects/ColorfulMusic.h"
 #include "effects/ViPERBass.h"
 #include "effects/SoftwareLimiter.h"
+#include "effects/PlaybackGain.h"
 #include <array>
 
 class ViPER {
@@ -44,10 +45,11 @@ public:
     Cure cure;
     TubeSimulator tubeSimulator;
     AnalogX analogX;
+    viper::effects::PlaybackGain playbackGain; // Added
     SpeakerCorrection speakerCorrection;
 
 private:
-    std::array<SoftwareLimiter, 2> softwareLimiters;
+    std::vector<SoftwareLimiter> softwareLimiters = {SoftwareLimiter(), SoftwareLimiter()}; // Changed to std::vector and initialized
     uint32_t samplingRate;
     float leftGain = 1;
     float rightGain = 1;

@@ -23,6 +23,9 @@ data class ViperEffectsState(
     // Differential Surround
     val differentialSurround: DifferentialSurroundState = DifferentialSurroundState(),
     
+    // Playback Gain Control
+    val playbackGain: PlaybackGainState = PlaybackGainState(),
+
     // Dynamic System
     val dynamicSystem: DynamicSystemState = DynamicSystemState(),
     
@@ -85,6 +88,14 @@ data class FieldSurroundState(
 data class DifferentialSurroundState(
     val enabled: Boolean = ViperDefaults.DIFFERENTIAL_SURROUND_ENABLED,
     val delay: Int = ViperDefaults.DIFFERENTIAL_SURROUND_DELAY,
+)
+
+@Serializable
+data class PlaybackGainState(
+    val enabled: Boolean = ViperDefaults.PLAYBACK_GAIN_ENABLED,
+    val strength: Int = ViperDefaults.PLAYBACK_GAIN_STRENGTH,
+    val maxGain: Int = ViperDefaults.PLAYBACK_GAIN_MAX_GAIN,
+    val outputThreshold: Float = ViperDefaults.PLAYBACK_GAIN_OUTPUT_THRESHOLD,
 )
 
 @Serializable

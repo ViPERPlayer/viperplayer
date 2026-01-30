@@ -94,10 +94,14 @@ fun ViperScreen(
                         onThresholdLimitReset = { viewModel.resetMasterLimiterThresholdLimit() }
                     )
                     PlaybackGainControlEffect(
-                        state = effects.differentialSurround,
-                        onEnabledChange = { viewModel.setDifferentialSurroundEnabled(it) },
-                        onDelayChange = { viewModel.setDifferentialSurroundDelay(it) },
-                        onDelayReset = { viewModel.resetDifferentialSurroundDelay() }
+                        state = effects.playbackGain,
+                        onEnabledChange = { viewModel.setPlaybackGainEnabled(it) },
+                        onStrengthChange = { viewModel.setPlaybackGainStrength(it) },
+                        onStrengthReset = { viewModel.resetPlaybackGainStrength() },
+                        onMaxGainChange = { viewModel.setPlaybackGainMaxGain(it) },
+                        onMaxGainReset = { viewModel.resetPlaybackGainMaxGain() },
+                        onOutputThresholdChange = { viewModel.setPlaybackGainOutputThreshold(it) },
+                        onOutputThresholdReset = { viewModel.resetPlaybackGainOutputThreshold() }
                     )
 //                    FETCompressorEffect()
                     ViperDdcEffect(

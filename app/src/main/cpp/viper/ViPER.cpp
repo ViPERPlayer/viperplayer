@@ -14,6 +14,7 @@ ViPER::ViPER(uint32_t samplingRate) :
     diffSurround(samplingRate),
     cure(samplingRate),
     analogX(samplingRate),
+    playbackGain(samplingRate),
     speakerCorrection(samplingRate),
     samplingRate(samplingRate) {
 
@@ -37,6 +38,7 @@ void ViPER::process(float *buffer, uint32_t size) {
         this->viperDdc.Process(buffer, size);
         this->convolver.Process(buffer, buffer, size);
         this->spectrumExtend.Process(buffer, size);
+        this->playbackGain.Process(buffer, size); // Process early in chain
         
         // IIR EQ Process - updated for new API (interleaved stereo = 2 channels)
         // Note: The buffer here is stereo interleaved float.
@@ -81,6 +83,7 @@ void ViPER::reset() {
     this->cure.Reset();
     this->tubeSimulator.Reset();
     this->analogX.Reset();
+    this->playbackGain.Reset();
     this->speakerCorrection.Reset();
     for (auto &softwareLimiter: softwareLimiters) {
         softwareLimiter.Reset();
