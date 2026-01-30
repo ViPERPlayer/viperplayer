@@ -4,6 +4,7 @@
 
 ViPER::ViPER(uint32_t samplingRate) :
     viperDdc(samplingRate),
+    convolver(),
     spectrumExtend(samplingRate),
     iirEqualizer(),
     colorfulMusic(samplingRate),
@@ -18,6 +19,9 @@ ViPER::ViPER(uint32_t samplingRate) :
 
     this->viperDdc.SetSamplingRate(this->samplingRate);
     this->viperDdc.Reset();
+    
+    this->convolver.SetSamplingRate(this->samplingRate);
+    this->convolver.Reset();
 
     this->spectrumExtend.SetReferenceFrequency(7600);
     this->spectrumExtend.Reset();
@@ -31,6 +35,7 @@ void ViPER::process(float *buffer, uint32_t size) {
 
     if (size != 0) {
         this->viperDdc.Process(buffer, size);
+        this->convolver.Process(buffer, buffer, size);
         this->spectrumExtend.Process(buffer, size);
         
         // IIR EQ Process - updated for new API (interleaved stereo = 2 channels)
@@ -64,6 +69,7 @@ void ViPER::process(float *buffer, uint32_t size) {
 
 void ViPER::reset() {
     this->viperDdc.Reset();
+    this->convolver.Reset();
     this->spectrumExtend.Reset();
     this->iirEqualizer.reset();
     this->colorfulMusic.Reset();

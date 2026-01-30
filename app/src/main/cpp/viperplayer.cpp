@@ -266,6 +266,48 @@ Java_com_viperplayer_data_player_ViperNativeDriver_viperDdcAddCoeffs(JNIEnv *env
     env->ReleaseFloatArrayElements(coeffs, coeffsBody, 0);
 }
 
+// Convolver
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setConvolverEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+    viperEngine.convolver.SetEnable(enabled);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setConvolverImpulseResponse(JNIEnv *env, jobject thiz, jint channels, jfloatArray kernel) {
+    jsize numSamples = env->GetArrayLength(kernel);
+    if (numSamples == 0) {
+        viperEngine.convolver.UnloadKernel();
+        return;
+    }
+
+    jfloat *kernelBody = env->GetFloatArrayElements(kernel, 0);
+
+    // Number of samples per channel
+    // for mono: numSamples
+    // for stereo: numSamples / 2
+    uint32_t samplesPerChannel = numSamples / channels;
+
+    if (channels == 1) {
+        viperEngine.convolver.LoadKernelMono(kernelBody, samplesPerChannel);
+    } else if (channels == 2) {
+        viperEngine.convolver.LoadKernelStereoInterleaved(kernelBody, samplesPerChannel);
+    } else {
+         // Fallback or handle other channel counts if supported (e.g. quad)
+         __android_log_print(ANDROID_LOG_ERROR, "ViPERPlayer", "Unsupported convolver channels: %d", channels);
+    }
+
+    env->ReleaseFloatArrayElements(kernel, kernelBody, 0);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setConvolverCrossChannel(JNIEnv *env, jobject thiz, jint crossChannel) {
+    float level = (float) crossChannel / 100.0f;
+    viperEngine.convolver.SetCrossChannel(level);
+}
+
 // Common
 extern "C"
 JNIEXPORT void JNICALL

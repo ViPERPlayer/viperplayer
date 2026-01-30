@@ -4,6 +4,7 @@
 #include "PartitionedConvolver.h"
 #include <memory>
 #include <vector>
+#include <mutex>
 
 namespace viper {
 namespace dsp {
@@ -35,6 +36,9 @@ public:
   // frames: Number of frames (L+R pairs)
   void LoadKernelStereoInterleaved(const float *kernelInterleaved,
                                    uint32_t frames);
+
+  void UnloadKernel();
+  bool IsKernelLoaded() const;
 
   void SetCrossChannel(float level);
 
@@ -70,6 +74,8 @@ private:
   std::vector<float> scratchOutputL;
   std::vector<float> scratchOutputR;
   std::vector<float> scratchOutBlock;
+
+  mutable std::recursive_mutex mutex;
 };
 
 } // namespace dsp

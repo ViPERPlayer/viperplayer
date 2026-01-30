@@ -71,6 +71,11 @@ class ViperNativeDriver @Inject constructor() {
     external fun setViperDdcEnabled(enabled: Boolean)
     external fun viperDdcClearCoeffs()
     external fun viperDdcAddCoeffs(samplingRate: Int, coeffs: FloatArray)
+
+    // Convolver
+    external fun setConvolverEnabled(enabled: Boolean)
+    external fun setConvolverImpulseResponse(channels: Int, kernel: FloatArray)
+    external fun setConvolverCrossChannel(crossChannel: Int) // 0-100
     
     // Audio Processing
     external fun process(buffer: ByteBuffer, offset: Int, size: Int)

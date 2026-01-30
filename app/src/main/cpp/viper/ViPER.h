@@ -12,6 +12,7 @@
 #include "effects/DiffSurround.h"
 #include "utils/AdaptiveBuffer.h"
 #include "effects/ViPERDDC.h"
+#include "dsp/Convolver.h"
 #include "dsp/IIREqualizer.h"
 #include "effects/ColorfulMusic.h"
 #include "effects/ViPERBass.h"
@@ -31,6 +32,7 @@ public:
 
     // Effects
     ViPERDDC viperDdc;
+    viper::dsp::Convolver convolver;
     SpectrumExtend spectrumExtend;
     viper::dsp::IIREqualizer iirEqualizer;
     ColorfulMusic colorfulMusic;

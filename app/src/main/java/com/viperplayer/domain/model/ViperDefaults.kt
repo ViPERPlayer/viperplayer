@@ -59,6 +59,11 @@ object ViperDefaults {
     // DDC
     const val DDC_ENABLED = false
 
+    // Convolver
+    const val CONVOLVER_ENABLED = false
+    val CONVOLVER_IMPULSE_RESPONSE: String? = null
+    const val CONVOLVER_CROSS_CHANNEL = 0 // 0-100
+
     // IIR Equalizer
     const val IIR_EQUALIZER_ENABLED = false
     const val IIR_EQUALIZER_BAND_COUNT = 10

@@ -47,6 +47,9 @@ data class ViperEffectsState(
     // ViPER DDC
     val viperDdc: ViperDdcState = ViperDdcState(),
 
+    // Convolver
+    val convolver: ViperConvolverState = ViperConvolverState(),
+
     // IIR Equalizer
     val iirEqualizer: IirEqualizerState = IirEqualizerState(),
 ) {

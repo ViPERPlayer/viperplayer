@@ -1,5 +1,7 @@
 package com.viperplayer.data.player
 
+import android.content.Context
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
@@ -7,13 +9,15 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.model.ViperSteppedValues
-import com.viperplayer.domain.repository.DdcRepository
+import com.viperplayer.domain.repository.ViperAssetRepository
 import com.viperplayer.domain.repository.ViperRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.nio.ByteBuffer
 import javax.inject.Inject
@@ -32,14 +36,19 @@ import javax.inject.Singleton
 @Singleton
 class ViperAudioProcessor @Inject constructor(
     private val viperRepository: ViperRepository,
-    private val ddcRepository: DdcRepository,
-    private val nativeDriver: ViperNativeDriver
+    private val viperAssetRepository: ViperAssetRepository,
+    private val audioFileDecoder: AudioFileDecoder,
+    private val nativeDriver: ViperNativeDriver,
+    @ApplicationContext private val context: Context
 ) : BaseAudioProcessor() {
 
     private val processorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     
     // Track previous state to detect changes and only update what's changed
     private var currentState: ViperEffectsState? = null
+    
+    // Cache for loaded IR path to avoid reloading same file
+    private var loadedIrPath: String? = null
 
     init {
         // Start observing effects state and enabled state changes
@@ -230,6 +239,46 @@ class ViperAudioProcessor @Inject constructor(
         if (current == null || current.viperDdc.enabled != state.viperDdc.enabled) {
             nativeDriver.setViperDdcEnabled(state.viperDdc.enabled)
         }
+        
+        // Convolver
+        if (current == null || current.convolver.enabled != state.convolver.enabled) {
+            nativeDriver.setConvolverEnabled(state.convolver.enabled)
+        }
+        if (current == null || current.convolver.crossChannel != state.convolver.crossChannel) {
+            nativeDriver.setConvolverCrossChannel(state.convolver.crossChannel)
+        }
+        
+        // Handle Impulse Response File Loading
+        val newIrPath = state.convolver.impulseResponse
+        if (newIrPath != null && newIrPath != loadedIrPath) {
+             // Load in background
+             processorScope.launch(Dispatchers.IO) {
+                 try {
+                     // Resolve file from repository
+                     val kernelFile = viperAssetRepository.getKernelFile(newIrPath)
+                     if (kernelFile != null && kernelFile.exists()) {
+                         val uri = Uri.fromFile(kernelFile)
+                         val decoded = audioFileDecoder.decodeToFloatArray(context, uri)
+                         if (decoded != null) {
+                             Timber.d("Loaded IR file: ${kernelFile.name}, Channels: ${decoded.second}, Samples: ${decoded.first.size}")
+                             nativeDriver.setConvolverImpulseResponse(decoded.second, decoded.first)
+                             loadedIrPath = newIrPath
+                         } else {
+                             Timber.e("Failed to decode IR file: $newIrPath")
+                         }
+                     } else {
+                         Timber.e("Kernel file not found: $newIrPath")
+                     }
+                 } catch (e: Exception) {
+                     Timber.e(e, "Error loading IR file: $newIrPath")
+                 }
+             }
+        } else if (newIrPath == null && loadedIrPath != null) {
+            // Clear kernel
+            nativeDriver.setConvolverImpulseResponse(1, FloatArray(0))
+            loadedIrPath = null
+        }
+
         
         // Check for coefficients change (content) rather than just file name
         if (current == null || current.viperDdc.coeffs != state.viperDdc.coeffs) {

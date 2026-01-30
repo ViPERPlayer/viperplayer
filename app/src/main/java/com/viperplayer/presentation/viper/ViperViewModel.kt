@@ -9,7 +9,9 @@ import com.viperplayer.domain.model.IirEqualizerPresets
 import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.domain.model.ViperDefaults
 import com.viperplayer.domain.model.ViperEffectsState
-import com.viperplayer.domain.repository.DdcRepository
+
+
+import com.viperplayer.domain.repository.ViperAssetRepository
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,7 +30,8 @@ import javax.inject.Inject
 data class ViperUiState(
     val effectsState: ViperEffectsState = ViperEffectsState.default(),
     val activeDeviceId: String? = null,
-    val ddcFiles: List<File> = emptyList()
+    val ddcFiles: List<File> = emptyList(),
+    val kernelFiles: List<File> = emptyList()
 )
 
 /**
@@ -40,16 +43,18 @@ data class ViperUiState(
 class ViperViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val viperRepository: ViperRepository,
-    private val ddcRepository: DdcRepository
+    private val viperAssetRepository: ViperAssetRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<ViperUiState> = combine(
         viperRepository.effectsState,
-        ddcRepository.ddcFiles
-    ) { effectsState, ddcFiles ->
+        viperAssetRepository.ddcFiles,
+        viperAssetRepository.kernelFiles
+    ) { effectsState, ddcFiles, kernelFiles ->
         ViperUiState(
             effectsState = effectsState,
-            ddcFiles = ddcFiles
+            ddcFiles = ddcFiles,
+            kernelFiles = kernelFiles
         )
     }.stateIn(
         scope = viewModelScope,
@@ -326,7 +331,7 @@ class ViperViewModel @Inject constructor(
 
     fun setViperDdcFile(fileName: String) {
         viewModelScope.launch {
-            val coeffs = ddcRepository.parseDdcCoeffs(fileName)
+            val coeffs = viperAssetRepository.parseDdcCoeffs(fileName)
             viperRepository.updateEffectsState { 
                 it.copy(viperDdc = it.viperDdc.copy(
                     selectedDdcFile = fileName,
@@ -338,22 +343,22 @@ class ViperViewModel @Inject constructor(
 
     fun importDdcFile(uri: String) {
         viewModelScope.launch {
-            val result = ddcRepository.importDdcFile(uri)
+            val result = viperAssetRepository.importDdc(uri)
             when (result) {
-                is DdcRepository.DdcImportResult.Success -> {
+                is ViperAssetRepository.DdcImportResult.Success -> {
                     android.widget.Toast.makeText(context, "DDC file imported successfully", android.widget.Toast.LENGTH_SHORT).show()
                     setViperDdcFile(result.fileName)
                 }
-                DdcRepository.DdcImportResult.InvalidExtension -> Toast.makeText(context, "Error: Invalid file extension (must be .vdc)", android.widget.Toast.LENGTH_SHORT).show()
-                DdcRepository.DdcImportResult.InvalidContent -> Toast.makeText(context, "Error: Invalid file content (parse failed)", android.widget.Toast.LENGTH_SHORT).show()
-                DdcRepository.DdcImportResult.IOError -> Toast.makeText(context, "Error: import failed (IO error)", android.widget.Toast.LENGTH_SHORT).show()
+                ViperAssetRepository.DdcImportResult.InvalidExtension -> Toast.makeText(context, "Error: Invalid file extension (must be .vdc)", android.widget.Toast.LENGTH_SHORT).show()
+                ViperAssetRepository.DdcImportResult.InvalidContent -> Toast.makeText(context, "Error: Invalid file content (parse failed)", android.widget.Toast.LENGTH_SHORT).show()
+                ViperAssetRepository.DdcImportResult.IOError -> Toast.makeText(context, "Error: import failed (IO error)", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     fun deleteDdcFile(fileName: String) {
         viewModelScope.launch {
-            ddcRepository.deleteDdcFile(fileName)
+            viperAssetRepository.deleteDdc(fileName)
             // If the deleted file was used, keep the logic (though now we store coeffs, so we could theoretically keep them)
             // But usually user expects deletion to reset if selection is gone.
             // Let's reset for consistency, or we could keep it as "Custom" if we wanted.
@@ -368,6 +373,51 @@ class ViperViewModel @Inject constructor(
                     state
                 }
             }
+        }
+    }
+
+    // Convolver
+    fun setConvolverEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(convolver = it.convolver.copy(enabled = enabled)) }
+        }
+    }
+
+    fun selectConvolverImpulseResponse(fileName: String) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(convolver = it.convolver.copy(impulseResponse = fileName)) }
+        }
+    }
+
+    fun importConvolverImpulseResponse(uri: String) {
+        viewModelScope.launch {
+            // Import the file first
+            val fileName = viperAssetRepository.importKernel(uri)
+            if (fileName != null) {
+                 viperRepository.updateEffectsState { it.copy(convolver = it.convolver.copy(impulseResponse = fileName)) }
+                 Toast.makeText(context, "Impulse loaded: $fileName", Toast.LENGTH_SHORT).show()
+            } else {
+                 Toast.makeText(context, "Failed to load impulse response", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun deleteConvolverImpulseResponse(fileName: String) {
+        viewModelScope.launch {
+            viperAssetRepository.deleteKernel(fileName)
+            viperRepository.updateEffectsState { state ->
+                if (state.convolver.impulseResponse == fileName) {
+                    state.copy(convolver = state.convolver.copy(impulseResponse = null))
+                } else {
+                    state
+                }
+            }
+        }
+    }
+
+    fun setConvolverCrossChannel(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(convolver = it.convolver.copy(crossChannel = value)) }
         }
     }
 

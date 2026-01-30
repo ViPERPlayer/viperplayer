@@ -93,7 +93,12 @@ fun ViperScreen(
                         onThresholdLimitChange = { viewModel.setMasterLimiterThresholdLimit(it) },
                         onThresholdLimitReset = { viewModel.resetMasterLimiterThresholdLimit() }
                     )
-//                    PlaybackGainControlEffect()
+                    PlaybackGainControlEffect(
+                        state = effects.differentialSurround,
+                        onEnabledChange = { viewModel.setDifferentialSurroundEnabled(it) },
+                        onDelayChange = { viewModel.setDifferentialSurroundDelay(it) },
+                        onDelayReset = { viewModel.resetDifferentialSurroundDelay() }
+                    )
 //                    FETCompressorEffect()
                     ViperDdcEffect(
                         state = effects.viperDdc,
@@ -118,7 +123,15 @@ fun ViperScreen(
                         onBandGainChange = { index, gain -> viewModel.setIirEqualizerBandGain(index, gain) },
                         onReset = { viewModel.resetIirEqualizer() }
                     )
-//                    ConvolverEffect()
+                    ConvolverEffect(
+                        state = effects.convolver,
+                        kernelFiles = state.kernelFiles,
+                        onEnabledChange = viewModel::setConvolverEnabled,
+                        onImportImpulse = viewModel::importConvolverImpulseResponse,
+                        onSelectImpulse = viewModel::selectConvolverImpulseResponse,
+                        onDeleteImpulse = viewModel::deleteConvolverImpulseResponse,
+                        onCrossChannelChange = viewModel::setConvolverCrossChannel
+                    )
                     FieldSurroundEffect(
                         state = effects.fieldSurround,
                         onEnabledChange = { viewModel.setFieldSurroundEnabled(it) },
