@@ -1,6 +1,4 @@
-#pragma once
-
-#include "SoftwareLimiter.h"
+#include "../utils/Biquad.h"
 #include <vector>
 
 namespace viper {
@@ -14,34 +12,32 @@ public:
     void SetSamplingRate(uint32_t samplingRate);
     void Reset();
 
+    // The decompiled logic processes int* but we use float* pipeline.
+    // We will adapt the logic to float.
     void Process(float *buffer, uint32_t size);
 
     void SetEnable(bool enable);
-    void SetStrength(int strength); // 1-3
-    void SetMaxGain(int maxGain); // 1-10, >10 = Infinite
-    void SetOutputThreshold(float threshold); // dB
+    void SetRatio(float ratio); // 1.0 = weak?, >1.0 = strong?
+    void SetVolume(float volume);
+    void SetMaxGainFactor(float maxGainFactor);
 
 private:
     bool enabled;
     uint32_t samplingRate;
-    int strength; // 1: Weak, 2: Moderate, 3: Strong
-    int maxGain; // Factor
-    float outputThreshold; // Linear scale
 
-    // AGC State
-    double currentGain;
-    double targetGain;
+    Biquad filterL, filterR;
     
-    // Time constants (based on strength)
-    float attackTime;
-    float releaseTime;
-
-    // Limiter for output protection
-    SoftwareLimiter limiterL;
-    SoftwareLimiter limiterR;
+    // Parameters derived from decompiled struct
+    float alpha; // field0_0x0
+    double energyFactor; // field8_0x8
+    float beta; // field16_0x10
+    int counter; // field20_0x14
+    float currentVolume; // field24_0x18 (Mapped to float)
+    float maxGain; // field28_0x1c (Mapped to float)
+    float currentGain; // field32_0x20 (Mapped to float)
     
-    // Internal helpers
-    void UpdateTimeConstants();
+    // Helper
+    double AnalyseWave(float *buffer, uint32_t size);
 };
 
 } // namespace effects

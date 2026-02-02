@@ -320,14 +320,29 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainStrength(JNIEnv *env, jobject thiz,
                                                                           jint strength) {
-    viperEngine.playbackGain.SetStrength(strength);
+    // Map strength (1-3) to Ratio (float)
+    // 1 (Weak) -> 0.5
+    // 2 (Moderate) -> 1.0
+    // 3 (Strong) -> 2.0
+    float ratio = 1.0f;
+    switch(strength) {
+        case 1: ratio = 0.5f; break;
+        case 2: ratio = 1.0f; break;
+        case 3: ratio = 2.0f; break;
+        default: ratio = 1.0f; break;
+    }
+    viperEngine.playbackGain.SetRatio(ratio);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainMaxGain(JNIEnv *env, jobject thiz,
                                                                          jint max_gain) {
-    viperEngine.playbackGain.SetMaxGain(max_gain);
+    // Map max_gain (1-10, >10=Inf) to Factor
+    // >10 -> Infinite (e.g. 100x)
+    float factor = (float)max_gain;
+    if (max_gain > 10) factor = 100.0f;
+    viperEngine.playbackGain.SetMaxGainFactor(factor);
 }
 
 extern "C"
@@ -335,7 +350,11 @@ JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainOutputThreshold(JNIEnv *env,
                                                                                  jobject thiz,
                                                                                  jfloat threshold) {
-    viperEngine.playbackGain.SetOutputThreshold(threshold);
+    // Map threshold (dB) to Volume (linear)
+    // threshold is usually negative (e.g. -1.0dB).
+    if (threshold > 0.0f) threshold = 0.0f;
+    float volume = powf(10.0f, threshold / 20.0f);
+    viperEngine.playbackGain.SetVolume(volume);
 }
 
 // Common

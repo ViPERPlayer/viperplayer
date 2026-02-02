@@ -4,6 +4,7 @@
 #include <complex>
 #include <memory>
 #include <vector>
+#include <fftw3.h>
 
 namespace viper {
 namespace utils {
@@ -18,10 +19,10 @@ public:
 
 private:
   int n;
-  
-  // FFTW Plans
-  struct Impl;
-  std::unique_ptr<Impl> impl;
+  float *realBuf;
+  fftwf_complex *complexBuf;
+  fftwf_plan pForward;
+  fftwf_plan pInverse;
 };
 
 } // namespace utils
