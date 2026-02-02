@@ -53,12 +53,12 @@ private:
   bool enabled;
   uint32_t samplingRate;
 
-  std::unique_ptr<PartitionedConvolver> convLeft;
-  std::unique_ptr<PartitionedConvolver> convRight;
+  PartitionedConvolver convLeft;
+  PartitionedConvolver convRight;
 
   // Buffering for block processing
-  std::unique_ptr<viper::utils::CircularBuffer> inputBuffer;
-  std::unique_ptr<viper::utils::CircularBuffer> outputBuffer;
+  viper::utils::CircularBuffer inputBuffer;
+  viper::utils::CircularBuffer outputBuffer;
 
   // Cross channel handling (simplified for now as per decompiled hint)
   // Decompiled code has SetCrossChannel but logic was a bit obscure.

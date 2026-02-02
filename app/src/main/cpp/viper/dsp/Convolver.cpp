@@ -5,17 +5,10 @@ namespace viper {
 namespace dsp {
 
 Convolver::Convolver()
-    : enabled(false), samplingRate(44100), crossChannelLevel(0.0f) {
+    : enabled(false), samplingRate(44100), inputBuffer(2, CONVOLVER_BLOCK_SIZE * 4), outputBuffer(2, CONVOLVER_BLOCK_SIZE * 4), crossChannelLevel(0.0f) {
 
-  convLeft = std::make_unique<PartitionedConvolver>();
-  convRight = std::make_unique<PartitionedConvolver>();
-
-  // Using 2 channels for input/output buffers
-  // Size should be large enough to handle bursts
-  inputBuffer = std::make_unique<viper::utils::CircularBuffer>(
-      2, CONVOLVER_BLOCK_SIZE * 4);
-  outputBuffer = std::make_unique<viper::utils::CircularBuffer>(
-      2, CONVOLVER_BLOCK_SIZE * 4);
+  convLeft = PartitionedConvolver();
+  convRight = PartitionedConvolver();
 
   // Allocate scratch buffers
   scratchInterleaved.resize(CONVOLVER_BLOCK_SIZE * 2);
@@ -53,8 +46,8 @@ void Convolver::LoadKernelMono(const float *kernel, uint32_t samples) {
     return;
 
   // Apply same kernel to both channels
-  convLeft->LoadKernel(kernel, samples, CONVOLVER_BLOCK_SIZE);
-  convRight->LoadKernel(kernel, samples, CONVOLVER_BLOCK_SIZE);
+  convLeft.LoadKernel(kernel, samples, CONVOLVER_BLOCK_SIZE);
+  convRight.LoadKernel(kernel, samples, CONVOLVER_BLOCK_SIZE);
   Reset();
 }
 
@@ -64,8 +57,8 @@ void Convolver::LoadKernelStereo(const float *kernelL, const float *kernelR,
   if (!kernelL || !kernelR || samples == 0)
     return;
 
-  convLeft->LoadKernel(kernelL, samples, CONVOLVER_BLOCK_SIZE);
-  convRight->LoadKernel(kernelR, samples, CONVOLVER_BLOCK_SIZE);
+  convLeft.LoadKernel(kernelL, samples, CONVOLVER_BLOCK_SIZE);
+  convRight.LoadKernel(kernelR, samples, CONVOLVER_BLOCK_SIZE);
   Reset();
 }
 
@@ -88,14 +81,14 @@ void Convolver::LoadKernelStereoInterleaved(const float *kernelInterleaved,
 
 void Convolver::UnloadKernel() {
   std::lock_guard<std::recursive_mutex> lock(mutex);
-  convLeft->ReleaseResources();
-  convRight->ReleaseResources();
+  convLeft.ReleaseResources();
+  convRight.ReleaseResources();
   Reset();
 }
 
 bool Convolver::IsKernelLoaded() const {
   std::lock_guard<std::recursive_mutex> lock(mutex);
-  return convLeft->GetBlockSize() > 0;
+  return convLeft.GetBlockSize() > 0;
 }
 
 void Convolver::SetCrossChannel(float level) {
@@ -105,14 +98,10 @@ void Convolver::SetCrossChannel(float level) {
 
 void Convolver::Reset() {
   std::lock_guard<std::recursive_mutex> lock(mutex);
-  if (convLeft)
-    convLeft->Reset();
-  if (convRight)
-    convRight->Reset();
-  if (inputBuffer)
-    inputBuffer->Reset();
-  if (outputBuffer)
-    outputBuffer->Reset();
+  convLeft.Reset();
+  convRight.Reset();
+  inputBuffer.Reset();
+  outputBuffer.Reset();
 }
 
 void Convolver::Process(float *input, float *output, uint32_t frameCount) {
@@ -123,13 +112,13 @@ void Convolver::Process(float *input, float *output, uint32_t frameCount) {
   }
   
   // Push input samples (Interleaved)
-  inputBuffer->Push(input, frameCount);
+  inputBuffer.Push(input, frameCount);
 //... (rest of method follows)
 
-  while (inputBuffer->GetSize() >= CONVOLVER_BLOCK_SIZE) {
+  while (inputBuffer.GetSize() >= CONVOLVER_BLOCK_SIZE) {
     // Pop a block
     // Pop a block
-    inputBuffer->Pop(scratchInterleaved.data(), CONVOLVER_BLOCK_SIZE);
+    inputBuffer.Pop(scratchInterleaved.data(), CONVOLVER_BLOCK_SIZE);
 
     // Deinterlace
     for (uint32_t i = 0; i < CONVOLVER_BLOCK_SIZE; i++) {
@@ -138,8 +127,8 @@ void Convolver::Process(float *input, float *output, uint32_t frameCount) {
     }
 
     // Process Convolution
-    convLeft->ProcessBlock(scratchInputL.data(), scratchOutputL.data());
-    convRight->ProcessBlock(scratchInputR.data(), scratchOutputR.data());
+    convLeft.ProcessBlock(scratchInputL.data(), scratchOutputL.data());
+    convRight.ProcessBlock(scratchInputR.data(), scratchOutputR.data());
 
     // Apply Cross Channel Mixing
     if (crossChannelLevel > 0.0001f) {
@@ -157,11 +146,11 @@ void Convolver::Process(float *input, float *output, uint32_t frameCount) {
       scratchOutBlock[i * 2 + 1] = scratchOutputR[i];
     }
 
-    outputBuffer->Push(scratchOutBlock.data(), CONVOLVER_BLOCK_SIZE);
+    outputBuffer.Push(scratchOutBlock.data(), CONVOLVER_BLOCK_SIZE);
   }
 
   // Pop processed samples to output
-  uint32_t outPopped = outputBuffer->Pop(output, frameCount);
+  uint32_t outPopped = outputBuffer.Pop(output, frameCount);
   if (outPopped < frameCount) {
     // Fill remaining with zeros (latency/underrun)
     std::memset(output + outPopped * 2, 0,

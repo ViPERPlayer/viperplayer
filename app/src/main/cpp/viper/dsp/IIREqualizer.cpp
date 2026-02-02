@@ -77,15 +77,15 @@ namespace dsp {
         mBandGains.assign(mBandFrequencies.size(), 0.0);
 
         for (double freq : mBandFrequencies) {
-            auto filterL = std::make_unique<Biquad>();
-            auto filterR = std::make_unique<Biquad>();
+            auto filterL = Biquad();
+            auto filterR = Biquad();
             
             // Initialize with 0dB gain
-            filterL->setCoefficients(freq, qFactor, 0.0, mSampleRate);
-            filterR->setCoefficients(freq, qFactor, 0.0, mSampleRate);
+            filterL.setCoefficients(freq, qFactor, 0.0, mSampleRate);
+            filterR.setCoefficients(freq, qFactor, 0.0, mSampleRate);
 
-            mFiltersLeft.push_back(std::move(filterL));
-            mFiltersRight.push_back(std::move(filterR));
+            mFiltersLeft.push_back(filterL);
+            mFiltersRight.push_back(filterR);
         }
     }
 
@@ -103,16 +103,16 @@ namespace dsp {
         }
 
         if (bandIndex < mFiltersLeft.size()) {
-            mFiltersLeft[bandIndex]->setCoefficients(freq, qFactor, gainDb, mSampleRate);
+            mFiltersLeft[bandIndex].setCoefficients(freq, qFactor, gainDb, mSampleRate);
         }
         if (bandIndex < mFiltersRight.size()) {
-            mFiltersRight[bandIndex]->setCoefficients(freq, qFactor, gainDb, mSampleRate);
+            mFiltersRight[bandIndex].setCoefficients(freq, qFactor, gainDb, mSampleRate);
         }
     }
 
     void IIREqualizer::reset() {
-        for (auto& filter : mFiltersLeft) filter->reset();
-        for (auto& filter : mFiltersRight) filter->reset();
+        for (auto& filter : mFiltersLeft) filter.reset();
+        for (auto& filter : mFiltersRight) filter.reset();
     }
     
     void IIREqualizer::setEnabled(bool enabled) {
@@ -129,7 +129,7 @@ namespace dsp {
             for (int i = 0; i < numSamples; ++i) {
                 double sample = static_cast<double>(samples[i]);
                 for (auto& filter : mFiltersLeft) {
-                    sample = filter->process(sample);
+                    sample = filter.process(sample);
                 }
                 samples[i] = static_cast<float>(sample);
             }
@@ -141,10 +141,10 @@ namespace dsp {
                  double right = static_cast<double>(samples[i+1]);
 
                  for (auto& filter : mFiltersLeft) {
-                     left = filter->process(left);
+                     left = filter.process(left);
                  }
                  for (auto& filter : mFiltersRight) {
-                     right = filter->process(right);
+                     right = filter.process(right);
                  }
 
                  samples[i] = static_cast<float>(left);

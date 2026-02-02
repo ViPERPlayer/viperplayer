@@ -57,8 +57,8 @@ namespace dsp {
         BandCount mBandCountType;
         std::vector<double> mBandFrequencies;
         std::vector<double> mBandGains;
-        std::vector<std::unique_ptr<Biquad>> mFiltersLeft;
-        std::vector<std::unique_ptr<Biquad>> mFiltersRight;
+        std::vector<Biquad> mFiltersLeft;
+        std::vector<Biquad> mFiltersRight;
         
         // Helper to setup bands based on count
         void setupBands();
