@@ -71,6 +71,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -827,7 +828,7 @@ private fun QueueItem(
                     when {
                         animatedSwipeOffset < 0 -> MaterialTheme.colorScheme.errorContainer
                         animatedSwipeOffset > 0 -> MaterialTheme.colorScheme.primaryContainer
-                        else -> androidx.compose.ui.graphics.Color.Transparent
+                        else -> Color.Transparent
                     }
                 )
                 .padding(horizontal = 16.dp),

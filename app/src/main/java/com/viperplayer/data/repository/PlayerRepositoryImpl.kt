@@ -19,6 +19,7 @@ import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.PlayerState
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
@@ -38,7 +40,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,7 +59,7 @@ class PlayerRepositoryImpl @Inject constructor(
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    private val _playbackContext = kotlinx.coroutines.flow.MutableStateFlow<PlaybackContext?>(null)
+    private val _playbackContext = MutableStateFlow<PlaybackContext?>(null)
 
     // Shared controller state extraction
     private val controllerStateFlow = mediaControllerManager.controllerFlow
@@ -98,45 +100,70 @@ class PlayerRepositoryImpl @Inject constructor(
 
     // ... observeAndPersistPlayerState same logic ...
 
+
     override suspend fun play(song: Song, context: PlaybackContext?) {
-        withContext(Dispatchers.Main) {
-            _playbackContext.value = context
-            
-            // Save song with full metadata (album, artists, etc.)
-            mediaLibraryRepository.saveSong(song)
-            
-            val controller = mediaControllerManager.controllerFlow.first()
-            val mediaItem = song.toMediaItem()
-            controller.setMediaItem(mediaItem)
-            controller.prepare()
-            controller.play()
-        }
+        _playbackContext.value = context
+        
+        // Save song with full metadata (album, artists, etc.)
+        mediaLibraryRepository.saveSong(song)
+        
+        val controller = mediaControllerManager.controllerFlow.first()
+        val mediaItem = song.toMediaItem()
+        controller.setMediaItem(mediaItem)
+        controller.prepare()
+        controller.play()
     }
 
     override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) {
         if (songs.isEmpty()) return
         
-        withContext(Dispatchers.Main) {
-            _playbackContext.value = context
+        _playbackContext.value = context
 
-            // Save all songs with full metadata (album, artists, etc.)
-            songs.forEach { song ->
-                try {
-                    mediaLibraryRepository.saveSong(song)
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to save song to database: ${song.title}")
+        val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
+        val startSong = songs[safeStartIndex]
+        
+        // 1. Save and play the selected song immediately
+        try {
+            mediaLibraryRepository.saveSong(startSong)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to save start song to database: ${startSong.title}")
+        }
+        
+        val controller = mediaControllerManager.controllerFlow.first()
+        val startMediaItem = startSong.toMediaItem()
+        
+        controller.setMediaItem(startMediaItem)
+        controller.prepare()
+        controller.play()
+        
+        // 2. Build the rest of the queue asynchronously
+        scope.launch {
+            // Save all songs to database (skip the start song since it's already saved)
+            songs.forEachIndexed { index, song ->
+                if (index != safeStartIndex) {
+                    try {
+                        mediaLibraryRepository.saveSong(song)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to save song to database: ${song.title}")
+                    }
                 }
             }
             
-            val controller = mediaControllerManager.controllerFlow.first()
-            val mediaItems = songs.toMediaItems()
-            val safeStartIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
-
-            controller.setMediaItems(mediaItems, safeStartIndex, 0)
-            controller.prepare()
-            controller.play()
+            // Add all media items to the queue
+            val allMediaItems = songs.toMediaItems()
+            
+            // Add items before the start song
+            for (i in 0 until safeStartIndex) {
+                controller.addMediaItem(i, allMediaItems[i])
+            }
+            
+            // Add items after the start song
+            for (i in (safeStartIndex + 1) until allMediaItems.size) {
+                controller.addMediaItem(allMediaItems[i])
+            }
         }
     }
+
 
     // Current song - loads from database as single source of truth
     override val currentSong: StateFlow<Song?> =
@@ -183,7 +210,7 @@ class PlayerRepositoryImpl @Inject constructor(
                 if (mediaId != null) {
                     mediaLibraryRepository.getSong(mediaId)
                 } else {
-                    kotlinx.coroutines.flow.flowOf<Song?>(null)
+                    flowOf<Song?>(null)
                 }
             }
             .stateIn(
@@ -406,179 +433,143 @@ class PlayerRepositoryImpl @Inject constructor(
 
 
     override suspend fun pause() {
-        withContext(Dispatchers.Main) {
-            mediaControllerManager.controllerFlow.first().pause()
-        }
+        mediaControllerManager.controllerFlow.first().pause()
     }
 
     override suspend fun resume() {
-        withContext(Dispatchers.Main) {
-            mediaControllerManager.controllerFlow.first().play()
-        }
+        mediaControllerManager.controllerFlow.first().play()
     }
 
     override suspend fun togglePlayPause() {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            if (controller.isPlaying) {
-                controller.pause()
-            } else {
-                controller.play()
-            }
+        val controller = mediaControllerManager.controllerFlow.first()
+        if (controller.isPlaying) {
+            controller.pause()
+        } else {
+            controller.play()
         }
     }
 
     override suspend fun stop() {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            controller.stop()
-            controller.clearMediaItems()
-        }
+        val controller = mediaControllerManager.controllerFlow.first()
+        controller.stop()
+        controller.clearMediaItems()
     }
 
     override suspend fun skipToNext() {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            if (controller.hasNextMediaItem()) {
-                controller.seekToNextMediaItem()
-            }
+        val controller = mediaControllerManager.controllerFlow.first()
+        if (controller.hasNextMediaItem()) {
+            controller.seekToNextMediaItem()
         }
     }
 
     override suspend fun skipToPrevious() {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            if (controller.hasPreviousMediaItem()) {
-                controller.seekToPreviousMediaItem()
-            } else {
-                // If no previous item, seek to start of current item
-                controller.seekTo(0)
-            }
+        val controller = mediaControllerManager.controllerFlow.first()
+        if (controller.hasPreviousMediaItem()) {
+            controller.seekToPreviousMediaItem()
+        } else {
+            // If no previous item, seek to start of current item
+            controller.seekTo(0)
         }
     }
 
     override suspend fun playFromQueue(index: Int) {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            if (index in 0 until controller.mediaItemCount) {
-                controller.seekTo(index, 0)
-                controller.prepare()
-                controller.play()
-            }
+        val controller = mediaControllerManager.controllerFlow.first()
+        if (index in 0 until controller.mediaItemCount) {
+            controller.seekTo(index, 0)
+            controller.prepare()
+            controller.play()
         }
     }
 
     override suspend fun seekTo(positionMs: Long) {
-        withContext(Dispatchers.Main) {
-            mediaControllerManager.controllerFlow.first().seekTo(positionMs.coerceAtLeast(0))
-        }
+        mediaControllerManager.controllerFlow.first().seekTo(positionMs.coerceAtLeast(0))
     }
 
     override suspend fun getCurrentPosition(): Long {
-        return withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            controller.currentPosition.coerceAtLeast(0)
-        }
+        val controller = mediaControllerManager.controllerFlow.first()
+        return controller.currentPosition.coerceAtLeast(0)
     }
 
     override suspend fun addToQueue(song: Song) {
-        withContext(Dispatchers.Main) {
-            // Save song with full metadata (album, artists, etc.)
-            mediaLibraryRepository.saveSong(song)
-            
-            val controller = mediaControllerManager.controllerFlow.first()
-            val mediaItem = song.toMediaItem()
-            controller.addMediaItem(mediaItem)
-        }
+        // Save song with full metadata (album, artists, etc.)
+        mediaLibraryRepository.saveSong(song)
+        
+        val controller = mediaControllerManager.controllerFlow.first()
+        val mediaItem = song.toMediaItem()
+        controller.addMediaItem(mediaItem)
     }
 
     override suspend fun playNext(song: Song) {
-        withContext(Dispatchers.Main) {
-            // Save song with full metadata (album, artists, etc.)
-            mediaLibraryRepository.saveSong(song)
-            
-            val controller = mediaControllerManager.controllerFlow.first()
-            val mediaItem = song.toMediaItem()
-            val nextIndex = controller.currentMediaItemIndex + 1
-            controller.addMediaItem(nextIndex, mediaItem)
-        }
+        // Save song with full metadata (album, artists, etc.)
+        mediaLibraryRepository.saveSong(song)
+        
+        val controller = mediaControllerManager.controllerFlow.first()
+        val mediaItem = song.toMediaItem()
+        val nextIndex = controller.currentMediaItemIndex + 1
+        controller.addMediaItem(nextIndex, mediaItem)
     }
 
     override suspend fun duplicateInQueue(index: Int) {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            if (index in 0 until controller.mediaItemCount) {
-                val mediaItem = controller.getMediaItemAt(index)
-                if (mediaItem != null) {
-                    val nextIndex = controller.currentMediaItemIndex + 1
-                    controller.addMediaItem(nextIndex, mediaItem)
-                }
+        val controller = mediaControllerManager.controllerFlow.first()
+        if (index in 0 until controller.mediaItemCount) {
+            val mediaItem = controller.getMediaItemAt(index)
+            if (mediaItem != null) {
+                val nextIndex = controller.currentMediaItemIndex + 1
+                controller.addMediaItem(nextIndex, mediaItem)
             }
         }
     }
 
     override suspend fun removeFromQueue(index: Int) {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            if (index in 0 until controller.mediaItemCount) {
-                controller.removeMediaItem(index)
-            }
+        val controller = mediaControllerManager.controllerFlow.first()
+        if (index in 0 until controller.mediaItemCount) {
+            controller.removeMediaItem(index)
         }
     }
 
     override suspend fun reorderQueue(fromIndex: Int, toIndex: Int) {
-        withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            val itemCount = controller.mediaItemCount
-            if (fromIndex in 0 until itemCount && toIndex in 0 until itemCount && fromIndex != toIndex) {
-                controller.moveMediaItem(fromIndex, toIndex)
-            }
+        val controller = mediaControllerManager.controllerFlow.first()
+        val itemCount = controller.mediaItemCount
+        if (fromIndex in 0 until itemCount && toIndex in 0 until itemCount && fromIndex != toIndex) {
+            controller.moveMediaItem(fromIndex, toIndex)
         }
     }
 
     override suspend fun clearQueue() {
-        withContext(Dispatchers.Main) {
-            mediaControllerManager.controllerFlow.first().clearMediaItems()
-        }
+        mediaControllerManager.controllerFlow.first().clearMediaItems()
     }
 
     override suspend fun setShuffle(enabled: Boolean) {
-        withContext(Dispatchers.Main) {
-            mediaControllerManager.controllerFlow.first().shuffleModeEnabled = enabled
-        }
+        mediaControllerManager.controllerFlow.first().shuffleModeEnabled = enabled
     }
 
     override suspend fun setRepeatMode(mode: RepeatMode) {
-        withContext(Dispatchers.Main) {
-            mediaControllerManager.controllerFlow.first().repeatMode = mode.toMedia3RepeatMode()
-        }
+        mediaControllerManager.controllerFlow.first().repeatMode = mode.toMedia3RepeatMode()
     }
     
-    override suspend fun getAudioFormat(): com.viperplayer.domain.repository.AudioFormat? {
-        return withContext(Dispatchers.Main) {
-            val controller = mediaControllerManager.controllerFlow.first()
-            val format = getAudioFormatFromPlayer(controller) ?: return@withContext null
-            
-            val sampleRate = format.sampleRate.takeIf { it > 0 }
-            val bitDepth = format.pcmEncoding.let { encoding ->
-                when (encoding) {
-                    C.ENCODING_PCM_16BIT -> 16
-                    C.ENCODING_PCM_24BIT -> 24
-                    C.ENCODING_PCM_32BIT -> 32
-                    C.ENCODING_PCM_FLOAT -> 32
-                    else -> null
-                }
+    override suspend fun getAudioFormat(): AudioFormat? {
+        val controller = mediaControllerManager.controllerFlow.first()
+        val format = getAudioFormatFromPlayer(controller) ?: return null
+        
+        val sampleRate = format.sampleRate.takeIf { it > 0 }
+        val bitDepth = format.pcmEncoding.let { encoding ->
+            when (encoding) {
+                C.ENCODING_PCM_16BIT -> 16
+                C.ENCODING_PCM_24BIT -> 24
+                C.ENCODING_PCM_32BIT -> 32
+                C.ENCODING_PCM_FLOAT -> 32
+                else -> null
             }
-            val bitrate = format.bitrate.takeIf { it > 0 }?.let { it / 1000 } // Convert to kbps
-            val channelCount = format.channelCount.takeIf { it > 0 }
-            
-            com.viperplayer.domain.repository.AudioFormat(
-                sampleRate = sampleRate,
-                bitDepth = bitDepth,
-                bitrate = bitrate,
-                channelCount = channelCount
-            )
         }
+        val bitrate = format.bitrate.takeIf { it > 0 }?.let { it / 1000 } // Convert to kbps
+        val channelCount = format.channelCount.takeIf { it > 0 }
+        
+        return AudioFormat(
+            sampleRate = sampleRate,
+            bitDepth = bitDepth,
+            bitrate = bitrate,
+            channelCount = channelCount
+        )
     }
 
     private fun Int.toRepeatMode(): RepeatMode = PlayerStateMapper.run {

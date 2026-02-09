@@ -3,8 +3,11 @@ package com.viperplayer.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.BrowseCategory
-import com.viperplayer.domain.model.HomeContent
+import com.viperplayer.domain.model.HomeSection
+import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,7 +35,8 @@ sealed interface HomeUiState {
         override val greetingType: GreetingType,
         override val userName: String?,
         val categories: List<BrowseCategory>,
-        val homeContent: List<Pair<String, HomeContent>>,
+        val quickPicks: List<MediaItem>? = null,
+        val sections: List<HomeSection> = emptyList(),
         val connectedPlugins: List<Plugin>,
         val isRefreshing: Boolean = false
     ) : HomeUiState
@@ -56,14 +60,11 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    val playerState = playerRepository.playerState
-
     private var lastConnectedPlugins: List<Plugin> = emptyList()
     
     init {
         onTimeChanged()
         observeConnectedPlugins()
-        // loadContent() // observeConnectedPlugins will trigger initial load
     }
     
     private fun observeConnectedPlugins() {
@@ -119,14 +120,23 @@ class HomeViewModel @Inject constructor(
                 
                 // Load home content (Quick Picks & Custom Sections)
                 val homeContentResult = pluginRepository.getHomeContent()
-                val homeContent = homeContentResult.getOrNull().orEmpty()
+                val homeContentList = homeContentResult.getOrNull().orEmpty()
+                
+                // Merge all quickPicks and sections from all plugins
+                val allQuickPicks = homeContentList.flatMap { (_, content) ->
+                    content.quickPicks.orEmpty()
+                }
+                val allSections = homeContentList.flatMap { (_, content) ->
+                    content.sections
+                }
                 
                 _uiState.update { state ->
                     HomeUiState.Content(
                         greetingType = state.greetingType,
                         userName = state.userName,
                         categories = categories,
-                        homeContent = homeContent,
+                        quickPicks = allQuickPicks.takeIf { it.isNotEmpty() },
+                        sections = allSections,
                         connectedPlugins = lastConnectedPlugins,
                         isRefreshing = false
                     )
@@ -160,8 +170,64 @@ class HomeViewModel @Inject constructor(
         _uiState.update { state ->
             when (state) {
                 is HomeUiState.Loading -> state.copy(greetingType = greetingType)
-                is HomeUiState.Content -> state.copy(greetingType = greetingType, isRefreshing = state.isRefreshing)
+                is HomeUiState.Content -> state.copy(greetingType = greetingType)
                 is HomeUiState.Error -> state.copy(greetingType = greetingType)
+            }
+        }
+    }
+
+
+    fun playSongFromQuickPicks(song: Song) {
+        viewModelScope.launch {
+            try {
+                val state = _uiState.value
+                if (state !is HomeUiState.Content) return@launch
+
+                // Get all songs from quickPicks
+                val songs = state.quickPicks?.filterIsInstance<Song>().orEmpty()
+
+                if (songs.isNotEmpty()) {
+                    val index = songs.indexOfFirst { it.id == song.id }
+                    val context = PlaybackContext.Search
+                    if (index != -1) {
+                        playerRepository.playAll(songs, index, context)
+                    } else {
+                        playerRepository.play(song, context)
+                    }
+                } else {
+                    val context = PlaybackContext.Search
+                    playerRepository.play(song, context)
+                }
+            } catch (e: Exception) {
+                // Handle error silently
+            }
+        }
+    }
+
+    fun playSongFromSection(song: Song, sectionId: String) {
+        viewModelScope.launch {
+            try {
+                val state = _uiState.value
+                if (state !is HomeUiState.Content) return@launch
+
+                // Find the specific section and get only its songs
+                val section = state.sections.find { it.id == sectionId }
+                val songs = section?.items?.filterIsInstance<Song>().orEmpty()
+
+                if (songs.isNotEmpty()) {
+                    val index = songs.indexOfFirst { it.id == song.id }
+                    val context = PlaybackContext.Search
+                    if (index != -1) {
+                        playerRepository.playAll(songs, index, context)
+                    } else {
+                        playerRepository.play(song, context)
+                    }
+                } else {
+                    val context = PlaybackContext.Search
+                    playerRepository.play(song, context)
+                }
+            } catch (e: Exception) {
+                // Handle error silently
             }
         }
     }

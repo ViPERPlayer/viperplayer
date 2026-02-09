@@ -20,12 +20,12 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.presentation.common.ViperScaffold
@@ -171,7 +172,7 @@ fun StorageSettingsScreen(
                     enabled = !uiState.isClearing
                 ) {
                     if (uiState.isClearing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                        LoadingIndicator(modifier = Modifier.size(16.dp))
                     } else {
                         Text("Clear")
                     }
@@ -199,7 +200,7 @@ fun StorageSettingsScreen(
                     enabled = !uiState.isClearing
                 ) {
                     if (uiState.isClearing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                        LoadingIndicator(modifier = Modifier.size(16.dp))
                     } else {
                         Text("Clear")
                     }
@@ -227,7 +228,7 @@ fun StorageSettingsScreen(
                     enabled = !uiState.isClearing
                 ) {
                     if (uiState.isClearing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                        LoadingIndicator(modifier = Modifier.size(16.dp))
                     } else {
                         Text("Clear")
                     }
@@ -261,7 +262,7 @@ private fun SettingsCategory(
 private fun SettingsItem(
     title: String,
     description: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -308,7 +309,7 @@ private fun CacheSizeSliderItem(
     currentSize: Long,
     minSize: Long,
     maxSize: Long,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onSizeChanged: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {

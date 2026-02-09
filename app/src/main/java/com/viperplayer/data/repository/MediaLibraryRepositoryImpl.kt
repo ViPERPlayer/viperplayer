@@ -17,10 +17,12 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -188,7 +190,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
     }
     
-    override suspend fun saveArtist(artist: Artist) {
+    override suspend fun saveArtist(artist: Artist): Unit = withContext(Dispatchers.IO) {
         val artistId = upsertArtist(artist)
         
         // Save topSongs and albums from artist
@@ -225,11 +227,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean) {
+    override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
         artistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
     }
     
-    override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean) {
+    override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
         artistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
     }
     
@@ -289,7 +291,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
     }
     
-    override suspend fun saveAlbum(album: Album) {
+    override suspend fun saveAlbum(album: Album): Unit = withContext(Dispatchers.IO) {
         // Upsert all artists first, preserving their IDs
         val artistIds = album.artists.map { artist ->
             upsertArtist(artist)
@@ -314,15 +316,15 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean) {
+    override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
         albumDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
     }
     
-    override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean) {
+    override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
         albumDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
     }
     
-    override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean) {
+    override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit = withContext(Dispatchers.IO) {
         albumDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
     }
     
@@ -448,7 +450,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun saveSong(song: Song) {
+    override suspend fun saveSong(song: Song): Unit = withContext(Dispatchers.IO) {
         // Upsert album first if exists, preserving its ID
         val albumId = song.album?.let { album ->
             // Upsert all album artists first, preserving their IDs
@@ -536,7 +538,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) {
+    override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
         songDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
         
         // Download artwork if song is being liked
@@ -554,7 +556,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean) {
+    override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
         songDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
         
         // Download artwork if song is being saved
@@ -569,11 +571,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun setSongDownloaded(mediaId: MediaId, isDownloaded: Boolean, downloadPath: String?) {
+    override suspend fun setSongDownloaded(mediaId: MediaId, isDownloaded: Boolean, downloadPath: String?): Unit = withContext(Dispatchers.IO) {
         songDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded, downloadPath)
     }
     
-    override suspend fun incrementSongPlayCount(mediaId: MediaId) {
+    override suspend fun incrementSongPlayCount(mediaId: MediaId): Unit = withContext(Dispatchers.IO) {
         songDao.incrementPlayCount(mediaId.pluginId, mediaId.sourceId)
     }
     
@@ -696,7 +698,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun savePlaylist(playlist: Playlist) {
+    override suspend fun savePlaylist(playlist: Playlist): Unit = withContext(Dispatchers.IO) {
         val playlistEntity = playlist.toEntity()
         val playlistId = playlistDao.insert(playlistEntity)
         
@@ -724,15 +726,15 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean) {
+    override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
         playlistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
     }
     
-    override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean) {
+    override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
         playlistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
     }
     
-    override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean) {
+    override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit = withContext(Dispatchers.IO) {
         playlistDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
     }
     
@@ -755,7 +757,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun scanLocalFiles() {
+    override suspend fun scanLocalFiles(): Unit = withContext(Dispatchers.IO) {
         val localSongs = localMediaDataSource.getAllSongs()
         localSongs.forEach { song ->
             try {

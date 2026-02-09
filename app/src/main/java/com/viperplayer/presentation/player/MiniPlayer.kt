@@ -162,7 +162,7 @@ private fun MiniPlayerProgressIndicator(
                 }
             }
         }
-        
+
         CircularProgressIndicator(
             progress = { progress },
             modifier = modifier.fillMaxSize(),

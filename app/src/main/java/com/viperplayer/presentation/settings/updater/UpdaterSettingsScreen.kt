@@ -18,9 +18,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -65,7 +65,7 @@ fun UpdaterSettingsScreen(
                         enabled = uiState.updateState !is UpdateState.Checking
                     ) {
                         if (uiState.updateState is UpdateState.Checking) {
-                            CircularProgressIndicator(
+                            LoadingIndicator(
                                 modifier = Modifier.padding(8.dp).size(20.dp)
                             )
                         } else {
@@ -135,7 +135,7 @@ fun UpdaterSettingsScreen(
                             enabled = uiState.updateState !is UpdateState.Downloading
                         ) {
                             if (uiState.updateState is UpdateState.Downloading) {
-                                CircularProgressIndicator(
+                                LoadingIndicator(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))

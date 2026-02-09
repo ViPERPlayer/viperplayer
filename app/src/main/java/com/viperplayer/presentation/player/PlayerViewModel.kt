@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -58,7 +59,7 @@ class PlayerViewModel @Inject constructor(
                     .map { it?.isLiked ?: false }
                     .distinctUntilChanged()
             } else {
-                kotlinx.coroutines.flow.flowOf(false)
+                flowOf(false)
             }
         }
         .distinctUntilChanged()
