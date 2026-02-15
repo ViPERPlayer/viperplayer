@@ -21,6 +21,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "ViPER Player"
 include(":app")
+include(":local")
 include(":plugin-sdk")
 include(":plugin-example")
 
