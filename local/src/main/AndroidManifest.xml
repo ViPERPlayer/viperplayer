@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Storage permissions for accessing local audio files -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -19,6 +24,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service android:name=".LocalService"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="com.viperplayer.plugin.ViperPluginService" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.viperplayer.player.NAME"
+            android:value="Local Files" />
     </application>
 
 </manifest>
