@@ -124,7 +124,10 @@ class PluginHandlerV1(
         limit: Int
     ): AidlSearchResult {
         // TODO: Implement when V1 API supports this
-        return AidlSearchResult(emptyList(), null)
+        return AidlSearchResult().apply {
+            items = emptyList()
+            nextCursor = null
+        }
     }
     
     override suspend fun getLibrarySongs(
@@ -422,6 +425,15 @@ class PluginHandlerV1(
                 Timber.e(e, "Failed to get stream from plugin $pluginId")
                 cont.resumeWithException(e)
             }
+        }
+    }
+    
+    override fun getSettingsActivityClass(): String? {
+        return try {
+            service.settingsActivityClass
+        } catch (e: Exception) {
+            Timber.e(e, "Error getting settings activity class from plugin: $pluginId")
+            null
         }
     }
     

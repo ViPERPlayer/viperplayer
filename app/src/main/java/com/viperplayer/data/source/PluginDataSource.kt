@@ -426,6 +426,7 @@ class PluginDataSource @Inject constructor(
                     apiVersion = 1,
                     description = discovered.description,
                     author = null, // Can be added to metadata if needed
+                    settingsActivity = null, // Will be updated after connecting
                 )
 
                 // Create handler using factory
@@ -436,9 +437,17 @@ class PluginDataSource @Inject constructor(
                     "Handler API version mismatch: expected 1, got ${handler.apiVersion}"
                 }
                 
+                // Get settings activity from the plugin
+                val settingsActivity = handler.getSettingsActivityClass()
+                
+                // Update plugin info with settings activity from the connected plugin
+                val pluginInfoWithSettings = pluginInfo.copy(
+                    settingsActivity = settingsActivity
+                )
+                
                 // Create connected plugin using the handler
                 val connectedData = ConnectedPlugin(
-                    info = pluginInfo,
+                    info = pluginInfoWithSettings,
                     connection = connection,
                     handler = handler
                 )
@@ -832,7 +841,10 @@ class PluginDataSource @Inject constructor(
     suspend fun getStream(mediaId: MediaId): Result<StreamSource> {
         return runCatching {
             if (mediaId.pluginId == "local") {
-                return@runCatching StreamSource.url(mediaId.sourceId)
+                return@runCatching StreamSource().apply {
+                    type = StreamSource.Type.URL
+                    url = mediaId.sourceId
+                }
             }
             val plugin = getPlugin(mediaId.pluginId)
             plugin.handler.getStream(mediaId.sourceId)

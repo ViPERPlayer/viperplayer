@@ -16,6 +16,10 @@
         <activity
             android:name=".MainActivity"
             android:exported="true" />
+        
+        <activity
+            android:name=".LocalSettingsActivity"
+            android:exported="true"/>
 
         <service android:name=".LocalService"
             android:exported="true"

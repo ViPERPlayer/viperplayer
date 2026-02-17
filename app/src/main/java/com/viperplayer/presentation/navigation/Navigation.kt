@@ -157,7 +157,8 @@ fun ViperNavHost(
         
         composable<Plugins> {
             PluginsScreen(
-                rootPadding = rootPadding
+                rootPadding = rootPadding,
+                onNavigateBack = { navController.popBackStackSafe() }
             )
         }
         
@@ -169,6 +170,7 @@ fun ViperNavHost(
                 onNavigateToPlayer = { navController.navigateSafe(SettingsPlayer) },
                 onNavigateToContent = { navController.navigateSafe(SettingsContent) },
                 onNavigateToStorage = { navController.navigateSafe(SettingsStorage) },
+                onNavigateToPlugins = { navController.navigateSafe(Plugins) },
                 onNavigateToAbout = { navController.navigateSafe(SettingsAbout) },
                 onNavigateToUpdater = { navController.navigateSafe(SettingsUpdater) }
             )

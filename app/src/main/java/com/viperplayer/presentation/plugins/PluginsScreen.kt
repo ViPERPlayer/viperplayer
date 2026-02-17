@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.plugins
 
+import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -21,10 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,11 +36,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,6 +66,7 @@ import com.viperplayer.presentation.ktx.with
 @Composable
 fun PluginsScreen(
     rootPadding: PaddingValues,
+    onNavigateBack: () -> Unit = {},
     viewModel: PluginsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -71,21 +77,24 @@ fun PluginsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(rootPadding.with(bottom = 0.dp))
     ) {
-        Row(
+        TopAppBar(
+            title = { Text("Plugins") },
+            navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Default.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
+            }
+        )
+        
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(rootPadding.with(bottom = 0.dp))
         ) {
-            Text(
-                text = "Plugins",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
         
         uiState.error?.let { error ->
             Card(
@@ -187,8 +196,24 @@ fun PluginsScreen(
                             }
                             context.startActivity(intent)
                         },
+                        onOpenSettings = {
+                            if (plugin.settingsActivity != null) {
+                                val intent = Intent().apply {
+                                    component = ComponentName(
+                                        plugin.id,
+                                        if (plugin.settingsActivity.startsWith(".")) {
+                                            plugin.id + plugin.settingsActivity
+                                        } else {
+                                            plugin.settingsActivity
+                                        }
+                                    )
+                                }
+                                context.startActivity(intent)
+                            }
+                        }
                     )
                 }
+            }
             }
         }
     }
@@ -238,6 +263,7 @@ fun PluginCard(
     onDismissMenu: () -> Unit,
     onShowInfo: () -> Unit,
     onUninstall: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -344,6 +370,21 @@ fun PluginCard(
             }
             
             Spacer(modifier = Modifier.width(8.dp))
+            
+            // Show settings button if plugin has settings activity
+            if (plugin.settingsActivity != null) {
+                androidx.compose.material3.IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Plugin Settings",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             
             Box {
                 if (isToggling) {

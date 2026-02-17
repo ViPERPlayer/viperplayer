@@ -152,6 +152,11 @@ interface PluginHandler {
     suspend fun getHomeSections(): HomeContent
     
     /**
+     * Get the settings activity class name from the plugin.
+     */
+    fun getSettingsActivityClass(): String?
+    
+    /**
      * Disconnect from the plugin.
      * Called when the host disconnects from the plugin.
      */

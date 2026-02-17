@@ -152,42 +152,48 @@ class ViperMediaSource(
                             .build()
                     )
 
-                when (stream.type) {
-                    StreamSource.Type.URL -> {
-                        val url = stream.url ?: throw IllegalArgumentException("URL is null")
-                        updatedMediaItemBuilder.setUri(url.toUri())
-                    }
-                    StreamSource.Type.DASH -> {
-                        val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
-                        val dashUri = saveDashXmlToFile(xml) // Assuming this is a blocking IO function
-                        updatedMediaItemBuilder.setUri(dashUri)
-                    }
-                    StreamSource.Type.AUDIO_STREAM -> {
-                        val audioStream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
-                        updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
-                    }
-                }
-
-                val updatedMediaItem = updatedMediaItemBuilder.build()
-
-                withContext(playbackDispatcher) {
-                    chosenMediaSource = when (stream.type) {
+                    when (stream.type) {
                         StreamSource.Type.URL -> {
-                            defaultMediaSource.updateMediaItem(updatedMediaItem)
-                            defaultMediaSource
+                            val url = stream.url ?: throw IllegalArgumentException("URL is null")
+                            updatedMediaItemBuilder.setUri(url.toUri())
                         }
-
                         StreamSource.Type.DASH -> {
-                            dashMediaSource.updateMediaItem(updatedMediaItem)
-                            dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
-                            dashMediaSource
+                            val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
+                            val dashUri = saveDashXmlToFile(xml) // Assuming this is a blocking IO function
+                            updatedMediaItemBuilder.setUri(dashUri)
                         }
-
                         StreamSource.Type.AUDIO_STREAM -> {
-                            sourceInfoRefreshError = UnsupportedOperationException("Audio stream not supported")
-                            return@withContext
+                            val audioStream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
+                            updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
                         }
+                        else -> throw IllegalArgumentException("Unknown stream type: ${stream.type}")
                     }
+
+                    val updatedMediaItem = updatedMediaItemBuilder.build()
+
+                    withContext(playbackDispatcher) {
+                        chosenMediaSource = when (stream.type) {
+                            StreamSource.Type.URL -> {
+                                defaultMediaSource.updateMediaItem(updatedMediaItem)
+                                defaultMediaSource
+                            }
+
+                            StreamSource.Type.DASH -> {
+                                dashMediaSource.updateMediaItem(updatedMediaItem)
+                                dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
+                                dashMediaSource
+                            }
+
+                            StreamSource.Type.AUDIO_STREAM -> {
+                                sourceInfoRefreshError = UnsupportedOperationException("Audio stream not supported")
+                                return@withContext
+                            }
+
+                            else -> {
+                                sourceInfoRefreshError = IllegalArgumentException("Unknown stream type: ${stream.type}")
+                                return@withContext
+                            }
+                        }
                     chosenOrDefaultMediaSource.prepareSource(caller, mediaTransferListener, playerId)
                 }
             } catch (e: Exception) {

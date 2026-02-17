@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
@@ -44,6 +45,7 @@ fun SettingsScreen(
     onNavigateToPlayer: () -> Unit,
     onNavigateToContent: () -> Unit,
     onNavigateToStorage: () -> Unit,
+    onNavigateToPlugins: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdater: () -> Unit,
     modifier: Modifier = Modifier,
@@ -107,6 +109,14 @@ fun SettingsScreen(
                 )
             }
 
+            item {
+                SettingsSectionItem(
+                    title = "Plugins",
+                    description = "Manage music source plugins",
+                    icon = Icons.Default.Extension,
+                    onClick = onNavigateToPlugins
+                )
+            }
             item {
                 SettingsSectionItem(
                     title = "Scan Local Files",

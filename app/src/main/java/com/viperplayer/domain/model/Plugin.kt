@@ -10,6 +10,7 @@ data class PluginInfo(
     val apiVersion: Int?,
     val description: String? = null,
     val author: String? = null,
+    val settingsActivity: String? = null,
 )
 
 /**

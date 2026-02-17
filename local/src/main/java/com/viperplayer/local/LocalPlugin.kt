@@ -30,12 +30,12 @@ class LocalPlugin(
     private val mapper = LocalMapper()
 
     override val capabilities: PluginCapabilities
-        get() = PluginCapabilities(
-            canSearch = true,
-            hasLibrary = true,
-            hasPlaylists = false,
+        get() = PluginCapabilities().apply {
+            canSearch = true
+            hasLibrary = true
+            hasPlaylists = false
             supportsOffline = true
-        )
+        }
 
     override suspend fun onConnect(hostCallback: IHostCallbackV1) {
         Log.d(TAG, "LocalPlugin connected")
@@ -78,20 +78,35 @@ class LocalPlugin(
         
         allSongs.filter { it.title.contains(query, ignoreCase = true) }
             .take(3)
-            .forEach { items.add(MediaItemV1.song(mapper.toSong(it))) }
+            .forEach { 
+                items.add(MediaItemV1().apply {
+                    type = MediaItemV1.Type.SONG
+                    song = mapper.toSong(it)
+                })
+            }
             
         allAlbums.filter { it.name.contains(query, ignoreCase = true) }
             .take(2)
-            .forEach { items.add(MediaItemV1.album(mapper.toAlbum(it))) }
+            .forEach { 
+                items.add(MediaItemV1().apply {
+                    type = MediaItemV1.Type.ALBUM
+                    album = mapper.toAlbum(it)
+                })
+            }
             
         allArtists.filter { it.name.contains(query, ignoreCase = true) }
             .take(2)
-            .forEach { items.add(MediaItemV1.artist(mapper.toArtist(it))) }
+            .forEach { 
+                items.add(MediaItemV1().apply {
+                    type = MediaItemV1.Type.ARTIST
+                    artist = mapper.toArtist(it)
+                })
+            }
 
-        return SearchSuggestionsResultV1(
-            suggestions = suggestions.take(10),
-            items = items
-        )
+        return SearchSuggestionsResultV1().apply {
+            this.suggestions = suggestions.take(10)
+            this.items = items
+        }
     }
 
     override suspend fun search(
@@ -113,7 +128,10 @@ class LocalPlugin(
                     it.artistName.contains(query, ignoreCase = true) ||
                     it.albumName.contains(query, ignoreCase = true)
                 }.take(limit).forEach {
-                    items.add(MediaItemV1.song(mapper.toSong(it)))
+                    items.add(MediaItemV1().apply {
+                        type = MediaItemV1.Type.SONG
+                        song = mapper.toSong(it)
+                    })
                 }
             }
             SearchFilter.ALBUM -> {
@@ -121,14 +139,20 @@ class LocalPlugin(
                     it.name.contains(query, ignoreCase = true) ||
                     it.artistName.contains(query, ignoreCase = true)
                 }.take(limit).forEach {
-                    items.add(MediaItemV1.album(mapper.toAlbum(it)))
+                    items.add(MediaItemV1().apply {
+                        type = MediaItemV1.Type.ALBUM
+                        album = mapper.toAlbum(it)
+                    })
                 }
             }
             SearchFilter.ARTIST -> {
                 allArtists.filter {
                     it.name.contains(query, ignoreCase = true)
                 }.take(limit).forEach {
-                    items.add(MediaItemV1.artist(mapper.toArtist(it)))
+                    items.add(MediaItemV1().apply {
+                        type = MediaItemV1.Type.ARTIST
+                        artist = mapper.toArtist(it)
+                    })
                 }
             }
             null -> {
@@ -137,20 +161,29 @@ class LocalPlugin(
                     it.title.contains(query, ignoreCase = true) ||
                     it.artistName.contains(query, ignoreCase = true)
                 }.take(limit / 3).forEach {
-                    items.add(MediaItemV1.song(mapper.toSong(it)))
+                    items.add(MediaItemV1().apply {
+                        type = MediaItemV1.Type.SONG
+                        song = mapper.toSong(it)
+                    })
                 }
                 
                 allAlbums.filter {
                     it.name.contains(query, ignoreCase = true) ||
                     it.artistName.contains(query, ignoreCase = true)
                 }.take(limit / 3).forEach {
-                    items.add(MediaItemV1.album(mapper.toAlbum(it)))
+                    items.add(MediaItemV1().apply {
+                        type = MediaItemV1.Type.ALBUM
+                        album = mapper.toAlbum(it)
+                    })
                 }
                 
                 allArtists.filter {
                     it.name.contains(query, ignoreCase = true)
                 }.take(limit / 3).forEach {
-                    items.add(MediaItemV1.artist(mapper.toArtist(it)))
+                    items.add(MediaItemV1().apply {
+                        type = MediaItemV1.Type.ARTIST
+                        artist = mapper.toArtist(it)
+                    })
                 }
             }
             else -> {
@@ -158,7 +191,9 @@ class LocalPlugin(
             }
         }
 
-        return SearchResult(items = items)
+        return SearchResult().apply {
+            this.items = items
+        }
     }
 
     override suspend fun getSong(id: String): Song {
@@ -206,40 +241,55 @@ class LocalPlugin(
         // Recent songs section
         if (allSongs.isNotEmpty()) {
             sections.add(
-                HomeSection(
-                    id = "recent_songs",
-                    title = "Recent Songs",
-                    items = allSongs.take(20).map { MediaItemV1.song(mapper.toSong(it)) }
-                )
+                HomeSection().apply {
+                    id = "recent_songs"
+                    title = "Recent Songs"
+                    items = allSongs.take(20).map { 
+                        MediaItemV1().apply {
+                            type = MediaItemV1.Type.SONG
+                            song = mapper.toSong(it) 
+                        }
+                    }
+                }
             )
         }
 
         // Albums section
         if (allAlbums.isNotEmpty()) {
             sections.add(
-                HomeSection(
-                    id = "albums",
-                    title = "Albums",
-                    items = allAlbums.take(20).map { MediaItemV1.album(mapper.toAlbum(it)) }
-                )
+                HomeSection().apply {
+                    id = "albums"
+                    title = "Albums"
+                    items = allAlbums.take(20).map { 
+                        MediaItemV1().apply {
+                            type = MediaItemV1.Type.ALBUM
+                            album = mapper.toAlbum(it)
+                        }
+                    }
+                }
             )
         }
 
         // Artists section
         if (allArtists.isNotEmpty()) {
             sections.add(
-                HomeSection(
-                    id = "artists",
-                    title = "Artists",
-                    items = allArtists.take(20).map { MediaItemV1.artist(mapper.toArtist(it)) }
-                )
+                HomeSection().apply {
+                    id = "artists"
+                    title = "Artists"
+                    items = allArtists.take(20).map { 
+                        MediaItemV1().apply {
+                            type = MediaItemV1.Type.ARTIST
+                            artist = mapper.toArtist(it)
+                        }
+                    }
+                }
             )
         }
 
-        return HomeContent(
-            sections = sections,
-            quickPicks = null
-        )
+        return HomeContent().apply {
+             this.sections = sections
+             quickPicks = ArrayList() // Default to empty list as per non-null req
+        }
     }
 
     override suspend fun getStream(mediaId: String): StreamSource {
@@ -249,6 +299,13 @@ class LocalPlugin(
         
         // Return StreamSource with the content:// URI
         // ExoPlayer can directly play content:// URIs
-        return StreamSource.url(contentUri)
+        return StreamSource().apply {
+            type = StreamSource.Type.URL
+            url = contentUri
+        }
+    }
+    
+    override fun getSettingsActivityClass(): String {
+        return ".LocalSettingsActivity"
     }
 }
