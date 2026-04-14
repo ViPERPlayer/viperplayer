@@ -26,5 +26,13 @@ include(":plugin-sdk")
 include(":plugin-example")
 
 // Media3
-(gradle as ExtensionAware).extra["androidxMediaModulePrefix"] = "media3-"
-apply(from = file("external/media/core_settings.gradle"))
+includeBuild("external/media") {
+    dependencySubstitution {
+        substitute(module("androidx.media3:media3-exoplayer")).using(project(":lib-exoplayer"))
+        substitute(module("androidx.media3:media3-exoplayer-dash")).using(project(":lib-exoplayer-dash"))
+        substitute(module("androidx.media3:media3-session")).using(project(":lib-session"))
+        substitute(module("androidx.media3:media3-datasource")).using(project(":lib-datasource"))
+        substitute(module("androidx.media3:media3-datasource-okhttp")).using(project(":lib-datasource-okhttp"))
+        substitute(module("androidx.media3:media3-cast")).using(project(":lib-cast"))
+    }
+}

@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
@@ -128,12 +127,12 @@ dependencies {
     implementation(libs.room.ktx)
 
     // Media3 / ExoPlayer
-    implementation(project(":media3-lib-exoplayer"))
-    implementation(project(":media3-lib-exoplayer-dash"))
-    implementation(project(":media3-lib-session"))
-    implementation(project(":media3-lib-datasource"))
-    implementation(project(":media3-lib-datasource-okhttp"))
-    implementation(project(":media3-lib-cast"))
+    implementation("androidx.media3:media3-exoplayer:1.10.0")
+    implementation("androidx.media3:media3-exoplayer-dash:1.10.0")
+    implementation("androidx.media3:media3-session:1.10.0")
+    implementation("androidx.media3:media3-datasource:1.10.0")
+    implementation("androidx.media3:media3-datasource-okhttp:1.10.0")
+    implementation("androidx.media3:media3-cast:1.10.0")
 
     // Image loading
     implementation(libs.coil.compose)
