@@ -28,11 +28,19 @@ include(":plugin-example")
 // Media3
 includeBuild("external/media") {
     dependencySubstitution {
-        substitute(module("androidx.media3:media3-exoplayer")).using(project(":lib-exoplayer"))
-        substitute(module("androidx.media3:media3-exoplayer-dash")).using(project(":lib-exoplayer-dash"))
-        substitute(module("androidx.media3:media3-session")).using(project(":lib-session"))
-        substitute(module("androidx.media3:media3-datasource")).using(project(":lib-datasource"))
-        substitute(module("androidx.media3:media3-datasource-okhttp")).using(project(":lib-datasource-okhttp"))
-        substitute(module("androidx.media3:media3-cast")).using(project(":lib-cast"))
+        all {
+            val req = requested
+            if (
+                req is ModuleComponentSelector &&
+                req.group == "androidx.media3" &&
+                req.module.startsWith("media3-")
+            ) {
+                if (req.module == "media3-exoplayer-midi") {
+                    useTarget(project(":lib-decoder-midi"))
+                } else {
+                    useTarget(project(":${req.module.replaceFirst("media3-", "lib-")}"))
+                }
+            }
+        }
     }
 }
