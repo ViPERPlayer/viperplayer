@@ -5,12 +5,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Timeline
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.drm.DrmSessionEventListener
@@ -20,6 +17,7 @@ import androidx.media3.exoplayer.source.MediaPeriod
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MediaSourceEventListener
 import androidx.media3.exoplayer.upstream.Allocator
+import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.MediaId
@@ -124,11 +122,10 @@ class ViperMediaSource(
         chosenOrDefaultMediaSource.updateMediaItem(mediaItem)
     }
 
-    @OptIn(UnstableApi::class)
     override fun prepareSource(
         caller: MediaSource.MediaSourceCaller,
-        mediaTransferListener: TransferListener?,
-        playerId: PlayerId
+        playerId: PlayerId,
+        bandwidthMeter: BandwidthMeter
     ) {
         Timber.d("prepareSource() called")
         val playbackLooper = Looper.myLooper() ?: throw IllegalStateException("playbackLooper is null!")
@@ -152,49 +149,49 @@ class ViperMediaSource(
                             .build()
                     )
 
-                    when (stream.type) {
-                        StreamSource.Type.URL -> {
-                            val url = stream.url ?: throw IllegalArgumentException("URL is null")
-                            updatedMediaItemBuilder.setUri(url.toUri())
-                        }
-                        StreamSource.Type.DASH -> {
-                            val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
-                            val dashUri = saveDashXmlToFile(xml) // Assuming this is a blocking IO function
-                            updatedMediaItemBuilder.setUri(dashUri)
-                        }
-                        StreamSource.Type.AUDIO_STREAM -> {
-                            val audioStream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
-                            updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
-                        }
-                        else -> throw IllegalArgumentException("Unknown stream type: ${stream.type}")
+                when (stream.type) {
+                    StreamSource.Type.URL -> {
+                        val url = stream.url ?: throw IllegalArgumentException("URL is null")
+                        updatedMediaItemBuilder.setUri(url.toUri())
                     }
+                    StreamSource.Type.DASH -> {
+                        val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
+                        val dashUri = saveDashXmlToFile(xml) // Assuming this is a blocking IO function
+                        updatedMediaItemBuilder.setUri(dashUri)
+                    }
+                    StreamSource.Type.AUDIO_STREAM -> {
+                        val audioStream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
+                        updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
+                    }
+                    else -> throw IllegalArgumentException("Unknown stream type: ${stream.type}")
+                }
 
-                    val updatedMediaItem = updatedMediaItemBuilder.build()
+                val updatedMediaItem = updatedMediaItemBuilder.build()
 
-                    withContext(playbackDispatcher) {
-                        chosenMediaSource = when (stream.type) {
-                            StreamSource.Type.URL -> {
-                                defaultMediaSource.updateMediaItem(updatedMediaItem)
-                                defaultMediaSource
-                            }
-
-                            StreamSource.Type.DASH -> {
-                                dashMediaSource.updateMediaItem(updatedMediaItem)
-                                dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
-                                dashMediaSource
-                            }
-
-                            StreamSource.Type.AUDIO_STREAM -> {
-                                sourceInfoRefreshError = UnsupportedOperationException("Audio stream not supported")
-                                return@withContext
-                            }
-
-                            else -> {
-                                sourceInfoRefreshError = IllegalArgumentException("Unknown stream type: ${stream.type}")
-                                return@withContext
-                            }
+                withContext(playbackDispatcher) {
+                    chosenMediaSource = when (stream.type) {
+                        StreamSource.Type.URL -> {
+                            defaultMediaSource.updateMediaItem(updatedMediaItem)
+                            defaultMediaSource
                         }
-                    chosenOrDefaultMediaSource.prepareSource(caller, mediaTransferListener, playerId)
+
+                        StreamSource.Type.DASH -> {
+                            dashMediaSource.updateMediaItem(updatedMediaItem)
+                            dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
+                            dashMediaSource
+                        }
+
+                        StreamSource.Type.AUDIO_STREAM -> {
+                            sourceInfoRefreshError = UnsupportedOperationException("Audio stream not supported")
+                            return@withContext
+                        }
+
+                        else -> {
+                            sourceInfoRefreshError = IllegalArgumentException("Unknown stream type: ${stream.type}")
+                            return@withContext
+                        }
+                    }
+                    chosenOrDefaultMediaSource.prepareSource(caller, playerId, bandwidthMeter)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to prepare source")
