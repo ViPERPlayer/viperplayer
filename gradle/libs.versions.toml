@@ -23,6 +23,7 @@ core-splashscreen = "1.2.0"
 material3 = "1.5.0-alpha17"
 ktor = "3.4.2"
 room = "2.8.4"
+xdl = "2.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -84,6 +85,9 @@ ktor-serialization-json = { group = "io.ktor", name = "ktor-serialization-kotlin
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+
+# xDL
+xdl = { module = "io.github.hexhacking:xdl", version.ref = "xdl" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

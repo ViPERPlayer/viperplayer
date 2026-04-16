@@ -4,6 +4,7 @@
 #include "viper/effects/ViPERBass.h"
 #include "viper/effects/ViPERClarity.h"
 #include "viper/utils/Crossfeed.h"
+#include "xdl.h"
 
 #define DEFAULT_SAMPLING_RATE 44100
 static ViPER viperEngine = ViPER(DEFAULT_SAMPLING_RATE);
@@ -371,4 +372,27 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_reset(JNIEnv *env, jobject thiz) {
     viperEngine.reset();
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_MainActivity_nativeInit(JNIEnv *env, jobject thiz) {
+    void *libaudioclient_handle = xdl_open("libaudioclient.so", XDL_DEFAULT);
+    __android_log_print(ANDROID_LOG_INFO, "ViPERPlayer", "libaudioclient.so -> %p", libaudioclient_handle);
+
+    void *libutils_handle = xdl_open("libutils.so", XDL_DEFAULT);
+    __android_log_print(ANDROID_LOG_INFO, "ViPERPlayer", "libutils.so -> %p", libutils_handle);
+
+    if (android_get_device_api_level() >= 31) {
+        void *libpermission_handle = xdl_open("libpermission.so", XDL_DEFAULT);
+        __android_log_print(ANDROID_LOG_INFO, "ViPERPlayer", "libpermission.so -> %p", libpermission_handle);
+    }
+
+    if (android_get_device_api_level() >= 31) {
+        void *libandroid_runtime_handle = xdl_open("libandroid_runtime.so", XDL_DEFAULT);
+        __android_log_print(ANDROID_LOG_INFO, "ViPERPlayer", "libandroid_runtime.so -> %p", libandroid_runtime_handle);
+    }
+
+    void *libbinder_handle = xdl_open("libbinder.so", XDL_DEFAULT);
+    __android_log_print(ANDROID_LOG_INFO, "ViPERPlayer", "libbinder.so -> %p", libbinder_handle);
 }

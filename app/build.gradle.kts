@@ -76,6 +76,7 @@ android {
         buildConfig = true
         compose = true
         aidl = true
+        prefab = true
     }
 
     externalNativeBuild {
@@ -154,6 +155,9 @@ dependencies {
 
     // Rebugger
     implementation("io.github.theapache64:rebugger:1.0.1")
+
+    // xDL
+    implementation(libs.xdl)
     
     // Testing
     testImplementation(libs.junit)

@@ -30,7 +30,24 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     lateinit var settingsRepository: SettingsRepository
 
     init {
-        @SuppressLint("LogNotTimber")
+        System.loadLibrary("viper")
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        setupCrashHandler()
+
+        if (!isMainProcess()) {
+            // We are inside the ":crash" process (or a background service process).
+            // Do absolutely nothing. Just return.
+            return
+        }
+
+        initializeTimber()
+    }
+
+    @SuppressLint("LogNotTimber")
+    private fun setupCrashHandler() {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             val message = throwable.message
             val stackTrace = Log.getStackTraceString(throwable)
@@ -44,18 +61,6 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
             startActivity(intent)
             exitProcess(10)
         }
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-
-        if (!isMainProcess()) {
-            // We are inside the ":crash" process (or a background service process).
-            // Do absolutely nothing. Just return.
-            return
-        }
-
-        initializeTimber()
     }
 
     private fun initializeTimber() {

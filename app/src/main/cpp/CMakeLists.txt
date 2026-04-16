@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project("viper")
 
+find_package(xdl REQUIRED CONFIG)
+
 add_library(${CMAKE_PROJECT_NAME} SHARED
         # Common
         viper/ViPER.cpp
@@ -72,4 +74,5 @@ include_directories(viper/external/fftw/api)
 target_link_libraries(${CMAKE_PROJECT_NAME}
         android
         log
-        fftw3f)
+        fftw3f
+        xdl::xdl)
