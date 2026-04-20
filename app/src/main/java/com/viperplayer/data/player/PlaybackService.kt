@@ -73,6 +73,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
     @Inject
     lateinit var mediaLibrarySessionCallback: ViperMediaLibrarySessionCallback
 
+    @Inject
+    lateinit var mediaSessionServiceListener: ViperMediaSessionServiceListener
+
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
         get() = dispatcher.lifecycle
@@ -98,6 +101,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
         
         // Create MediaSession
         mediaLibrarySession = createMediaLibrarySession()
+
+        // Set MediaSessionService listener
+        setListener(mediaSessionServiceListener)
         
         // Restore player state if available
         restorePlayerState()
