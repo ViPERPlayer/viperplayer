@@ -139,7 +139,7 @@ fun SearchScreen(
                             ) { targetState ->
                                 if (targetState) {
                                     IconButton(onClick = onDismiss) {
-                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                                     }
                                 } else {
                                     Icon(Icons.Default.Search, contentDescription = null)
@@ -160,7 +160,7 @@ fun SearchScreen(
                                 }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
-                                        contentDescription = "Clear"
+                                        contentDescription = stringResource(R.string.action_clear)
                                     )
                                 }
                             }
@@ -349,7 +349,7 @@ fun SearchScreen(
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Search for music",
+                                    text = stringResource(R.string.search_for_music),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -374,7 +374,7 @@ fun SearchScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No results found",
+                                text = stringResource(R.string.search_no_results),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -482,7 +482,7 @@ fun SearchScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Error",
+                                    text = stringResource(R.string.action_error),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -584,11 +584,11 @@ private fun SearchFilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         val filters = listOf(
-            "All" to null,
-            "Songs" to SearchFilter.SONG,
-            "Albums" to SearchFilter.ALBUM,
-            "Playlists" to SearchFilter.PLAYLIST,
-            "Artists" to SearchFilter.ARTIST
+            stringResource(R.string.search_filter_all) to null,
+            stringResource(R.string.search_filter_songs) to SearchFilter.SONG,
+            stringResource(R.string.search_filter_albums) to SearchFilter.ALBUM,
+            stringResource(R.string.search_filter_playlists) to SearchFilter.PLAYLIST,
+            stringResource(R.string.search_filter_artists) to SearchFilter.ARTIST
         )
 
         filters.forEach { (label, filter) ->

@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.detail
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -40,18 +42,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.viperplayer.R
 import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.AlbumType
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Song
@@ -60,6 +69,7 @@ import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /**
  * Sealed class to represent items in the album song list (disc headers or songs).
@@ -69,6 +79,14 @@ private sealed class DiscItem {
     data class SongItem(val song: Song) : DiscItem()
 }
 
+/**
+ * Screen that displays the details of an album, including its artwork, metadata, and song list.
+ *
+ * @param rootPadding The padding to apply to the root of the screen, typically from a parent Scaffold.
+ * @param onNavigateBack Callback when the user wants to go back.
+ * @param onNavigateToArtist Callback when the user clicks on an artist.
+ * @param viewModel The ViewModel for this screen.
+ */
 @Composable
 fun AlbumDetailScreen(
     rootPadding: PaddingValues,
@@ -79,7 +97,44 @@ fun AlbumDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    
+
+    AlbumDetailScreenContent(
+        rootPadding = rootPadding,
+        uiState = uiState,
+        currentSong = currentSong,
+        isPlaying = isPlaying,
+        onNavigateBack = onNavigateBack,
+        onNavigateToArtist = onNavigateToArtist,
+        onRefresh = viewModel::refresh,
+        onPlayAlbum = viewModel::playAlbum,
+        onShuffle = viewModel::shuffle,
+        onPlaySong = viewModel::playSong,
+        onPlayNext = viewModel::playNext,
+        onAddToQueue = viewModel::addToQueue,
+        onToggleLike = { /* TODO: Implement toggle like */ }
+    )
+}
+
+/**
+ * Stateless content for the Album Detail screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlbumDetailScreenContent(
+    rootPadding: PaddingValues,
+    uiState: AlbumDetailUiState,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    onNavigateBack: () -> Unit,
+    onNavigateToArtist: (MediaId) -> Unit,
+    onRefresh: () -> Unit,
+    onPlayAlbum: () -> Unit,
+    onShuffle: () -> Unit,
+    onPlaySong: (Song) -> Unit,
+    onPlayNext: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
+    onToggleLike: (Song) -> Unit,
+) {
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
     ViperScaffold(
@@ -87,9 +142,9 @@ fun AlbumDetailScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = when (val state = uiState) {
-                            is AlbumDetailUiState.Success -> state.album.name
-                            else -> "Album"
+                        text = when (uiState) {
+                            is AlbumDetailUiState.Success -> uiState.album.name
+                            else -> stringResource(R.string.album_type_album)
                         },
                         overflow = TextOverflow.Ellipsis,
                         maxLines = 1
@@ -97,18 +152,18 @@ fun AlbumDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
+                    IconButton(onClick = onRefresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
             )
         }
     ) { contentPadding ->
-        when (val state = uiState) {
+        when (uiState) {
             is AlbumDetailUiState.Loading -> {
                 Box(
                     modifier = Modifier
@@ -133,12 +188,12 @@ fun AlbumDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = state.message,
+                            text = uiState.message,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Button(onClick = { viewModel.refresh() }) {
-                            Text("Retry")
+                        Button(onClick = onRefresh) {
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -153,18 +208,16 @@ fun AlbumDetailScreen(
                     // Album header
                     item {
                         AlbumHeader(
-                            album = state.album,
-                            songCount = state.songs.size,
-                            onPlayAlbum = { viewModel.playAlbum() },
-                            onShuffle = { viewModel.shuffle() },
-                            onArtistClick = { artistId ->
-                                onNavigateToArtist(artistId)
-                            }
+                            album = uiState.album,
+                            songCount = uiState.songs.size,
+                            onPlayAlbum = onPlayAlbum,
+                            onShuffle = onShuffle,
+                            onArtistClick = onNavigateToArtist,
                         )
                     }
 
                     // Songs list
-                    if (state.songs.isEmpty()) {
+                    if (uiState.songs.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -173,7 +226,7 @@ fun AlbumDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No songs in this album",
+                                    text = stringResource(R.string.album_no_songs),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -181,7 +234,7 @@ fun AlbumDetailScreen(
                         }
                     } else {
                         // Group songs by disc number and check if we have multiple discs
-                        val sortedSongs = state.songs.sortedWith(compareBy(
+                        val sortedSongs = uiState.songs.sortedWith(compareBy(
                             { it.discNumber ?: 1 },
                             { it.trackNumber ?: 0 }
                         ))
@@ -226,11 +279,11 @@ fun AlbumDetailScreen(
                                             durationMs = song.durationMs,
                                             isActive = currentSong?.id == song.id,
                                             isPlaying = currentSong?.id == song.id && isPlaying,
-                                            onClick = { viewModel.playSong(song) },
+                                            onClick = { onPlaySong(song) },
                                             onMoreClick = { selectedMediaItem = song },
                                             onLongClick = { selectedMediaItem = song },
-                                            onPlayNext = { viewModel.playNext(song) },
-                                            onAddToQueue = { viewModel.addToQueue(song) },
+                                            onPlayNext = { onPlayNext(song) },
+                                            onAddToQueue = { onAddToQueue(song) },
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                         )
@@ -252,11 +305,11 @@ fun AlbumDetailScreen(
                                     durationMs = song.durationMs,
                                     isActive = currentSong?.id == song.id,
                                     isPlaying = currentSong?.id == song.id && isPlaying,
-                                    onClick = { viewModel.playSong(song) },
+                                    onClick = { onPlaySong(song) },
                                     onMoreClick = { selectedMediaItem = song },
                                     onLongClick = { selectedMediaItem = song },
-                                    onPlayNext = { viewModel.playNext(song) },
-                                    onAddToQueue = { viewModel.addToQueue(song) },
+                                    onPlayNext = { onPlayNext(song) },
+                                    onAddToQueue = { onAddToQueue(song) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                 )
@@ -279,21 +332,21 @@ fun AlbumDetailScreen(
                     onDismiss = { selectedMediaItem = null },
                     onPlay = {
                         when (item) {
-                            is Song -> viewModel.playSong(item)
+                            is Song -> onPlaySong(item)
                             else -> {}
                         }
                         selectedMediaItem = null
                     },
                     onPlayNext = {
-                        // TODO: Implement play next
+                        if (item is Song) onPlayNext(item)
                         selectedMediaItem = null
                     },
                     onAddToQueue = {
-                        // TODO: Implement add to queue
+                        if (item is Song) onAddToQueue(item)
                         selectedMediaItem = null
                     },
                     onLike = {
-                        // TODO: Implement toggle like
+                        if (item is Song) onToggleLike(item)
                         selectedMediaItem = null
                     },
                     onViewArtist = { artistId ->
@@ -310,6 +363,9 @@ fun AlbumDetailScreen(
     }
 }
 
+/**
+ * Header section for the album, showing artwork and metadata.
+ */
 @Composable
 private fun AlbumHeader(
     album: Album,
@@ -317,7 +373,7 @@ private fun AlbumHeader(
     onPlayAlbum: () -> Unit,
     onShuffle: () -> Unit,
     onArtistClick: (MediaId) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
@@ -330,6 +386,8 @@ private fun AlbumHeader(
         AsyncImage(
             model = album.artworkUrl,
             contentDescription = album.name,
+            placeholder = painterResource(R.drawable.ic_notification),
+            error = painterResource(R.drawable.ic_notification),
             modifier = Modifier
                 .size(200.dp)
                 .clip(RoundedCornerShape(8.dp)),
@@ -414,7 +472,12 @@ private fun AlbumHeader(
                 )
             }
             Text(
-                text = album.type.name,
+                text = stringResource(when (album.type) {
+                    AlbumType.ALBUM -> R.string.album_type_album
+                    AlbumType.SINGLE -> R.string.album_type_single
+                    AlbumType.EP -> R.string.album_type_ep
+                    AlbumType.COMPILATION -> R.string.album_type_compilation
+                }),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -424,7 +487,11 @@ private fun AlbumHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "$songCount ${if (songCount == 1) "song" else "songs"}",
+                text = if (songCount == 1) {
+                    stringResource(R.string.album_song_count_one, songCount)
+                } else {
+                    stringResource(R.string.album_song_count_many, songCount)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -444,7 +511,7 @@ private fun AlbumHeader(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Play")
+                Text(stringResource(R.string.action_play))
             }
             OutlinedButton(
                 onClick = onShuffle,
@@ -453,12 +520,15 @@ private fun AlbumHeader(
             ) {
                 Icon(Icons.Default.Shuffle, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Shuffle")
+                Text(stringResource(R.string.action_shuffle))
             }
         }
     }
 }
 
+/**
+ * Header for a specific disc in a multi-disc album.
+ */
 @Composable
 private fun DiscHeader(
     discNumber: Int,
@@ -471,7 +541,7 @@ private fun DiscHeader(
         contentAlignment = Alignment.CenterStart
     ) {
         Text(
-            text = "Disc $discNumber",
+            text = stringResource(R.string.album_disc_header, discNumber),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary
@@ -479,3 +549,92 @@ private fun DiscHeader(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+private fun AlbumDetailScreenPreview() {
+    val album = Album(
+        id = MediaId("plugin", "album1"),
+        name = "The Dark Side of the Moon",
+        artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+        artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
+        releaseYear = 1973,
+        trackCount = 10,
+        type = AlbumType.ALBUM
+    )
+    
+    val songs = listOf(
+        Song(
+            id = MediaId("plugin", "song1"),
+            title = "Speak to Me",
+            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            album = album,
+            durationMs = 90000,
+            trackNumber = 1,
+            discNumber = 1
+        ),
+        Song(
+            id = MediaId("plugin", "song2"),
+            title = "Breathe (In the Air)",
+            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            album = album,
+            durationMs = 169000,
+            trackNumber = 2,
+            discNumber = 1
+        ),
+        Song(
+            id = MediaId("plugin", "song3"),
+            title = "On the Run",
+            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            album = album,
+            durationMs = 213000,
+            trackNumber = 3,
+            discNumber = 1,
+            isExplicit = true
+        ),
+        Song(
+            id = MediaId("plugin", "song4"),
+            title = "Time",
+            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            album = album,
+            durationMs = 421000,
+            trackNumber = 4,
+            discNumber = 1
+        ),
+        Song(
+            id = MediaId("plugin", "song11"),
+            title = "Bonus Track 1",
+            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            album = album,
+            durationMs = 300000,
+            trackNumber = 1,
+            discNumber = 2
+        ),
+        Song(
+            id = MediaId("plugin", "song12"),
+            title = "Bonus Track 2",
+            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            album = album,
+            durationMs = 240000,
+            trackNumber = 2,
+            discNumber = 2
+        )
+    )
+
+    ViPERPlayerTheme {
+        AlbumDetailScreenContent(
+            rootPadding = PaddingValues(0.dp),
+            uiState = AlbumDetailUiState.Success(album, songs),
+            currentSong = songs[0],
+            isPlaying = true,
+            onNavigateBack = {},
+            onNavigateToArtist = {},
+            onRefresh = {},
+            onPlayAlbum = {},
+            onShuffle = {},
+            onPlaySong = {},
+            onPlayNext = {},
+            onAddToQueue = {},
+            onToggleLike = {},
+        )
+    }
+}

@@ -13,6 +13,13 @@
 
     <!-- Search -->
     <string name="search_placeholder">What\'s playing in your head?</string>
+    <string name="search_for_music">Search for music</string>
+    <string name="search_no_results">No results found</string>
+    <string name="search_filter_all">All</string>
+    <string name="search_filter_songs">Songs</string>
+    <string name="search_filter_albums">Albums</string>
+    <string name="search_filter_playlists">Playlists</string>
+    <string name="search_filter_artists">Artists</string>
 
     <!-- ViPER effects -->
     <string name="viper_bass">ViPER bass</string>
@@ -51,4 +58,49 @@
     <string name="field_surround_surround_strength">Surround strength</string>
     <string name="field_surround_mid_image_strength">Mid image strength</string>
     <string name="binaural_level">Binaural level</string>
+
+    <!-- Common actions -->
+    <string name="action_back">Back</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_play">Play</string>
+    <string name="action_shuffle">Shuffle</string>
+    <string name="action_error">Error</string>
+
+    <!-- Album types -->
+    <string name="album_type_album">Album</string>
+    <string name="album_type_single">Single</string>
+    <string name="album_type_ep">EP</string>
+    <string name="album_type_compilation">Compilation</string>
+
+    <!-- Album detail -->
+    <string name="album_no_songs">No songs in this album</string>
+    <string name="album_disc_header">Disc %1$d</string>
+    <string name="album_song_count_one">%1$d song</string>
+    <string name="album_song_count_many">%1$d songs</string>
+
+    <!-- Dynamic System Device Types -->
+    <string name="dynamic_system_device_extreme_headphone_v2">Extreme headphone V2</string>
+    <string name="dynamic_system_device_high_end_headphone_v2">High-end headphone V2</string>
+    <string name="dynamic_system_device_common_headphone_v2">Common headphone V2</string>
+    <string name="dynamic_system_device_low_end_headphone_v2">Low-end headphone V2</string>
+    <string name="dynamic_system_device_common_earphone_v2">Common earphone V2</string>
+    <string name="dynamic_system_device_extreme_headphone_v1">Extreme headphone V1</string>
+    <string name="dynamic_system_device_high_end_headphone_v1">High-end headphone V1</string>
+    <string name="dynamic_system_device_common_headphone_v1">Common headphone V1</string>
+    <string name="dynamic_system_device_common_earphone_v1">Common earphone V1</string>
+    <string name="dynamic_system_device_apple_earphone">Apple earphone</string>
+    <string name="dynamic_system_device_monster_earphone">Monster earphone</string>
+    <string name="dynamic_system_device_motorola_earphone">Motorola earphone</string>
+    <string name="dynamic_system_device_philips_earphone">Philips earphone</string>
+    <string name="dynamic_system_device_shp2000">Philips SHP2000</string>
+    <string name="dynamic_system_device_shp9000">Philips SHP9000</string>
+    <string name="dynamic_system_device_unknown_type_i">Unknown type I</string>
+    <string name="dynamic_system_device_unknown_type_ii">Unknown type II</string>
+    <string name="dynamic_system_device_unknown_type_iii">Unknown type III</string>
+    <string name="dynamic_system_device_unknown_type_iv">Unknown type IV</string>
+    <string name="dynamic_system_device_unknown_type_v">Unknown type V</string>
+    <string name="dynamic_system_device_pitt_van_de_witt_flavor_1">Pitt Van De Witt (Flavor 1)</string>
+    <string name="dynamic_system_device_pitt_van_de_witt_flavor_2">Pitt Van De Witt (Flavor 2)</string>
+    <string name="dynamic_system_device_pitt_van_de_witt_flavor_3">Pitt Van De Witt (Flavor 3)</string>
 </resources>
