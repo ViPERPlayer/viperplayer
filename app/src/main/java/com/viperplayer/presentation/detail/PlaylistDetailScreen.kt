@@ -9,13 +9,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
@@ -28,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,63 +35,86 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
 import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
-import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 @Composable
 fun PlaylistDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
+    onNavigateToArtist: (MediaId) -> Unit = {},
+    onNavigateToAlbum: (MediaId) -> Unit = {},
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    
+
+    PlaylistDetailScreenContent(
+        rootPadding = rootPadding,
+        uiState = uiState,
+        currentSong = currentSong,
+        isPlaying = isPlaying,
+        onNavigateBack = onNavigateBack,
+        onRefresh = viewModel::refresh,
+        onPlayAll = viewModel::playAll,
+        onShuffle = viewModel::shuffle,
+        onPlaySong = viewModel::playSong,
+        onPlayNext = viewModel::playNext,
+        onAddToQueue = viewModel::addToQueue,
+        onToggleLike = { /* TODO: Implement toggle like */ },
+        onNavigateToArtist = onNavigateToArtist,
+        onNavigateToAlbum = onNavigateToAlbum,
+    )
+}
+
+@Composable
+private fun PlaylistDetailScreenContent(
+    rootPadding: PaddingValues,
+    uiState: PlaylistDetailUiState,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    onNavigateBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onPlayAll: () -> Unit,
+    onShuffle: () -> Unit,
+    onPlaySong: (Song) -> Unit,
+    onPlayNext: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
+    onToggleLike: (Song) -> Unit,
+    onNavigateToArtist: (MediaId) -> Unit,
+    onNavigateToAlbum: (MediaId) -> Unit,
+) {
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    ViperScaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        when (val state = uiState) {
-                            is PlaylistDetailUiState.Success -> state.playlist.name
-                            else -> "Playlist"
-                        }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                }
-            )
-        }
+    val playlist = (uiState as? PlaylistDetailUiState.Success)?.playlist
+
+    CollapsingArtworkScaffold(
+        artworkUrl = playlist?.artworkUrl,
+        title = playlist?.name ?: "Playlist",
+        onNavigateBack = onNavigateBack,
+        actions = {
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+        },
     ) { contentPadding ->
-        when (val state = uiState) {
+        when (uiState) {
             is PlaylistDetailUiState.Loading -> {
                 Box(
                     modifier = Modifier
@@ -120,11 +139,11 @@ fun PlaylistDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = state.message,
+                            text = uiState.message,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Button(onClick = { viewModel.refresh() }) {
+                        Button(onClick = onRefresh) {
                             Text("Retry")
                         }
                     }
@@ -132,21 +151,23 @@ fun PlaylistDetailScreen(
             }
             is PlaylistDetailUiState.Success -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(contentPadding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding),
                     contentPadding = rootPadding
                 ) {
-                    // Playlist header
+                    // Playlist metadata header (no artwork — artwork is in the collapsing app bar)
                     item {
-                        PlaylistHeader(
-                            playlist = state.playlist,
-                            songCount = state.songs.size,
-                            onPlayAll = { viewModel.playAll() },
-                            onShuffle = { viewModel.shuffle() }
+                        PlaylistMetadataHeader(
+                            playlist = uiState.playlist,
+                            songCount = uiState.songs.size,
+                            onPlayAll = onPlayAll,
+                            onShuffle = onShuffle
                         )
                     }
 
                     // Songs list
-                    if (state.songs.isEmpty()) {
+                    if (uiState.songs.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -162,7 +183,7 @@ fun PlaylistDetailScreen(
                             }
                         }
                     } else {
-                        items(state.songs) { song ->
+                        items(uiState.songs) { song ->
                             ListItem(
                                 title = song.title,
                                 badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
@@ -182,10 +203,10 @@ fun PlaylistDetailScreen(
                                         onMoreClick = { selectedMediaItem = song }
                                     )
                                 },
-                                onClick = if (song.isPlayable) { { viewModel.playSong(song) } } else null,
+                                onClick = if (song.isPlayable) { { onPlaySong(song) } } else null,
                                 onLongClick = { selectedMediaItem = song },
-                                onPlayNext = if (song.isPlayable) { { viewModel.playNext(song) } } else null,
-                                onAddToQueue = if (song.isPlayable) { { viewModel.addToQueue(song) } } else null,
+                                onPlayNext = if (song.isPlayable) { { onPlayNext(song) } } else null,
+                                onAddToQueue = if (song.isPlayable) { { onAddToQueue(song) } } else null,
                                 modifier = Modifier
                                     .animateItem()
                                     .fillMaxWidth()
@@ -202,7 +223,7 @@ fun PlaylistDetailScreen(
                 }
             }
         }
-        
+
         // Media item options bottom sheet
         selectedMediaItem?.let { item ->
             ModalBottomSheet(
@@ -215,29 +236,29 @@ fun PlaylistDetailScreen(
                     onDismiss = { selectedMediaItem = null },
                     onPlay = {
                         when (item) {
-                            is Song -> viewModel.playSong(item)
+                            is Song -> onPlaySong(item)
                             else -> {}
                         }
                         selectedMediaItem = null
                     },
                     onPlayNext = {
-                        // TODO: Implement play next
+                        if (item is Song) onPlayNext(item)
                         selectedMediaItem = null
                     },
                     onAddToQueue = {
-                        // TODO: Implement add to queue
+                        if (item is Song) onAddToQueue(item)
                         selectedMediaItem = null
                     },
                     onLike = {
-                        // TODO: Implement toggle like
+                        if (item is Song) onToggleLike(item)
                         selectedMediaItem = null
                     },
                     onViewArtist = { artistId ->
-                        // TODO: Navigate to artist
+                        onNavigateToArtist(artistId)
                         selectedMediaItem = null
                     },
                     onViewAlbum = { albumId ->
-                        // TODO: Navigate to album
+                        onNavigateToAlbum(albumId)
                         selectedMediaItem = null
                     }
                 )
@@ -246,8 +267,12 @@ fun PlaylistDetailScreen(
     }
 }
 
+/**
+ * Metadata header for the playlist (below the collapsing app bar).
+ * Shows description, owner/song count, and action buttons. Left-aligned.
+ */
 @Composable
-private fun PlaylistHeader(
+private fun PlaylistMetadataHeader(
     playlist: Playlist,
     songCount: Int,
     onPlayAll: () -> Unit,
@@ -258,27 +283,9 @@ private fun PlaylistHeader(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Playlist artwork
-        AsyncImage(
-            model = playlist.artworkUrl,
-            contentDescription = playlist.name,
-            modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
-
-        // Playlist name
-        Text(
-            text = playlist.name,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-
         // Description
         playlist.description?.let { description ->
             if (description.isNotBlank()) {
@@ -318,9 +325,7 @@ private fun PlaylistHeader(
 
         // Action buttons
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
@@ -345,8 +350,55 @@ private fun PlaylistHeader(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+private fun PlaylistDetailScreenPreview() {
+    val playlist = Playlist(
+        id = MediaId("plugin", "playlist1"),
+        name = "Rock Classics",
+        ownerName = "ViPER Player",
+        artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
+        description = "The best rock songs of all time."
+    )
 
+    val songs = listOf(
+        Song(
+            id = MediaId("plugin", "song1"),
+            title = "Bohemian Rhapsody",
+            artists = emptyList(), // Simplified for preview
+            album = null,
+            durationMs = 354000,
+            trackNumber = 1,
+            discNumber = 1
+        ),
+        Song(
+            id = MediaId("plugin", "song2"),
+            title = "Stairway to Heaven",
+            artists = emptyList(),
+            album = null,
+            durationMs = 482000,
+            trackNumber = 2,
+            discNumber = 1,
+            isExplicit = true
+        )
+    )
 
-
-
-
+    ViPERPlayerTheme {
+        PlaylistDetailScreenContent(
+            rootPadding = PaddingValues(0.dp),
+            uiState = PlaylistDetailUiState.Success(playlist, songs),
+            currentSong = songs[0],
+            isPlaying = true,
+            onNavigateBack = {},
+            onRefresh = {},
+            onPlayAll = {},
+            onShuffle = {},
+            onPlaySong = {},
+            onPlayNext = {},
+            onAddToQueue = {},
+            onToggleLike = {},
+            onNavigateToArtist = {},
+            onNavigateToAlbum = {},
+        )
+    }
+}

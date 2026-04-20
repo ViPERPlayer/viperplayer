@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.BottomSheetDefaults
@@ -29,7 +28,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -53,12 +51,14 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
 import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
-import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
+import androidx.compose.ui.tooling.preview.Preview
+import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import com.viperplayer.presentation.search.model.SearchItem
 
 @Composable
@@ -73,32 +73,53 @@ fun ArtistDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    
+
+    ArtistDetailScreenContent(
+        rootPadding = rootPadding,
+        uiState = uiState,
+        currentSong = currentSong,
+        isPlaying = isPlaying,
+        onNavigateBack = onNavigateBack,
+        onNavigateToAlbum = onNavigateToAlbum,
+        onNavigateToPlaylist = onNavigateToPlaylist,
+        onNavigateToArtist = onNavigateToArtist,
+        onRefresh = viewModel::refresh,
+        onPlayAllSongs = viewModel::playAllSongs,
+        onPlaySong = viewModel::playSong,
+        onPlayNext = viewModel::playNext,
+        onAddToQueue = viewModel::addToQueue
+    )
+}
+
+@Composable
+private fun ArtistDetailScreenContent(
+    rootPadding: PaddingValues,
+    uiState: ArtistDetailUiState,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    onNavigateBack: () -> Unit,
+    onNavigateToAlbum: (MediaId) -> Unit,
+    onNavigateToPlaylist: (MediaId) -> Unit,
+    onNavigateToArtist: (MediaId) -> Unit,
+    onRefresh: () -> Unit,
+    onPlayAllSongs: () -> Unit,
+    onPlaySong: (Song) -> Unit,
+    onPlayNext: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
+) {
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    ViperScaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        when (val state = uiState) {
-                            is ArtistDetailUiState.Success -> state.artist.name
-                            else -> "Artist"
-                        }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                }
-            )
-        }
+    val artist = (uiState as? ArtistDetailUiState.Success)?.artist
+
+    CollapsingArtworkScaffold(
+        artworkUrl = artist?.imageUrl,
+        title = artist?.name ?: "Artist",
+        onNavigateBack = onNavigateBack,
+        actions = {
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+        },
     ) { contentPadding ->
         when (val state = uiState) {
             is ArtistDetailUiState.Loading -> {
@@ -129,7 +150,7 @@ fun ArtistDetailScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Button(onClick = { viewModel.refresh() }) {
+                        Button(onClick = onRefresh) {
                             Text("Retry")
                         }
                     }
@@ -142,27 +163,29 @@ fun ArtistDetailScreen(
                         .padding(contentPadding),
                     contentPadding = rootPadding
                 ) {
-                    val artist = state.artist
-                    
-                    // Artist header
+                    val artistData = state.artist
+
+                    // Play all button
                     item {
-                        ArtistHeader(
-                            artist = artist,
-                            onPlayAll = { viewModel.playAllSongs() }
-                        )
-                    }
-                    
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onPlayAllSongs,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Play All")
+                        }
                     }
 
                     // Top Songs section
-                    if (artist.topSongs.isNotEmpty()) {
+                    if (artistData.topSongs.isNotEmpty()) {
                         item {
                             SectionHeader("Top Songs")
                         }
                         items(
-                            items = artist.topSongs,
+                            items = artistData.topSongs,
                             key = { song -> song.id.toString() }
                         ) { song ->
                             ListItem(
@@ -184,10 +207,10 @@ fun ArtistDetailScreen(
                                         onMoreClick = { selectedMediaItem = song }
                                     )
                                 },
-                                onClick = { viewModel.playSong(song) },
+                                onClick = { onPlaySong(song) },
                                 onLongClick = { selectedMediaItem = song },
-                                onPlayNext = { viewModel.playNext(song) },
-                                onAddToQueue = { viewModel.addToQueue(song) },
+                                onPlayNext = { onPlayNext(song) },
+                                onAddToQueue = { onAddToQueue(song) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                             )
@@ -195,7 +218,7 @@ fun ArtistDetailScreen(
                     }
 
                     // Albums section
-                    if (artist.albums.isNotEmpty()) {
+                    if (artistData.albums.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
                         }
@@ -208,7 +231,7 @@ fun ArtistDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(
-                                    items = artist.albums,
+                                    items = artistData.albums,
                                     key = { album -> album.id.toString() }
                                 ) { album ->
                                     AlbumCard(
@@ -221,7 +244,7 @@ fun ArtistDetailScreen(
                     }
 
                     // Playlists section
-                    if (artist.playlists.isNotEmpty()) {
+                    if (artistData.playlists.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(24.dp))
                         }
@@ -234,7 +257,7 @@ fun ArtistDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(
-                                    items = artist.playlists,
+                                    items = artistData.playlists,
                                     key = { playlist -> playlist.id.toString() }
                                 ) { playlist ->
                                     PlaylistCard(
@@ -247,7 +270,7 @@ fun ArtistDetailScreen(
                     }
 
                     // Featuring section
-                    if (artist.featuring.isNotEmpty()) {
+                    if (artistData.featuring.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(24.dp))
                         }
@@ -260,7 +283,7 @@ fun ArtistDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(
-                                    items = artist.featuring,
+                                    items = artistData.featuring,
                                     key = { playlist -> playlist.id.toString() }
                                 ) { playlist ->
                                     PlaylistCard(
@@ -273,7 +296,7 @@ fun ArtistDetailScreen(
                     }
 
                     // Appears On section
-                    if (artist.appearsOn.isNotEmpty()) {
+                    if (artistData.appearsOn.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(24.dp))
                         }
@@ -286,7 +309,7 @@ fun ArtistDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(
-                                    items = artist.appearsOn.filter { it is Album || it is Playlist },
+                                    items = artistData.appearsOn.filter { it is Album || it is Playlist },
                                     key = { item -> item.id.toString() }
                                 ) { item ->
                                     when (item) {
@@ -310,7 +333,7 @@ fun ArtistDetailScreen(
                     }
 
                     // Similar Artists section
-                    if (artist.similarArtists.isNotEmpty()) {
+                    if (artistData.similarArtists.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(24.dp))
                         }
@@ -323,7 +346,7 @@ fun ArtistDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(
-                                    items = artist.similarArtists,
+                                    items = artistData.similarArtists,
                                     key = { similarArtist -> similarArtist.id.toString() }
                                 ) { similarArtist ->
                                     ArtistCard(
@@ -337,7 +360,7 @@ fun ArtistDetailScreen(
                 }
             }
         }
-        
+
         // Media item options bottom sheet
         selectedMediaItem?.let { item ->
             ModalBottomSheet(
@@ -350,17 +373,17 @@ fun ArtistDetailScreen(
                     onDismiss = { selectedMediaItem = null },
                     onPlay = {
                         when (item) {
-                            is Song -> viewModel.playSong(item)
+                            is Song -> onPlaySong(item)
                             else -> {}
                         }
                         selectedMediaItem = null
                     },
                     onPlayNext = {
-                        // TODO: Implement play next
+                        if (item is Song) onPlayNext(item)
                         selectedMediaItem = null
                     },
                     onAddToQueue = {
-                        // TODO: Implement add to queue
+                        if (item is Song) onAddToQueue(item)
                         selectedMediaItem = null
                     },
                     onLike = {
@@ -381,47 +404,60 @@ fun ArtistDetailScreen(
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-private fun ArtistHeader(
-    artist: Artist,
-    onPlayAll: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        // Artist image
-        AsyncImage(
-            model = artist.imageUrl,
-            contentDescription = artist.name,
-            modifier = Modifier
-                .size(200.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
+private fun ArtistDetailScreenPreview() {
+    val artist = Artist(
+        id = MediaId("plugin", "artist1"),
+        name = "Pink Floyd",
+        imageUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
+        topSongs = listOf(
+            Song(
+                id = MediaId("plugin", "song1"),
+                title = "Money",
+                artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+                durationMs = 382000
+            ),
+            Song(
+                id = MediaId("plugin", "song2"),
+                title = "Another Brick in the Wall, Pt. 2",
+                artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+                durationMs = 239000,
+                isExplicit = true
+            )
+        ),
+        albums = listOf(
+            Album(
+                id = MediaId("plugin", "album1"),
+                name = "The Dark Side of the Moon",
+                artists = emptyList(),
+                artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png"
+            ),
+            Album(
+                id = MediaId("plugin", "album2"),
+                name = "The Wall",
+                artists = emptyList(),
+                artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png"
+            )
         )
+    )
 
-        // Artist name
-        Text(
-            text = artist.name,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+    ViPERPlayerTheme {
+        ArtistDetailScreenContent(
+            rootPadding = PaddingValues(0.dp),
+            uiState = ArtistDetailUiState.Success(artist),
+            currentSong = null,
+            isPlaying = false,
+            onNavigateBack = {},
+            onNavigateToAlbum = {},
+            onNavigateToPlaylist = {},
+            onNavigateToArtist = {},
+            onRefresh = {},
+            onPlayAllSongs = {},
+            onPlaySong = {},
+            onPlayNext = {},
+            onAddToQueue = {}
         )
-
-        // Play all button
-        Button(
-            onClick = onPlayAll,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp)
-        ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Play All")
-        }
     }
 }
 
@@ -546,4 +582,3 @@ private fun ArtistCard(
         )
     }
 }
-
