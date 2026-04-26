@@ -1,5 +1,7 @@
 package com.viperplayer.domain.model
 
-sealed interface MediaItem {
+import android.os.Parcelable
+
+sealed interface MediaItem : Parcelable {
     val id: MediaId
 }

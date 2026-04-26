@@ -86,7 +86,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
@@ -115,8 +116,8 @@ private fun formatDuration(millis: Long): String {
 fun PlayerScreen(
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
     viewModel: PlayerViewModel = hiltViewModel(),
-    onNavigateToArtist: (MediaId) -> Unit = {},
-    onNavigateToAlbum: (MediaId) -> Unit = {},
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
 ) {
     // Use separate flows for optimal performance
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
@@ -290,7 +291,7 @@ fun PlayerScreen(
                                         .firstOrNull()?.let { annotation ->
                                             val artistIndex = annotation.item.toInt()
                                             if (artistIndex in currentSongArtists.indices) {
-                                                onNavigateToArtist(currentSongArtists[artistIndex].id)
+                                                onNavigateToArtist(currentSongArtists[artistIndex])
                                             }
                                         }
                                 }
@@ -309,7 +310,7 @@ fun PlayerScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .clickable { onNavigateToAlbum(album.id) }
+                        .clickable { onNavigateToAlbum(album) }
                         .infiniteBasicMarquee(),
                     maxLines = 1
                 )

@@ -1,9 +1,15 @@
 package com.viperplayer.domain.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
+
 /**
  * Represents an artist.
  * Based on AIDL Artist model - only contains fields that exist in the plugin API.
  */
+@Serializable
+@Parcelize
 data class Artist(
     override val id: MediaId,
     val name: String,
@@ -14,4 +20,4 @@ data class Artist(
     val featuring: List<Playlist> = emptyList(),
     val appearsOn: List<MediaItem> = emptyList(),
     val similarArtists: List<Artist> = emptyList()
-) : MediaItem
+) : MediaItem, Parcelable

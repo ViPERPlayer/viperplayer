@@ -1,15 +1,23 @@
 package com.viperplayer.domain.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
+
 /**
  * Album type.
  */
-enum class AlbumType {
+@Serializable
+@Parcelize
+enum class AlbumType : Parcelable {
     ALBUM, SINGLE, EP, COMPILATION
 }
 
 /**
  * Represents an album.
  */
+@Serializable
+@Parcelize
 data class Album(
     override val id: MediaId,
     val name: String,
@@ -19,7 +27,7 @@ data class Album(
     val trackCount: Int = 0,
     val type: AlbumType = AlbumType.ALBUM,
     val songs: List<Song>? = null
-) : MediaItem {
+) : MediaItem, Parcelable {
     val artistName: String
         get() = artists.firstOrNull()?.name ?: "Unknown Artist"
 }

@@ -12,6 +12,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.PlaylistDetail
+import com.viperplayer.presentation.navigation.PlaylistNavType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,14 +20,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.reflect.typeOf
 
 /**
  * UI state for Playlist Detail screen.
  */
 sealed class PlaylistDetailUiState {
-    data object Loading : PlaylistDetailUiState()
+    data class Loading(val initialPlaylist: Playlist) : PlaylistDetailUiState()
     data class Success(
         val playlist: Playlist,
         val songs: List<Song>
@@ -45,13 +48,12 @@ class PlaylistDetailViewModel @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository
 ) : ViewModel() {
 
-    private val playlistDetail = savedStateHandle.toRoute<PlaylistDetail>()
-    private val playlistId: MediaId = MediaId(
-        pluginId = playlistDetail.pluginId,
-        sourceId = playlistDetail.sourceId
+    private val playlistDetail = savedStateHandle.toRoute<PlaylistDetail>(
+        typeMap = mapOf(typeOf<Playlist>() to PlaylistNavType)
     )
+    private val playlistId: MediaId = playlistDetail.initialPlaylist.id
 
-    private val _uiState = MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading)
+    private val _uiState = MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading(playlistDetail.initialPlaylist))
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -73,7 +75,14 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private fun loadPlaylistDetails() {
         viewModelScope.launch {
-            _uiState.value = PlaylistDetailUiState.Loading
+            _uiState.update {
+                val initialPlaylist = when (it) {
+                    is PlaylistDetailUiState.Success -> it.playlist
+                    else -> playlistDetail.initialPlaylist
+                }
+
+                PlaylistDetailUiState.Loading(initialPlaylist)
+            }
 
             try {
                 // Check if this is the "Liked Songs" playlist

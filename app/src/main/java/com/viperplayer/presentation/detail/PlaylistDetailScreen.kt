@@ -40,6 +40,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
@@ -57,8 +59,8 @@ import com.viperplayer.presentation.theme.ViPERPlayerTheme
 fun PlaylistDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
-    onNavigateToArtist: (MediaId) -> Unit = {},
-    onNavigateToAlbum: (MediaId) -> Unit = {},
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -97,16 +99,21 @@ private fun PlaylistDetailScreenContent(
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onToggleLike: (Song) -> Unit,
-    onNavigateToArtist: (MediaId) -> Unit,
-    onNavigateToAlbum: (MediaId) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
 ) {
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    val playlist = (uiState as? PlaylistDetailUiState.Success)?.playlist
+    val playlist = when (uiState) {
+        is PlaylistDetailUiState.Success -> uiState.playlist
+        is PlaylistDetailUiState.Loading -> uiState.initialPlaylist
+        else -> null
+    }
+    val title = playlist?.name ?: "Playlist"
 
     CollapsingArtworkScaffold(
         artworkUrl = playlist?.artworkUrl,
-        title = playlist?.name ?: "Playlist",
+        title = title,
         onNavigateBack = onNavigateBack,
         actions = {
             IconButton(onClick = onRefresh) {
@@ -253,12 +260,12 @@ private fun PlaylistDetailScreenContent(
                         if (item is Song) onToggleLike(item)
                         selectedMediaItem = null
                     },
-                    onViewArtist = { artistId ->
-                        onNavigateToArtist(artistId)
+                    onViewArtist = { artist ->
+                        onNavigateToArtist(artist)
                         selectedMediaItem = null
                     },
-                    onViewAlbum = { albumId ->
-                        onNavigateToAlbum(albumId)
+                    onViewAlbum = { album ->
+                        onNavigateToAlbum(album)
                         selectedMediaItem = null
                     }
                 )
@@ -388,7 +395,7 @@ private fun PlaylistDetailScreenPreview() {
             rootPadding = PaddingValues(0.dp),
             uiState = PlaylistDetailUiState.Success(playlist, songs),
             currentSong = songs[0],
-            isPlaying = true,
+            isPlaying = false,
             onNavigateBack = {},
             onRefresh = {},
             onPlayAll = {},

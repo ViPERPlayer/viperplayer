@@ -1,8 +1,14 @@
 package com.viperplayer.domain.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
+
 /**
  * Represents a playlist.
  */
+@Serializable
+@Parcelize
 data class Playlist(
     override val id: MediaId,
     val name: String,
@@ -13,4 +19,4 @@ data class Playlist(
     val isPublic: Boolean = true,
     val isEditable: Boolean = false,
     val songs: List<Song>? = null
-) : MediaItem
+) : MediaItem, Parcelable

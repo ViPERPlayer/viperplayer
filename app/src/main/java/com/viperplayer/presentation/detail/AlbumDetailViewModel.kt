@@ -12,6 +12,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.AlbumDetail
+import com.viperplayer.presentation.navigation.AlbumNavType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,18 +20,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.reflect.typeOf
 
 /**
  * UI state for Album Detail screen.
  */
 sealed class AlbumDetailUiState {
-    data object Loading : AlbumDetailUiState()
-    data class Success(
-        val album: Album,
-        val songs: List<Song>
-    ) : AlbumDetailUiState()
+    data class Loading(val initialAlbum: Album) : AlbumDetailUiState()
+    data class Success(val album: Album) : AlbumDetailUiState()
     data class Error(val message: String) : AlbumDetailUiState()
 }
 
@@ -45,13 +45,12 @@ class AlbumDetailViewModel @Inject constructor(
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
-    private val albumDetail = savedStateHandle.toRoute<AlbumDetail>()
-    private val albumId: MediaId = MediaId(
-        pluginId = albumDetail.pluginId,
-        sourceId = albumDetail.sourceId
+    private val albumDetail = savedStateHandle.toRoute<AlbumDetail>(
+        typeMap = mapOf(typeOf<Album>() to AlbumNavType)
     )
+    private val albumId: MediaId = albumDetail.initialAlbum.id
 
-    private val _uiState = MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading)
+    private val _uiState = MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading(albumDetail.initialAlbum))
     val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -70,7 +69,14 @@ class AlbumDetailViewModel @Inject constructor(
 
     private fun loadAlbumDetails() {
         viewModelScope.launch {
-            _uiState.value = AlbumDetailUiState.Loading
+            _uiState.update {
+                val initialAlbum = when (it) {
+                    is AlbumDetailUiState.Success -> it.album
+                    else -> albumDetail.initialAlbum
+                }
+
+                AlbumDetailUiState.Loading(initialAlbum)
+            }
 
             try {
                 // Load album details
@@ -82,15 +88,9 @@ class AlbumDetailViewModel @Inject constructor(
                     return@launch
                 }
 
-                val album = albumResult.getOrNull()!!
+                val album = albumResult.getOrThrow()
 
-                // Songs should be included in album object
-                val songs = album.songs.orEmpty()
-
-                _uiState.value = AlbumDetailUiState.Success(
-                    album = album,
-                    songs = songs
-                )
+                _uiState.value = AlbumDetailUiState.Success(album)
             } catch (e: Exception) {
                 _uiState.value = AlbumDetailUiState.Error(
                     e.message ?: "Failed to load album details"
@@ -104,8 +104,8 @@ class AlbumDetailViewModel @Inject constructor(
             try {
                 val state = _uiState.value
                 if (state !is AlbumDetailUiState.Success) return@launch
-                
-                val songs = state.songs
+
+                val songs = state.album.songs.orEmpty()
 
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
@@ -129,7 +129,7 @@ class AlbumDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val songs = when (val state = _uiState.value) {
-                    is AlbumDetailUiState.Success -> state.songs
+                    is AlbumDetailUiState.Success -> state.album.songs.orEmpty()
                     else -> emptyList()
                 }
                 if (songs.isNotEmpty()) {
@@ -145,7 +145,7 @@ class AlbumDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val songs = when (val state = _uiState.value) {
-                    is AlbumDetailUiState.Success -> state.songs.shuffled()
+                    is AlbumDetailUiState.Success -> state.album.songs.orEmpty().shuffled()
                     else -> emptyList()
                 }
                 if (songs.isNotEmpty()) {

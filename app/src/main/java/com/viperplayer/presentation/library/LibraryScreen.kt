@@ -48,13 +48,14 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.domain.model.Artist
 
 @Composable
 fun LibraryScreen(
     rootPadding: PaddingValues,
-    onNavigateToAlbum: (MediaId) -> Unit = {},
-    onNavigateToArtist: (MediaId) -> Unit = {},
-    onNavigateToPlaylist: (MediaId) -> Unit = {},
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -170,7 +171,7 @@ fun LibraryScreen(
                                         artworkUrl = album.artworkUrl,
                                         isActive = false,
                                         isPlaying = false,
-                                        onClick = { onNavigateToAlbum(album.id) },
+                                        onClick = { onNavigateToAlbum(album) },
                                         onMoreClick = { selectedMediaItem = album },
                                         onLongClick = { selectedMediaItem = album },
                                         modifier = Modifier
@@ -198,7 +199,7 @@ fun LibraryScreen(
                                         artworkUrl = artist.imageUrl,
                                         isActive = false,
                                         isPlaying = false,
-                                        onClick = { onNavigateToArtist(artist.id) },
+                                        onClick = { onNavigateToArtist(artist) },
                                         onMoreClick = { selectedMediaItem = artist },
                                         onLongClick = { selectedMediaItem = artist },
                                         modifier = Modifier
@@ -228,7 +229,7 @@ fun LibraryScreen(
                                         artworkUrl = playlist.artworkUrl,
                                         isActive = false,
                                         isPlaying = false,
-                                        onClick = { onNavigateToPlaylist(playlist.id) },
+                                        onClick = { onNavigateToPlaylist(playlist) },
                                         onMoreClick = { selectedMediaItem = playlist },
                                         onLongClick = { selectedMediaItem = playlist },
                                         modifier = Modifier
@@ -305,12 +306,12 @@ fun LibraryScreen(
                     // TODO: Implement share
                     selectedMediaItem = null
                 },
-                onViewArtist = { artistId ->
-                    onNavigateToArtist(artistId)
+                onViewArtist = { artist ->
+                    onNavigateToArtist(artist)
                     selectedMediaItem = null
                 },
-                onViewAlbum = { albumId ->
-                    onNavigateToAlbum(albumId)
+                onViewAlbum = { album ->
+                    onNavigateToAlbum(album)
                     selectedMediaItem = null
                 },
                 onViewDetails = {

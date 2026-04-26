@@ -63,6 +63,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
@@ -79,9 +80,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun SearchScreen(
     rootPadding: PaddingValues,
-    onNavigateToAlbum: (MediaId) -> Unit = {},
-    onNavigateToArtist: (MediaId) -> Unit = {},
-    onNavigateToPlaylist: (MediaId) -> Unit = {},
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val searchSuggestionsState by viewModel.searchSuggestionsState.collectAsStateWithLifecycle()
@@ -251,9 +252,24 @@ fun SearchScreen(
                             onClick = {
                                 when (item.type) {
                                     SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                    SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
-                                    SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
-                                    SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
+                                    SearchItem.Type.ARTIST -> {
+                                        onNavigateToArtist(Artist(
+                                            id = item.id,
+                                            name = item.title
+                                        ))
+                                    }
+                                    SearchItem.Type.ALBUM -> {
+                                        onNavigateToAlbum(Album(
+                                            id = item.id,
+                                            name = item.title
+                                        ))
+                                    }
+                                    SearchItem.Type.PLAYLIST -> {
+                                        onNavigateToPlaylist(Playlist(
+                                            id = item.id,
+                                            name = item.title
+                                        ))
+                                    }
                                 }
                             },
                             onMoreClick = {
@@ -399,9 +415,24 @@ fun SearchScreen(
                                         onClick = {
                                             when (item.type) {
                                                 SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                                SearchItem.Type.ARTIST -> onNavigateToArtist(item.id)
-                                                SearchItem.Type.ALBUM -> onNavigateToAlbum(item.id)
-                                                SearchItem.Type.PLAYLIST -> onNavigateToPlaylist(item.id)
+                                                SearchItem.Type.ARTIST -> {
+                                                    onNavigateToArtist(Artist(
+                                                        id = item.id,
+                                                        name = item.title
+                                                    ))
+                                                }
+                                                SearchItem.Type.ALBUM -> {
+                                                    onNavigateToAlbum(Album(
+                                                        id = item.id,
+                                                        name = item.title
+                                                    ))
+                                                }
+                                                SearchItem.Type.PLAYLIST -> {
+                                                    onNavigateToPlaylist(Playlist(
+                                                        id = item.id,
+                                                        name = item.title
+                                                    ))
+                                                }
                                             }
                                         },
                                         onMoreClick = {
@@ -557,12 +588,12 @@ fun SearchScreen(
                             selectedMediaItem = null
                         }
                     },
-                    onViewArtist = { artistId ->
-                        onNavigateToArtist(artistId)
+                    onViewArtist = { artist ->
+                        onNavigateToArtist(artist)
                         selectedMediaItem = null
                     },
-                    onViewAlbum = { albumId ->
-                        onNavigateToAlbum(albumId)
+                    onViewAlbum = { album ->
+                        onNavigateToAlbum(album)
                         selectedMediaItem = null
                     }
                 )

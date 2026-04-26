@@ -34,10 +34,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.determineLayoutVisibility
 import com.viperplayer.presentation.ktx.navigateSafe
+import com.viperplayer.presentation.navigation.AlbumDetail
+import com.viperplayer.presentation.navigation.ArtistDetail
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
 import com.viperplayer.presentation.navigation.Search
@@ -254,22 +258,16 @@ fun ViperPlayerApp(
                     contentWindowInsets = { WindowInsets() }
                 ) {
                     PlayerScreen(
-                        onNavigateToArtist = { artistId ->
+                        onNavigateToArtist = { artist ->
                             showPlayerBottomSheet = false
                             navController.navigateSafe(
-                                com.viperplayer.presentation.navigation.ArtistDetail(
-                                    artistId.pluginId,
-                                    artistId.sourceId
-                                )
+                                ArtistDetail(artist)
                             )
                         },
-                        onNavigateToAlbum = { albumId ->
+                        onNavigateToAlbum = { album ->
                             showPlayerBottomSheet = false
                             navController.navigateSafe(
-                                com.viperplayer.presentation.navigation.AlbumDetail(
-                                    albumId.pluginId,
-                                    albumId.sourceId
-                                )
+                                AlbumDetail(album)
                             )
                         }
                     )

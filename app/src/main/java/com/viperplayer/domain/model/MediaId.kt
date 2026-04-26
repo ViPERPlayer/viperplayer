@@ -3,10 +3,12 @@ package com.viperplayer.domain.model
 import android.net.Uri
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 
 /**
  * Unique identifier for media items across plugins.
  */
+@Serializable
 @Parcelize
 data class MediaId(
     val pluginId: String,

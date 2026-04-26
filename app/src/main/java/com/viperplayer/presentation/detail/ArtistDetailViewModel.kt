@@ -12,6 +12,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.ArtistDetail
+import com.viperplayer.presentation.navigation.ArtistNavType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,14 +20,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.reflect.typeOf
 
 /**
  * UI state for Artist Detail screen.
  */
 sealed class ArtistDetailUiState {
-    data object Loading : ArtistDetailUiState()
+    data class Loading(val initialArtist: Artist) : ArtistDetailUiState()
     data class Success(
         val artist: Artist
     ) : ArtistDetailUiState()
@@ -44,13 +47,12 @@ class ArtistDetailViewModel @Inject constructor(
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
-    private val artistDetail = savedStateHandle.toRoute<ArtistDetail>()
-    private val artistId: MediaId = MediaId(
-        pluginId = artistDetail.pluginId,
-        sourceId = artistDetail.sourceId
+    private val artistDetail = savedStateHandle.toRoute<ArtistDetail>(
+        typeMap = mapOf(typeOf<Artist>() to ArtistNavType)
     )
+    private val artistId: MediaId = artistDetail.initialArtist.id
 
-    private val _uiState = MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading)
+    private val _uiState = MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading(artistDetail.initialArtist))
     val uiState: StateFlow<ArtistDetailUiState> = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -69,7 +71,14 @@ class ArtistDetailViewModel @Inject constructor(
 
     private fun loadArtistDetails() {
         viewModelScope.launch {
-            _uiState.value = ArtistDetailUiState.Loading
+            _uiState.update {
+                val initialArtist = when (it) {
+                    is ArtistDetailUiState.Success -> it.artist
+                    else -> artistDetail.initialArtist
+                }
+
+                ArtistDetailUiState.Loading(initialArtist)
+            }
 
             try {
                 // Load artist details - the artist object from AIDL already contains topSongs and albums

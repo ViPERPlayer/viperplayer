@@ -70,8 +70,8 @@ fun MediaItemOptionsBottomSheet(
     onLike: () -> Unit = {},
     onDownload: () -> Unit = {},
     onShare: () -> Unit = {},
-    onViewArtist: (MediaId) -> Unit = {},
-    onViewAlbum: (MediaId) -> Unit = {},
+    onViewArtist: (Artist) -> Unit = {},
+    onViewAlbum: (Album) -> Unit = {},
     onViewDetails: () -> Unit = {},
     playerViewModel: PlayerViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
@@ -124,9 +124,9 @@ fun MediaItemOptionsBottomSheet(
                         onDownload = onDownload,
                         onShare = onShare,
                         onViewArtist = if (item.artists.isNotEmpty()) {
-                            { onViewArtist(item.artists.first().id) }
+                            { onViewArtist(item.artists.first()) }
                         } else null,
-                        onViewAlbum = item.album?.let { { onViewAlbum(it.id) } },
+                        onViewAlbum = item.album?.let { { onViewAlbum(it) } },
                         onViewDetails = onViewDetails
                     )
                 }
@@ -140,7 +140,7 @@ fun MediaItemOptionsBottomSheet(
                         onAddToPlaylist = onAddToPlaylist,
                         onShare = onShare,
                         onViewArtist = if (item.artists.isNotEmpty()) {
-                            { onViewArtist(item.artists.first().id) }
+                            { onViewArtist(item.artists.first()) }
                         } else null,
                         onViewDetails = onViewDetails
                     )

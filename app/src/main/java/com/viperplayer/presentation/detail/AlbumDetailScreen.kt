@@ -80,7 +80,7 @@ private sealed class DiscItem {
 fun AlbumDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
-    onNavigateToArtist: (MediaId) -> Unit = {},
+    onNavigateToArtist: (Artist) -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -116,7 +116,7 @@ private fun AlbumDetailScreenContent(
     currentSong: Song?,
     isPlaying: Boolean,
     onNavigateBack: () -> Unit,
-    onNavigateToArtist: (MediaId) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
     onPlayAlbum: () -> Unit,
     onShuffle: () -> Unit,
@@ -127,11 +127,16 @@ private fun AlbumDetailScreenContent(
 ) {
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    val album = (uiState as? AlbumDetailUiState.Success)?.album
+    val album = when (uiState) {
+        is AlbumDetailUiState.Success -> uiState.album
+        is AlbumDetailUiState.Loading -> uiState.initialAlbum
+        else -> null
+    }
+    val title = album?.name ?: stringResource(R.string.album_type_album)
 
     CollapsingArtworkScaffold(
         artworkUrl = album?.artworkUrl,
-        title = album?.name ?: stringResource(R.string.album_type_album),
+        title = title,
         onNavigateBack = onNavigateBack,
         actions = {
             IconButton(onClick = onRefresh) {
@@ -185,7 +190,7 @@ private fun AlbumDetailScreenContent(
                     item(key = "metadata") {
                         AlbumMetadataHeader(
                             album = uiState.album,
-                            songCount = uiState.songs.size,
+                            songCount = uiState.album.songs.orEmpty().size,
                             onPlayAlbum = onPlayAlbum,
                             onShuffle = onShuffle,
                             onArtistClick = onNavigateToArtist,
@@ -193,7 +198,7 @@ private fun AlbumDetailScreenContent(
                     }
 
                     // Songs list
-                    if (uiState.songs.isEmpty()) {
+                    if (uiState.album.songs.orEmpty().isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -210,7 +215,7 @@ private fun AlbumDetailScreenContent(
                         }
                     } else {
                         // Group songs by disc number and check if we have multiple discs
-                        val sortedSongs = uiState.songs.sortedWith(compareBy(
+                        val sortedSongs = uiState.album.songs.orEmpty().sortedWith(compareBy(
                             { it.discNumber ?: 1 },
                             { it.trackNumber ?: 0 }
                         ))
@@ -322,11 +327,11 @@ private fun AlbumDetailScreenContent(
                     if (item is Song) onToggleLike(item)
                     selectedMediaItem = null
                 },
-                onViewArtist = { artistId ->
-                    onNavigateToArtist(artistId)
+                onViewArtist = { artist ->
+                    onNavigateToArtist(artist)
                     selectedMediaItem = null
                 },
-                onViewAlbum = { albumId ->
+                onViewAlbum = { album ->
                     // Already on album detail screen
                     selectedMediaItem = null
                 }
@@ -346,7 +351,7 @@ private fun AlbumMetadataHeader(
     songCount: Int,
     onPlayAlbum: () -> Unit,
     onShuffle: () -> Unit,
-    onArtistClick: (MediaId) -> Unit,
+    onArtistClick: (Artist) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -397,7 +402,7 @@ private fun AlbumMetadataHeader(
                                     .firstOrNull()
                                     ?.let { annotation ->
                                         val artist = album.artists[annotation.item.toInt()]
-                                        onArtistClick(artist.id)
+                                        onArtistClick(artist)
                                     }
                             }
                         }
@@ -508,22 +513,11 @@ private fun DiscHeader(
 @Preview(showBackground = true)
 @Composable
 private fun AlbumDetailScreenPreview() {
-    val album = Album(
-        id = MediaId("plugin", "album1"),
-        name = "The Dark Side of the Moon",
-        artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-        artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
-        releaseYear = 1973,
-        trackCount = 10,
-        type = AlbumType.ALBUM
-    )
-    
     val songs = listOf(
         Song(
             id = MediaId("plugin", "song1"),
             title = "Speak to Me",
             artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-            album = album,
             durationMs = 90000,
             trackNumber = 1,
             discNumber = 1
@@ -532,7 +526,6 @@ private fun AlbumDetailScreenPreview() {
             id = MediaId("plugin", "song2"),
             title = "Breathe (In the Air)",
             artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-            album = album,
             durationMs = 169000,
             trackNumber = 2,
             discNumber = 1
@@ -541,7 +534,6 @@ private fun AlbumDetailScreenPreview() {
             id = MediaId("plugin", "song3"),
             title = "On the Run",
             artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-            album = album,
             durationMs = 213000,
             trackNumber = 3,
             discNumber = 1,
@@ -551,7 +543,6 @@ private fun AlbumDetailScreenPreview() {
             id = MediaId("plugin", "song4"),
             title = "Time",
             artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-            album = album,
             durationMs = 421000,
             trackNumber = 4,
             discNumber = 1
@@ -560,7 +551,6 @@ private fun AlbumDetailScreenPreview() {
             id = MediaId("plugin", "song11"),
             title = "Bonus Track 1",
             artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-            album = album,
             durationMs = 300000,
             trackNumber = 1,
             discNumber = 2
@@ -569,18 +559,28 @@ private fun AlbumDetailScreenPreview() {
             id = MediaId("plugin", "song12"),
             title = "Bonus Track 2",
             artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
-            album = album,
             durationMs = 240000,
             trackNumber = 2,
             discNumber = 2
         )
     )
 
+    val album = Album(
+        id = MediaId("plugin", "album1"),
+        name = "The Dark Side of the Moon",
+        artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+        artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
+        releaseYear = 1973,
+        trackCount = 10,
+        type = AlbumType.ALBUM,
+        songs = songs
+    )
+
     ViPERPlayerTheme {
         AlbumDetailScreenContent(
             rootPadding = PaddingValues(0.dp),
-            uiState = AlbumDetailUiState.Success(album, songs),
-            currentSong = songs[0],
+            uiState = AlbumDetailUiState.Success(album),
+            currentSong = songs[1],
             isPlaying = true,
             onNavigateBack = {},
             onNavigateToArtist = {},
@@ -590,7 +590,7 @@ private fun AlbumDetailScreenPreview() {
             onPlaySong = {},
             onPlayNext = {},
             onAddToQueue = {},
-            onToggleLike = {},
+            onToggleLike = {}
         )
     }
 }

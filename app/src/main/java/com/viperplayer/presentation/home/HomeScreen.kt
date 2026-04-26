@@ -69,12 +69,12 @@ import com.viperplayer.presentation.theme.ViPERPlayerTheme
 @Composable
 fun HomeScreen(
     rootPadding: PaddingValues,
-    onNavigateToAlbum: (MediaId) -> Unit = {},
-    onNavigateToArtist: (MediaId) -> Unit = {},
-    onNavigateToPlaylist: (MediaId) -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToHistory: () -> Unit = {},
-    onNavigateToAnalytics: () -> Unit = {},
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToAnalytics: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -119,15 +119,15 @@ fun HomeScreen(
 private fun HomeScreenContent(
     uiState: HomeUiState,
     rootPadding: PaddingValues,
-    onNavigateToAlbum: (MediaId) -> Unit = {},
-    onNavigateToArtist: (MediaId) -> Unit = {},
-    onNavigateToPlaylist: (MediaId) -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToHistory: () -> Unit = {},
-    onNavigateToAnalytics: () -> Unit = {},
-    onRefresh: () -> Unit = {},
-    onPlaySongFromQuickPicks: (Song) -> Unit = {},
-    onPlaySongFromSection: (Song, String) -> Unit = { _, _ -> }
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToAnalytics: () -> Unit,
+    onRefresh: () -> Unit,
+    onPlaySongFromQuickPicks: (Song) -> Unit,
+    onPlaySongFromSection: (Song, String) -> Unit
 ) {
     var titleOverflowed by remember { mutableStateOf(false) }
     val title = uiState.userName.let { userName ->
@@ -307,9 +307,9 @@ private fun HomeScreenContent(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is Album -> onNavigateToAlbum(item.id)
-                                                        is Artist -> onNavigateToArtist(item.id)
-                                                        is Playlist -> onNavigateToPlaylist(item.id)
+                                                        is Album -> onNavigateToAlbum(item)
+                                                        is Artist -> onNavigateToArtist(item)
+                                                        is Playlist -> onNavigateToPlaylist(item)
                                                         is Song -> onPlaySongFromQuickPicks(item)
                                                     }
                                                 }
@@ -341,9 +341,9 @@ private fun HomeScreenContent(
                                             item = item,
                                             onClick = {
                                                 when (item) {
-                                                    is Album -> onNavigateToAlbum(item.id)
-                                                    is Artist -> onNavigateToArtist(item.id)
-                                                    is Playlist -> onNavigateToPlaylist(item.id)
+                                                    is Album -> onNavigateToAlbum(item)
+                                                    is Artist -> onNavigateToArtist(item)
+                                                    is Playlist -> onNavigateToPlaylist(item)
                                                     is Song -> onPlaySongFromSection(item, section.id)
                                                 }
                                             }
@@ -709,7 +709,9 @@ private fun HomeScreenPreview(uiState: HomeUiState) {
         onNavigateToSettings = {},
         onNavigateToHistory = {},
         onNavigateToAnalytics = {},
-        onRefresh = {}
+        onRefresh = {},
+        onPlaySongFromQuickPicks = {},
+        onPlaySongFromSection = { _, _ -> }
     )
 }
 

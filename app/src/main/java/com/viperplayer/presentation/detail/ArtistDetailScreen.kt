@@ -65,9 +65,9 @@ import com.viperplayer.presentation.search.model.SearchItem
 fun ArtistDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
-    onNavigateToAlbum: (MediaId) -> Unit = {},
-    onNavigateToPlaylist: (MediaId) -> Unit = {},
-    onNavigateToArtist: (MediaId) -> Unit = {},
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
     viewModel: ArtistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -98,9 +98,9 @@ private fun ArtistDetailScreenContent(
     currentSong: Song?,
     isPlaying: Boolean,
     onNavigateBack: () -> Unit,
-    onNavigateToAlbum: (MediaId) -> Unit,
-    onNavigateToPlaylist: (MediaId) -> Unit,
-    onNavigateToArtist: (MediaId) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
     onPlayAllSongs: () -> Unit,
     onPlaySong: (Song) -> Unit,
@@ -109,11 +109,16 @@ private fun ArtistDetailScreenContent(
 ) {
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    val artist = (uiState as? ArtistDetailUiState.Success)?.artist
+    val artist = when (uiState) {
+        is ArtistDetailUiState.Success -> uiState.artist
+        is ArtistDetailUiState.Loading -> uiState.initialArtist
+        else -> null
+    }
+    val title = artist?.name ?: "Artist"
 
     CollapsingArtworkScaffold(
         artworkUrl = artist?.imageUrl,
-        title = artist?.name ?: "Artist",
+        title = title,
         onNavigateBack = onNavigateBack,
         actions = {
             IconButton(onClick = onRefresh) {
@@ -236,7 +241,7 @@ private fun ArtistDetailScreenContent(
                                 ) { album ->
                                     AlbumCard(
                                         album = album,
-                                        onClick = { onNavigateToAlbum(album.id) }
+                                        onClick = { onNavigateToAlbum(album) }
                                     )
                                 }
                             }
@@ -262,7 +267,7 @@ private fun ArtistDetailScreenContent(
                                 ) { playlist ->
                                     PlaylistCard(
                                         playlist = playlist,
-                                        onClick = { onNavigateToPlaylist(playlist.id) }
+                                        onClick = { onNavigateToPlaylist(playlist) }
                                     )
                                 }
                             }
@@ -288,7 +293,7 @@ private fun ArtistDetailScreenContent(
                                 ) { playlist ->
                                     PlaylistCard(
                                         playlist = playlist,
-                                        onClick = { onNavigateToPlaylist(playlist.id) }
+                                        onClick = { onNavigateToPlaylist(playlist) }
                                     )
                                 }
                             }
@@ -316,13 +321,13 @@ private fun ArtistDetailScreenContent(
                                         is Album -> {
                                             AlbumCard(
                                                 album = item,
-                                                onClick = { onNavigateToAlbum(item.id) }
+                                                onClick = { onNavigateToAlbum(item) }
                                             )
                                         }
                                         is Playlist -> {
                                             PlaylistCard(
                                                 playlist = item,
-                                                onClick = { onNavigateToPlaylist(item.id) }
+                                                onClick = { onNavigateToPlaylist(item) }
                                             )
                                         }
                                         else -> {}
@@ -351,7 +356,7 @@ private fun ArtistDetailScreenContent(
                                 ) { similarArtist ->
                                     ArtistCard(
                                         artist = similarArtist,
-                                        onClick = { onNavigateToArtist(similarArtist.id) }
+                                        onClick = { onNavigateToArtist(similarArtist) }
                                     )
                                 }
                             }
@@ -390,12 +395,12 @@ private fun ArtistDetailScreenContent(
                         // TODO: Implement toggle like
                         selectedMediaItem = null
                     },
-                    onViewArtist = { artistId ->
+                    onViewArtist = { artist ->
                         // Already on artist detail screen
                         selectedMediaItem = null
                     },
-                    onViewAlbum = { albumId ->
-                        onNavigateToAlbum(albumId)
+                    onViewAlbum = { album ->
+                        onNavigateToAlbum(album)
                         selectedMediaItem = null
                     }
                 )
@@ -446,8 +451,8 @@ private fun ArtistDetailScreenPreview() {
         ArtistDetailScreenContent(
             rootPadding = PaddingValues(0.dp),
             uiState = ArtistDetailUiState.Success(artist),
-            currentSong = null,
-            isPlaying = false,
+            currentSong = artist.topSongs[0],
+            isPlaying = true,
             onNavigateBack = {},
             onNavigateToAlbum = {},
             onNavigateToPlaylist = {},

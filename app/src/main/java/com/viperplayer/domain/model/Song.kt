@@ -1,8 +1,14 @@
 package com.viperplayer.domain.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
+
 /**
  * Represents a song/track.
  */
+@Serializable
+@Parcelize
 data class Song(
     override val id: MediaId,
     val title: String,
@@ -19,7 +25,7 @@ data class Song(
     val peakAmplitude: Float? = null, // Peak amplitude (0.0-1.0+)
     val isLiked: Boolean = false,
     val isDownloaded: Boolean = false,
-) : MediaItem {
+) : MediaItem, Parcelable {
     val artistNames: String?
         get() = artists.joinToString { it.name }.takeIf { it.isNotEmpty() }
 }

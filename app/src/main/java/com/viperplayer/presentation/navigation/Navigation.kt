@@ -1,11 +1,19 @@
 package com.viperplayer.presentation.navigation
 
+import android.net.Uri
+import android.os.Bundle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.core.os.BundleCompat
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Playlist
 import com.viperplayer.presentation.analytics.AnalyticsScreen
 import com.viperplayer.presentation.detail.AlbumDetailScreen
 import com.viperplayer.presentation.detail.ArtistDetailScreen
@@ -26,6 +34,7 @@ import com.viperplayer.presentation.settings.storage.StorageSettingsScreen
 import com.viperplayer.presentation.settings.updater.UpdaterSettingsScreen
 import com.viperplayer.presentation.viper.ViperScreen
 import kotlinx.serialization.Serializable
+import kotlin.reflect.typeOf
 
 /**
  * Navigation destinations using type-safe navigation.
@@ -74,21 +83,63 @@ object SettingsUpdater
 
 @Serializable
 data class AlbumDetail(
-    val pluginId: String,
-    val sourceId: String
+    val initialAlbum: Album
 )
 
 @Serializable
 data class ArtistDetail(
-    val pluginId: String,
-    val sourceId: String
+    val initialArtist: Artist
 )
 
 @Serializable
 data class PlaylistDetail(
-    val pluginId: String,
-    val sourceId: String
+    val initialPlaylist: Playlist
 )
+
+val AlbumNavType = object : NavType<Album>(isNullableAllowed = false) {
+    override fun get(bundle: Bundle, key: String): Album? =
+        BundleCompat.getParcelable(bundle, key, Album::class.java)
+
+    override fun parseValue(value: String): Album =
+        Album(MediaId.fromString(Uri.decode(value)), "")
+
+    override fun serializeAsValue(value: Album): String =
+        Uri.encode(value.id.toString())
+
+    override fun put(bundle: Bundle, key: String, value: Album) {
+        bundle.putParcelable(key, value)
+    }
+}
+
+val ArtistNavType = object : NavType<Artist>(isNullableAllowed = false) {
+    override fun get(bundle: Bundle, key: String): Artist? =
+        BundleCompat.getParcelable(bundle, key, Artist::class.java)
+
+    override fun parseValue(value: String): Artist =
+        Artist(MediaId.fromString(Uri.decode(value)), "")
+
+    override fun serializeAsValue(value: Artist): String =
+        Uri.encode(value.id.toString())
+
+    override fun put(bundle: Bundle, key: String, value: Artist) {
+        bundle.putParcelable(key, value)
+    }
+}
+
+val PlaylistNavType = object : NavType<Playlist>(isNullableAllowed = false) {
+    override fun get(bundle: Bundle, key: String): Playlist? =
+        BundleCompat.getParcelable(bundle, key, Playlist::class.java)
+
+    override fun parseValue(value: String): Playlist =
+        Playlist(MediaId.fromString(Uri.decode(value)), "")
+
+    override fun serializeAsValue(value: Playlist): String =
+        Uri.encode(value.id.toString())
+
+    override fun put(bundle: Bundle, key: String, value: Playlist) {
+        bundle.putParcelable(key, value)
+    }
+}
 
 @Composable
 fun ViperNavHost(
@@ -104,14 +155,14 @@ fun ViperNavHost(
         composable<Home> {
             HomeScreen(
                 rootPadding = rootPadding,
-                onNavigateToAlbum = { albumId ->
-                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                onNavigateToAlbum = { album ->
+                    navController.navigateSafe(AlbumDetail(album))
                 },
-                onNavigateToArtist = { artistId ->
-                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                onNavigateToArtist = { artist ->
+                    navController.navigateSafe(ArtistDetail(artist))
                 },
-                onNavigateToPlaylist = { playlistId ->
-                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                onNavigateToPlaylist = { playlist ->
+                    navController.navigateSafe(PlaylistDetail(playlist))
                 },
                 onNavigateToSettings = { navController.navigateSafe(Settings) },
                 onNavigateToHistory = { navController.navigateSafe(History) },
@@ -122,14 +173,14 @@ fun ViperNavHost(
         composable<Search> {
             SearchScreen(
                 rootPadding = rootPadding,
-                onNavigateToAlbum = { albumId ->
-                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                onNavigateToAlbum = { album ->
+                    navController.navigateSafe(AlbumDetail(album))
                 },
-                onNavigateToArtist = { artistId ->
-                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                onNavigateToArtist = { artist ->
+                    navController.navigateSafe(ArtistDetail(artist))
                 },
-                onNavigateToPlaylist = { playlistId ->
-                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                onNavigateToPlaylist = { playlist ->
+                    navController.navigateSafe(PlaylistDetail(playlist))
                 }
             )
         }
@@ -137,14 +188,14 @@ fun ViperNavHost(
         composable<Library> {
             LibraryScreen(
                 rootPadding = rootPadding,
-                onNavigateToAlbum = { albumId ->
-                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                onNavigateToAlbum = { album ->
+                    navController.navigateSafe(AlbumDetail(album))
                 },
-                onNavigateToArtist = { artistId ->
-                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                onNavigateToArtist = { artist ->
+                    navController.navigateSafe(ArtistDetail(artist))
                 },
-                onNavigateToPlaylist = { playlistId ->
-                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                onNavigateToPlaylist = { playlist ->
+                    navController.navigateSafe(PlaylistDetail(playlist))
                 }
             )
         }
@@ -232,36 +283,48 @@ fun ViperNavHost(
             )
         }
 
-        composable<AlbumDetail> {
+        composable<AlbumDetail>(
+            typeMap = mapOf(typeOf<Album>() to AlbumNavType)
+        ) {
             AlbumDetailScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navController.popBackStackSafe() },
-                onNavigateToArtist = { artistId ->
-                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                onNavigateToArtist = { artist ->
+                    navController.navigateSafe(ArtistDetail(artist))
                 }
             )
         }
         
-        composable<ArtistDetail> {
+        composable<ArtistDetail>(
+            typeMap = mapOf(typeOf<Artist>() to ArtistNavType)
+        ) {
             ArtistDetailScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navController.popBackStackSafe() },
-                onNavigateToAlbum = { albumId ->
-                    navController.navigateSafe(AlbumDetail(albumId.pluginId, albumId.sourceId))
+                onNavigateToAlbum = { album ->
+                    navController.navigateSafe(AlbumDetail(album))
                 },
-                onNavigateToPlaylist = { playlistId ->
-                    navController.navigateSafe(PlaylistDetail(playlistId.pluginId, playlistId.sourceId))
+                onNavigateToPlaylist = { playlist ->
+                    navController.navigateSafe(PlaylistDetail(playlist))
                 },
-                onNavigateToArtist = { artistId ->
-                    navController.navigateSafe(ArtistDetail(artistId.pluginId, artistId.sourceId))
+                onNavigateToArtist = { artist ->
+                    navController.navigateSafe(ArtistDetail(artist))
                 }
             )
         }
         
-        composable<PlaylistDetail> {
+        composable<PlaylistDetail>(
+            typeMap = mapOf(typeOf<Playlist>() to PlaylistNavType)
+        ) {
             PlaylistDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
+                onNavigateBack = { navController.popBackStackSafe() },
+                onNavigateToArtist = { artist ->
+                    navController.navigateSafe(ArtistDetail(artist))
+                },
+                onNavigateToAlbum = { album ->
+                    navController.navigateSafe(AlbumDetail(album))
+                }
             )
         }
     }
