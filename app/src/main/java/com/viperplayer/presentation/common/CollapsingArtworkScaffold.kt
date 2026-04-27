@@ -1,5 +1,8 @@
 package com.viperplayer.presentation.common
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -22,10 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,11 +71,11 @@ fun CollapsingArtworkScaffold(
     // Load artwork and derive expanded height from intrinsic aspect ratio
     val artworkPainter = rememberAsyncImagePainter(
         model = artworkUrl,
-        placeholder = painterResource(R.drawable.ic_notification),
-        error = painterResource(R.drawable.ic_notification),
+//        placeholder = painterResource(R.drawable.ic_notification),
+//        error = painterResource(R.drawable.ic_notification),
     )
 
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
+    val screenWidthDp = LocalWindowInfo.current.containerDpSize.width
     val expandedHeight by remember {
         derivedStateOf {
             val intrinsicSize = artworkPainter.intrinsicSize
@@ -80,6 +86,15 @@ fun CollapsingArtworkScaffold(
             } else {
                 DefaultExpandedAppBarHeight
             }
+        }
+    }
+
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val contentColor by remember(onSurface) {
+        derivedStateOf {
+            val collapsedFraction = scrollBehavior.state.collapsedFraction
+            // Transition from White (expanded) to onSurface (collapsed)
+            lerp(Color.White, onSurface, collapsedFraction)
         }
     }
 
@@ -112,31 +127,43 @@ fun CollapsingArtworkScaffold(
                 )
 
                 // LargeTopAppBar overlaid on top
+                val titleMaxLines by remember {
+                    derivedStateOf {
+                        if (scrollBehavior.state.collapsedFraction < 0.5f) 3 else 1
+                    }
+                }
+
                 LargeTopAppBar(
                     title = {
                         Text(
                             text = title,
                             overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
+                            maxLines = titleMaxLines,
+                            modifier = Modifier.animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                )
+                            ),
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.back)
                             )
                         }
                     },
                     actions = actions,
                     expandedHeight = expandedHeight,
                     scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White,
-                        titleContentColor = Color.White,
+                        navigationIconContentColor = contentColor,
+                        titleContentColor = contentColor,
+                        actionIconContentColor = contentColor
                     ),
                 )
             }
@@ -144,3 +171,4 @@ fun CollapsingArtworkScaffold(
         content = content,
     )
 }
+
