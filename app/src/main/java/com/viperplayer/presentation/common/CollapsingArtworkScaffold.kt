@@ -28,9 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -40,7 +38,6 @@ import coil3.compose.rememberAsyncImagePainter
 import com.viperplayer.R
 
 private val MaxExpandedAppBarHeight: Dp = 480.dp
-private val DefaultExpandedAppBarHeight: Dp = 300.dp
 
 /**
  * A scaffold with a collapsing artwork app bar. The artwork fills the expanded area of a
@@ -84,7 +81,8 @@ fun CollapsingArtworkScaffold(
                 val naturalHeight = screenWidthDp * aspectRatio
                 min(naturalHeight, MaxExpandedAppBarHeight)
             } else {
-                DefaultExpandedAppBarHeight
+                // Assume 1:1 aspect ratio
+                min(screenWidthDp, MaxExpandedAppBarHeight)
             }
         }
     }

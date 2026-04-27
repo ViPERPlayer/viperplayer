@@ -219,9 +219,9 @@ private fun AlbumDetailScreenContent(
                         // Group songs by disc number and check if we have multiple discs
                         val sortedSongs = uiState.album.songs.orEmpty().sortedWith(
                             compareBy(
-                            { it.discNumber ?: 1 },
-                            { it.trackNumber ?: 0 }
-                        ))
+                                { it.discNumber ?: 1 },
+                                { it.trackNumber ?: 0 }
+                            ))
                         val songsByDisc = sortedSongs.groupBy { it.discNumber ?: 1 }
                         val hasMultipleDiscs = songsByDisc.size > 1
 
