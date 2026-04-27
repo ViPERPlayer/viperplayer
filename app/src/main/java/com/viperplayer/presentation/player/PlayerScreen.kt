@@ -255,23 +255,23 @@ fun PlayerScreen(
                         val startIndex = length
                         append(artist.name)
                         val endIndex = length
-                        
+
                         addStringAnnotation(
                             tag = "artist",
                             annotation = index.toString(),
                             start = startIndex,
                             end = endIndex
                         )
-                        
+
                         if (index < currentSongArtists.size - 1) {
                             append(", ")
                         }
                     }
                 }
             }
-            
+
             var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-            
+
             AnimatedContent(
                 targetState = artistText,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -287,7 +287,11 @@ fun PlayerScreen(
                             detectTapGestures { pos ->
                                 textLayoutResult?.let { layoutResult ->
                                     val offset = layoutResult.getOffsetForPosition(pos)
-                                    text.getStringAnnotations(tag = "artist", start = offset, end = offset)
+                                    text.getStringAnnotations(
+                                        tag = "artist",
+                                        start = offset,
+                                        end = offset
+                                    )
                                         .firstOrNull()?.let { annotation ->
                                             val artistIndex = annotation.item.toInt()
                                             if (artistIndex in currentSongArtists.indices) {
@@ -423,7 +427,7 @@ fun PlayerScreen(
             )
         }
     }
-    
+
     if (showQueueBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showQueueBottomSheet = false },
@@ -462,7 +466,7 @@ private fun PlayerProgressSlider(
             sliderState.value = (position.toFloat() / duration).coerceIn(0f, 1f)
         }
     }
-    
+
     Column(modifier = modifier.fillMaxWidth()) {
         Slider(
             state = sliderState,
@@ -506,7 +510,7 @@ fun SongDetailsBottomSheet(
     // Get audio format from ExoPlayer on demand
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     var audioFormat by remember { mutableStateOf<AudioFormat?>(null) }
-    
+
     LaunchedEffect(song.id, currentSong?.id) {
         // Only fetch if this is the currently playing song
         if (currentSong?.id == song.id) {
@@ -515,7 +519,7 @@ fun SongDetailsBottomSheet(
             audioFormat = null // Clear format if not the current song
         }
     }
-    
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -529,12 +533,13 @@ fun SongDetailsBottomSheet(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
+
         HorizontalDivider()
-        
+
         // Audio format details - from ExoPlayer on demand
-        if (audioFormat != null && (audioFormat!!.sampleRate != null || audioFormat!!.bitDepth != null || 
-            audioFormat!!.bitrate != null || audioFormat!!.channelCount != null)) {
+        if (audioFormat != null && (audioFormat!!.sampleRate != null || audioFormat!!.bitDepth != null ||
+                    audioFormat!!.bitrate != null || audioFormat!!.channelCount != null)
+        ) {
             DetailSection(
                 title = "Audio Format",
                 icon = Icons.Filled.MusicNote
@@ -569,7 +574,7 @@ fun SongDetailsBottomSheet(
                 }
             }
         }
-        
+
         // ReplayGain details
         if (song.replayGainDb != null || song.peakAmplitude != null) {
             DetailSection(
@@ -590,7 +595,7 @@ fun SongDetailsBottomSheet(
                 }
             }
         }
-        
+
         // Track info
         DetailSection(
             title = "Track Information",
@@ -623,7 +628,7 @@ fun SongDetailsBottomSheet(
                 )
             }
         }
-        
+
         // Show message if no details available
         if (audioFormat == null && song.replayGainDb == null && song.peakAmplitude == null) {
             Text(
@@ -709,12 +714,12 @@ fun QueueBottomSheet(
     onDismiss: () -> Unit
 ) {
     val queue by viewModel.queue.collectAsStateWithLifecycle()
-    val density = LocalDensity.current
-    
+    LocalDensity.current
+
     // Track which item is being dragged
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var draggedOverIndex by remember { mutableStateOf<Int?>(null) }
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -730,7 +735,7 @@ fun QueueBottomSheet(
         )
 
         HorizontalDivider()
-        
+
         if (queue.isEmpty()) {
             Text(
                 text = "Queue is empty",
@@ -747,7 +752,7 @@ fun QueueBottomSheet(
                     val isCurrentSong = currentSong?.id == song.id
                     val isDragged = draggedIndex == index
                     val isDraggedOver = draggedOverIndex == index
-                    
+
                     QueueItem(
                         song = song,
                         index = index,
@@ -805,18 +810,18 @@ private fun QueueItem(
     var itemHeight by remember { mutableStateOf(0.dp) }
     var cumulativeDrag by remember { mutableStateOf(0f) }
     var lastOverIndex by remember { mutableStateOf(index) }
-    
+
     // Swipe state
     var swipeOffset by remember { mutableStateOf(0f) }
     var isSwipeInProgress by remember { mutableStateOf(false) }
     val swipeThreshold = 100.dp
-    
+
     val animatedSwipeOffset by animateFloatAsState(
         targetValue = if (isSwipeInProgress) swipeOffset else 0f,
         animationSpec = tween(300),
         label = "swipe"
     )
-    
+
     Box(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -866,7 +871,7 @@ private fun QueueItem(
                 )
             }
         }
-        
+
         // Main content
         ListItem(
             title = song.title,
@@ -905,7 +910,7 @@ private fun QueueItem(
                     var isLongPress = false
                     var dragStartTime = 0L
                     val longPressTimeout = 300L // milliseconds
-                    
+
                     detectDragGestures(
                         onDragStart = { offset ->
                             dragStartTime = System.currentTimeMillis()
@@ -913,7 +918,7 @@ private fun QueueItem(
                         },
                         onDragEnd = {
                             val thresholdPx = with(density) { swipeThreshold.toPx() }
-                            
+
                             if (isLongPress) {
                                 // Vertical drag for reordering ended
                                 cumulativeDrag = 0f
@@ -927,11 +932,13 @@ private fun QueueItem(
                                         onRemove()
                                         swipeOffset = 0f
                                     }
+
                                     swipeOffset > thresholdPx -> {
                                         // Swipe right - duplicate
                                         onDuplicate()
                                         swipeOffset = 0f
                                     }
+
                                     else -> {
                                         // Snap back
                                         swipeOffset = 0f
@@ -942,12 +949,15 @@ private fun QueueItem(
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            
+
                             val elapsed = System.currentTimeMillis() - dragStartTime
-                            
+
                             // Determine if this is a long press (for vertical reordering) or a swipe (horizontal)
                             if (!isLongPress) {
-                                if (elapsed > longPressTimeout && kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 1.5f) {
+                                if (elapsed > longPressTimeout && kotlin.math.abs(dragAmount.y) > kotlin.math.abs(
+                                        dragAmount.x
+                                    ) * 1.5f
+                                ) {
                                     // Long press detected with vertical movement - start reordering
                                     isLongPress = true
                                     cumulativeDrag = 0f
@@ -955,7 +965,10 @@ private fun QueueItem(
                                     isSwipeInProgress = false
                                     swipeOffset = 0f
                                     onDragStart()
-                                } else if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y) * 1.5f) {
+                                } else if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(
+                                        dragAmount.y
+                                    ) * 1.5f
+                                ) {
                                     // Horizontal movement detected - start swiping
                                     if (!isSwipeInProgress) {
                                         isSwipeInProgress = true
@@ -969,16 +982,16 @@ private fun QueueItem(
                                 // Long press is active - handle vertical reordering
                                 val itemHeightPx = with(density) { itemHeight.toPx() }
                                 if (itemHeightPx == 0f) return@detectDragGestures
-                                
+
                                 cumulativeDrag += dragAmount.y
-                                
+
                                 val threshold = itemHeightPx * 0.5f
                                 val newOverIndex = when {
                                     cumulativeDrag < -threshold && index > 0 -> index - 1
                                     cumulativeDrag > threshold && index < queueSize - 1 -> index + 1
                                     else -> index
                                 }
-                                
+
                                 if (newOverIndex != lastOverIndex) {
                                     onDragOver(newOverIndex)
                                     lastOverIndex = newOverIndex

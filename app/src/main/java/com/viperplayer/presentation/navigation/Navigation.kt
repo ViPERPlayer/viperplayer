@@ -1,27 +1,24 @@
 package com.viperplayer.presentation.navigation
 
-import android.net.Uri
-import android.os.Bundle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.core.os.BundleCompat
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
-import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.presentation.analytics.AnalyticsScreen
 import com.viperplayer.presentation.detail.AlbumDetailScreen
+import com.viperplayer.presentation.detail.AlbumDetailViewModel
 import com.viperplayer.presentation.detail.ArtistDetailScreen
+import com.viperplayer.presentation.detail.ArtistDetailViewModel
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
+import com.viperplayer.presentation.detail.PlaylistDetailViewModel
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
-import com.viperplayer.presentation.ktx.navigateSafe
-import com.viperplayer.presentation.ktx.popBackStackSafe
 import com.viperplayer.presentation.library.LibraryScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
@@ -34,299 +31,263 @@ import com.viperplayer.presentation.settings.storage.StorageSettingsScreen
 import com.viperplayer.presentation.settings.updater.UpdaterSettingsScreen
 import com.viperplayer.presentation.viper.ViperScreen
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
 
 /**
  * Navigation destinations using type-safe navigation.
  */
 @Serializable
-object Home
+object Home : NavKey
 
 @Serializable
-object Search
+object Search : NavKey
 
 @Serializable
-object Library
+object Library : NavKey
 
 @Serializable
-object Viper
+object Viper : NavKey
 
 @Serializable
-object Plugins
+object Plugins : NavKey
 
 @Serializable
-object Settings
+object Settings : NavKey
 
 @Serializable
-object History
+object SettingsAppearance : NavKey
 
 @Serializable
-object Analytics
+object SettingsPlayer : NavKey
 
 @Serializable
-object SettingsAppearance
+object SettingsContent : NavKey
 
 @Serializable
-object SettingsPlayer
+object SettingsStorage : NavKey
 
 @Serializable
-object SettingsContent
+object SettingsAbout : NavKey
 
 @Serializable
-object SettingsStorage
+object SettingsUpdater : NavKey
 
 @Serializable
-object SettingsAbout
+object History : NavKey
 
 @Serializable
-object SettingsUpdater
+object Analytics : NavKey
 
 @Serializable
 data class AlbumDetail(
     val initialAlbum: Album
-)
+) : NavKey
 
 @Serializable
 data class ArtistDetail(
     val initialArtist: Artist
-)
+) : NavKey
 
 @Serializable
 data class PlaylistDetail(
     val initialPlaylist: Playlist
-)
-
-val AlbumNavType = object : NavType<Album>(isNullableAllowed = false) {
-    override fun get(bundle: Bundle, key: String): Album? =
-        BundleCompat.getParcelable(bundle, key, Album::class.java)
-
-    override fun parseValue(value: String): Album =
-        Album(MediaId.fromString(Uri.decode(value)), "")
-
-    override fun serializeAsValue(value: Album): String =
-        Uri.encode(value.id.toString())
-
-    override fun put(bundle: Bundle, key: String, value: Album) {
-        bundle.putParcelable(key, value)
-    }
-}
-
-val ArtistNavType = object : NavType<Artist>(isNullableAllowed = false) {
-    override fun get(bundle: Bundle, key: String): Artist? =
-        BundleCompat.getParcelable(bundle, key, Artist::class.java)
-
-    override fun parseValue(value: String): Artist =
-        Artist(MediaId.fromString(Uri.decode(value)), "")
-
-    override fun serializeAsValue(value: Artist): String =
-        Uri.encode(value.id.toString())
-
-    override fun put(bundle: Bundle, key: String, value: Artist) {
-        bundle.putParcelable(key, value)
-    }
-}
-
-val PlaylistNavType = object : NavType<Playlist>(isNullableAllowed = false) {
-    override fun get(bundle: Bundle, key: String): Playlist? =
-        BundleCompat.getParcelable(bundle, key, Playlist::class.java)
-
-    override fun parseValue(value: String): Playlist =
-        Playlist(MediaId.fromString(Uri.decode(value)), "")
-
-    override fun serializeAsValue(value: Playlist): String =
-        Uri.encode(value.id.toString())
-
-    override fun put(bundle: Bundle, key: String, value: Playlist) {
-        bundle.putParcelable(key, value)
-    }
-}
+) : NavKey
 
 @Composable
-fun ViperNavHost(
-    navController: NavHostController,
+fun ViperNavDisplay(
+    navigationState: NavigationState,
+    navigator: Navigator,
     rootPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = Home,
-        modifier = modifier,
-    ) {
-        composable<Home> {
+    val entryProvider = entryProvider {
+        entry<Home> {
             HomeScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { album ->
-                    navController.navigateSafe(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album))
                 },
                 onNavigateToArtist = { artist ->
-                    navController.navigateSafe(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navController.navigateSafe(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist))
                 },
-                onNavigateToSettings = { navController.navigateSafe(Settings) },
-                onNavigateToHistory = { navController.navigateSafe(History) },
-                onNavigateToAnalytics = { navController.navigateSafe(Analytics) }
+                onNavigateToSettings = { navigator.navigate(Settings) },
+                onNavigateToHistory = { navigator.navigate(History) },
+                onNavigateToAnalytics = { navigator.navigate(Analytics) }
             )
         }
-        
-        composable<Search> {
+
+        entry<Search> {
             SearchScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { album ->
-                    navController.navigateSafe(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album))
                 },
                 onNavigateToArtist = { artist ->
-                    navController.navigateSafe(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navController.navigateSafe(PlaylistDetail(playlist))
-                }
-            )
-        }
-        
-        composable<Library> {
-            LibraryScreen(
-                rootPadding = rootPadding,
-                onNavigateToAlbum = { album ->
-                    navController.navigateSafe(AlbumDetail(album))
-                },
-                onNavigateToArtist = { artist ->
-                    navController.navigateSafe(ArtistDetail(artist))
-                },
-                onNavigateToPlaylist = { playlist ->
-                    navController.navigateSafe(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist))
                 }
             )
         }
 
-        composable<Viper> {
+        entry<Library> {
+            LibraryScreen(
+                rootPadding = rootPadding,
+                onNavigateToAlbum = { album ->
+                    navigator.navigate(AlbumDetail(album))
+                },
+                onNavigateToArtist = { artist ->
+                    navigator.navigate(ArtistDetail(artist))
+                },
+                onNavigateToPlaylist = { playlist ->
+                    navigator.navigate(PlaylistDetail(playlist))
+                }
+            )
+        }
+
+        entry<Viper> {
             ViperScreen(
                 rootPadding = rootPadding
             )
         }
-        
-        composable<Plugins> {
+
+        entry<Plugins> {
             PluginsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<Settings> {
-            SettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() },
-                onNavigateToAppearance = { navController.navigateSafe(SettingsAppearance) },
-                onNavigateToPlayer = { navController.navigateSafe(SettingsPlayer) },
-                onNavigateToContent = { navController.navigateSafe(SettingsContent) },
-                onNavigateToStorage = { navController.navigateSafe(SettingsStorage) },
-                onNavigateToPlugins = { navController.navigateSafe(Plugins) },
-                onNavigateToAbout = { navController.navigateSafe(SettingsAbout) },
-                onNavigateToUpdater = { navController.navigateSafe(SettingsUpdater) }
-            )
-        }
-        
-        composable<SettingsAppearance> {
-            AppearanceSettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<SettingsPlayer> {
-            PlayerSettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<SettingsContent> {
-            ContentSettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<SettingsStorage> {
-            StorageSettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<SettingsAbout> {
-            AboutSettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<SettingsUpdater> {
-            UpdaterSettingsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<History> {
-            HistoryScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
-            )
-        }
-        
-        composable<Analytics> {
-            AnalyticsScreen(
-                rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() }
+                onNavigateBack = { navigator.goBack() }
             )
         }
 
-        composable<AlbumDetail>(
-            typeMap = mapOf(typeOf<Album>() to AlbumNavType)
-        ) {
+        entry<Settings> {
+            SettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToAppearance = { navigator.navigate(SettingsAppearance) },
+                onNavigateToPlayer = { navigator.navigate(SettingsPlayer) },
+                onNavigateToContent = { navigator.navigate(SettingsContent) },
+                onNavigateToStorage = { navigator.navigate(SettingsStorage) },
+                onNavigateToPlugins = { navigator.navigate(Plugins) },
+                onNavigateToAbout = { navigator.navigate(SettingsAbout) },
+                onNavigateToUpdater = { navigator.navigate(SettingsUpdater) }
+            )
+        }
+
+        entry<SettingsAppearance> {
+            AppearanceSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<SettingsPlayer> {
+            PlayerSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<SettingsContent> {
+            ContentSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<SettingsStorage> {
+            StorageSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<SettingsAbout> {
+            AboutSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<SettingsUpdater> {
+            UpdaterSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<History> {
+            HistoryScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Analytics> {
+            AnalyticsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<AlbumDetail> { key ->
+            val viewModel = hiltViewModel<AlbumDetailViewModel, AlbumDetailViewModel.Factory>(
+                creationCallback = { factory -> factory.create(key) }
+            )
             AlbumDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() },
+                onNavigateBack = { navigator.goBack() },
                 onNavigateToArtist = { artist ->
-                    navController.navigateSafe(ArtistDetail(artist))
-                }
+                    navigator.navigate(ArtistDetail(artist))
+                },
+                viewModel = viewModel
             )
         }
-        
-        composable<ArtistDetail>(
-            typeMap = mapOf(typeOf<Artist>() to ArtistNavType)
-        ) {
+
+        entry<ArtistDetail> { key ->
+            val viewModel = hiltViewModel<ArtistDetailViewModel, ArtistDetailViewModel.Factory>(
+                creationCallback = { factory -> factory.create(key) }
+            )
             ArtistDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() },
+                onNavigateBack = { navigator.goBack() },
                 onNavigateToAlbum = { album ->
-                    navController.navigateSafe(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navController.navigateSafe(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist))
                 },
                 onNavigateToArtist = { artist ->
-                    navController.navigateSafe(ArtistDetail(artist))
-                }
+                    navigator.navigate(ArtistDetail(artist))
+                },
+                viewModel = viewModel
             )
         }
-        
-        composable<PlaylistDetail>(
-            typeMap = mapOf(typeOf<Playlist>() to PlaylistNavType)
-        ) {
+
+        entry<PlaylistDetail> { key ->
+            val viewModel = hiltViewModel<PlaylistDetailViewModel, PlaylistDetailViewModel.Factory>(
+                creationCallback = { factory -> factory.create(key) }
+            )
             PlaylistDetailScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navController.popBackStackSafe() },
+                onNavigateBack = { navigator.goBack() },
                 onNavigateToArtist = { artist ->
-                    navController.navigateSafe(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist))
                 },
                 onNavigateToAlbum = { album ->
-                    navController.navigateSafe(AlbumDetail(album))
-                }
+                    navigator.navigate(AlbumDetail(album))
+                },
+                viewModel = viewModel
             )
         }
     }
-}
 
+    val entries = navigationState.toEntries(entryProvider)
+
+    NavDisplay(
+        entries = entries,
+        onBack = { navigator.goBack() },
+        modifier = modifier
+    )
+}

@@ -38,7 +38,7 @@ object PluginMapper {
             else -> throw IllegalArgumentException("Unknown MediaItem type: ${this.type}")
         }
     }
-    
+
     fun String.toDomain(pluginId: String): MediaId = MediaId(pluginId, this)
 
     fun AidlArtist.toDomain(pluginId: String): Artist = Artist(
@@ -52,7 +52,7 @@ object PluginMapper {
         appearsOn = appearsOn?.map { it.toDomain(pluginId) }.orEmpty(),
         similarArtists = similarArtists?.map { it.toDomain(pluginId) }.orEmpty()
     )
-    
+
     fun Byte.toDomainAlbumType(): AlbumType = when (this) {
         AidlAlbumType.ALBUM -> AlbumType.ALBUM
         AidlAlbumType.SINGLE -> AlbumType.SINGLE
@@ -60,7 +60,7 @@ object PluginMapper {
         AidlAlbumType.COMPILATION -> AlbumType.COMPILATION
         else -> AlbumType.ALBUM // Default fallback
     }
-    
+
     fun AidlAlbum.toDomain(pluginId: String): Album = Album(
         id = id.toDomain(pluginId),
         name = name,
@@ -71,7 +71,7 @@ object PluginMapper {
         type = type.toDomainAlbumType(),
         songs = songs?.mapIndexed { index, song -> song.toDomain(pluginId, index + 1) }
     )
-    
+
     fun AidlSong.toDomain(
         pluginId: String,
         trackNumber: Int? = null,
@@ -92,7 +92,7 @@ object PluginMapper {
             peakAmplitude = if (hasPeakAmplitude) this.peakAmplitude else null
         )
     }
-    
+
     fun AidlPlaylist.toDomain(pluginId: String): Playlist = Playlist(
         id = id.toDomain(pluginId),
         name = name,
@@ -104,7 +104,7 @@ object PluginMapper {
         isEditable = false,
         songs = songs?.map { it.toDomain(pluginId) }
     )
-    
+
     fun Byte.toDomainCategoryContentType(): CategoryContentType = when (this) {
         AidlCategoryContentType.CATEGORIES -> CategoryContentType.CATEGORIES
         AidlCategoryContentType.PLAYLISTS -> CategoryContentType.PLAYLISTS
@@ -114,7 +114,7 @@ object PluginMapper {
         AidlCategoryContentType.MIXED -> CategoryContentType.MIXED
         else -> CategoryContentType.MIXED // Default fallback
     }
-    
+
     fun AidlBrowseCategory.toDomain(): BrowseCategory = BrowseCategory(
         id = id,
         pluginId = pluginId,
@@ -123,7 +123,7 @@ object PluginMapper {
         imageUrl = imageUrl,
         contentType = contentType.toDomainCategoryContentType()
     )
-    
+
     fun AidlSearchResult.toDomain(pluginId: String): SearchResult {
         return SearchResult(
             items = items.map { it.toDomain(pluginId) },
@@ -139,7 +139,7 @@ object PluginMapper {
         description = description,
         author = author,
     )
-    
+
     fun AidlPluginCapabilities.toDomain(): PluginCapabilities = PluginCapabilities(
         canSearch = canSearch,
         canBrowse = canBrowse,

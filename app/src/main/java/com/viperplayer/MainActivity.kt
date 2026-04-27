@@ -17,5 +17,5 @@ class MainActivity : ComponentActivity() {
         nativeInit()
     }
 
-    private external fun nativeInit();
+    private external fun nativeInit()
 }

@@ -25,6 +25,7 @@ sealed class UpdateState {
         val latestVersion: String,
         val changelog: String
     ) : UpdateState()
+
     data class Downloading(val currentVersion: String, val latestVersion: String) : UpdateState()
     data class Error(val message: String, val currentVersion: String) : UpdateState()
 }
@@ -38,14 +39,14 @@ data class UpdaterSettingsUiState(
 class UpdaterSettingsViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(UpdaterSettingsUiState())
     val uiState: StateFlow<UpdaterSettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         loadCurrentVersion()
     }
-    
+
     private fun loadCurrentVersion() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
@@ -55,7 +56,7 @@ class UpdaterSettingsViewModel @Inject constructor(
                         0
                     )
                     val versionName = packageInfo.versionName ?: "Unknown"
-                    _uiState.update { 
+                    _uiState.update {
                         it.copy(
                             currentVersion = versionName,
                             updateState = UpdateState.UpToDate(versionName)
@@ -73,18 +74,18 @@ class UpdaterSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun checkForUpdates() {
         viewModelScope.launch {
             val currentVersion = _uiState.value.currentVersion
-            _uiState.update { 
+            _uiState.update {
                 it.copy(updateState = UpdateState.Checking)
             }
-            
+
             try {
                 // Simulate network call to check for updates
                 delay(1000)
-                
+
                 withContext(Dispatchers.IO) {
                     // TODO: Implement actual update check API call
                     // For now, this is a placeholder that always returns no update
@@ -92,11 +93,11 @@ class UpdaterSettingsViewModel @Inject constructor(
                     // 1. Make an API call to your update server
                     // 2. Compare version codes/names
                     // 3. Fetch changelog if update is available
-                    
+
                     val hasUpdate = false // Placeholder
                     val latestVersion: String? = null // Placeholder
                     val changelog = "" // Placeholder
-                    
+
                     _uiState.update {
                         it.copy(
                             updateState = if (hasUpdate && latestVersion != null) {
@@ -124,7 +125,7 @@ class UpdaterSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun downloadUpdate() {
         viewModelScope.launch {
             val state = _uiState.value.updateState
@@ -137,16 +138,16 @@ class UpdaterSettingsViewModel @Inject constructor(
                         )
                     )
                 }
-                
+
                 try {
                     // TODO: Implement actual update download
                     // In a real implementation, you would:
                     // 1. Download the APK from your update server
                     // 2. Verify the APK signature
                     // 3. Launch the installer intent
-                    
+
                     delay(2000) // Simulate download
-                    
+
                     _uiState.update {
                         it.copy(
                             updateState = UpdateState.Error(

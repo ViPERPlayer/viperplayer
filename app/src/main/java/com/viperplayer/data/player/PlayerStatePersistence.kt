@@ -49,69 +49,73 @@ class PlayerStatePersistence @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository
 ) {
     companion object {
-        private val Context.playerStateDataStore: DataStore<Preferences> by preferencesDataStore(name = "player_state")
-        
+        private val Context.playerStateDataStore: DataStore<Preferences> by preferencesDataStore(
+            name = "player_state"
+        )
+
         private val CURRENT_SONG_MEDIA_ID_KEY = stringPreferencesKey("current_song_media_id")
         private val CURRENT_POSITION_MS_KEY = longPreferencesKey("current_position_ms")
         private val QUEUE_POSITION_KEY = intPreferencesKey("queue_position")
         private val SHUFFLE_ENABLED_KEY = booleanPreferencesKey("shuffle_enabled")
         private val REPEAT_MODE_KEY = stringPreferencesKey("repeat_mode")
     }
-    
+
     private val dataStore = context.playerStateDataStore
-    
+
     /**
      * Saves the current player state.
      * Queue is saved to Room (songs must already exist in SongEntity), simple settings to DataStore.
      * Only MediaIds are saved - full song data is loaded from database on restoration.
      */
-    suspend fun saveState(state: PersistedPlayerState, queue: List<Song>) = withContext(Dispatchers.IO) {
-        try {
-            // Clear existing queue
-            crossRefDao.clearQueue()
-            
-            // Save queue to Room - songs should already be saved via MediaLibraryRepository.saveSong()
-            // when they were played or added to queue
-            if (queue.isNotEmpty()) {
-                val queueCrossRefs = queue.mapIndexedNotNull { index, song ->
-                    try {
-                        // Get song entity (should already exist from play/addToQueue)
-                        val songEntity = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
-                        
-                        if (songEntity == null) {
-                            Timber.w("Song not found in database when saving queue: ${song.title}. It should have been saved when played/added to queue.")
-                            return@mapIndexedNotNull null
+    suspend fun saveState(state: PersistedPlayerState, queue: List<Song>) =
+        withContext(Dispatchers.IO) {
+            try {
+                // Clear existing queue
+                crossRefDao.clearQueue()
+
+                // Save queue to Room - songs should already be saved via MediaLibraryRepository.saveSong()
+                // when they were played or added to queue
+                if (queue.isNotEmpty()) {
+                    val queueCrossRefs = queue.mapIndexedNotNull { index, song ->
+                        try {
+                            // Get song entity (should already exist from play/addToQueue)
+                            val songEntity =
+                                songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+
+                            if (songEntity == null) {
+                                Timber.w("Song not found in database when saving queue: ${song.title}. It should have been saved when played/added to queue.")
+                                return@mapIndexedNotNull null
+                            }
+
+                            QueueSongCrossRef(
+                                songId = songEntity.id,
+                                position = index
+                            )
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to create queue cross-ref for song: ${song.title}")
+                            null
                         }
-                        
-                        QueueSongCrossRef(
-                            songId = songEntity.id,
-                            position = index
-                        )
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to create queue cross-ref for song: ${song.title}")
-                        null
+                    }
+
+                    if (queueCrossRefs.isNotEmpty()) {
+                        crossRefDao.insertQueueSongs(queueCrossRefs)
                     }
                 }
-                
-                if (queueCrossRefs.isNotEmpty()) {
-                    crossRefDao.insertQueueSongs(queueCrossRefs)
+
+                // Save simple settings to DataStore
+                dataStore.edit { preferences ->
+                    preferences[CURRENT_SONG_MEDIA_ID_KEY] = state.currentSongMediaId ?: ""
+                    preferences[CURRENT_POSITION_MS_KEY] = state.currentPositionMs
+                    preferences[QUEUE_POSITION_KEY] = state.queuePosition
+                    preferences[SHUFFLE_ENABLED_KEY] = state.shuffleEnabled
+                    preferences[REPEAT_MODE_KEY] = state.repeatMode
                 }
+                Timber.d("PlayerStatePersistence: Saved state - song=${state.currentSongMediaId}, position=${state.currentPositionMs}ms, queueSize=${queue.size}")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save player state")
             }
-            
-            // Save simple settings to DataStore
-            dataStore.edit { preferences ->
-                preferences[CURRENT_SONG_MEDIA_ID_KEY] = state.currentSongMediaId ?: ""
-                preferences[CURRENT_POSITION_MS_KEY] = state.currentPositionMs
-                preferences[QUEUE_POSITION_KEY] = state.queuePosition
-                preferences[SHUFFLE_ENABLED_KEY] = state.shuffleEnabled
-                preferences[REPEAT_MODE_KEY] = state.repeatMode
-            }
-            Timber.d("PlayerStatePersistence: Saved state - song=${state.currentSongMediaId}, position=${state.currentPositionMs}ms, queueSize=${queue.size}")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to save player state")
         }
-    }
-    
+
     /**
      * Loads the persisted player state.
      * Queue is loaded from Room (via QueueSongCrossRef -> SongEntity), simple settings from DataStore.
@@ -120,13 +124,14 @@ class PlayerStatePersistence @Inject constructor(
     suspend fun loadState(): Pair<PersistedPlayerState?, List<Song>> = withContext(Dispatchers.IO) {
         try {
             val preferences = dataStore.data.first()
-            val currentSongMediaId = preferences[CURRENT_SONG_MEDIA_ID_KEY]?.takeIf { it.isNotEmpty() }
-            
+            val currentSongMediaId =
+                preferences[CURRENT_SONG_MEDIA_ID_KEY]?.takeIf { it.isNotEmpty() }
+
             if (currentSongMediaId == null) {
                 Timber.d("PlayerStatePersistence: No saved state found")
                 return@withContext Pair(null, emptyList())
             }
-            
+
             // Load queue from Room via cross-refs - get full Song objects from database
             val queueSongIds = crossRefDao.getSongIdsForQueue()
             val queue = queueSongIds.mapNotNull { songId ->
@@ -135,7 +140,7 @@ class PlayerStatePersistence @Inject constructor(
                 // Load full song from MediaLibraryRepository (includes artists, album, etc.)
                 mediaLibraryRepository.getSong(mediaId).first()
             }
-            
+
             val state = PersistedPlayerState(
                 currentSongMediaId = currentSongMediaId,
                 currentPositionMs = preferences[CURRENT_POSITION_MS_KEY] ?: 0L,
@@ -143,7 +148,7 @@ class PlayerStatePersistence @Inject constructor(
                 shuffleEnabled = preferences[SHUFFLE_ENABLED_KEY] ?: false,
                 repeatMode = preferences[REPEAT_MODE_KEY] ?: RepeatMode.OFF.name,
             )
-            
+
             Timber.d("PlayerStatePersistence: Loaded state - song=$currentSongMediaId, position=${state.currentPositionMs}ms, queueSize=${queue.size}")
             return@withContext Pair(state, queue)
         } catch (e: Exception) {

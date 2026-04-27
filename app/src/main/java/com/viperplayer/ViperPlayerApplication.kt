@@ -103,7 +103,8 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val maxImageCacheSize = runBlocking(Dispatchers.IO) { settingsRepository.maxImageCacheSize.first() }
+        val maxImageCacheSize =
+            runBlocking(Dispatchers.IO) { settingsRepository.maxImageCacheSize.first() }
 
         return ImageLoader.Builder(this)
             .memoryCache {

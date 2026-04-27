@@ -32,10 +32,10 @@ class SettingsViewModel @Inject constructor(
     private val cacheRepository: CacheRepository,
     private val mediaLibraryRepository: MediaLibraryRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         // Collect each setting independently for better type safety and maintainability
         viewModelScope.launch {
@@ -70,13 +70,13 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun setReplayGainEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setReplayGainEnabled(enabled)
         }
     }
-    
+
     fun setReplayGainPreampDb(preampDb: Float) {
         viewModelScope.launch {
             // Clamp preamp to reasonable range: -12 dB to +6 dB
@@ -84,19 +84,19 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.setReplayGainPreampDb(clampedPreamp)
         }
     }
-    
+
     fun setAudioQuality(quality: AudioQuality) {
         viewModelScope.launch {
             settingsRepository.setAudioQuality(quality)
         }
     }
-    
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             settingsRepository.setThemeMode(mode)
         }
     }
-    
+
     fun clearCache() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isClearingCache = true)
@@ -116,7 +116,7 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun scanLocalFiles() {
         viewModelScope.launch {
             mediaLibraryRepository.scanLocalFiles()

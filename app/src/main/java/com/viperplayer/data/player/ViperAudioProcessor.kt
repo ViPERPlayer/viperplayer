@@ -43,10 +43,10 @@ class ViperAudioProcessor @Inject constructor(
 ) : BaseAudioProcessor() {
 
     private val processorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    
+
     // Track previous state to detect changes and only update what's changed
     private var currentState: ViperEffectsState? = null
-    
+
     // Cache for loaded IR path to avoid reloading same file
     private var loadedIrPath: String? = null
 
@@ -107,11 +107,13 @@ class ViperAudioProcessor @Inject constructor(
      */
     private fun updateNativeDriverConfiguration(state: ViperEffectsState) {
         val current = currentState
-        
+
         // Master Limiter - combine gain and pan to calculate left/right gains
-        val gainChanged = current == null || current.masterLimiter.outputGain != state.masterLimiter.outputGain
-        val panChanged = current == null || current.masterLimiter.outputPan != state.masterLimiter.outputPan
-        
+        val gainChanged =
+            current == null || current.masterLimiter.outputGain != state.masterLimiter.outputGain
+        val panChanged =
+            current == null || current.masterLimiter.outputPan != state.masterLimiter.outputPan
+
         if (gainChanged || panChanged) {
             val (gainL, gainR) = ViperSteppedValues.calculateLeftRightGains(
                 state.masterLimiter.outputGain,
@@ -120,7 +122,8 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setMasterLimiterOutputGain(gainL, gainR)
         }
         if (current == null || current.masterLimiter.thresholdLimit != state.masterLimiter.thresholdLimit) {
-            val thresholdValue = ViperSteppedValues.getThresholdLimitValue(state.masterLimiter.thresholdLimit)
+            val thresholdValue =
+                ViperSteppedValues.getThresholdLimitValue(state.masterLimiter.thresholdLimit)
             nativeDriver.setMasterLimiterThresholdLimit(thresholdValue)
         }
 
@@ -129,19 +132,22 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setIirEqualizerEnabled(state.iirEqualizer.enabled)
         }
         if (current == null || current.iirEqualizer.bandCount != state.iirEqualizer.bandCount) {
-            nativeDriver.setIirEqualizerBandCount(when (state.iirEqualizer.bandCount) {
-                10 -> 0
-                15 -> 1
-                31 -> 2
-                else -> 0
-            })
+            nativeDriver.setIirEqualizerBandCount(
+                when (state.iirEqualizer.bandCount) {
+                    10 -> 0
+                    15 -> 1
+                    31 -> 2
+                    else -> 0
+                }
+            )
         }
         // Always update bands if any relevant state changed, or do granular check.
         // Granular check is better for performance if many bands.
         state.iirEqualizer.bandGains.forEachIndexed { index, gain ->
             if (current == null ||
                 current.iirEqualizer.bandGains.size <= index ||
-                current.iirEqualizer.bandGains[index] != gain) {
+                current.iirEqualizer.bandGains[index] != gain
+            ) {
                 nativeDriver.setIirEqualizerBandLevel(index, gain)
             }
         }
@@ -239,7 +245,7 @@ class ViperAudioProcessor @Inject constructor(
         if (current == null || current.viperDdc.enabled != state.viperDdc.enabled) {
             nativeDriver.setViperDdcEnabled(state.viperDdc.enabled)
         }
-        
+
         // Convolver
         if (current == null || current.convolver.enabled != state.convolver.enabled) {
             nativeDriver.setConvolverEnabled(state.convolver.enabled)
@@ -247,53 +253,53 @@ class ViperAudioProcessor @Inject constructor(
         if (current == null || current.convolver.crossChannel != state.convolver.crossChannel) {
             nativeDriver.setConvolverCrossChannel(state.convolver.crossChannel)
         }
-        
+
         // Handle Impulse Response File Loading
         val newIrPath = state.convolver.impulseResponse
         if (newIrPath != null && newIrPath != loadedIrPath) {
-             // Load in background
-             processorScope.launch(Dispatchers.IO) {
-                 try {
-                     // Resolve file from repository
-                     val kernelFile = viperAssetRepository.getKernelFile(newIrPath)
-                     if (kernelFile != null && kernelFile.exists()) {
-                         val uri = Uri.fromFile(kernelFile)
-                         val decoded = audioFileDecoder.decodeToFloatArray(context, uri)
-                         if (decoded != null) {
-                             Timber.d("Loaded IR file: ${kernelFile.name}, Channels: ${decoded.second}, Samples: ${decoded.first.size}")
-                             nativeDriver.setConvolverImpulseResponse(decoded.second, decoded.first)
-                             loadedIrPath = newIrPath
-                         } else {
-                             Timber.e("Failed to decode IR file: $newIrPath")
-                         }
-                     } else {
-                         Timber.e("Kernel file not found: $newIrPath")
-                     }
-                 } catch (e: Exception) {
-                     Timber.e(e, "Error loading IR file: $newIrPath")
-                 }
-             }
+            // Load in background
+            processorScope.launch(Dispatchers.IO) {
+                try {
+                    // Resolve file from repository
+                    val kernelFile = viperAssetRepository.getKernelFile(newIrPath)
+                    if (kernelFile != null && kernelFile.exists()) {
+                        val uri = Uri.fromFile(kernelFile)
+                        val decoded = audioFileDecoder.decodeToFloatArray(context, uri)
+                        if (decoded != null) {
+                            Timber.d("Loaded IR file: ${kernelFile.name}, Channels: ${decoded.second}, Samples: ${decoded.first.size}")
+                            nativeDriver.setConvolverImpulseResponse(decoded.second, decoded.first)
+                            loadedIrPath = newIrPath
+                        } else {
+                            Timber.e("Failed to decode IR file: $newIrPath")
+                        }
+                    } else {
+                        Timber.e("Kernel file not found: $newIrPath")
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Error loading IR file: $newIrPath")
+                }
+            }
         } else if (newIrPath == null && loadedIrPath != null) {
             // Clear kernel
             nativeDriver.setConvolverImpulseResponse(1, FloatArray(0))
             loadedIrPath = null
         }
 
-        
+
         // Check for coefficients change (content) rather than just file name
         if (current == null || current.viperDdc.coeffs != state.viperDdc.coeffs) {
             val coeffsMap = state.viperDdc.coeffs
-            
+
             // Always clear first when content changes
             nativeDriver.viperDdcClearCoeffs()
-            
+
             if (coeffsMap != null && coeffsMap.isNotEmpty()) {
                 coeffsMap.forEach { (rate, coeffs) ->
-                     nativeDriver.viperDdcAddCoeffs(rate, coeffs.toFloatArray())
+                    nativeDriver.viperDdcAddCoeffs(rate, coeffs.toFloatArray())
                 }
             }
         }
-        
+
         // Update previous state
         currentState = state
     }

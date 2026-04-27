@@ -35,7 +35,7 @@ fun ContentSettingsScreen(
     viewModel: ContentSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
     ViperScaffold(
         topBar = {
             TopAppBar(

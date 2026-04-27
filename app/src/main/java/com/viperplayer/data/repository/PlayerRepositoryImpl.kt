@@ -67,14 +67,44 @@ class PlayerRepositoryImpl @Inject constructor(
             // ... callbackFlow implementation same as before ...
             callbackFlow {
                 val listener = object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) { trySend(controller) }
-                    override fun onIsPlayingChanged(isPlaying: Boolean) { trySend(controller) }
-                    override fun onPlayerError(error: PlaybackException) { trySend(controller) }
-                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { trySend(controller) }
-                    override fun onRepeatModeChanged(repeatMode: Int) { trySend(controller) }
-                    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) { trySend(controller) }
-                    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) { trySend(controller) }
-                    override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) { trySend(controller) }
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        trySend(controller)
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        trySend(controller)
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        trySend(controller)
+                    }
+
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        trySend(controller)
+                    }
+
+                    override fun onRepeatModeChanged(repeatMode: Int) {
+                        trySend(controller)
+                    }
+
+                    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                        trySend(controller)
+                    }
+
+                    override fun onPositionDiscontinuity(
+                        oldPosition: Player.PositionInfo,
+                        newPosition: Player.PositionInfo,
+                        reason: Int
+                    ) {
+                        trySend(controller)
+                    }
+
+                    override fun onTimelineChanged(
+                        timeline: Timeline,
+                        reason: Int
+                    ) {
+                        trySend(controller)
+                    }
                 }
                 controller.addListener(listener)
                 trySend(controller)
@@ -85,8 +115,8 @@ class PlayerRepositoryImpl @Inject constructor(
     // Playback state (state, shuffle, repeat, volume, queue info) - NO position, song, or duration
     override val playbackState: StateFlow<PlaybackInfo> =
         combine(controllerStateFlow, _playbackContext) { controller, context ->
-                PlayerStateMapper.createPlaybackInfo(controller).copy(playbackContext = context)
-            }
+            PlayerStateMapper.createPlaybackInfo(controller).copy(playbackContext = context)
+        }
             .distinctUntilChanged()
             .stateIn(
                 scope = scope,
@@ -103,10 +133,10 @@ class PlayerRepositoryImpl @Inject constructor(
 
     override suspend fun play(song: Song, context: PlaybackContext?) {
         _playbackContext.value = context
-        
+
         // Save song with full metadata (album, artists, etc.)
         mediaLibraryRepository.saveSong(song)
-        
+
         val controller = mediaControllerManager.controllerFlow.first()
         val mediaItem = song.toMediaItem()
         controller.setMediaItem(mediaItem)
@@ -116,26 +146,26 @@ class PlayerRepositoryImpl @Inject constructor(
 
     override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) {
         if (songs.isEmpty()) return
-        
+
         _playbackContext.value = context
 
         val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
         val startSong = songs[safeStartIndex]
-        
+
         // 1. Save and play the selected song immediately
         try {
             mediaLibraryRepository.saveSong(startSong)
         } catch (e: Exception) {
             Timber.e(e, "Failed to save start song to database: ${startSong.title}")
         }
-        
+
         val controller = mediaControllerManager.controllerFlow.first()
         val startMediaItem = startSong.toMediaItem()
-        
+
         controller.setMediaItem(startMediaItem)
         controller.prepare()
         controller.play()
-        
+
         // 2. Build the rest of the queue asynchronously
         scope.launch {
             // Save all songs to database (skip the start song since it's already saved)
@@ -148,15 +178,15 @@ class PlayerRepositoryImpl @Inject constructor(
                     }
                 }
             }
-            
+
             // Add all media items to the queue
             val allMediaItems = songs.toMediaItems()
-            
+
             // Add items before the start song
             for (i in 0 until safeStartIndex) {
                 controller.addMediaItem(i, allMediaItems[i])
             }
-            
+
             // Add items after the start song
             for (i in (safeStartIndex + 1) until allMediaItems.size) {
                 controller.addMediaItem(allMediaItems[i])
@@ -179,7 +209,7 @@ class PlayerRepositoryImpl @Inject constructor(
                             val mediaId = extractMediaIdFromController(controller)
                             trySend(mediaId)
                         }
-                        
+
                         override fun onTimelineChanged(
                             timeline: Timeline,
                             reason: Int
@@ -187,7 +217,7 @@ class PlayerRepositoryImpl @Inject constructor(
                             val mediaId = extractMediaIdFromController(controller)
                             trySend(mediaId)
                         }
-                        
+
                         override fun onTracksChanged(tracks: Tracks) {
                             // Format information becomes available when tracks are loaded
                             val mediaId = extractMediaIdFromController(controller)
@@ -196,11 +226,11 @@ class PlayerRepositoryImpl @Inject constructor(
                         }
                     }
                     controller.addListener(listener)
-                    
+
                     // Initial MediaId
                     val initialMediaId = extractMediaIdFromController(controller)
                     trySend(initialMediaId)
-                    
+
                     awaitClose { controller.removeListener(listener) }
                 }
             }
@@ -218,14 +248,14 @@ class PlayerRepositoryImpl @Inject constructor(
                 started = SharingStarted.Eagerly,
                 initialValue = null
             )
-    
+
     /**
      * Extracts MediaId from the controller's current MediaItem.
      * Returns null if no MediaItem is available or MediaId cannot be parsed.
      */
     private fun extractMediaIdFromController(player: Player): MediaId? {
         val mediaItem = player.currentMediaItem ?: return null
-        
+
         return try {
             MediaId.fromString(mediaItem.mediaId)
         } catch (e: Exception) {
@@ -233,7 +263,7 @@ class PlayerRepositoryImpl @Inject constructor(
             null
         }
     }
-    
+
     /**
      * Extracts audio Format information from ExoPlayer's current tracks.
      * This provides the actual playback format (sample rate, bitrate, channels, etc.)
@@ -261,7 +291,7 @@ class PlayerRepositoryImpl @Inject constructor(
             null
         }
     }
-    
+
 
     // Duration - only emits when track changes
     override val duration: StateFlow<Long> =
@@ -273,18 +303,22 @@ class PlayerRepositoryImpl @Inject constructor(
                             mediaItem: MediaItem?,
                             reason: Int
                         ) {
-                            trySend(controller.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0L)
+                            trySend(controller.duration.takeIf { it != C.TIME_UNSET }
+                                ?.coerceAtLeast(0) ?: 0L)
                         }
-                        
+
                         override fun onTimelineChanged(
                             timeline: Timeline,
                             reason: Int
                         ) {
-                            trySend(controller.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0L)
+                            trySend(controller.duration.takeIf { it != C.TIME_UNSET }
+                                ?.coerceAtLeast(0) ?: 0L)
                         }
                     }
                     controller.addListener(listener)
-                    trySend(controller.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0L)
+                    trySend(
+                        controller.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0) ?: 0L
+                    )
                     awaitClose { controller.removeListener(listener) }
                 }
             }
@@ -341,9 +375,9 @@ class PlayerRepositoryImpl @Inject constructor(
                                 }
                             trySend(mediaIds)
                         }
-                        
+
                         override fun onTimelineChanged(
-                            timeline: androidx.media3.common.Timeline,
+                            timeline: Timeline,
                             reason: Int
                         ) {
                             val mediaIds = (0 until controller.mediaItemCount)
@@ -361,7 +395,7 @@ class PlayerRepositoryImpl @Inject constructor(
                         }
                     }
                     controller.addListener(listener)
-                    
+
                     // Initial MediaIds
                     val initialMediaIds = (0 until controller.mediaItemCount)
                         .mapNotNull { index ->
@@ -375,7 +409,7 @@ class PlayerRepositoryImpl @Inject constructor(
                             }
                         }
                     trySend(initialMediaIds)
-                    
+
                     awaitClose { controller.removeListener(listener) }
                 }
             }
@@ -392,12 +426,12 @@ class PlayerRepositoryImpl @Inject constructor(
                     ) { songs: Array<Song?> -> songs.filterNotNull() }
                 }
             }
-    
+
     init {
         // Persist player state whenever it changes
         observeAndPersistPlayerState()
     }
-    
+
     /**
      * Observes player state changes and persists them.
      */
@@ -412,7 +446,7 @@ class PlayerRepositoryImpl @Inject constructor(
             // Get current position and queue position from controller
             val position = controller.currentPosition.coerceAtLeast(0)
             val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
-            
+
             com.viperplayer.data.player.PersistedPlayerState(
                 currentSongMediaId = song?.id?.toString(),
                 currentPositionMs = position,
@@ -429,7 +463,6 @@ class PlayerRepositoryImpl @Inject constructor(
             }
             .launchIn(scope)
     }
-
 
 
     override suspend fun pause() {
@@ -493,7 +526,7 @@ class PlayerRepositoryImpl @Inject constructor(
     override suspend fun addToQueue(song: Song) {
         // Save song with full metadata (album, artists, etc.)
         mediaLibraryRepository.saveSong(song)
-        
+
         val controller = mediaControllerManager.controllerFlow.first()
         val mediaItem = song.toMediaItem()
         controller.addMediaItem(mediaItem)
@@ -502,7 +535,7 @@ class PlayerRepositoryImpl @Inject constructor(
     override suspend fun playNext(song: Song) {
         // Save song with full metadata (album, artists, etc.)
         mediaLibraryRepository.saveSong(song)
-        
+
         val controller = mediaControllerManager.controllerFlow.first()
         val mediaItem = song.toMediaItem()
         val nextIndex = controller.currentMediaItemIndex + 1
@@ -546,11 +579,11 @@ class PlayerRepositoryImpl @Inject constructor(
     override suspend fun setRepeatMode(mode: RepeatMode) {
         mediaControllerManager.controllerFlow.first().repeatMode = mode.toMedia3RepeatMode()
     }
-    
+
     override suspend fun getAudioFormat(): AudioFormat? {
         val controller = mediaControllerManager.controllerFlow.first()
         val format = getAudioFormatFromPlayer(controller) ?: return null
-        
+
         val sampleRate = format.sampleRate.takeIf { it > 0 }
         val bitDepth = format.pcmEncoding.let { encoding ->
             when (encoding) {
@@ -563,7 +596,7 @@ class PlayerRepositoryImpl @Inject constructor(
         }
         val bitrate = format.bitrate.takeIf { it > 0 }?.let { it / 1000 } // Convert to kbps
         val channelCount = format.channelCount.takeIf { it > 0 }
-        
+
         return AudioFormat(
             sampleRate = sampleRate,
             bitDepth = bitDepth,

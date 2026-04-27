@@ -28,7 +28,7 @@ object ViperPresetMapper {
             .mapValues { (_, entries) ->
                 entries.sortedBy { it.index }.map { it.value }
             }
-        
+
         return ViperPreset(
             id = preset.id,
             name = preset.name,
@@ -150,7 +150,7 @@ object ViperPresetMapper {
     fun ViperPreset.toCoeffEntities(presetId: Long): List<ViperDdcCoeffEntity> {
         val coeffs = effectsState.viperDdc.coeffs ?: return emptyList()
         val entities = mutableListOf<ViperDdcCoeffEntity>()
-        
+
         coeffs.forEach { (rate, values) ->
             values.forEachIndexed { index, value ->
                 entities.add(

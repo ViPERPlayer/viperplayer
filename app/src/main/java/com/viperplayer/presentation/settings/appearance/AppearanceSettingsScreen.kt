@@ -51,7 +51,7 @@ fun AppearanceSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showDynamicThemeDialog by remember { mutableStateOf(false) }
-    
+
     ViperScaffold(
         topBar = {
             TopAppBar(
@@ -138,7 +138,7 @@ fun AppearanceSettingsScreen(
             }
         }
     }
-    
+
     if (showThemeDialog) {
         ThemeDialog(
             currentTheme = uiState.themeMode,

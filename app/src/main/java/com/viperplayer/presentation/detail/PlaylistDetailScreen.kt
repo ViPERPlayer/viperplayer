@@ -133,6 +133,7 @@ private fun PlaylistDetailScreenContent(
                     LoadingIndicator()
                 }
             }
+
             is PlaylistDetailUiState.Error -> {
                 Box(
                     modifier = Modifier
@@ -156,6 +157,7 @@ private fun PlaylistDetailScreenContent(
                     }
                 }
             }
+
             is PlaylistDetailUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier
@@ -210,10 +212,16 @@ private fun PlaylistDetailScreenContent(
                                         onMoreClick = { selectedMediaItem = song }
                                     )
                                 },
-                                onClick = if (song.isPlayable) { { onPlaySong(song) } } else null,
+                                onClick = if (song.isPlayable) {
+                                    { onPlaySong(song) }
+                                } else null,
                                 onLongClick = { selectedMediaItem = song },
-                                onPlayNext = if (song.isPlayable) { { onPlayNext(song) } } else null,
-                                onAddToQueue = if (song.isPlayable) { { onAddToQueue(song) } } else null,
+                                onPlayNext = if (song.isPlayable) {
+                                    { onPlayNext(song) }
+                                } else null,
+                                onAddToQueue = if (song.isPlayable) {
+                                    { onAddToQueue(song) }
+                                } else null,
                                 modifier = Modifier
                                     .animateItem()
                                     .fillMaxWidth()

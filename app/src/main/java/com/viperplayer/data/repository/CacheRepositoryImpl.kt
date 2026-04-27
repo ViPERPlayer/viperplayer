@@ -19,7 +19,7 @@ class CacheRepositoryImpl @Inject constructor(
     private val songDao: SongDao,
     private val exoPlayerCache: ExoPlayerCache
 ) : CacheRepository {
-    
+
     override suspend fun getDownloadedSongsSize(): Long = withContext(Dispatchers.IO) {
         var totalSize = 0L
         try {
@@ -36,7 +36,7 @@ class CacheRepositoryImpl @Inject constructor(
         }
         totalSize
     }
-    
+
     override suspend fun clearAllDownloads(): Long = withContext(Dispatchers.IO) {
         var totalBytesCleared = 0L
         try {
@@ -57,13 +57,13 @@ class CacheRepositoryImpl @Inject constructor(
         }
         totalBytesCleared
     }
-    
+
     override suspend fun clearSongCache(): Long = withContext(Dispatchers.IO) {
         var totalBytesCleared = 0L
         try {
             // Clear ExoPlayer cache
             totalBytesCleared += 0L /*exoPlayerCache.clearCache()*/
-            
+
             // Clear DASH manifests
             val dashDir = File(context.cacheDir, "dash_manifests")
             if (dashDir.exists()) {
@@ -86,7 +86,7 @@ class CacheRepositoryImpl @Inject constructor(
         }
         totalBytesCleared
     }
-    
+
     override suspend fun clearImageCache(): Long = withContext(Dispatchers.IO) {
         var totalBytesCleared = 0L
         try {
@@ -95,32 +95,32 @@ class CacheRepositoryImpl @Inject constructor(
             if (artworkDir.exists()) {
                 totalBytesCleared += deleteDirectory(artworkDir)
             }
-            
+
             // Clear artwork cache in cacheDir
             val cacheArtworkDir = File(context.cacheDir, "artwork")
             if (cacheArtworkDir.exists()) {
                 totalBytesCleared += deleteDirectory(cacheArtworkDir)
             }
-            
+
             Timber.d("Cleared image cache: ${totalBytesCleared / (1024 * 1024)} MB")
         } catch (e: Exception) {
             Timber.e(e, "Failed to clear image cache")
         }
         totalBytesCleared
     }
-    
+
     override suspend fun getSongCacheSize(): Long = withContext(Dispatchers.IO) {
         var totalSize = 0L
         try {
             // Get ExoPlayer cache size
             totalSize += exoPlayerCache.getCacheSize()
-            
+
             // Get DASH manifests size
             val dashDir = File(context.cacheDir, "dash_manifests")
             if (dashDir.exists()) {
                 totalSize += getDirectorySize(dashDir)
             }
-            
+
             // Get other song cache files size
             context.cacheDir.listFiles()?.forEach { file ->
                 if (file.isDirectory && file.name != "artwork" && file.name != "dash_manifests" && file.name != "exoplayer_cache") {
@@ -134,7 +134,7 @@ class CacheRepositoryImpl @Inject constructor(
         }
         totalSize
     }
-    
+
     override suspend fun getImageCacheSize(): Long = withContext(Dispatchers.IO) {
         var totalSize = 0L
         try {
@@ -143,7 +143,7 @@ class CacheRepositoryImpl @Inject constructor(
             if (artworkDir.exists()) {
                 totalSize += getDirectorySize(artworkDir)
             }
-            
+
             // Get artwork cache size in cacheDir
             val cacheArtworkDir = File(context.cacheDir, "artwork")
             if (cacheArtworkDir.exists()) {
@@ -154,7 +154,7 @@ class CacheRepositoryImpl @Inject constructor(
         }
         totalSize
     }
-    
+
     private fun deleteDirectory(directory: File): Long {
         var totalSize = 0L
         if (directory.exists()) {
@@ -171,7 +171,7 @@ class CacheRepositoryImpl @Inject constructor(
         }
         return totalSize
     }
-    
+
     private fun getDirectorySize(directory: File): Long {
         var totalSize = 0L
         if (directory.exists()) {

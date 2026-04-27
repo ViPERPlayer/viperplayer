@@ -80,7 +80,7 @@ fun SwitchBarPreview() {
     SwitchBar(
         title = {
             Text("Enabled")
-                },
+        },
         checked = true,
         onCheckedChange = {},
     )
@@ -92,7 +92,7 @@ fun SwitchBarDisabledPreview() {
     SwitchBar(
         title = {
             Text("Disabled")
-                },
+        },
         checked = false,
         onCheckedChange = {},
     )

@@ -24,14 +24,14 @@ data class AboutSettingsUiState(
 class AboutSettingsViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(AboutSettingsUiState())
     val uiState: StateFlow<AboutSettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         loadAppInfo()
     }
-    
+
     private fun loadAppInfo() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {

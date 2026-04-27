@@ -91,20 +91,20 @@ fun FrequencyResponseGraph(
         val targetStep = range / 4f
         val exponent = kotlin.math.floor(log10(targetStep))
         val fraction = targetStep / 10f.pow(exponent)
-        
+
         val niceFraction = when {
             fraction < 1.5 -> 1f
             fraction < 3.5 -> 2f
             fraction < 7.5 -> 5f
             else -> 10f
         }
-        
+
         val step = if (unit == "°" && range >= 180) 45f else (niceFraction * 10f.pow(exponent))
-        
+
         // Snap start to step
         val startVal = kotlin.math.floor(minY / step).toFloat() * step
         var currentVal = startVal
-        
+
         while (currentVal <= maxY) {
             // Avoid drawing way out of bounds if snap pushed it below
             if (currentVal >= minY) {
@@ -116,7 +116,7 @@ fun FrequencyResponseGraph(
                     strokeWidth = 1f
                 )
                 if (currentVal != minY && currentVal != maxY) {
-                     drawText(
+                    drawText(
                         textMeasurer = textMeasurer,
                         text = "${currentVal.toInt()}$unit",
                         style = labelStyle,
@@ -126,7 +126,7 @@ fun FrequencyResponseGraph(
             }
             currentVal += step
         }
-        
+
         // Zero line emphasis
         if (minY < 0 && maxY > 0) {
             val zeroY = yForValue(0f)
@@ -142,7 +142,7 @@ fun FrequencyResponseGraph(
         if (points.isNotEmpty()) {
             val path = Path()
             var first = true
-            
+
             points.forEach { (freq, value) ->
                 val x = xForFreq(freq)
                 val y = yForValue(value)
@@ -153,7 +153,7 @@ fun FrequencyResponseGraph(
                     path.lineTo(x, y)
                 }
             }
-            
+
             drawPath(
                 path = path,
                 color = lineColor,

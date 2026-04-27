@@ -1,9 +1,7 @@
 package com.viperplayer.presentation.detail
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
@@ -12,7 +10,9 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.PlaylistDetail
-import com.viperplayer.presentation.navigation.PlaylistNavType
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,8 +22,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import kotlin.reflect.typeOf
 
 /**
  * UI state for Playlist Detail screen.
@@ -34,26 +32,30 @@ sealed class PlaylistDetailUiState {
         val playlist: Playlist,
         val songs: List<Song>
     ) : PlaylistDetailUiState()
+
     data class Error(val message: String) : PlaylistDetailUiState()
 }
 
 /**
  * ViewModel for Playlist Detail screen.
  */
-@HiltViewModel
-class PlaylistDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+@HiltViewModel(assistedFactory = PlaylistDetailViewModel.Factory::class)
+class PlaylistDetailViewModel @AssistedInject constructor(
+    @Assisted private val playlistDetail: PlaylistDetail,
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository
 ) : ViewModel() {
 
-    private val playlistDetail = savedStateHandle.toRoute<PlaylistDetail>(
-        typeMap = mapOf(typeOf<Playlist>() to PlaylistNavType)
-    )
+    @AssistedFactory
+    interface Factory {
+        fun create(playlistDetail: PlaylistDetail): PlaylistDetailViewModel
+    }
+
     private val playlistId: MediaId = playlistDetail.initialPlaylist.id
 
-    private val _uiState = MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading(playlistDetail.initialPlaylist))
+    private val _uiState =
+        MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading(playlistDetail.initialPlaylist))
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -65,7 +67,7 @@ class PlaylistDetailViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
-    
+
     // Track if we're already observing the liked songs playlist
     private var isObservingLikedSongs = false
 
@@ -140,19 +142,21 @@ class PlaylistDetailViewModel @Inject constructor(
                 if (song.isPlayable) {
                     val state = _uiState.value
                     if (state !is PlaylistDetailUiState.Success) return@launch
-                    
+
                     val songs = state.songs.filter { it.isPlayable }
 
                     if (songs.isNotEmpty()) {
                         val index = songs.indexOfFirst { it.id == song.id }
-                        val context = PlaybackContext.Playlist(state.playlist.id, state.playlist.name)
+                        val context =
+                            PlaybackContext.Playlist(state.playlist.id, state.playlist.name)
                         if (index != -1) {
                             playerRepository.playAll(songs, index, context)
                         } else {
                             playerRepository.play(song, context)
                         }
                     } else {
-                        val context = PlaybackContext.Playlist(state.playlist.id, state.playlist.name)
+                        val context =
+                            PlaybackContext.Playlist(state.playlist.id, state.playlist.name)
                         playerRepository.play(song, context)
                     }
                 }
@@ -182,7 +186,9 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val songs = when (val state = _uiState.value) {
-                    is PlaylistDetailUiState.Success -> state.songs.filter { it.isPlayable }.shuffled()
+                    is PlaylistDetailUiState.Success -> state.songs.filter { it.isPlayable }
+                        .shuffled()
+
                     else -> emptyList()
                 }
                 if (songs.isNotEmpty()) {

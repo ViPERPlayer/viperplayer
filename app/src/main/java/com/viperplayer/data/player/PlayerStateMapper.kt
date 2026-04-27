@@ -12,7 +12,7 @@ import com.viperplayer.domain.model.Song
  * Mapper between Media3 Player state and domain PlayerState.
  */
 object PlayerStateMapper {
-    
+
     /**
      * Creates PlaybackInfo from a Player instance.
      * Does NOT include position, currentSong, or duration - these are separate.

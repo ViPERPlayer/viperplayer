@@ -89,131 +89,132 @@ fun PluginsScreen(
                 }
             }
         )
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(rootPadding.with(bottom = 0.dp))
         ) {
-        
-        uiState.error?.let { error ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
-        
-        if (uiState.discoveredPlugins.isEmpty() && !uiState.isRefreshing) {
-            Box(
-                modifier = Modifier
-                    .padding(rootPadding.bottom())
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+
+            uiState.error?.let { error ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Extension,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No plugins found",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = error,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(16.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Install a music plugin to add music sources",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                data = Uri.parse("https://github.com/viperplayer/plugins")
-                            }
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.fillMaxWidth(0.7f)
+                }
+            }
+
+            if (uiState.discoveredPlugins.isEmpty() && !uiState.isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .padding(rootPadding.bottom())
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Download,
+                            imageVector = Icons.Default.Extension,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Download Plugins")
-                    }
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = rootPadding.bottom() + PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(uiState.discoveredPlugins) { plugin ->
-                    val isEnabled = viewModel.isEnabled(plugin.id)
-                    val isConnected = viewModel.isConnected(plugin.id)
-                    val connectedPlugin = viewModel.getConnectedPlugin(plugin.id)
-                    val isToggling = uiState.togglingPluginId == plugin.id
-                    
-                    PluginCard(
-                        plugin = plugin,
-                        isEnabled = isEnabled,
-                        isConnected = isConnected,
-                        isToggling = isToggling,
-                        connectedPlugin = connectedPlugin,
-                        showMenu = menuPluginId == plugin.id,
-                        onToggle = { viewModel.togglePlugin(plugin.id) },
-                        onLongPress = { menuPluginId = plugin.id },
-                        onDismissMenu = { menuPluginId = null },
-                        onShowInfo = {
-                            showInfoDialog = plugin
-                            menuPluginId = null
-                        },
-                        onUninstall = {
-                            menuPluginId = null
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = "package:${plugin.id}".toUri()
-                            }
-                            context.startActivity(intent)
-                        },
-                        onOpenSettings = {
-                            if (plugin.settingsActivity != null) {
-                                val intent = Intent().apply {
-                                    component = ComponentName(
-                                        plugin.id,
-                                        if (plugin.settingsActivity.startsWith(".")) {
-                                            plugin.id + plugin.settingsActivity
-                                        } else {
-                                            plugin.settingsActivity
-                                        }
-                                    )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No plugins found",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Install a music plugin to add music sources",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    data = Uri.parse("https://github.com/viperplayer/plugins")
                                 }
                                 context.startActivity(intent)
-                            }
+                            },
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Download Plugins")
                         }
-                    )
+                    }
                 }
-            }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = rootPadding.bottom() + PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.discoveredPlugins) { plugin ->
+                        val isEnabled = viewModel.isEnabled(plugin.id)
+                        val isConnected = viewModel.isConnected(plugin.id)
+                        val connectedPlugin = viewModel.getConnectedPlugin(plugin.id)
+                        val isToggling = uiState.togglingPluginId == plugin.id
+
+                        PluginCard(
+                            plugin = plugin,
+                            isEnabled = isEnabled,
+                            isConnected = isConnected,
+                            isToggling = isToggling,
+                            connectedPlugin = connectedPlugin,
+                            showMenu = menuPluginId == plugin.id,
+                            onToggle = { viewModel.togglePlugin(plugin.id) },
+                            onLongPress = { menuPluginId = plugin.id },
+                            onDismissMenu = { menuPluginId = null },
+                            onShowInfo = {
+                                showInfoDialog = plugin
+                                menuPluginId = null
+                            },
+                            onUninstall = {
+                                menuPluginId = null
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = "package:${plugin.id}".toUri()
+                                    }
+                                context.startActivity(intent)
+                            },
+                            onOpenSettings = {
+                                if (plugin.settingsActivity != null) {
+                                    val intent = Intent().apply {
+                                        component = ComponentName(
+                                            plugin.id,
+                                            if (plugin.settingsActivity.startsWith(".")) {
+                                                plugin.id + plugin.settingsActivity
+                                            } else {
+                                                plugin.settingsActivity
+                                            }
+                                        )
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -226,18 +227,31 @@ fun PluginsScreen(
             text = {
                 Column {
                     if (!plugin.author.isNullOrBlank()) {
-                        Text(text = "Author: ${plugin.author}", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = "Author: ${plugin.author}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Text(text = "Version: ${plugin.version}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "Version: ${plugin.version}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "API Version: ${plugin.apiVersion}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "API Version: ${plugin.apiVersion}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     if (!plugin.description.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = plugin.description, style = MaterialTheme.typography.bodyMedium)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Package: ${plugin.id}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = "Package: ${plugin.id}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             },
             confirmButton = {
@@ -297,16 +311,16 @@ fun PluginCard(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = plugin.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                
+
                 if (!plugin.author.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -315,7 +329,7 @@ fun PluginCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
-                
+
                 if (!plugin.description.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -324,16 +338,16 @@ fun PluginCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "API v${plugin.apiVersion}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     if (isConnected) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
@@ -349,7 +363,7 @@ fun PluginCard(
                         }
                     }
                 }
-                
+
                 // Show capabilities if connected
                 connectedPlugin?.let { connected ->
                     Spacer(modifier = Modifier.height(8.dp))
@@ -368,12 +382,12 @@ fun PluginCard(
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             // Show settings button if plugin has settings activity
             if (plugin.settingsActivity != null) {
-                androidx.compose.material3.IconButton(
+                IconButton(
                     onClick = onOpenSettings,
                     modifier = Modifier.size(40.dp)
                 ) {
@@ -385,7 +399,7 @@ fun PluginCard(
                 }
                 Spacer(modifier = Modifier.width(4.dp))
             }
-            
+
             Box {
                 if (isToggling) {
                     CircularProgressIndicator(

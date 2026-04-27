@@ -34,25 +34,25 @@ class ViperRepositoryImpl @Inject constructor(
     private val audioDeviceManager: AudioDeviceManager
 
 ) : ViperRepository {
-    
+
     private val presetDao: ViperPresetDao = database.viperPresetDao()
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    
+
     // Current effects state - initialized from default or loaded preset
     private val _effectsState = MutableStateFlow(ViperEffectsState.default())
     override val effectsState: StateFlow<ViperEffectsState> = _effectsState.asStateFlow()
-    
+
     // Current active device ID (null = using default)
     private val _activeDevice = MutableStateFlow<AudioOutputDevice?>(null)
     override val activeDevice: StateFlow<AudioOutputDevice?> = _activeDevice.asStateFlow()
-    
+
     init {
         // Observe audio device changes and automatically switch presets
         observeAudioDeviceChanges()
         // Observe effects state changes and auto-save with debounce
         observeAndPersistEffectsState()
     }
-    
+
     /**
      * Observes effects state changes and automatically persists them with debounce.
      * This ensures all changes are saved, even if there's no active preset.
@@ -68,13 +68,12 @@ class ViperRepositoryImpl @Inject constructor(
                 persistCurrentState(state)
             }
             .launchIn(repositoryScope)
-            
+
         // Apply initial state
 
     }
 
 
-    
     /**
      * Persists the current effects state.
      * If there's an active preset, updates it. Otherwise, creates or updates a default preset.
@@ -103,7 +102,7 @@ class ViperRepositoryImpl @Inject constructor(
             createDevicePreset(state, currentDevice)
         }
     }
-    
+
     /**
      * Creates a new preset for the given device.
      */
@@ -122,7 +121,7 @@ class ViperRepositoryImpl @Inject constructor(
         }
         Timber.d("Auto-created device preset: $id for device: ${device.id}")
     }
-    
+
     /**
      * Observes audio device changes and automatically loads the appropriate preset.
      */
@@ -136,11 +135,11 @@ class ViperRepositoryImpl @Inject constructor(
             }
             .launchIn(repositoryScope)
     }
-    
+
     override suspend fun updateEffectsState(update: (ViperEffectsState) -> ViperEffectsState) {
         _effectsState.update(update)
     }
-    
+
     private suspend fun setActiveDevice(device: AudioOutputDevice) {
         _activeDevice.value = device
 
@@ -155,7 +154,7 @@ class ViperRepositoryImpl @Inject constructor(
             _effectsState.value = ViperEffectsState.default()
         }
     }
-    
+
     // Preset management
     private suspend fun getPresetById(id: Long): ViperPreset? {
         return presetDao.getPresetById(id)?.toDomain()

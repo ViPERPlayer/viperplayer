@@ -1,9 +1,7 @@
 package com.viperplayer.presentation.detail
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
@@ -12,7 +10,9 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.AlbumDetail
-import com.viperplayer.presentation.navigation.AlbumNavType
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,8 +22,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import kotlin.reflect.typeOf
 
 /**
  * UI state for Album Detail screen.
@@ -37,20 +35,23 @@ sealed class AlbumDetailUiState {
 /**
  * ViewModel for Album Detail screen.
  */
-@HiltViewModel
-class AlbumDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+@HiltViewModel(assistedFactory = AlbumDetailViewModel.Factory::class)
+class AlbumDetailViewModel @AssistedInject constructor(
+    @Assisted private val albumDetail: AlbumDetail,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
-    private val albumDetail = savedStateHandle.toRoute<AlbumDetail>(
-        typeMap = mapOf(typeOf<Album>() to AlbumNavType)
-    )
+    @AssistedFactory
+    interface Factory {
+        fun create(albumDetail: AlbumDetail): AlbumDetailViewModel
+    }
+
     private val albumId: MediaId = albumDetail.initialAlbum.id
 
-    private val _uiState = MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading(albumDetail.initialAlbum))
+    private val _uiState =
+        MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading(albumDetail.initialAlbum))
     val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository

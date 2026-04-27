@@ -189,11 +189,13 @@ private fun HomeScreenContent(
         }
     ) { contentPadding ->
         val isRefreshing = (uiState as? HomeUiState.Content)?.isRefreshing ?: false
-        
+
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
-            modifier = Modifier.padding(contentPadding).fillMaxSize()
+            modifier = Modifier
+                .padding(contentPadding)
+                .fillMaxSize()
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -212,6 +214,7 @@ private fun HomeScreenContent(
                             }
                         }
                     }
+
                     is HomeUiState.Error -> {
                         item {
                             Card(
@@ -230,6 +233,7 @@ private fun HomeScreenContent(
                             }
                         }
                     }
+
                     is HomeUiState.Content -> {
                         // Empty state (no plugins)
                         if (state.connectedPlugins.isEmpty()) {
@@ -240,7 +244,9 @@ private fun HomeScreenContent(
                                         .padding(16.dp)
                                 ) {
                                     Column(
-                                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
@@ -294,7 +300,10 @@ private fun HomeScreenContent(
                                         text = "Quick Picks",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(
+                                            horizontal = 16.dp,
+                                            vertical = 8.dp
+                                        )
                                     )
                                 }
                                 item {
@@ -344,7 +353,10 @@ private fun HomeScreenContent(
                                                     is Album -> onNavigateToAlbum(item)
                                                     is Artist -> onNavigateToArtist(item)
                                                     is Playlist -> onNavigateToPlaylist(item)
-                                                    is Song -> onPlaySongFromSection(item, section.id)
+                                                    is Song -> onPlaySongFromSection(
+                                                        item,
+                                                        section.id
+                                                    )
                                                 }
                                             }
                                         )
@@ -400,24 +412,24 @@ fun MediaItemCard(
     modifier: Modifier = Modifier
 ) {
     val title = when (item) {
-        is com.viperplayer.domain.model.Song -> item.title
+        is Song -> item.title
         is Album -> item.name
-        is com.viperplayer.domain.model.Artist -> item.name
-        is com.viperplayer.domain.model.Playlist -> item.name
+        is Artist -> item.name
+        is Playlist -> item.name
     }
 
     val subtitle = when (item) {
-        is com.viperplayer.domain.model.Song -> item.artistNames
+        is Song -> item.artistNames
         is Album -> item.artistName
-        is com.viperplayer.domain.model.Artist -> null
-        is com.viperplayer.domain.model.Playlist -> item.description
+        is Artist -> null
+        is Playlist -> item.description
     }
 
     val artworkUrl = when (item) {
-        is com.viperplayer.domain.model.Song -> item.artworkUrl
+        is Song -> item.artworkUrl
         is Album -> item.artworkUrl
-        is com.viperplayer.domain.model.Artist -> item.imageUrl
-        is com.viperplayer.domain.model.Playlist -> item.artworkUrl
+        is Artist -> item.imageUrl
+        is Playlist -> item.artworkUrl
     }
 
     Column(

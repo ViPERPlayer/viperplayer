@@ -37,7 +37,7 @@ object ViperEqualizerMath {
             b0 = b0 / a0,
             b1 = b1 / a0,
             b2 = b2 / a0,
-            a0 = 1.0, 
+            a0 = 1.0,
             a1 = a1 / a0,
             a2 = a2 / a0
         )
@@ -56,7 +56,7 @@ object ViperEqualizerMath {
         val sin2W = sin(2 * w)
 
         // H(z) = (b0 + b1 z^-1 + b2 z^-2) / (a0 + a1 z^-1 + a2 z^-2)
-        
+
         val numRe = coeffs.b0 + coeffs.b1 * cosW + coeffs.b2 * cos2W
         val numIm = -(coeffs.b1 * sinW + coeffs.b2 * sin2W)
         val denRe = coeffs.a0 + coeffs.a1 * cosW + coeffs.a2 * cos2W
@@ -69,7 +69,7 @@ object ViperEqualizerMath {
 
         return Complex(re, im)
     }
-    
+
     data class Complex(val re: Double, val im: Double) {
         operator fun times(other: Complex): Complex {
             return Complex(
@@ -77,7 +77,7 @@ object ViperEqualizerMath {
                 re * other.im + im * other.re
             )
         }
-        
+
         fun magnitude(): Double {
             return sqrt(re * re + im * im)
         }
@@ -95,16 +95,66 @@ object ViperEqualizerMath {
             31 -> 4.318
             else -> 1.414
         }
-        
+
         // TODO: Replace with shared frequency constant source if possible
         // For now, mirroring C++ frequencies
         val frequencies = when (bandCount) {
             10 -> listOf(31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0)
-            15 -> listOf(25.0, 40.0, 63.0, 100.0, 160.0, 250.0, 400.0, 630.0, 1000.0, 1600.0, 2500.0, 4000.0, 6300.0, 10000.0, 16000.0)
-            31 -> listOf(20.0, 25.0, 31.5, 40.0, 50.0, 63.0, 80.0, 100.0, 125.0, 160.0, 200.0, 250.0, 315.0, 400.0, 500.0, 630.0, 800.0, 1000.0, 1250.0, 1600.0, 2000.0, 2500.0, 3150.0, 4000.0, 5000.0, 6300.0, 8000.0, 10000.0, 12500.0, 16000.0, 20000.0)
+            15 -> listOf(
+                25.0,
+                40.0,
+                63.0,
+                100.0,
+                160.0,
+                250.0,
+                400.0,
+                630.0,
+                1000.0,
+                1600.0,
+                2500.0,
+                4000.0,
+                6300.0,
+                10000.0,
+                16000.0
+            )
+
+            31 -> listOf(
+                20.0,
+                25.0,
+                31.5,
+                40.0,
+                50.0,
+                63.0,
+                80.0,
+                100.0,
+                125.0,
+                160.0,
+                200.0,
+                250.0,
+                315.0,
+                400.0,
+                500.0,
+                630.0,
+                800.0,
+                1000.0,
+                1250.0,
+                1600.0,
+                2000.0,
+                2500.0,
+                3150.0,
+                4000.0,
+                5000.0,
+                6300.0,
+                8000.0,
+                10000.0,
+                12500.0,
+                16000.0,
+                20000.0
+            )
+
             else -> listOf()
         }
-        
+
         // Generate pre-calculated coeffs for active bands
         val filters = gains.zip(frequencies).map { (gain, freq) ->
             calculateCoefficients(freq, qFactor, gain.toDouble(), samplingRate)
@@ -114,27 +164,27 @@ object ViperEqualizerMath {
         val startFreq = 20.0
         val endFreq = 22000.0
         val steps = 500
-        
+
         for (i in 0 until steps) {
             // Logarithmic sweep
             val f = startFreq * (endFreq / startFreq).pow(i.toDouble() / (steps - 1))
-            
+
             // For serial cascade, H_total = H_1 * H_2 * ... * H_N
             // We multiply the complex responses.
             var totalResponse = Complex(1.0, 0.0)
-            
+
             for (filter in filters) {
                 val response = calculateBiquadResponse(filter, f, samplingRate)
                 totalResponse = totalResponse * response
             }
-            
+
             // Convert to dB
             // 20 * log10(|H_total|)
             val mag = totalResponse.magnitude()
             val dB = if (mag > 0.000001) 20.0 * log10(mag) else -120.0
             points.add(dB)
         }
-        
+
         return points
     }
 

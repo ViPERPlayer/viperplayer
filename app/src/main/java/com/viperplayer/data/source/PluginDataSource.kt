@@ -68,18 +68,19 @@ class PluginDataSource @Inject constructor(
     private val handlerFactory: PluginHandlerFactory
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    
+
     private val _discoveredPlugins = MutableStateFlow<Map<String, DiscoveredPluginInfo>>(emptyMap())
-    val discoveredPlugins: StateFlow<Map<String, DiscoveredPluginInfo>> = _discoveredPlugins.asStateFlow()
-    
+    val discoveredPlugins: StateFlow<Map<String, DiscoveredPluginInfo>> =
+        _discoveredPlugins.asStateFlow()
+
     private val _connectedPlugins = MutableStateFlow<Map<String, ConnectedPlugin>>(emptyMap())
     val connectedPlugins: StateFlow<Map<String, ConnectedPlugin>> = _connectedPlugins.asStateFlow()
-    
+
     // Track ongoing connection attempts to prevent duplicates
     // Protected by connectionMutex for thread safety
     private val ongoingConnections = mutableMapOf<String, ServiceConnection>()
     private val connectionMutex = Mutex()
-    
+
     private val hostCallback = HostCallbackImpl()
 
     init {
@@ -88,7 +89,7 @@ class PluginDataSource @Inject constructor(
                 val receiver = object : BroadcastReceiver() {
                     override fun onReceive(context: Context?, intent: Intent?) {
                         if (context == null || intent == null) return
-                        scope.launch { 
+                        scope.launch {
                             try {
                                 Timber.d("Triggering plugin discovery from broadcast receiver")
                                 trySend(discoverPlugins())
@@ -106,7 +107,7 @@ class PluginDataSource @Inject constructor(
                     addAction(Intent.ACTION_PACKAGE_CHANGED)
                     addDataScheme("package")
                 }
-                
+
                 Timber.d("Registering BroadcastReceiver for package events")
                 context.registerReceiver(receiver, intentFilter)
 
@@ -132,12 +133,12 @@ class PluginDataSource @Inject constructor(
                 // Get current state atomically
                 val currentConnected = _connectedPlugins.value
                 val currentDiscovered = discovered
-                
+
                 // Disconnect plugins that are no longer discovered or disabled
                 val toDisconnect = currentConnected.keys.filter { pluginId ->
                     !currentDiscovered.containsKey(pluginId) || pluginId in disabled
                 }
-                
+
                 toDisconnect.forEach { pluginId ->
                     try {
                         disconnectPlugin(pluginId)
@@ -150,7 +151,7 @@ class PluginDataSource @Inject constructor(
                 val toConnect = currentDiscovered.keys.filter { pluginId ->
                     pluginId !in currentConnected && pluginId !in disabled
                 }
-                
+
                 toConnect.forEach { pluginId ->
                     try {
                         connectPlugin(pluginId)
@@ -205,7 +206,7 @@ class PluginDataSource @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Discover all installed plugins.
      * Plugin ID is the package name.
@@ -238,7 +239,10 @@ class PluginDataSource @Inject constructor(
             val pluginId = serviceInfo.packageName
 
             // Get plugin info from metadata and package manager
-            val pluginName = metaData.getString(PluginConstants.META_PLUGIN_NAME) ?: serviceInfo.loadLabel(context.packageManager).toString()
+            val pluginName =
+                metaData.getString(PluginConstants.META_PLUGIN_NAME) ?: serviceInfo.loadLabel(
+                    context.packageManager
+                ).toString()
             val description = metaData.getString(PluginConstants.META_PLUGIN_DESCRIPTION)
 
             // Get version from package info
@@ -266,7 +270,7 @@ class PluginDataSource @Inject constructor(
     suspend fun refreshPlugins() {
         _discoveredPlugins.value = discoverPlugins()
     }
-    
+
     /**
      * Connect to a plugin.
      * Thread-safe and prevents concurrent connection attempts for the same plugin.
@@ -299,7 +303,7 @@ class PluginDataSource @Inject constructor(
                         onPluginConnectionFailed(pluginId = pluginId, retry = false)
                         return
                     }
-                    
+
                     when (apiVersion) {
                         1 -> connectPluginV1(discovered, binder, this)
                         else -> {
@@ -411,7 +415,7 @@ class PluginDataSource @Inject constructor(
                 // Double-check that plugin is still in discovered list and not disabled before connecting
                 val isStillDiscovered = _discoveredPlugins.value.containsKey(discovered.id)
                 val isDisabled = pluginPreferences.isDisabledSync(discovered.id)
-                
+
                 if (!isStillDiscovered || isDisabled) {
                     Timber.d("Plugin ${discovered.id} no longer discovered or disabled, aborting connection")
                     onPluginConnectionFailed(discovered.id, retry = false)
@@ -431,20 +435,20 @@ class PluginDataSource @Inject constructor(
 
                 // Create handler using factory
                 val handler = handlerFactory.createHandler(discovered.id, binder)
-                
+
                 // Verify handler API version matches
                 require(handler.apiVersion == 1) {
                     "Handler API version mismatch: expected 1, got ${handler.apiVersion}"
                 }
-                
+
                 // Get settings activity from the plugin
                 val settingsActivity = handler.getSettingsActivityClass()
-                
+
                 // Update plugin info with settings activity from the connected plugin
                 val pluginInfoWithSettings = pluginInfo.copy(
                     settingsActivity = settingsActivity
                 )
-                
+
                 // Create connected plugin using the handler
                 val connectedData = ConnectedPlugin(
                     info = pluginInfoWithSettings,
@@ -471,14 +475,14 @@ class PluginDataSource @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Disconnect from a plugin.
      * Thread-safe and ensures proper cleanup.
      */
     suspend fun disconnectPlugin(pluginId: String) {
         Timber.d("Disconnecting plugin: $pluginId")
-        
+
         // Get connections atomically but don't remove from maps yet
         // This prevents race conditions where another thread might try to use the plugin
         val (ongoingConnection, connected) = connectionMutex.withLock {
@@ -527,16 +531,16 @@ class PluginDataSource @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Error unbinding service for plugin: $pluginId")
         }
-        
+
         // Finally, remove from connected plugins map after unbinding is complete
         // This ensures the plugin is fully disconnected before it's removed from the map
         connectionMutex.withLock {
             _connectedPlugins.update { it - pluginId }
         }
-        
+
         Timber.d("Plugin $pluginId disconnected and removed from connected plugins")
     }
-    
+
     /**
      * Disconnect from all plugins.
      * Thread-safe and ensures proper cleanup.
@@ -575,7 +579,7 @@ class PluginDataSource @Inject constructor(
 
         Timber.d("All plugins disconnected")
     }
-    
+
     /**
      * Enable a plugin (connects it automatically).
      */
@@ -584,7 +588,7 @@ class PluginDataSource @Inject constructor(
         pluginPreferences.setDisabled(pluginId, false)
         connectPlugin(pluginId)
     }
-    
+
     /**
      * Disable a plugin (disconnects it).
      */
@@ -593,7 +597,7 @@ class PluginDataSource @Inject constructor(
         pluginPreferences.setDisabled(pluginId, true)
         disconnectPlugin(pluginId)
     }
-    
+
     /**
      * Get a connected plugin by ID (internal use only).
      * Throws PluginException if plugin is not connected.
@@ -602,7 +606,7 @@ class PluginDataSource @Inject constructor(
         return _connectedPlugins.value[pluginId]
             ?: throw PluginException(0, "Plugin not connected: $pluginId")
     }
-    
+
     /**
      * Search in a specific plugin.
      */
@@ -621,7 +625,7 @@ class PluginDataSource @Inject constructor(
             Timber.e(it, "Error searching in plugin: $pluginId, query: $query")
         }
     }
-    
+
     /**
      * Get browse categories from a plugin.
      */
@@ -641,7 +645,7 @@ class PluginDataSource @Inject constructor(
             Timber.e(it, "Error getting browse categories from plugin: $pluginId")
         }
     }
-    
+
     /**
      * Get category contents from a plugin.
      */
@@ -655,10 +659,13 @@ class PluginDataSource @Inject constructor(
             val plugin = getPlugin(pluginId)
             plugin.handler.getCategoryContents(categoryId, cursor, limit)
         }.onFailure {
-            Timber.e(it, "Error getting category contents from plugin: $pluginId, categoryId: $categoryId")
+            Timber.e(
+                it,
+                "Error getting category contents from plugin: $pluginId, categoryId: $categoryId"
+            )
         }
     }
-    
+
     /**
      * Get library songs from a plugin.
      */
@@ -674,7 +681,7 @@ class PluginDataSource @Inject constructor(
             Timber.e(it, "Error getting library songs from plugin: $pluginId")
         }
     }
-    
+
     /**
      * Get library albums from a plugin.
      */
@@ -690,7 +697,7 @@ class PluginDataSource @Inject constructor(
             Timber.e(it, "Error getting library albums from plugin: $pluginId")
         }
     }
-    
+
     /**
      * Get library artists from a plugin.
      */
@@ -706,7 +713,7 @@ class PluginDataSource @Inject constructor(
             Timber.e(it, "Error getting library artists from plugin: $pluginId")
         }
     }
-    
+
     /**
      * Get library playlists from a plugin.
      */
@@ -722,7 +729,7 @@ class PluginDataSource @Inject constructor(
             Timber.e(it, "Error getting library playlists from plugin: $pluginId")
         }
     }
-    
+
     /**
      * Get song details from a plugin.
      */
@@ -743,7 +750,10 @@ class PluginDataSource @Inject constructor(
             val plugin = getPlugin(id.pluginId)
             plugin.handler.getArtist(id.sourceId)
         }.onFailure {
-            Timber.e(it, "Error getting artist from plugin: ${id.pluginId}, artistId: ${id.sourceId}")
+            Timber.e(
+                it,
+                "Error getting artist from plugin: ${id.pluginId}, artistId: ${id.sourceId}"
+            )
         }
     }
 
@@ -770,7 +780,10 @@ class PluginDataSource @Inject constructor(
             Timber.d("getPlaylist() finished")
             playlist
         }.onFailure {
-            Timber.e(it, "Error getting playlist from plugin: ${id.pluginId}, playlistId: ${id.sourceId}")
+            Timber.e(
+                it,
+                "Error getting playlist from plugin: ${id.pluginId}, playlistId: ${id.sourceId}"
+            )
         }
     }
 
@@ -786,7 +799,10 @@ class PluginDataSource @Inject constructor(
             val plugin = getPlugin(artistId.pluginId)
             plugin.handler.getArtistSongs(artistId.sourceId, cursor, limit)
         }.onFailure {
-            Timber.e(it, "Error getting artist songs from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}")
+            Timber.e(
+                it,
+                "Error getting artist songs from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}"
+            )
         }
     }
 
@@ -802,7 +818,10 @@ class PluginDataSource @Inject constructor(
             val plugin = getPlugin(artistId.pluginId)
             plugin.handler.getArtistAlbums(artistId.sourceId, cursor, limit)
         }.onFailure {
-            Timber.e(it, "Error getting artist albums from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}")
+            Timber.e(
+                it,
+                "Error getting artist albums from plugin: ${artistId.pluginId}, artistId: ${artistId.sourceId}"
+            )
         }
     }
 
@@ -830,10 +849,13 @@ class PluginDataSource @Inject constructor(
             val plugin = getPlugin(playlistId.pluginId)
             plugin.handler.getPlaylistSongs(playlistId.sourceId, cursor, limit)
         }.onFailure {
-            Timber.e(it, "Error getting playlist songs from plugin: ${playlistId.pluginId}, playlistId: ${playlistId.sourceId}")
+            Timber.e(
+                it,
+                "Error getting playlist songs from plugin: ${playlistId.pluginId}, playlistId: ${playlistId.sourceId}"
+            )
         }
     }
-    
+
     /**
      * Get a stream source for playback from a plugin.
      * Can return a URL, DASH XML, or AudioStream based on what the plugin supports.
@@ -849,7 +871,10 @@ class PluginDataSource @Inject constructor(
             val plugin = getPlugin(mediaId.pluginId)
             plugin.handler.getStream(mediaId.sourceId)
         }.onFailure {
-            Timber.e(it, "Error getting stream from plugin: ${mediaId.pluginId}, mediaId: ${mediaId.sourceId}")
+            Timber.e(
+                it,
+                "Error getting stream from plugin: ${mediaId.pluginId}, mediaId: ${mediaId.sourceId}"
+            )
         }
     }
 
@@ -863,7 +888,12 @@ class PluginDataSource @Inject constructor(
                 launch {
                     val result = plugin.handler.getSearchSuggestions(query)
                         .mapCatching { it.toDomain(pluginId) }
-                        .onFailure { Timber.e(it, "Error getting search suggestions from plugin: $pluginId, query: $query") }
+                        .onFailure {
+                            Timber.e(
+                                it,
+                                "Error getting search suggestions from plugin: $pluginId, query: $query"
+                            )
+                        }
 
                     synchronized(results) {
                         results.add(result)
@@ -874,7 +904,7 @@ class PluginDataSource @Inject constructor(
         }
     }
 
-    private inner class HostCallbackImpl : IHostCallbackV1.Stub() {
+    private class HostCallbackImpl : IHostCallbackV1.Stub() {
         override fun play(mediaId: String) {}
         override fun pause() {}
         override fun resume() {}
@@ -910,4 +940,5 @@ data class DiscoveredPluginInfo(
 /**
  * Plugin exception.
  */
-class PluginException(val errorCode: Int, override val message: String?) : Exception(message ?: "Unknown error")
+class PluginException(val errorCode: Int, override val message: String?) :
+    Exception(message ?: "Unknown error")

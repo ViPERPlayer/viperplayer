@@ -27,7 +27,7 @@ class AudioDeviceManager @Inject constructor(
     private val mediaRouter: MediaRouter = MediaRouter.getInstance(context)
 
     private val _currentDevice = MutableStateFlow<AudioOutputDevice?>(null)
-    
+
     /**
      * Flow of the current audio output device.
      * Emits null if no device is detected or if using default routing.
@@ -64,10 +64,12 @@ class AudioDeviceManager @Inject constructor(
 
     init {
         // Register MediaRouter callback for all route changes
-        mediaRouter.addCallback(MediaRouteSelector.Builder()
-            .addControlCategory(MediaControlIntent.CATEGORY_LIVE_AUDIO)
-            .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_AUDIO_PLAYBACK)
-            .build(), mediaRouterCallback)
+        mediaRouter.addCallback(
+            MediaRouteSelector.Builder()
+                .addControlCategory(MediaControlIntent.CATEGORY_LIVE_AUDIO)
+                .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_AUDIO_PLAYBACK)
+                .build(), mediaRouterCallback
+        )
 
         // Get initial device
         updateCurrentDeviceFromRoute()

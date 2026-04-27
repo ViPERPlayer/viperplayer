@@ -71,25 +71,43 @@ class ViperViewModel @Inject constructor(
     // Master Limiter
     fun setMasterLimiterOutputGain(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(masterLimiter = it.masterLimiter.copy(outputGain = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    masterLimiter = it.masterLimiter.copy(
+                        outputGain = value
+                    )
+                )
+            }
         }
     }
 
     fun setMasterLimiterOutputPan(value: Float) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(masterLimiter = it.masterLimiter.copy(outputPan = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    masterLimiter = it.masterLimiter.copy(
+                        outputPan = value
+                    )
+                )
+            }
         }
     }
 
     fun setMasterLimiterThresholdLimit(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(masterLimiter = it.masterLimiter.copy(thresholdLimit = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    masterLimiter = it.masterLimiter.copy(
+                        thresholdLimit = value
+                    )
+                )
+            }
         }
     }
 
     fun resetMasterLimiterOutputGain() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { 
+            viperRepository.updateEffectsState {
                 it.copy(masterLimiter = it.masterLimiter.copy(outputGain = ViperDefaults.OUTPUT_GAIN_INDEX))
             }
         }
@@ -97,13 +115,19 @@ class ViperViewModel @Inject constructor(
 
     fun resetMasterLimiterOutputPan() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(masterLimiter = it.masterLimiter.copy(outputPan = ViperDefaults.OUTPUT_PAN)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    masterLimiter = it.masterLimiter.copy(
+                        outputPan = ViperDefaults.OUTPUT_PAN
+                    )
+                )
+            }
         }
     }
 
     fun resetMasterLimiterThresholdLimit() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { 
+            viperRepository.updateEffectsState {
                 it.copy(masterLimiter = it.masterLimiter.copy(thresholdLimit = ViperDefaults.THRESHOLD_LIMIT_INDEX))
             }
         }
@@ -112,69 +136,135 @@ class ViperViewModel @Inject constructor(
     // Spectrum Extension
     fun setSpectrumExtensionEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(spectrumExtension = it.spectrumExtension.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    spectrumExtension = it.spectrumExtension.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
     fun setSpectrumExtensionStrength(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(spectrumExtension = it.spectrumExtension.copy(strength = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    spectrumExtension = it.spectrumExtension.copy(
+                        strength = value
+                    )
+                )
+            }
         }
     }
 
     fun resetSpectrumExtensionStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(spectrumExtension = it.spectrumExtension.copy(strength = ViperDefaults.SPECTRUM_EXTENSION_STRENGTH)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    spectrumExtension = it.spectrumExtension.copy(
+                        strength = ViperDefaults.SPECTRUM_EXTENSION_STRENGTH
+                    )
+                )
+            }
         }
     }
 
     // Field Surround
     fun setFieldSurroundEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    fieldSurround = it.fieldSurround.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
     fun setFieldSurroundStrength(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(surroundStrength = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    fieldSurround = it.fieldSurround.copy(
+                        surroundStrength = value
+                    )
+                )
+            }
         }
     }
 
     fun setFieldSurroundMidImageStrength(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(midImageStrength = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    fieldSurround = it.fieldSurround.copy(
+                        midImageStrength = value
+                    )
+                )
+            }
         }
     }
 
     fun resetFieldSurroundStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(surroundStrength = ViperDefaults.FIELD_SURROUND_STRENGTH)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    fieldSurround = it.fieldSurround.copy(
+                        surroundStrength = ViperDefaults.FIELD_SURROUND_STRENGTH
+                    )
+                )
+            }
         }
     }
 
     fun resetFieldSurroundMidImageStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(fieldSurround = it.fieldSurround.copy(midImageStrength = ViperDefaults.FIELD_SURROUND_MID_IMAGE_STRENGTH)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    fieldSurround = it.fieldSurround.copy(
+                        midImageStrength = ViperDefaults.FIELD_SURROUND_MID_IMAGE_STRENGTH
+                    )
+                )
+            }
         }
     }
 
     // Differential Surround
     fun setDifferentialSurroundEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(differentialSurround = it.differentialSurround.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    differentialSurround = it.differentialSurround.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
     fun setDifferentialSurroundDelay(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(differentialSurround = it.differentialSurround.copy(delay = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    differentialSurround = it.differentialSurround.copy(
+                        delay = value
+                    )
+                )
+            }
         }
     }
 
     fun resetDifferentialSurroundDelay() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(differentialSurround = it.differentialSurround.copy(delay = ViperDefaults.DIFFERENTIAL_SURROUND_DELAY)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    differentialSurround = it.differentialSurround.copy(
+                        delay = ViperDefaults.DIFFERENTIAL_SURROUND_DELAY
+                    )
+                )
+            }
         }
     }
 
@@ -187,13 +277,25 @@ class ViperViewModel @Inject constructor(
 
     fun setPlaybackGainStrength(strength: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(strength = strength)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    playbackGain = it.playbackGain.copy(
+                        strength = strength
+                    )
+                )
+            }
         }
     }
 
     fun resetPlaybackGainStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(strength = ViperDefaults.PLAYBACK_GAIN_STRENGTH)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    playbackGain = it.playbackGain.copy(
+                        strength = ViperDefaults.PLAYBACK_GAIN_STRENGTH
+                    )
+                )
+            }
         }
     }
 
@@ -211,45 +313,87 @@ class ViperViewModel @Inject constructor(
 
     fun setPlaybackGainOutputThreshold(threshold: Float) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(outputThreshold = threshold)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    playbackGain = it.playbackGain.copy(
+                        outputThreshold = threshold
+                    )
+                )
+            }
         }
     }
 
     fun resetPlaybackGainOutputThreshold() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(playbackGain = it.playbackGain.copy(outputThreshold = ViperDefaults.PLAYBACK_GAIN_OUTPUT_THRESHOLD)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    playbackGain = it.playbackGain.copy(
+                        outputThreshold = ViperDefaults.PLAYBACK_GAIN_OUTPUT_THRESHOLD
+                    )
+                )
+            }
         }
     }
 
     // Dynamic System
     fun setDynamicSystemEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(dynamicSystem = it.dynamicSystem.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    dynamicSystem = it.dynamicSystem.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
     fun setDynamicSystemDeviceType(deviceType: DynamicSystemDeviceType) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(dynamicSystem = it.dynamicSystem.copy(deviceType = deviceType)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    dynamicSystem = it.dynamicSystem.copy(
+                        deviceType = deviceType
+                    )
+                )
+            }
         }
     }
 
     fun setDynamicSystemBassStrength(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(dynamicSystem = it.dynamicSystem.copy(dynamicBassStrength = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    dynamicSystem = it.dynamicSystem.copy(
+                        dynamicBassStrength = value
+                    )
+                )
+            }
         }
     }
 
     fun resetDynamicSystemBassStrength() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(dynamicSystem = it.dynamicSystem.copy(dynamicBassStrength = ViperDefaults.DYNAMIC_SYSTEM_BASS_STRENGTH)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    dynamicSystem = it.dynamicSystem.copy(
+                        dynamicBassStrength = ViperDefaults.DYNAMIC_SYSTEM_BASS_STRENGTH
+                    )
+                )
+            }
         }
     }
 
     // Tube Simulator
     fun setTubeSimulatorEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(tubeSimulator = it.tubeSimulator.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    tubeSimulator = it.tubeSimulator.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
@@ -330,19 +474,37 @@ class ViperViewModel @Inject constructor(
     // Auditory System Protection
     fun setAuditorySystemProtectionEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(auditorySystemProtection = it.auditorySystemProtection.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    auditorySystemProtection = it.auditorySystemProtection.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
     fun setAuditorySystemProtectionLevel(value: Int) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(auditorySystemProtection = it.auditorySystemProtection.copy(level = value)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    auditorySystemProtection = it.auditorySystemProtection.copy(
+                        level = value
+                    )
+                )
+            }
         }
     }
 
     fun resetAuditorySystemProtectionLevel() {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(auditorySystemProtection = it.auditorySystemProtection.copy(level = ViperDefaults.AUDITORY_SYSTEM_PROTECTION_LEVEL)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    auditorySystemProtection = it.auditorySystemProtection.copy(
+                        level = ViperDefaults.AUDITORY_SYSTEM_PROTECTION_LEVEL
+                    )
+                )
+            }
         }
     }
 
@@ -375,26 +537,46 @@ class ViperViewModel @Inject constructor(
     fun setViperDdcFile(fileName: String) {
         viewModelScope.launch {
             val coeffs = viperAssetRepository.parseDdcCoeffs(fileName)
-            viperRepository.updateEffectsState { 
-                it.copy(viperDdc = it.viperDdc.copy(
-                    selectedDdcFile = fileName,
-                    coeffs = coeffs
-                )) 
+            viperRepository.updateEffectsState {
+                it.copy(
+                    viperDdc = it.viperDdc.copy(
+                        selectedDdcFile = fileName,
+                        coeffs = coeffs
+                    )
+                )
             }
         }
     }
 
     fun importDdcFile(uri: String) {
         viewModelScope.launch {
-            val result = viperAssetRepository.importDdc(uri)
-            when (result) {
+            when (val result = viperAssetRepository.importDdc(uri)) {
                 is ViperAssetRepository.DdcImportResult.Success -> {
-                    android.widget.Toast.makeText(context, "DDC file imported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "DDC file imported successfully",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     setViperDdcFile(result.fileName)
                 }
-                ViperAssetRepository.DdcImportResult.InvalidExtension -> Toast.makeText(context, "Error: Invalid file extension (must be .vdc)", android.widget.Toast.LENGTH_SHORT).show()
-                ViperAssetRepository.DdcImportResult.InvalidContent -> Toast.makeText(context, "Error: Invalid file content (parse failed)", android.widget.Toast.LENGTH_SHORT).show()
-                ViperAssetRepository.DdcImportResult.IOError -> Toast.makeText(context, "Error: import failed (IO error)", android.widget.Toast.LENGTH_SHORT).show()
+
+                ViperAssetRepository.DdcImportResult.InvalidExtension -> Toast.makeText(
+                    context,
+                    "Error: Invalid file extension (must be .vdc)",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                ViperAssetRepository.DdcImportResult.InvalidContent -> Toast.makeText(
+                    context,
+                    "Error: Invalid file content (parse failed)",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                ViperAssetRepository.DdcImportResult.IOError -> Toast.makeText(
+                    context,
+                    "Error: import failed (IO error)",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -408,10 +590,12 @@ class ViperViewModel @Inject constructor(
             // For now, reset selection.
             viperRepository.updateEffectsState { state ->
                 if (state.viperDdc.selectedDdcFile == fileName) {
-                    state.copy(viperDdc = state.viperDdc.copy(
-                        selectedDdcFile = null,
-                        coeffs = null
-                    ))
+                    state.copy(
+                        viperDdc = state.viperDdc.copy(
+                            selectedDdcFile = null,
+                            coeffs = null
+                        )
+                    )
                 } else {
                     state
                 }
@@ -428,7 +612,13 @@ class ViperViewModel @Inject constructor(
 
     fun selectConvolverImpulseResponse(fileName: String) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(convolver = it.convolver.copy(impulseResponse = fileName)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    convolver = it.convolver.copy(
+                        impulseResponse = fileName
+                    )
+                )
+            }
         }
     }
 
@@ -437,10 +627,17 @@ class ViperViewModel @Inject constructor(
             // Import the file first
             val fileName = viperAssetRepository.importKernel(uri)
             if (fileName != null) {
-                 viperRepository.updateEffectsState { it.copy(convolver = it.convolver.copy(impulseResponse = fileName)) }
-                 Toast.makeText(context, "Impulse loaded: $fileName", Toast.LENGTH_SHORT).show()
+                viperRepository.updateEffectsState {
+                    it.copy(
+                        convolver = it.convolver.copy(
+                            impulseResponse = fileName
+                        )
+                    )
+                }
+                Toast.makeText(context, "Impulse loaded: $fileName", Toast.LENGTH_SHORT).show()
             } else {
-                 Toast.makeText(context, "Failed to load impulse response", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to load impulse response", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
     }
@@ -467,7 +664,13 @@ class ViperViewModel @Inject constructor(
     // Speaker Optimization
     fun setSpeakerOptimizationEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            viperRepository.updateEffectsState { it.copy(speakerOptimization = it.speakerOptimization.copy(enabled = enabled)) }
+            viperRepository.updateEffectsState {
+                it.copy(
+                    speakerOptimization = it.speakerOptimization.copy(
+                        enabled = enabled
+                    )
+                )
+            }
         }
     }
 
@@ -497,7 +700,8 @@ class ViperViewModel @Inject constructor(
     fun setIirEqualizerPreset(preset: String) {
         viewModelScope.launch {
             viperRepository.updateEffectsState { state ->
-                val newGains = IirEqualizerPresets.getPresetGains(preset, state.iirEqualizer.bandCount)
+                val newGains =
+                    IirEqualizerPresets.getPresetGains(preset, state.iirEqualizer.bandCount)
                 state.copy(
                     iirEqualizer = state.iirEqualizer.copy(
                         preset = preset,

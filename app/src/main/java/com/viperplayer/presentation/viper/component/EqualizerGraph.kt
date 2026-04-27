@@ -27,11 +27,11 @@ fun EqualizerGraph(
     val points = remember(bandCount, gains) {
         ViperEqualizerMath.calculateFrequencyResponse(bandCount, gains)
     }
-    
+
     val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    MaterialTheme.colorScheme.surfaceVariant
     val outlineColor = MaterialTheme.colorScheme.outline
-    
+
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -40,7 +40,7 @@ fun EqualizerGraph(
     ) {
         val width = size.width
         val height = size.height
-        
+
         // Draw grid lines (simplified)
         // 0dB line
         val zeroY = height / 2
@@ -50,7 +50,7 @@ fun EqualizerGraph(
             end = Offset(width, zeroY),
             strokeWidth = 1.dp.toPx()
         )
-        
+
         // +12dB line
         drawLine(
             color = outlineColor.copy(alpha = 0.2f),
@@ -58,7 +58,7 @@ fun EqualizerGraph(
             end = Offset(width, 0f),
             strokeWidth = 1.dp.toPx()
         )
-        
+
         // -12dB line
         drawLine(
             color = outlineColor.copy(alpha = 0.2f),
@@ -66,12 +66,12 @@ fun EqualizerGraph(
             end = Offset(width, height),
             strokeWidth = 1.dp.toPx()
         )
-        
+
         // Frequency lines (logarithmic)
         val freqs = listOf(100f, 1000f, 10000f)
         freqs.forEach { freq ->
-             val x = ViperEqualizerMath.freqToX(freq) * width
-             drawLine(
+            val x = ViperEqualizerMath.freqToX(freq) * width
+            drawLine(
                 color = outlineColor.copy(alpha = 0.2f),
                 start = Offset(x, 0f),
                 end = Offset(x, height),
@@ -84,31 +84,31 @@ fun EqualizerGraph(
         if (points.isNotEmpty()) {
             val maxDB = 12.0 // +/- 12dB range
             val stepX = width / (points.size - 1)
-            
+
             points.forEachIndexed { index, dB ->
                 val x = index * stepX
                 // Map dB to Y: +12 -> 0, -12 -> height
                 // y = height/2 - (dB / maxDB) * (height/2)
                 val y = (zeroY - (dB / maxDB) * zeroY).toFloat().coerceIn(0f, height)
-                
+
                 if (index == 0) {
                     path.moveTo(x, y)
                 } else {
                     path.lineTo(x, y)
                 }
             }
-            
+
             drawPath(
                 path = path,
                 color = primaryColor,
                 style = Stroke(width = 2.dp.toPx())
             )
-            
+
             // Fill area below
             path.lineTo(width, height)
             path.lineTo(0f, height)
             path.close()
-            
+
             drawPath(
                 path = path,
                 brush = Brush.verticalGradient(

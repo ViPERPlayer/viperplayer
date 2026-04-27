@@ -64,7 +64,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
-import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -90,7 +89,7 @@ fun SearchScreen(
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
-    
+
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -125,9 +124,11 @@ fun SearchScreen(
                             }
                         },
                         placeholder = {
-                            Text(modifier = Modifier.clearAndSetSemantics {}, text = stringResource(
-                                R.string.search_placeholder
-                            ))
+                            Text(
+                                modifier = Modifier.clearAndSetSemantics {}, text = stringResource(
+                                    R.string.search_placeholder
+                                )
+                            )
                         },
                         leadingIcon = {
                             val onDismiss: () -> Unit = {
@@ -140,7 +141,10 @@ fun SearchScreen(
                             ) { targetState ->
                                 if (targetState) {
                                     IconButton(onClick = onDismiss) {
-                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                                        Icon(
+                                            Icons.AutoMirrored.Rounded.ArrowBack,
+                                            contentDescription = stringResource(R.string.action_back)
+                                        )
                                     }
                                 } else {
                                     Icon(Icons.Default.Search, contentDescription = null)
@@ -253,22 +257,30 @@ fun SearchScreen(
                                 when (item.type) {
                                     SearchItem.Type.SONG -> viewModel.playSong(item.id)
                                     SearchItem.Type.ARTIST -> {
-                                        onNavigateToArtist(Artist(
-                                            id = item.id,
-                                            name = item.title
-                                        ))
+                                        onNavigateToArtist(
+                                            Artist(
+                                                id = item.id,
+                                                name = item.title
+                                            )
+                                        )
                                     }
+
                                     SearchItem.Type.ALBUM -> {
-                                        onNavigateToAlbum(Album(
-                                            id = item.id,
-                                            name = item.title
-                                        ))
+                                        onNavigateToAlbum(
+                                            Album(
+                                                id = item.id,
+                                                name = item.title
+                                            )
+                                        )
                                     }
+
                                     SearchItem.Type.PLAYLIST -> {
-                                        onNavigateToPlaylist(Playlist(
-                                            id = item.id,
-                                            name = item.title
-                                        ))
+                                        onNavigateToPlaylist(
+                                            Playlist(
+                                                id = item.id,
+                                                name = item.title
+                                            )
+                                        )
                                     }
                                 }
                             },
@@ -278,12 +290,15 @@ fun SearchScreen(
                                         SearchItem.Type.SONG -> {
                                             item.song ?: viewModel.getSong(item.id)
                                         }
+
                                         SearchItem.Type.ALBUM -> {
                                             viewModel.getAlbum(item.id)
                                         }
+
                                         SearchItem.Type.ARTIST -> {
                                             viewModel.getArtist(item.id)
                                         }
+
                                         SearchItem.Type.PLAYLIST -> {
                                             viewModel.getPlaylist(item.id)
                                         }
@@ -296,12 +311,15 @@ fun SearchScreen(
                                         SearchItem.Type.SONG -> {
                                             item.song ?: viewModel.getSong(item.id)
                                         }
+
                                         SearchItem.Type.ALBUM -> {
                                             viewModel.getAlbum(item.id)
                                         }
+
                                         SearchItem.Type.ARTIST -> {
                                             viewModel.getArtist(item.id)
                                         }
+
                                         SearchItem.Type.PLAYLIST -> {
                                             viewModel.getPlaylist(item.id)
                                         }
@@ -372,6 +390,7 @@ fun SearchScreen(
                             }
                         }
                     }
+
                     is SearchResultsState.Searching -> {
                         Box(
                             modifier = Modifier
@@ -382,6 +401,7 @@ fun SearchScreen(
                             LoadingIndicator()
                         }
                     }
+
                     is SearchResultsState.Empty -> {
                         Box(
                             modifier = Modifier
@@ -396,114 +416,130 @@ fun SearchScreen(
                             )
                         }
                     }
+
                     is SearchResultsState.Results -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = rootPadding.bottom()
-                            ) {
-                                items(
-                                    items = state.items,
-                                ) { item ->
-                                    ListItem(
-                                        type = item.type,
-                                        title = item.title,
-                                        badges = item.badges,
-                                        subtitle = item.subtitle,
-                                        artworkUrl = item.artworkUrl,
-                                        isActive = item.isActive,
-                                        isPlaying = isPlaying,
-                                        onClick = {
-                                            when (item.type) {
-                                                SearchItem.Type.SONG -> viewModel.playSong(item.id)
-                                                SearchItem.Type.ARTIST -> {
-                                                    onNavigateToArtist(Artist(
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = rootPadding.bottom()
+                        ) {
+                            items(
+                                items = state.items,
+                            ) { item ->
+                                ListItem(
+                                    type = item.type,
+                                    title = item.title,
+                                    badges = item.badges,
+                                    subtitle = item.subtitle,
+                                    artworkUrl = item.artworkUrl,
+                                    isActive = item.isActive,
+                                    isPlaying = isPlaying,
+                                    onClick = {
+                                        when (item.type) {
+                                            SearchItem.Type.SONG -> viewModel.playSong(item.id)
+                                            SearchItem.Type.ARTIST -> {
+                                                onNavigateToArtist(
+                                                    Artist(
                                                         id = item.id,
                                                         name = item.title
-                                                    ))
+                                                    )
+                                                )
+                                            }
+
+                                            SearchItem.Type.ALBUM -> {
+                                                onNavigateToAlbum(
+                                                    Album(
+                                                        id = item.id,
+                                                        name = item.title
+                                                    )
+                                                )
+                                            }
+
+                                            SearchItem.Type.PLAYLIST -> {
+                                                onNavigateToPlaylist(
+                                                    Playlist(
+                                                        id = item.id,
+                                                        name = item.title
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onMoreClick = {
+                                        scope.launch {
+                                            selectedMediaItem = when (item.type) {
+                                                SearchItem.Type.SONG -> {
+                                                    item.song ?: viewModel.getSong(item.id)
                                                 }
+
                                                 SearchItem.Type.ALBUM -> {
-                                                    onNavigateToAlbum(Album(
-                                                        id = item.id,
-                                                        name = item.title
-                                                    ))
+                                                    viewModel.getAlbum(item.id)
                                                 }
+
+                                                SearchItem.Type.ARTIST -> {
+                                                    viewModel.getArtist(item.id)
+                                                }
+
                                                 SearchItem.Type.PLAYLIST -> {
-                                                    onNavigateToPlaylist(Playlist(
-                                                        id = item.id,
-                                                        name = item.title
-                                                    ))
+                                                    viewModel.getPlaylist(item.id)
                                                 }
                                             }
-                                        },
-                                        onMoreClick = {
+                                        }
+                                    },
+                                    onLongClick = {
+                                        scope.launch {
+                                            selectedMediaItem = when (item.type) {
+                                                SearchItem.Type.SONG -> {
+                                                    item.song ?: viewModel.getSong(item.id)
+                                                }
+
+                                                SearchItem.Type.ALBUM -> {
+                                                    viewModel.getAlbum(item.id)
+                                                }
+
+                                                SearchItem.Type.ARTIST -> {
+                                                    viewModel.getArtist(item.id)
+                                                }
+
+                                                SearchItem.Type.PLAYLIST -> {
+                                                    viewModel.getPlaylist(item.id)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onPlayNext = if (item.type == SearchItem.Type.SONG) {
+                                        {
                                             scope.launch {
-                                                selectedMediaItem = when (item.type) {
-                                                    SearchItem.Type.SONG -> {
-                                                        item.song ?: viewModel.getSong(item.id)
-                                                    }
-                                                    SearchItem.Type.ALBUM -> {
-                                                        viewModel.getAlbum(item.id)
-                                                    }
-                                                    SearchItem.Type.ARTIST -> {
-                                                        viewModel.getArtist(item.id)
-                                                    }
-                                                    SearchItem.Type.PLAYLIST -> {
-                                                        viewModel.getPlaylist(item.id)
-                                                    }
+                                                val song = item.song ?: viewModel.getSong(item.id)
+                                                if (song != null) {
+                                                    viewModel.playNext(song)
                                                 }
                                             }
-                                        },
-                                        onLongClick = {
+                                        }
+                                    } else null,
+                                    onAddToQueue = if (item.type == SearchItem.Type.SONG) {
+                                        {
                                             scope.launch {
-                                                selectedMediaItem = when (item.type) {
-                                                    SearchItem.Type.SONG -> {
-                                                        item.song ?: viewModel.getSong(item.id)
-                                                    }
-                                                    SearchItem.Type.ALBUM -> {
-                                                        viewModel.getAlbum(item.id)
-                                                    }
-                                                    SearchItem.Type.ARTIST -> {
-                                                        viewModel.getArtist(item.id)
-                                                    }
-                                                    SearchItem.Type.PLAYLIST -> {
-                                                        viewModel.getPlaylist(item.id)
-                                                    }
+                                                val song = item.song ?: viewModel.getSong(item.id)
+                                                if (song != null) {
+                                                    viewModel.addToQueue(song)
                                                 }
                                             }
-                                        },
-                                        onPlayNext = if (item.type == SearchItem.Type.SONG) {
-                                            {
-                                                scope.launch {
-                                                    val song = item.song ?: viewModel.getSong(item.id)
-                                                    if (song != null) {
-                                                        viewModel.playNext(song)
-                                                    }
-                                                }
-                                            }
-                                        } else null,
-                                        onAddToQueue = if (item.type == SearchItem.Type.SONG) {
-                                            {
-                                                scope.launch {
-                                                    val song = item.song ?: viewModel.getSong(item.id)
-                                                    if (song != null) {
-                                                        viewModel.addToQueue(song)
-                                                    }
-                                                }
-                                            }
-                                        } else null,
-                                        modifier = Modifier
-                                            .animateItem()
-                                            .fillMaxWidth()
-                                    )
-                                }
-                                
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        viewModel.loadMore()
-                                    }
+                                        }
+                                    } else null,
+                                    modifier = Modifier
+                                        .animateItem()
+                                        .fillMaxWidth()
+                                )
+                            }
+
+                            item {
+                                LaunchedEffect(Unit) {
+                                    viewModel.loadMore()
                                 }
                             }
                         }
+                    }
+
                     is SearchResultsState.Error -> {
                         Box(
                             modifier = Modifier
@@ -529,7 +565,7 @@ fun SearchScreen(
                 }
             }
         }
-        
+
         // Media item options bottom sheet
         selectedMediaItem?.let { item ->
             ModalBottomSheet(
@@ -547,9 +583,11 @@ fun SearchScreen(
                                 is Album -> {
                                     // TODO: Implement play album
                                 }
+
                                 is Playlist -> {
                                     // TODO: Implement play playlist
                                 }
+
                                 else -> {}
                             }
                             selectedMediaItem = null
@@ -571,9 +609,11 @@ fun SearchScreen(
                                 is Album -> {
                                     // TODO: Implement add album to queue
                                 }
+
                                 is Playlist -> {
                                     // TODO: Implement add playlist to queue
                                 }
+
                                 else -> {}
                             }
                             selectedMediaItem = null

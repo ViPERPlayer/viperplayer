@@ -57,11 +57,11 @@ fun StorageSettingsScreen(
     var showClearDownloadsDialog by remember { mutableStateOf(false) }
     var showClearSongCacheDialog by remember { mutableStateOf(false) }
     var showClearImageCacheDialog by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         viewModel.refreshSizes()
     }
-    
+
     ViperScaffold(
         topBar = {
             TopAppBar(
@@ -103,11 +103,11 @@ fun StorageSettingsScreen(
                     onClick = { showClearDownloadsDialog = true }
                 )
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("Song Cache")
             }
@@ -129,11 +129,11 @@ fun StorageSettingsScreen(
                     onClick = { showClearSongCacheDialog = true }
                 )
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("Image Cache")
             }
@@ -157,7 +157,7 @@ fun StorageSettingsScreen(
             }
         }
     }
-    
+
     if (showClearDownloadsDialog) {
         AlertDialog(
             onDismissRequest = { showClearDownloadsDialog = false },
@@ -185,7 +185,7 @@ fun StorageSettingsScreen(
             }
         )
     }
-    
+
     if (showClearSongCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearSongCacheDialog = false },
@@ -213,7 +213,7 @@ fun StorageSettingsScreen(
             }
         )
     }
-    
+
     if (showClearImageCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearImageCacheDialog = false },
@@ -316,7 +316,7 @@ private fun CacheSizeSliderItem(
     // Convert bytes to slider value (0.0 to 1.0)
     val sliderValue = ((currentSize - minSize).toFloat() / (maxSize - minSize).toFloat())
         .coerceIn(0f, 1f)
-    
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -351,12 +351,12 @@ private fun CacheSizeSliderItem(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             )
-            
+
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
-            
+
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -374,7 +374,7 @@ private fun CacheSizeSliderItem(
                         inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
                 )
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween

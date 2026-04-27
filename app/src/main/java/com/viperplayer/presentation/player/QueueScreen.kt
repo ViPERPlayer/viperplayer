@@ -14,7 +14,9 @@ fun QueueScreen(
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().windowInsetsPadding(contentWindowInsets)
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(contentWindowInsets)
     ) {
         items(100) {
             Text("Item $it")

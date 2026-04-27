@@ -18,7 +18,7 @@ class ViperAssetRepository @Inject constructor(
 ) {
     private val kernelDirectory = File(context.filesDir, "kernels")
     private val ddcDirectory = File(context.filesDir, "ddc")
-    
+
     // Cache of available kernel files
     private val _kernelFiles = MutableStateFlow<List<File>>(emptyList())
     val kernelFiles: Flow<List<File>> = _kernelFiles.asStateFlow()
@@ -63,7 +63,7 @@ class ViperAssetRepository @Inject constructor(
         try {
             val androidUri = Uri.parse(uri)
             val fileName = getFileName(androidUri) ?: "imported_ddc.vdc"
-            
+
             if (!fileName.endsWith(".vdc", ignoreCase = true)) {
                 return@withContext DdcImportResult.InvalidExtension
             }
@@ -88,7 +88,7 @@ class ViperAssetRepository @Inject constructor(
             return@withContext DdcImportResult.IOError
         }
     }
-    
+
     suspend fun deleteKernel(fileName: String) = withContext(Dispatchers.IO) {
         val file = File(kernelDirectory, fileName)
         if (file.exists()) {
@@ -110,25 +110,26 @@ class ViperAssetRepository @Inject constructor(
         return if (file.exists()) file else null
     }
 
-    suspend fun parseDdcCoeffs(fileName: String): Map<Int, List<Float>>? = withContext(Dispatchers.IO) {
-        val file = File(ddcDirectory, fileName)
-        if (!file.exists()) return@withContext null
-        return@withContext parseDdcContent(file.readText())
-    }
+    suspend fun parseDdcCoeffs(fileName: String): Map<Int, List<Float>>? =
+        withContext(Dispatchers.IO) {
+            val file = File(ddcDirectory, fileName)
+            if (!file.exists()) return@withContext null
+            return@withContext parseDdcContent(file.readText())
+        }
 
     private suspend fun importFile(uri: String, destDir: File, onRefresh: () -> Unit): String? {
-         try {
+        try {
             val androidUri = Uri.parse(uri)
             val fileName = getFileName(androidUri) ?: "imported_file"
-            
+
             val destFile = File(destDir, fileName)
-            
+
             context.contentResolver.openInputStream(androidUri)?.use { input ->
                 destFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
             }
-            
+
             onRefresh()
             return fileName
         } catch (e: Exception) {
@@ -143,7 +144,8 @@ class ViperAssetRepository @Inject constructor(
             try {
                 context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        val index =
+                            cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                         if (index >= 0) {
                             result = cursor.getString(index)
                         }
@@ -172,7 +174,7 @@ class ViperAssetRepository @Inject constructor(
                     val ratePart = trimmed.substringBefore(":")
                     val coeffsPart = trimmed.substringAfter(":")
                     val rate = ratePart.removePrefix("SR_").toIntOrNull()
-                    
+
                     if (rate != null) {
                         val coeffs = utilParseFloatArray(coeffsPart).toList()
                         if (coeffs.isNotEmpty()) {

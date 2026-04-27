@@ -56,17 +56,17 @@ class HomeViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var lastConnectedPlugins: List<Plugin> = emptyList()
-    
+
     init {
         onTimeChanged()
         observeConnectedPlugins()
     }
-    
+
     private fun observeConnectedPlugins() {
         viewModelScope.launch {
             pluginRepository.connectedPlugins.collect { plugins ->
@@ -76,7 +76,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun loadContent(isRefreshing: Boolean = false, fromAutoUpdate: Boolean = false) {
         viewModelScope.launch {
             _uiState.update { state ->
@@ -84,9 +84,12 @@ class HomeViewModel @Inject constructor(
                     is HomeUiState.Loading -> state // Keep loading
                     is HomeUiState.Content -> {
                         if (isRefreshing) {
-                             state.copy(isRefreshing = true, connectedPlugins = lastConnectedPlugins)
+                            state.copy(isRefreshing = true, connectedPlugins = lastConnectedPlugins)
                         } else if (fromAutoUpdate) {
-                             state.copy(isRefreshing = false, connectedPlugins = lastConnectedPlugins)
+                            state.copy(
+                                isRefreshing = false,
+                                connectedPlugins = lastConnectedPlugins
+                            )
                         } else {
                             // If just loading (neither refresh nor auto-update), show loading? 
                             // Usually loadContent is called explicitly.
@@ -94,34 +97,35 @@ class HomeViewModel @Inject constructor(
                             state.copy(connectedPlugins = lastConnectedPlugins)
                         }
                     }
+
                     is HomeUiState.Error -> {
                         if (isRefreshing) {
-                             // Switch to loading or keep error with indicator?
-                             // Better to switch to loading if we were in error
-                             HomeUiState.Loading(state.greetingType, state.userName)
+                            // Switch to loading or keep error with indicator?
+                            // Better to switch to loading if we were in error
+                            HomeUiState.Loading(state.greetingType, state.userName)
                         } else {
-                             state
+                            state
                         }
                     }
                 }
             }
-            
+
             // If we are not refreshing and not in content state, set loading (unless auto-update should be silent)
             if (!isRefreshing && !fromAutoUpdate && _uiState.value !is HomeUiState.Content) {
-                 _uiState.update { state ->
-                     HomeUiState.Loading(state.greetingType, state.userName)
-                 }
+                _uiState.update { state ->
+                    HomeUiState.Loading(state.greetingType, state.userName)
+                }
             }
 
             try {
                 // Load categories
                 val categoriesResult = pluginRepository.getBrowseCategories(limit = 10)
                 val categories = categoriesResult.getOrNull()?.items.orEmpty()
-                
+
                 // Load home content (Quick Picks & Custom Sections)
                 val homeContentResult = pluginRepository.getHomeContent()
                 val homeContentList = homeContentResult.getOrNull().orEmpty()
-                
+
                 // Merge all quickPicks and sections from all plugins
                 val allQuickPicks = homeContentList.flatMap { (_, content) ->
                     content.quickPicks.orEmpty()
@@ -129,7 +133,7 @@ class HomeViewModel @Inject constructor(
                 val allSections = homeContentList.flatMap { (_, content) ->
                     content.sections
                 }
-                
+
                 _uiState.update { state ->
                     HomeUiState.Content(
                         greetingType = state.greetingType,
@@ -152,7 +156,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun refresh() {
         loadContent(isRefreshing = true)
     }

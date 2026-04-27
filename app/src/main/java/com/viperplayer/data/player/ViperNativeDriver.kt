@@ -10,7 +10,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class ViperNativeDriver @Inject constructor() {
-    
+
     init {
         System.loadLibrary("viper")
     }
@@ -82,7 +82,7 @@ class ViperNativeDriver @Inject constructor() {
     external fun setPlaybackGainStrength(strength: Int)
     external fun setPlaybackGainMaxGain(maxGain: Int)
     external fun setPlaybackGainOutputThreshold(threshold: Float)
-    
+
     // Audio Processing
     external fun process(buffer: ByteBuffer, offset: Int, size: Int)
 

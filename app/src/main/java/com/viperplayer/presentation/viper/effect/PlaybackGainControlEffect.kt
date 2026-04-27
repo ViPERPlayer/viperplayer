@@ -54,13 +54,15 @@ fun PlaybackGainControlEffect(
         // We can map linear slider 0-5 to these values
         val thresholdValues = listOf(-10.5f, -6.0f, -3.0f, -1.9f, -1.0f, 0.0f)
         // Find closest index for current value
-        val currentIndex = thresholdValues.indexOfFirst { kotlin.math.abs(it - state.outputThreshold) < 0.1f }.takeIf { it >= 0 } ?: 5
-        
+        val currentIndex =
+            thresholdValues.indexOfFirst { kotlin.math.abs(it - state.outputThreshold) < 0.1f }
+                .takeIf { it >= 0 } ?: 5
+
         ValueSlider(
             title = "Output threshold",
             summary = "${state.outputThreshold} dB",
             value = currentIndex + 1, // 1-based index for slider
-            onValueChange = { index -> 
+            onValueChange = { index ->
                 val newIndex = (index - 1).coerceIn(0, thresholdValues.lastIndex)
                 onOutputThresholdChange(thresholdValues[newIndex])
             },

@@ -128,6 +128,7 @@ class SearchViewModel @Inject constructor(
                     }
                     SearchResultsState.Results(updatedItems)
                 }
+
                 else -> state
             }
         }
@@ -183,7 +184,8 @@ class SearchViewModel @Inject constructor(
                     val suggestions = successfulResults.map { it.suggestions }.flatten().distinct()
                     // Get current song to set isActive
                     val current = currentSong.value
-                    val items = successfulResults.map { it.items }.flatten().map { it.toSearchItem(current) }
+                    val items = successfulResults.map { it.items }.flatten()
+                        .map { it.toSearchItem(current) }
                     _searchSuggestionsState.update {
                         it.copy(
                             suggestions = suggestions,
@@ -194,7 +196,7 @@ class SearchViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun onQueryChange(query: String) {
         _query.value = query
     }
@@ -335,10 +337,10 @@ class SearchViewModel @Inject constructor(
         _searchResultsState.value = SearchResultsState.Searching
         _lastSearchedQuery.value = query
         nextCursor = null
-        
+
         viewModelScope.launch {
             searchRepository.saveSearchHistory(query)
-            
+
             searchUseCase(query, _selectedFilter.value)
                 .onSuccess { results ->
                     nextCursor = results.nextCursor
@@ -353,7 +355,8 @@ class SearchViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
-                    _searchResultsState.value = SearchResultsState.Error(e.message ?: "Search failed")
+                    _searchResultsState.value =
+                        SearchResultsState.Error(e.message ?: "Search failed")
                 }
         }
     }
@@ -369,7 +372,7 @@ class SearchViewModel @Inject constructor(
                 .onSuccess { results ->
                     isSearchingMore = false
                     nextCursor = results.nextCursor
-                    
+
                     _searchResultsState.update { currentState ->
                         if (currentState is SearchResultsState.Results) {
                             val current = currentSong.value
@@ -377,7 +380,7 @@ class SearchViewModel @Inject constructor(
                             // Filter out duplicates if any, though usually backend handles this
                             val existingIds = currentState.items.map { it.id }.toSet()
                             val uniqueNewItems = newItems.filter { !existingIds.contains(it.id) }
-                            
+
                             SearchResultsState.Results(currentState.items + uniqueNewItems)
                         } else {
                             currentState
@@ -389,7 +392,7 @@ class SearchViewModel @Inject constructor(
                 }
         }
     }
-    
+
     fun playSong(songId: MediaId) {
         viewModelScope.launch {
             try {
@@ -399,7 +402,7 @@ class SearchViewModel @Inject constructor(
                     playerRepository.play(songFromResults, PlaybackContext.Search)
                     return@launch
                 }
-                
+
                 // If not found, fetch it from the repository
                 val songResult = pluginRepository.getSong(songId)
                 songResult.onSuccess { song ->
@@ -415,20 +418,22 @@ class SearchViewModel @Inject constructor(
             }
         }
     }
-    
+
     private fun findSongInResults(songId: MediaId): Song? {
         // Check search results
         val resultsState = _searchResultsState.value
         if (resultsState is SearchResultsState.Results) {
-            val item = resultsState.items.find { it.id == songId && it.type == SearchItem.Type.SONG }
+            val item =
+                resultsState.items.find { it.id == songId && it.type == SearchItem.Type.SONG }
             if (item?.song != null) {
                 return item.song
             }
         }
-        
+
         // Check search suggestions
         val suggestionsState = _searchSuggestionsState.value
-        val item = suggestionsState.items.find { it.id == songId && it.type == SearchItem.Type.SONG }
+        val item =
+            suggestionsState.items.find { it.id == songId && it.type == SearchItem.Type.SONG }
         return item?.song
     }
 

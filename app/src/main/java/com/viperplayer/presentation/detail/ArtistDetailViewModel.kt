@@ -1,9 +1,7 @@
 package com.viperplayer.presentation.detail
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
@@ -12,7 +10,9 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.presentation.navigation.ArtistDetail
-import com.viperplayer.presentation.navigation.ArtistNavType
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,8 +22,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import kotlin.reflect.typeOf
 
 /**
  * UI state for Artist Detail screen.
@@ -33,26 +31,30 @@ sealed class ArtistDetailUiState {
     data class Success(
         val artist: Artist
     ) : ArtistDetailUiState()
+
     data class Error(val message: String) : ArtistDetailUiState()
 }
 
 /**
  * ViewModel for Artist Detail screen.
  */
-@HiltViewModel
-class ArtistDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+@HiltViewModel(assistedFactory = ArtistDetailViewModel.Factory::class)
+class ArtistDetailViewModel @AssistedInject constructor(
+    @Assisted private val artistDetail: ArtistDetail,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
 
-    private val artistDetail = savedStateHandle.toRoute<ArtistDetail>(
-        typeMap = mapOf(typeOf<Artist>() to ArtistNavType)
-    )
+    @AssistedFactory
+    interface Factory {
+        fun create(artistDetail: ArtistDetail): ArtistDetailViewModel
+    }
+
     private val artistId: MediaId = artistDetail.initialArtist.id
 
-    private val _uiState = MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading(artistDetail.initialArtist))
+    private val _uiState =
+        MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading(artistDetail.initialArtist))
     val uiState: StateFlow<ArtistDetailUiState> = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -109,7 +111,7 @@ class ArtistDetailViewModel @Inject constructor(
             try {
                 val state = _uiState.value
                 if (state !is ArtistDetailUiState.Success) return@launch
-                
+
                 val songs = state.artist.topSongs
 
                 if (songs.isNotEmpty()) {

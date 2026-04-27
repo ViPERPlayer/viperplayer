@@ -86,8 +86,8 @@ fun ConvolverEffect(
                 )
                 Text(
                     text = if (state.impulseResponse != null) {
-                         // Simplify display if it's a path
-                         File(state.impulseResponse).name
+                        // Simplify display if it's a path
+                        File(state.impulseResponse).name
                     } else "Not set",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp
@@ -131,7 +131,7 @@ fun ConvolverEffect(
                         .selectableGroup()
                 ) {
                     if (kernelFiles.isEmpty()) {
-                         Text(
+                        Text(
                             text = "No files loaded",
                             modifier = Modifier
                                 .padding(horizontal = 24.dp, vertical = 16.dp),
@@ -146,7 +146,7 @@ fun ConvolverEffect(
                                     .selectable(
                                         selected = isSelected,
                                         role = Role.RadioButton,
-                                        onClick = { 
+                                        onClick = {
                                             onSelectImpulse(file.name)
                                             showDialog = false
                                         }
@@ -192,11 +192,15 @@ fun ConvolverEffect(
                     TextButton(
                         onClick = { launcher.launch(arrayOf("*/*")) }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(Modifier.size(8.dp))
                         Text("Add new")
                     }
-                    
+
                     Button(onClick = { showDialog = false }) {
                         Text("Close")
                     }

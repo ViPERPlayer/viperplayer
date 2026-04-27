@@ -26,10 +26,10 @@ data class PlayerSettingsUiState(
 class PlayerSettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(PlayerSettingsUiState())
     val uiState: StateFlow<PlayerSettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         viewModelScope.launch {
             settingsRepository.audioQuality.collect { quality ->
@@ -62,38 +62,38 @@ class PlayerSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun setAudioQuality(quality: AudioQuality) {
         viewModelScope.launch {
             settingsRepository.setAudioQuality(quality)
         }
     }
-    
+
     fun setHistoryDuration(duration: HistoryDuration) {
         viewModelScope.launch {
             settingsRepository.setHistoryDuration(duration)
         }
     }
-    
+
     fun setSkipSilence(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setSkipSilence(enabled)
         }
     }
-    
+
     fun setReplayGainEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setReplayGainEnabled(enabled)
         }
     }
-    
+
     fun setReplayGainPreampDb(preampDb: Float) {
         viewModelScope.launch {
             val clampedPreamp = preampDb.coerceIn(-12f, 6f)
             settingsRepository.setReplayGainPreampDb(clampedPreamp)
         }
     }
-    
+
     fun setAutoLoadMore(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoLoadMore(enabled)

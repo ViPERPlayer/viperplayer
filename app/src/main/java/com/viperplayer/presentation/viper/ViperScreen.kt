@@ -124,7 +124,12 @@ fun ViperScreen(
                         onEnabledChange = { viewModel.setIirEqualizerEnabled(it) },
                         onBandCountChange = { viewModel.setIirEqualizerBandCount(it) },
                         onPresetChange = { viewModel.setIirEqualizerPreset(it) },
-                        onBandGainChange = { index, gain -> viewModel.setIirEqualizerBandGain(index, gain) },
+                        onBandGainChange = { index, gain ->
+                            viewModel.setIirEqualizerBandGain(
+                                index,
+                                gain
+                            )
+                        },
                         onReset = { viewModel.resetIirEqualizer() }
                     )
                     ConvolverEffect(

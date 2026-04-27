@@ -125,11 +125,11 @@ fun SettingsScreen(
                     onClick = viewModel::scanLocalFiles
                 )
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("System")
             }

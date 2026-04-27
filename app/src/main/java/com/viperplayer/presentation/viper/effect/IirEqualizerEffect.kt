@@ -55,9 +55,10 @@ fun IirEqualizerEffect(
         onCheckedChange = onEnabledChange
     ) {
         // Band Count Selector
-        Column(modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         ) {
             Text(
                 text = "Band Count",
@@ -80,7 +81,7 @@ fun IirEqualizerEffect(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Preset Selector
@@ -91,7 +92,9 @@ fun IirEqualizerEffect(
             modifier = Modifier.padding(horizontal = 16.dp)
         ) {
             OutlinedTextField(
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
                 readOnly = true,
                 value = state.preset,
                 onValueChange = {},
@@ -124,16 +127,16 @@ fun IirEqualizerEffect(
             gains = state.bandGains,
             modifier = Modifier.padding(vertical = 8.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Sliders
         val frequencies = remember(state.bandCount) {
             IirEqualizerPresets.getFrequencies(state.bandCount)
         }
-        
+
         val scrollState = rememberScrollState()
-        
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -147,7 +150,7 @@ fun IirEqualizerEffect(
                 } else {
                     freq.toInt().toString()
                 }
-                
+
                 Column(
                     modifier = Modifier.width(40.dp), // Fixed width for alignment
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -158,28 +161,28 @@ fun IirEqualizerEffect(
                     // I will check if WSTSlider can be vertical OR use a custom layout.
                     // For now, let's use a simplified representation or check WSTSlider source.
                     // Actually, let's check `WSTSlider.kt` to see if it supports vertical.
-                    
+
                     // Assuming we need to implement a Vertical Slider here. 
                     // Compose Material3 doesn't have a VerticalSlider yet (experimental in 1.4?).
                     // Let's assume standard Slider is horizontal.
-                    
+
                     // Re-use WSTSlider? No, that looks horizontal.
                     // Let's assume for now we use a vertical Column with Text + Slider (rotated?)
-                    
+
                     // Let's implement a quick CustomVerticalSlider using standard Slider with rotate modifier
-                    
+
                     // Range is -12dB to +12dB = 24dB span.
                     // We want 0.1dB steps.
                     // Total intervals = 24 / 0.1 = 240 intervals.
                     // Steps parameter in Slider is (intervals - 1), so 239.
-                    
+
                     Text(
                         text = "%.1f dB".format(state.bandGains.getOrElse(index) { 0f }),
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.sp,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     VerticalSlider(
                         value = state.bandGains.getOrElse(index) { 0f },
                         onValueChange = { onBandGainChange(index, it) },
@@ -190,7 +193,7 @@ fun IirEqualizerEffect(
                             .width(40.dp)
                             .padding(vertical = 8.dp)
                     )
-                    
+
                     Text(
                         text = freqLabel,
                         style = MaterialTheme.typography.bodySmall,

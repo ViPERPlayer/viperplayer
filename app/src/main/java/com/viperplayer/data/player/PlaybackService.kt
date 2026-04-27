@@ -54,22 +54,23 @@ import kotlin.math.pow
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
-class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, PlaybackStatsListener.Callback {
+class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
+    PlaybackStatsListener.Callback {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
     @Inject
     lateinit var pluginDataSource: PluginDataSource
-    
+
     @Inject
     lateinit var exoPlayerCache: ExoPlayerCache
-    
+
     @Inject
     lateinit var playerStatePersistence: PlayerStatePersistence
-    
+
     @Inject
     lateinit var viperAudioProcessor: ViperAudioProcessor
-    
+
     @Inject
     lateinit var mediaLibrarySessionCallback: ViperMediaLibrarySessionCallback
 
@@ -86,7 +87,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
     private val mediaMetadata = MutableStateFlow(MediaMetadata.EMPTY)
 
     private var isAudioEffectControlSessionOpen = false
-    
+
     override fun onCreate() {
         dispatcher.onServicePreSuperOnCreate()
         super.onCreate()
@@ -95,20 +96,20 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
 
         // Configure MediaNotificationProvider
         setMediaNotificationProvider(createMediaNotificationProvider())
-        
+
         // Create ExoPlayer
         player = createExoPlayer()
-        
+
         // Create MediaSession
         mediaLibrarySession = createMediaLibrarySession()
 
         // Set MediaSessionService listener
         setListener(mediaSessionServiceListener)
-        
+
         // Restore player state if available
         restorePlayerState()
     }
-    
+
     /**
      * Restores the player state from persistence.
      * Songs are loaded from database with full metadata (artists, album, etc.).
@@ -121,9 +122,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
                 player.prepare()
                 return@launch
             }
-            
+
             Timber.d("Restoring player state: song=${savedState.currentSongMediaId}, position=${savedState.currentPositionMs}ms, queueSize=${queueSongs.size}")
-            
+
             try {
                 // Convert Songs to MediaItems using MediaItemMapper (songs already have full metadata from database)
                 val mediaItems = queueSongs.mapNotNull { song ->
@@ -134,11 +135,11 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
                         null
                     }
                 }
-                
+
                 if (mediaItems.isNotEmpty()) {
                     val startIndex = savedState.queuePosition.coerceIn(0, mediaItems.lastIndex)
                     player.setMediaItems(mediaItems, startIndex, savedState.currentPositionMs)
-                    
+
                     // Restore shuffle and repeat mode
                     player.shuffleModeEnabled = savedState.shuffleEnabled
                     player.repeatMode = when (savedState.repeatMode) {
@@ -147,7 +148,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
                         RepeatMode.ALL.name -> Player.REPEAT_MODE_ALL
                         else -> Player.REPEAT_MODE_OFF
                     }
-                    
+
                     Timber.d("Restored player state successfully")
                 } else {
                     Timber.w("No valid songs found in queue to restore")
@@ -176,7 +177,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
         Timber.d("onGetSession() called with: controllerInfo = $controllerInfo")
         return mediaLibrarySession
     }
-    
+
     override fun onDestroy() {
         Timber.d("onDestroy() called")
         dispatcher.onServicePreSuperOnDestroy()
@@ -286,13 +287,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
 
     override fun onEvents(player: Player, events: Player.Events) {
         if (events.containsAny(
-            Player.EVENT_PLAYBACK_STATE_CHANGED,
-            Player.EVENT_PLAY_WHEN_READY_CHANGED,
-            Player.EVENT_PLAYBACK_SUPPRESSION_REASON_CHANGED
-        )) {
-            val isPlaying = (player.playbackState == Player.STATE_BUFFERING || player.playbackState == Player.STATE_READY)
-                    && player.playWhenReady
-                    && player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
+                Player.EVENT_PLAYBACK_STATE_CHANGED,
+                Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                Player.EVENT_PLAYBACK_SUPPRESSION_REASON_CHANGED
+            )
+        ) {
+            val isPlaying =
+                (player.playbackState == Player.STATE_BUFFERING || player.playbackState == Player.STATE_READY)
+                        && player.playWhenReady
+                        && player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
             Timber.d("onEvents() called with: isPlaying = $isPlaying")
             if (isPlaying) {
                 openAudioEffectControlSession()
@@ -304,7 +307,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("onMediaItemTransition() called with: mediaItem = $mediaItem, reason = $reason")
-        
+
         // Apply ReplayGain as volume when a new media item starts playing
         // Convert from dB to linear: linear = 10^(dB/20)
         if (mediaItem != null) {
@@ -315,19 +318,19 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
             // Check if ReplayGain is enabled
             lifecycleScope.launch {
                 val replayGainEnabled = settingsRepository.replayGainEnabled.first()
-                
+
                 val volume = if (replayGainEnabled && replayGainDb != null) {
                     // Get preamp from settings and add it to ReplayGain
                     val preampDb = settingsRepository.replayGainPreampDb.first()
                     val finalGainDb = replayGainDb + preampDb
-                    
+
                     // Convert from dB to linear: linear = 10^(dB/20)
                     val replayGain = if (finalGainDb == 0f) {
                         1.0f // 0 dB = 1.0 linear
                     } else {
                         10f.pow(finalGainDb / 20f)
                     }
-                    
+
                     // Apply peak amplitude limiting if available
                     if (peakAmplitude != null && peakAmplitude > 0f) {
                         min(replayGain, 1f / peakAmplitude)
@@ -364,7 +367,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener, 
 
     override fun onPlayerError(error: PlaybackException) {
         Timber.e(error, "onPlayerError() called with: error = $error")
-        
+
         // Try to skip to next song if available
         if (player.hasNextMediaItem()) {
             Timber.d("Skipping to next song due to playback error")

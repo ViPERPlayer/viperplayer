@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.domain.model.Album
-import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -48,7 +48,6 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
-import com.viperplayer.domain.model.Artist
 
 @Composable
 fun LibraryScreen(
@@ -61,9 +60,9 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    
+
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
-    
+
     val tabs = listOf("Songs", "Albums", "Artists", "Playlists")
 
     Scaffold(
@@ -134,11 +133,17 @@ fun LibraryScreen(
                                         artworkUrl = song.artworkUrl,
                                         isActive = currentSong?.id == song.id,
                                         isPlaying = currentSong?.id == song.id && isPlaying,
-                                        onClick = if (song.isPlayable) { { viewModel.playSong(song) } } else null,
+                                        onClick = if (song.isPlayable) {
+                                            { viewModel.playSong(song) }
+                                        } else null,
                                         onMoreClick = { selectedMediaItem = song },
                                         onLongClick = { selectedMediaItem = song },
-                                        onPlayNext = if (song.isPlayable) { { viewModel.playNext(song) } } else null,
-                                        onAddToQueue = if (song.isPlayable) { { viewModel.addToQueue(song) } } else null,
+                                        onPlayNext = if (song.isPlayable) {
+                                            { viewModel.playNext(song) }
+                                        } else null,
+                                        onAddToQueue = if (song.isPlayable) {
+                                            { viewModel.addToQueue(song) }
+                                        } else null,
                                         modifier = Modifier
                                             .animateItem()
                                             .fillMaxWidth()
@@ -154,6 +159,7 @@ fun LibraryScreen(
                             }
                         }
                     }
+
                     LibraryTab.ALBUMS -> {
                         if (uiState.albums.isEmpty()) {
                             EmptyLibraryContent("No albums in your library")
@@ -167,7 +173,8 @@ fun LibraryScreen(
                                         type = SearchItem.Type.ALBUM,
                                         title = album.name,
                                         badges = emptyList(),
-                                        subtitle = album.artists.joinToString { it.name }.takeIf { it.isNotEmpty() },
+                                        subtitle = album.artists.joinToString { it.name }
+                                            .takeIf { it.isNotEmpty() },
                                         artworkUrl = album.artworkUrl,
                                         isActive = false,
                                         isPlaying = false,
@@ -182,6 +189,7 @@ fun LibraryScreen(
                             }
                         }
                     }
+
                     LibraryTab.ARTISTS -> {
                         if (uiState.artists.isEmpty()) {
                             EmptyLibraryContent("No artists in your library")
@@ -210,6 +218,7 @@ fun LibraryScreen(
                             }
                         }
                     }
+
                     LibraryTab.PLAYLISTS -> {
                         if (uiState.playlists.isEmpty()) {
                             EmptyLibraryContent("No playlists in your library")
@@ -225,7 +234,8 @@ fun LibraryScreen(
                                         badges = emptyList(),
                                         subtitle = playlist.ownerName?.let { owner ->
                                             "$owner • ${playlist.songCount} ${if (playlist.songCount == 1) "song" else "songs"}"
-                                        } ?: "${playlist.songCount} ${if (playlist.songCount == 1) "song" else "songs"}",
+                                        }
+                                            ?: "${playlist.songCount} ${if (playlist.songCount == 1) "song" else "songs"}",
                                         artworkUrl = playlist.artworkUrl,
                                         isActive = false,
                                         isPlaying = false,
@@ -243,65 +253,65 @@ fun LibraryScreen(
                 }
             }
         }
-        
+
         // Media item options bottom sheet
         selectedMediaItem?.let { item ->
             MediaItemOptionsBottomSheet(
                 item = item,
                 onDismiss = { selectedMediaItem = null },
-                    onPlay = {
-                        when (item) {
-                            is Song -> viewModel.playSong(item)
-                            is Album -> viewModel.playAlbum(item)
-                            is Playlist -> viewModel.playPlaylist(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onPlayNext = {
-                        when (item) {
-                            is Song -> viewModel.playNext(item)
-                            is Playlist -> viewModel.playPlaylistNext(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onAddToQueue = {
-                        when (item) {
-                            is Song -> viewModel.addToQueue(item)
-                            is Album -> viewModel.addAlbumToQueue(item)
-                            is Playlist -> viewModel.addPlaylistToQueue(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onShuffle = {
-                        when (item) {
-                            is Album -> viewModel.shuffleAlbum(item)
-                            is Playlist -> viewModel.shufflePlaylist(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onStartRadio = {
-                        // TODO: Implement start radio
-                        selectedMediaItem = null
-                    },
-                    onLike = {
-                        when (item) {
-                            is Song -> viewModel.toggleLike(item)
-                            is Playlist -> viewModel.togglePlaylistLike(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onDownload = {
-                        when (item) {
-                            is Song -> viewModel.downloadSong(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
+                onPlay = {
+                    when (item) {
+                        is Song -> viewModel.playSong(item)
+                        is Album -> viewModel.playAlbum(item)
+                        is Playlist -> viewModel.playPlaylist(item)
+                        else -> {}
+                    }
+                    selectedMediaItem = null
+                },
+                onPlayNext = {
+                    when (item) {
+                        is Song -> viewModel.playNext(item)
+                        is Playlist -> viewModel.playPlaylistNext(item)
+                        else -> {}
+                    }
+                    selectedMediaItem = null
+                },
+                onAddToQueue = {
+                    when (item) {
+                        is Song -> viewModel.addToQueue(item)
+                        is Album -> viewModel.addAlbumToQueue(item)
+                        is Playlist -> viewModel.addPlaylistToQueue(item)
+                        else -> {}
+                    }
+                    selectedMediaItem = null
+                },
+                onShuffle = {
+                    when (item) {
+                        is Album -> viewModel.shuffleAlbum(item)
+                        is Playlist -> viewModel.shufflePlaylist(item)
+                        else -> {}
+                    }
+                    selectedMediaItem = null
+                },
+                onStartRadio = {
+                    // TODO: Implement start radio
+                    selectedMediaItem = null
+                },
+                onLike = {
+                    when (item) {
+                        is Song -> viewModel.toggleLike(item)
+                        is Playlist -> viewModel.togglePlaylistLike(item)
+                        else -> {}
+                    }
+                    selectedMediaItem = null
+                },
+                onDownload = {
+                    when (item) {
+                        is Song -> viewModel.downloadSong(item)
+                        else -> {}
+                    }
+                    selectedMediaItem = null
+                },
                 onShare = {
                     // TODO: Implement share
                     selectedMediaItem = null

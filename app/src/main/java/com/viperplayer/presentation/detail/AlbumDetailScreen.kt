@@ -156,6 +156,7 @@ private fun AlbumDetailScreenContent(
                     LoadingIndicator()
                 }
             }
+
             is AlbumDetailUiState.Error -> {
                 Box(
                     modifier = Modifier
@@ -179,6 +180,7 @@ private fun AlbumDetailScreenContent(
                     }
                 }
             }
+
             is AlbumDetailUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier
@@ -215,7 +217,8 @@ private fun AlbumDetailScreenContent(
                         }
                     } else {
                         // Group songs by disc number and check if we have multiple discs
-                        val sortedSongs = uiState.album.songs.orEmpty().sortedWith(compareBy(
+                        val sortedSongs = uiState.album.songs.orEmpty().sortedWith(
+                            compareBy(
                             { it.discNumber ?: 1 },
                             { it.trackNumber ?: 0 }
                         ))
@@ -248,6 +251,7 @@ private fun AlbumDetailScreenContent(
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
+
                                     is DiscItem.SongItem -> {
                                         val song = item.song
                                         ListItem(
@@ -419,12 +423,14 @@ private fun AlbumMetadataHeader(
         ) {
             // Album type first
             Text(
-                text = stringResource(when (album.type) {
-                    AlbumType.ALBUM -> R.string.album_type_album
-                    AlbumType.SINGLE -> R.string.album_type_single
-                    AlbumType.EP -> R.string.album_type_ep
-                    AlbumType.COMPILATION -> R.string.album_type_compilation
-                }),
+                text = stringResource(
+                    when (album.type) {
+                        AlbumType.ALBUM -> R.string.album_type_album
+                        AlbumType.SINGLE -> R.string.album_type_single
+                        AlbumType.EP -> R.string.album_type_ep
+                        AlbumType.COMPILATION -> R.string.album_type_compilation
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

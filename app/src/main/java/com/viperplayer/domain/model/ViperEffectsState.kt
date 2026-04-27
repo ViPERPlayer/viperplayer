@@ -13,37 +13,37 @@ data class ViperEffectsState(
 
     // Master Limiter
     val masterLimiter: MasterLimiterState = MasterLimiterState(),
-    
+
     // Spectrum Extension
     val spectrumExtension: SpectrumExtensionState = SpectrumExtensionState(),
-    
+
     // Field Surround
     val fieldSurround: FieldSurroundState = FieldSurroundState(),
-    
+
     // Differential Surround
     val differentialSurround: DifferentialSurroundState = DifferentialSurroundState(),
-    
+
     // Playback Gain Control
     val playbackGain: PlaybackGainState = PlaybackGainState(),
 
     // Dynamic System
     val dynamicSystem: DynamicSystemState = DynamicSystemState(),
-    
+
     // Tube Simulator 6N1J
     val tubeSimulator: TubeSimulatorState = TubeSimulatorState(),
-    
+
     // ViPER Bass
     val viperBass: ViperBassState = ViperBassState(),
-    
+
     // ViPER Clarity
     val viperClarity: ViperClarityState = ViperClarityState(),
-    
+
     // Auditory System Protection
     val auditorySystemProtection: AuditorySystemProtectionState = AuditorySystemProtectionState(),
-    
+
     // Analog X
     val analogX: AnalogXState = AnalogXState(),
-    
+
     // Speaker Optimization
     val speakerOptimization: SpeakerOptimizationState = SpeakerOptimizationState(),
 

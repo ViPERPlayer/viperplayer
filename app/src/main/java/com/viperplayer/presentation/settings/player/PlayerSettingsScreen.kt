@@ -61,7 +61,7 @@ fun PlayerSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAudioQualityDialog by remember { mutableStateOf(false) }
-    
+
     ViperScaffold(
         topBar = {
             TopAppBar(
@@ -95,11 +95,11 @@ fun PlayerSettingsScreen(
                     onClick = { showAudioQualityDialog = true }
                 )
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("Playback")
             }
@@ -128,11 +128,11 @@ fun PlayerSettingsScreen(
                     onCheckedChange = viewModel::setAutoLoadMore
                 )
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("Audio Normalization")
             }
@@ -177,13 +177,13 @@ fun PlayerSettingsScreen(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                             )
                         )
-                        
+
                         if (uiState.replayGainEnabled) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant
                             )
-                            
+
                             Column(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
@@ -201,7 +201,10 @@ fun PlayerSettingsScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = String.format("%.1f", uiState.replayGainPreampDb),
+                                            text = String.format(
+                                                "%.1f",
+                                                uiState.replayGainPreampDb
+                                            ),
                                             style = MaterialTheme.typography.bodyLarge,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -222,7 +225,7 @@ fun PlayerSettingsScreen(
                                         }
                                     }
                                 }
-                                
+
                                 Slider(
                                     value = uiState.replayGainPreampDb,
                                     onValueChange = { viewModel.setReplayGainPreampDb(it) },
@@ -236,7 +239,7 @@ fun PlayerSettingsScreen(
             }
         }
     }
-    
+
     if (showAudioQualityDialog) {
         AudioQualityDialog(
             currentQuality = uiState.audioQuality,
@@ -371,7 +374,7 @@ private fun HistoryDurationSliderItem(
     val durations = HistoryDuration.values()
     val currentIndex = durations.indexOf(currentDuration).coerceIn(0, durations.size - 1).toFloat()
     val maxIndex = (durations.size - 1).toFloat()
-    
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -406,12 +409,12 @@ private fun HistoryDurationSliderItem(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             )
-            
+
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
-            
+
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -430,7 +433,7 @@ private fun HistoryDurationSliderItem(
                         inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
                 )
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween

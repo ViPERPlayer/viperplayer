@@ -44,13 +44,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val localMediaDataSource: com.viperplayer.data.source.LocalMediaDataSource
 ) : MediaLibraryRepository {
-    
+
     // Helper function to load artist
     private suspend fun loadArtist(artistId: Long): Artist? {
         val artistEntity = artistDao.getById(artistId).first() ?: return null
         return artistEntity.toDomain()
     }
-    
+
     /**
      * Upsert an artist: insert if doesn't exist, update if exists.
      * Returns the artist ID, preserving existing ID to maintain foreign key relationships.
@@ -58,7 +58,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private suspend fun upsertArtist(artist: Artist): Long {
         val existing = artistDao.getByMediaId(artist.id.pluginId, artist.id.sourceId)
         val entity = artist.toEntity()
-        
+
         return if (existing != null) {
             // Update existing artist, preserving ID and status fields
             val updatedEntity = entity.copy(
@@ -81,7 +81,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Upsert an album: insert if doesn't exist, update if exists.
      * Returns the album ID, preserving existing ID to maintain foreign key relationships.
@@ -89,7 +89,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private suspend fun upsertAlbum(album: Album, primaryArtistId: Long?): Long {
         val existing = albumDao.getByMediaId(album.id.pluginId, album.id.sourceId)
         val entity = album.toEntity(primaryArtistId)
-        
+
         return if (existing != null) {
             // Update existing album, preserving ID and status fields
             val updatedEntity = entity.copy(
@@ -113,7 +113,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
     }
-    
+
     // Helper function to compute isPlayable at runtime based on plugin connection, download status, and internet availability
     private fun computeIsPlayable(
         songEntity: com.viperplayer.data.local.entity.SongEntity,
@@ -122,25 +122,25 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         isInternetAvailable: Boolean
     ): Boolean {
         val isPluginConnected = songEntity.pluginId in connectedPluginIds
-        
+
         // If song is downloaded, it's always playable (offline)
         if (songEntity.isDownloaded) {
             return true
         }
-        
+
         // If plugin is not connected, song is not playable
         if (!isPluginConnected) {
             return false
         }
-        
+
         // If song requires internet but internet is not available, song is not playable
         if (requiresInternet && !isInternetAvailable) {
             return false
         }
-        
+
         return true
     }
-    
+
     // Helper function to save artist genres
     private suspend fun saveArtistGenres(artistId: Long, genres: List<String>) {
         genres.forEach { genreName ->
@@ -150,7 +150,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 val genreEntity = GenreEntity(name = genreName)
                 genreId = genreDao.insert(genreEntity)
             }
-            
+
             // Create cross-ref
             crossRefDao.insertArtistGenre(
                 ArtistGenreCrossRef(
@@ -160,7 +160,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             )
         }
     }
-    
+
     // Artists
     override fun getArtist(mediaId: MediaId): Flow<Artist?> {
         return combine(
@@ -171,7 +171,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             artistEntity.toDomain()
         }
     }
-    
+
     override fun getAllLikedArtists(): Flow<List<Artist>> {
         return artistDao.getAllLiked()
             .map { entities ->
@@ -180,7 +180,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
     }
-    
+
     override fun getAllSavedArtists(): Flow<List<Artist>> {
         return artistDao.getAllSaved()
             .map { entities ->
@@ -189,10 +189,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
     }
-    
+
     override suspend fun saveArtist(artist: Artist): Unit = withContext(Dispatchers.IO) {
-        val artistId = upsertArtist(artist)
-        
+        upsertArtist(artist)
+
         // Save topSongs and albums from artist
         artist.topSongs.forEach { song ->
             saveSong(song)
@@ -200,17 +200,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         artist.albums.forEach { album ->
             saveAlbum(album)
         }
-        
+
         // Save playlists
         artist.playlists.forEach { playlist ->
             savePlaylist(playlist)
         }
-        
+
         // Save featuring playlists
         artist.featuring.forEach { playlist ->
             savePlaylist(playlist)
         }
-        
+
         // Save appearsOn items (albums, songs, playlists, artists)
         artist.appearsOn.forEach { item ->
             when (item) {
@@ -220,21 +220,23 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 is Artist -> saveArtist(item)
             }
         }
-        
+
         // Save similar artists
         artist.similarArtists.forEach { similarArtist ->
             saveArtist(similarArtist)
         }
     }
-    
-    override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
-        artistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
-    }
-    
-    override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
-        artistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
-    }
-    
+
+    override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            artistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+        }
+
+    override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            artistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+        }
+
     // Albums
     override fun getAlbum(mediaId: MediaId): Flow<Album?> {
         return combine(
@@ -242,16 +244,16 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             albumDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id }
         ) { albumEntity, albumId ->
             if (albumEntity == null) return@combine null
-            
+
             val artistIds = albumId?.let { crossRefDao.getArtistIdsForAlbum(it) } ?: emptyList()
             val artists = artistIds.mapNotNull { artistId ->
                 loadArtist(artistId)
             }
-            
+
             albumEntity.toDomain(artists)
         }
     }
-    
+
     override fun getAllLikedAlbums(): Flow<List<Album>> {
         return albumDao.getAllLiked()
             .map { entities ->
@@ -264,7 +266,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
     }
-    
+
     override fun getAllSavedAlbums(): Flow<List<Album>> {
         return albumDao.getAllSaved()
             .map { entities ->
@@ -277,7 +279,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
     }
-    
+
     override fun getAllDownloadedAlbums(): Flow<List<Album>> {
         return albumDao.getAllDownloaded()
             .map { entities ->
@@ -290,19 +292,19 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
     }
-    
+
     override suspend fun saveAlbum(album: Album): Unit = withContext(Dispatchers.IO) {
         // Upsert all artists first, preserving their IDs
         val artistIds = album.artists.map { artist ->
             upsertArtist(artist)
         }
-        
+
         val primaryArtistId = artistIds.firstOrNull()
         val albumId = upsertAlbum(album, primaryArtistId)
-        
+
         // Clear existing album-artist relationships and recreate them
         crossRefDao.deleteAlbumArtists(albumId)
-        
+
         // Create cross-refs for all artists
         album.artists.forEachIndexed { index, artist ->
             val artistId = artistIds[index]
@@ -315,19 +317,22 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             )
         }
     }
-    
-    override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
-        albumDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
-    }
-    
-    override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
-        albumDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
-    }
-    
-    override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit = withContext(Dispatchers.IO) {
-        albumDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
-    }
-    
+
+    override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            albumDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+        }
+
+    override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            albumDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+        }
+
+    override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            albumDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
+        }
+
     // Songs
     override fun getSong(mediaId: MediaId): Flow<Song?> {
         return combine(
@@ -338,17 +343,22 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             networkConnectivityChecker.isInternetAvailable
         ) { songEntity, songId, albumId, connectedPlugins, isInternetAvailable ->
             if (songEntity == null) return@combine null
-            
+
             val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
             // Default to true for database songs (assume streaming)
             val requiresInternet = true
-            val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
-            
+            val isPlayable = computeIsPlayable(
+                songEntity,
+                connectedPluginIds,
+                requiresInternet,
+                isInternetAvailable
+            )
+
             val artistIds = songId?.let { crossRefDao.getArtistIdsForSong(it) } ?: emptyList()
             val artists = artistIds.mapNotNull { artistId ->
                 loadArtist(artistId)
             }
-            
+
             val album = albumId?.let {
                 albumDao.getById(it).first()?.let { albumEntity ->
                     val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
@@ -358,11 +368,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     albumEntity.toDomain(albumArtists)
                 }
             }
-            
+
             songEntity.toDomain(album, artists, isPlayable, requiresInternet)
         }
     }
-    
+
     override fun getAllLikedSongs(): Flow<List<Song>> {
         return combine(
             songDao.getAllLiked(),
@@ -386,12 +396,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
                 // Default to true for database songs (assume streaming)
                 val requiresInternet = true
-                val isPlayable = computeIsPlayable(entity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                val isPlayable = computeIsPlayable(
+                    entity,
+                    connectedPluginIds,
+                    requiresInternet,
+                    isInternetAvailable
+                )
                 entity.toDomain(album, artists, isPlayable, requiresInternet)
             }
         }
     }
-    
+
     override fun getAllSavedSongs(): Flow<List<Song>> {
         return combine(
             songDao.getAllSaved(),
@@ -415,12 +430,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
                 // Default to true for database songs (assume streaming)
                 val requiresInternet = true
-                val isPlayable = computeIsPlayable(entity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                val isPlayable = computeIsPlayable(
+                    entity,
+                    connectedPluginIds,
+                    requiresInternet,
+                    isInternetAvailable
+                )
                 entity.toDomain(album, artists, isPlayable, requiresInternet)
             }
         }
     }
-    
+
     override fun getAllDownloadedSongs(): Flow<List<Song>> {
         return combine(
             songDao.getAllDownloaded(),
@@ -444,12 +464,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
                 // Downloaded songs don't require internet
                 val requiresInternet = false
-                val isPlayable = computeIsPlayable(entity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                val isPlayable = computeIsPlayable(
+                    entity,
+                    connectedPluginIds,
+                    requiresInternet,
+                    isInternetAvailable
+                )
                 entity.toDomain(album, artists, isPlayable, requiresInternet)
             }
         }
     }
-    
+
     override suspend fun saveSong(song: Song): Unit = withContext(Dispatchers.IO) {
         // Upsert album first if exists, preserving its ID
         val albumId = song.album?.let { album ->
@@ -457,13 +482,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             val albumArtistIds = album.artists.map { artist ->
                 upsertArtist(artist)
             }
-            
+
             val primaryArtistId = albumArtistIds.firstOrNull()
             val albumId = upsertAlbum(album, primaryArtistId)
-            
+
             // Clear existing album-artist relationships and recreate them
             crossRefDao.deleteAlbumArtists(albumId)
-            
+
             // Create cross-refs for all album artists
             album.artists.forEachIndexed { index, artist ->
                 val artistId = albumArtistIds[index]
@@ -475,10 +500,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     )
                 )
             }
-            
+
             albumId
         }
-        
+
         // Check if song already exists to preserve ID and other status fields
         val existingSong = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
         val songEntity = song.toEntity(albumId).copy(
@@ -494,7 +519,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             replayGainDb = song.replayGainDb ?: existingSong?.replayGainDb,
             peakAmplitude = song.peakAmplitude ?: existingSong?.peakAmplitude,
         )
-        
+
         // Use update() for existing songs to preserve ID, insert() for new songs
         val songId = if (existingSong != null) {
             songDao.update(songEntity)
@@ -509,7 +534,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 insertedId
             }
         }
-        
+
         // Download artwork if song is liked or saved
         if ((existingSong?.isLiked ?: song.isLiked) || (existingSong?.isSaved ?: false)) {
             song.artworkUrl?.let { artworkUrl ->
@@ -521,10 +546,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
             }
         }
-        
+
         // Clear existing song-artist relationships
         crossRefDao.deleteSongArtists(songId)
-        
+
         // Upsert all song artists, preserving their IDs, and create cross-refs
         song.artists.forEachIndexed { index, artist ->
             val artistId = upsertArtist(artist)
@@ -537,48 +562,55 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             )
         }
     }
-    
-    override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
-        songDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
-        
-        // Download artwork if song is being liked
-        if (isLiked) {
-            val song = getSong(mediaId).first()
-            song?.artworkUrl?.let { artworkUrl ->
-                val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
-                localPath?.let {
-                    songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+
+    override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            songDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+
+            // Download artwork if song is being liked
+            if (isLiked) {
+                val song = getSong(mediaId).first()
+                song?.artworkUrl?.let { artworkUrl ->
+                    val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
+                    localPath?.let {
+                        songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+                    }
                 }
-            }
-        } else {
-            // Optionally delete artwork when unliked (or keep it for offline access)
-            // For now, we'll keep it cached
-        }
-    }
-    
-    override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
-        songDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
-        
-        // Download artwork if song is being saved
-        if (isSaved) {
-            val song = getSong(mediaId).first()
-            song?.artworkUrl?.let { artworkUrl ->
-                val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
-                localPath?.let {
-                    songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
-                }
+            } else {
+                // Optionally delete artwork when unliked (or keep it for offline access)
+                // For now, we'll keep it cached
             }
         }
-    }
-    
-    override suspend fun setSongDownloaded(mediaId: MediaId, isDownloaded: Boolean, downloadPath: String?): Unit = withContext(Dispatchers.IO) {
+
+    override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            songDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+
+            // Download artwork if song is being saved
+            if (isSaved) {
+                val song = getSong(mediaId).first()
+                song?.artworkUrl?.let { artworkUrl ->
+                    val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
+                    localPath?.let {
+                        songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+                    }
+                }
+            }
+        }
+
+    override suspend fun setSongDownloaded(
+        mediaId: MediaId,
+        isDownloaded: Boolean,
+        downloadPath: String?
+    ): Unit = withContext(Dispatchers.IO) {
         songDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded, downloadPath)
     }
-    
-    override suspend fun incrementSongPlayCount(mediaId: MediaId): Unit = withContext(Dispatchers.IO) {
-        songDao.incrementPlayCount(mediaId.pluginId, mediaId.sourceId)
-    }
-    
+
+    override suspend fun incrementSongPlayCount(mediaId: MediaId): Unit =
+        withContext(Dispatchers.IO) {
+            songDao.incrementPlayCount(mediaId.pluginId, mediaId.sourceId)
+        }
+
     // Playlists
     override fun getPlaylist(mediaId: MediaId): Flow<Playlist?> {
         return combine(
@@ -588,9 +620,9 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             networkConnectivityChecker.isInternetAvailable
         ) { playlistEntity, playlistId, connectedPlugins, isInternetAvailable ->
             if (playlistEntity == null) return@combine null
-            
+
             val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
-            
+
             val songIds = playlistId?.let { crossRefDao.getSongIdsForPlaylist(it) } ?: emptyList()
             val songs = songIds.mapNotNull { songId ->
                 val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
@@ -609,19 +641,24 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 }
                 // Default to true for database songs (assume streaming)
                 val requiresInternet = true
-                val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                val isPlayable = computeIsPlayable(
+                    songEntity,
+                    connectedPluginIds,
+                    requiresInternet,
+                    isInternetAvailable
+                )
                 songEntity.toDomain(album, artists, isPlayable, requiresInternet)
             }
-            
+
             // Get artwork from first song with non-null artwork, or use playlist's existing artwork
-            val artworkUrl = playlistEntity.artworkUrl 
+            val artworkUrl = playlistEntity.artworkUrl
                 ?: songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
-            
+
             val playlist = playlistEntity.toDomain(songs)
             playlist.copy(artworkUrl = artworkUrl)
         }
     }
-    
+
     override fun getAllLikedPlaylists(): Flow<List<Playlist>> {
         return combine(
             playlistDao.getAllLiked(),
@@ -648,18 +685,23 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     }
                     // Default to true for database songs (assume streaming)
                     val requiresInternet = true
-                    val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                    val isPlayable = computeIsPlayable(
+                        songEntity,
+                        connectedPluginIds,
+                        requiresInternet,
+                        isInternetAvailable
+                    )
                     songEntity.toDomain(album, artists, isPlayable, requiresInternet)
                 }
                 // Get artwork from first song with non-null artwork, or use playlist's existing artwork
-                val artworkUrl = entity.artworkUrl 
+                val artworkUrl = entity.artworkUrl
                     ?: songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
                 val playlist = entity.toDomain(songs)
                 playlist.copy(artworkUrl = artworkUrl)
             }
         }
     }
-    
+
     override fun getAllSavedPlaylists(): Flow<List<Playlist>> {
         return combine(
             playlistDao.getAllSaved(),
@@ -686,22 +728,27 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     }
                     // Default to true for database songs (assume streaming)
                     val requiresInternet = true
-                    val isPlayable = computeIsPlayable(songEntity, connectedPluginIds, requiresInternet, isInternetAvailable)
+                    val isPlayable = computeIsPlayable(
+                        songEntity,
+                        connectedPluginIds,
+                        requiresInternet,
+                        isInternetAvailable
+                    )
                     songEntity.toDomain(album, artists, isPlayable, requiresInternet)
                 }
                 // Get artwork from first song with non-null artwork, or use playlist's existing artwork
-                val artworkUrl = entity.artworkUrl 
+                val artworkUrl = entity.artworkUrl
                     ?: songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
                 val playlist = entity.toDomain(songs)
                 playlist.copy(artworkUrl = artworkUrl)
             }
         }
     }
-    
+
     override suspend fun savePlaylist(playlist: Playlist): Unit = withContext(Dispatchers.IO) {
         val playlistEntity = playlist.toEntity()
         val playlistId = playlistDao.insert(playlistEntity)
-        
+
         // Save songs and create cross-refs
         playlist.songs?.forEachIndexed { index, song ->
             saveSong(song)
@@ -714,7 +761,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                         position = index
                     )
                 )
-                
+
                 // Download artwork for songs added to local playlists
                 if (it.localArtworkPath == null && song.artworkUrl != null) {
                     val localPath = artworkDownloader.downloadArtwork(song.artworkUrl, song.id)
@@ -725,24 +772,27 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
     }
-    
-    override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean): Unit = withContext(Dispatchers.IO) {
-        playlistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
-    }
-    
-    override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean): Unit = withContext(Dispatchers.IO) {
-        playlistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
-    }
-    
-    override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit = withContext(Dispatchers.IO) {
-        playlistDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
-    }
-    
+
+    override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            playlistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+        }
+
+    override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            playlistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+        }
+
+    override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit =
+        withContext(Dispatchers.IO) {
+            playlistDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
+        }
+
     override fun getLikedSongsPlaylist(): Flow<Playlist> {
         return getAllLikedSongs().map { songs ->
             // Get artwork from first song with non-null artwork
             val artworkUrl = songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
-            
+
             Playlist(
                 id = MediaId("local", "liked_songs"),
                 name = "Liked Songs",

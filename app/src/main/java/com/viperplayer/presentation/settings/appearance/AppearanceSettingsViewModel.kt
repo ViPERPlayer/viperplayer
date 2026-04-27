@@ -23,10 +23,10 @@ data class AppearanceSettingsUiState(
 class AppearanceSettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(AppearanceSettingsUiState())
     val uiState: StateFlow<AppearanceSettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         viewModelScope.launch {
             settingsRepository.dynamicThemeMode.collect { mode ->
@@ -44,19 +44,19 @@ class AppearanceSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun setDynamicThemeMode(mode: DynamicThemeMode) {
         viewModelScope.launch {
             settingsRepository.setDynamicThemeMode(mode)
         }
     }
-    
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             settingsRepository.setThemeMode(mode)
         }
     }
-    
+
     fun setPureBlack(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setPureBlack(enabled)

@@ -19,27 +19,27 @@ import kotlinx.coroutines.flow.Flow
  * Defines the contract for interacting with music plugins.
  */
 interface PluginRepository {
-    
+
     /**
      * Flow of all discovered plugins (connected and disconnected).
      */
     val discoveredPlugins: Flow<List<PluginInfo>>
-    
+
     /**
      * Flow of connected plugins.
      */
     val connectedPlugins: Flow<List<Plugin>>
-    
+
     /**
      * Discover all installed plugins.
      */
     suspend fun refreshPlugins()
-    
+
     /**
      * Enable a plugin (connects it automatically).
      */
     suspend fun enablePlugin(pluginId: String): Result<Unit>
-    
+
     /**
      * Disable a plugin (disconnects it).
      */
@@ -59,7 +59,7 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 20
     ): Result<SearchResult>
-    
+
     /**
      * Get home content from all connected plugins.
      * Returns a list of pairs: (PluginName, HomeContent)
@@ -73,7 +73,7 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 20
     ): Result<PagedResult<BrowseCategory>>
-    
+
     /**
      * Get category contents.
      */
@@ -83,7 +83,7 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 20
     ): Result<SearchResult>
-    
+
     /**
      * Get library songs from all plugins.
      */
@@ -91,7 +91,7 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 50
     ): Result<PagedResult<Song>>
-    
+
     /**
      * Get library albums from all plugins.
      */
@@ -99,7 +99,7 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 50
     ): Result<PagedResult<Album>>
-    
+
     /**
      * Get library artists from all plugins.
      */
@@ -107,7 +107,7 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 50
     ): Result<PagedResult<Artist>>
-    
+
     /**
      * Get library playlists from all plugins.
      */
@@ -115,27 +115,27 @@ interface PluginRepository {
         cursor: String? = null,
         limit: Int = 50
     ): Result<PagedResult<Playlist>>
-    
+
     /**
      * Get song details.
      */
     suspend fun getSong(mediaId: MediaId): Result<Song>
-    
+
     /**
      * Get album details with tracks.
      */
     suspend fun getAlbum(mediaId: MediaId): Result<Album>
-    
+
     /**
      * Get artist details.
      */
     suspend fun getArtist(mediaId: MediaId): Result<Artist>
-    
+
     /**
      * Get playlist details with tracks.
      */
     suspend fun getPlaylist(mediaId: MediaId): Result<Playlist>
-    
+
     /**
      * Get artist songs.
      */
@@ -168,7 +168,8 @@ interface PluginRepository {
         const val SEARCH_TYPE_ALBUM = 2
         const val SEARCH_TYPE_ARTIST = 4
         const val SEARCH_TYPE_PLAYLIST = 8
-        const val SEARCH_TYPE_ALL = SEARCH_TYPE_SONG or SEARCH_TYPE_ALBUM or SEARCH_TYPE_ARTIST or SEARCH_TYPE_PLAYLIST
+        const val SEARCH_TYPE_ALL =
+            SEARCH_TYPE_SONG or SEARCH_TYPE_ALBUM or SEARCH_TYPE_ARTIST or SEARCH_TYPE_PLAYLIST
     }
 }
 

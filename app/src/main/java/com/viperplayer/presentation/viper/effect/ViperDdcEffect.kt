@@ -94,12 +94,12 @@ fun ViperDdcEffect(
                 fontSize = 14.sp,
                 letterSpacing = 0.25.sp
             )
-            
+
             if (state.coeffs != null) {
                 val data = remember(state.coeffs) {
                     calculateDdcResponse(state.coeffs)
                 }
-                
+
                 // Plot Selector
                 Row(
                     modifier = Modifier
@@ -118,19 +118,19 @@ fun ViperDdcEffect(
                 }
 
                 if (data != null) {
-                    val points = when(plotType) {
+                    val points = when (plotType) {
                         PlotType.MAGNITUDE -> data.magnitude
                         PlotType.PHASE -> data.phase
                         PlotType.GROUP_DELAY -> data.groupDelay
                     }
-                    
+
                     if (points.isNotEmpty()) {
                         // Auto-scale
                         val values = points.map { it.second }
                         val realMin = values.minOrNull() ?: -20f
                         val realMax = values.maxOrNull() ?: 20f
-                        
-                        val unit = when(plotType) {
+
+                        val unit = when (plotType) {
                             PlotType.MAGNITUDE -> "dB"
                             PlotType.PHASE -> "°"
                             PlotType.GROUP_DELAY -> "ms"
@@ -141,7 +141,7 @@ fun ViperDdcEffect(
                         val range = realMax - realMin
                         val effectiveRange = if (range == 0f) 10f else range
                         val margin = effectiveRange * 0.1f // 10% margin
-                        
+
                         val minY = realMin - margin
                         val maxY = realMax + margin
 
@@ -155,10 +155,10 @@ fun ViperDdcEffect(
                             maxY = maxY,
                             unit = unit
                         )
-                        
+
                         val rates = state.coeffs.keys.sorted().joinToString(", ")
                         val bandCount = state.coeffs.values.firstOrNull()?.size?.div(5) ?: 0
-                        
+
                         Text(
                             text = "Supported rates: $rates\nBands: $bandCount",
                             modifier = Modifier.padding(top = 8.dp),
@@ -196,7 +196,7 @@ fun ViperDdcEffect(
                         .selectableGroup()
                 ) {
                     if (ddcFiles.isEmpty()) {
-                         Text(
+                        Text(
                             text = "No files loaded",
                             modifier = Modifier
                                 .padding(horizontal = 24.dp, vertical = 16.dp),
@@ -211,7 +211,7 @@ fun ViperDdcEffect(
                                     .selectable(
                                         selected = isSelected,
                                         role = Role.RadioButton,
-                                        onClick = { 
+                                        onClick = {
                                             onFileSelect(file.name)
                                             showDialog = false
                                         }
@@ -257,11 +257,15 @@ fun ViperDdcEffect(
                     TextButton(
                         onClick = { launcher.launch(arrayOf("*/*")) }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(Modifier.size(8.dp))
                         Text("Add new")
                     }
-                    
+
                     Button(onClick = { showDialog = false }) {
                         Text("Close")
                     }
@@ -287,11 +291,14 @@ data class DdcResponseData(
 data class Complex(val r: Double, val i: Double) {
     operator fun plus(other: Complex) = Complex(r + other.r, i + other.i)
     operator fun minus(other: Complex) = Complex(r - other.r, i - other.i)
-    operator fun times(other: Complex) = Complex(r * other.r - i * other.i, r * other.i + i * other.r)
+    operator fun times(other: Complex) =
+        Complex(r * other.r - i * other.i, r * other.i + i * other.r)
+
     operator fun div(other: Complex): Complex {
         val d = other.r * other.r + other.i * other.i
         return Complex((r * other.r + i * other.i) / d, (i * other.r - r * other.i) / d)
     }
+
     fun abs(): Double = kotlin.math.sqrt(r * r + i * i)
     fun arg(): Double = kotlin.math.atan2(i, r) // Phase in radians
 }
@@ -299,34 +306,34 @@ data class Complex(val r: Double, val i: Double) {
 fun calculateDdcResponse(coeffsMap: Map<Int, List<Float>>): DdcResponseData? {
     // Prefer 44100 or 48000, else first available
     val targetRate = 44100
-    val rate = if (coeffsMap.containsKey(targetRate)) targetRate 
-               else if (coeffsMap.containsKey(48000)) 48000 
-               else coeffsMap.keys.firstOrNull() ?: return null
-               
+    val rate = if (coeffsMap.containsKey(targetRate)) targetRate
+    else if (coeffsMap.containsKey(48000)) 48000
+    else coeffsMap.keys.firstOrNull() ?: return null
+
     val coeffs = coeffsMap[rate] ?: return null
-    
+
     // Coeffs are [b0, b1, b2, a1, a2] per biquad
     // 5 floats per biquad
     val numBiquads = coeffs.size / 5
-    
+
     // Use denser points for GD, but Graph uses 100 points.
     // Let's use 200 points for calc to get better GD derivative
     val frequencies = generateLogFrequencies(20f, 20000f, 200)
-    
+
     val magnitude = mutableListOf<Pair<Float, Float>>()
     val phase = mutableListOf<Pair<Float, Float>>()
     val groupDelay = mutableListOf<Pair<Float, Float>>()
-    
+
     var prevPhase = 0.0
     var prevFreq = 0.0
-    
+
     for ((index, freq) in frequencies.withIndex()) {
         val omega = 2.0 * Math.PI * freq / rate
         val zInv1 = Complex(kotlin.math.cos(omega), -kotlin.math.sin(omega)) // z^-1
         val zInv2 = zInv1 * zInv1 // z^-2
-        
+
         var totalResponse = Complex(1.0, 0.0)
-        
+
         for (i in 0 until numBiquads) {
             val base = i * 5
             val b0 = coeffs[base + 0].toDouble()
@@ -334,62 +341,62 @@ fun calculateDdcResponse(coeffsMap: Map<Int, List<Float>>): DdcResponseData? {
             val b2 = coeffs[base + 2].toDouble()
             val a1 = coeffs[base + 3].toDouble()
             val a2 = coeffs[base + 4].toDouble()
-            
+
             val num = Complex(b0, 0.0) + (Complex(b1, 0.0) * zInv1) + (Complex(b2, 0.0) * zInv2)
             val den = Complex(1.0, 0.0) - (Complex(a1, 0.0) * zInv1) - (Complex(a2, 0.0) * zInv2)
-            
+
             if (den.r != 0.0 || den.i != 0.0) {
-                 totalResponse = totalResponse * (num / den)
+                totalResponse = totalResponse * (num / den)
             }
         }
-        
+
         // Magnitude
         val mag = totalResponse.abs()
         val db = 20.0 * log10(mag)
         magnitude.add(freq to db.toFloat())
-        
+
         // Phase (Unwrapped)
         var ph = totalResponse.arg() // -PI to PI
-        
+
         // Basic unwrapping
         // If jump > PI, decrement by 2PI. If jump < -PI, increment by 2PI.
         // Actually, we process sequentially.
         // But for display we want Wrapped (-180, 180) typically? Or Unwrapped?
         // Let's store unwrapped for GD, and wrapped for display.
         // Wait, for GD we need dPhi/dw.
-        
+
         // Handle unwrapping relative to previous *accumulated* phase if we were accumulating.
         // But here we just get principal arg.
         // Let's approximate GD with finite difference of principal args, correcting for wrapping.
-        
+
         val diffPhys = if (index > 0) ph - prevPhase else 0.0
         // Correct wrap
         var diff = diffPhys
         if (diff > Math.PI) diff -= 2 * Math.PI
         if (diff < -Math.PI) diff += 2 * Math.PI
-        
+
         // Valid for GD
         if (index > 0) {
-            val dw = 2.0 * Math.PI * (freq - prevFreq) / rate
+            2.0 * Math.PI * (freq - prevFreq) / rate
             // GD = - dPhi / dOmega (normalized omega) -> - dPhi/dw * 1/Fs ? 
             // GD(seconds) = - dPhi / d(2*pi*f/Fs) * (1/Fs) ???
             // GD(seconds) = - dPhi / d(2*pi*f) = -dPhi/df * 1/(2pi)
-            
+
             // dOmega_analog = 2*pi*df.
             // GD = - dPhi / dOmega_analog
-            val dt = - diff / (2.0 * Math.PI * (freq - prevFreq)) // Seconds
+            val dt = -diff / (2.0 * Math.PI * (freq - prevFreq)) // Seconds
             groupDelay.add(freq to (dt * 1000.0).toFloat()) // ms
         } else {
-             groupDelay.add(freq to 0f)
+            groupDelay.add(freq to 0f)
         }
-        
+
         prevPhase = ph
         prevFreq = freq.toDouble()
-        
+
         // Output Phase in Degrees (Wrapped)
         phase.add(freq to Math.toDegrees(ph).toFloat())
     }
-    
+
     return DdcResponseData(magnitude, phase, groupDelay)
 }
 
@@ -397,8 +404,8 @@ fun generateLogFrequencies(start: Float, end: Float, count: Int): List<Float> {
     val logStart = log10(start.toDouble())
     val logEnd = log10(end.toDouble())
     val step = (logEnd - logStart) / (count - 1)
-    
-    return (0 until count).map { 
+
+    return (0 until count).map {
         10.0.pow(logStart + it * step).toFloat()
     }
 }

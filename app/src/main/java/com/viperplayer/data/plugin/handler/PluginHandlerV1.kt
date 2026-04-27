@@ -45,18 +45,18 @@ class PluginHandlerV1(
     private val service: IViperPluginV1
 ) : PluginHandler {
     override val apiVersion: Int = 1
-    
+
     /**
      * Direct access to the V1 service interface.
      * This is needed for capabilities and other service-specific operations.
      */
     val v1Service: IViperPluginV1
         get() = service
-    
+
     override fun getCapabilities(): Result<PluginCapabilities> {
         return runCatching { service.capabilities }
     }
-    
+
     override suspend fun getSearchSuggestions(query: String): Result<SearchSuggestionsResultV1> {
         return runCatching {
             suspendCancellableCoroutine { continuation ->
@@ -75,7 +75,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun search(
         query: String,
         filter: SearchFilter?,
@@ -109,7 +109,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getBrowseCategories(
         cursor: String?,
         limit: Int
@@ -117,7 +117,7 @@ class PluginHandlerV1(
         // TODO: Implement when V1 API supports this
         return PagedResult(emptyList())
     }
-    
+
     override suspend fun getCategoryContents(
         categoryId: String,
         cursor: String?,
@@ -129,7 +129,7 @@ class PluginHandlerV1(
             nextCursor = null
         }
     }
-    
+
     override suspend fun getLibrarySongs(
         cursor: String?,
         limit: Int
@@ -171,7 +171,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getLibraryAlbums(
         cursor: String?,
         limit: Int
@@ -191,7 +191,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getLibraryArtists(
         cursor: String?,
         limit: Int
@@ -211,7 +211,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getLibraryPlaylists(
         cursor: String?,
         limit: Int
@@ -242,7 +242,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getSong(id: String): Song {
         Timber.d("Getting song from plugin: $pluginId, songId: $id")
         return suspendCancellableCoroutine { cont ->
@@ -264,7 +264,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getAlbum(id: String): Album {
         Timber.d("Getting album from plugin: $pluginId, albumId: $id")
         return suspendCancellableCoroutine { cont ->
@@ -291,7 +291,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getArtist(id: String): Artist {
         Timber.d("Getting artist from plugin: $pluginId, artistId: $id")
         return suspendCancellableCoroutine { cont ->
@@ -320,7 +320,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getPlaylist(id: String): Playlist {
         Timber.d("Getting playlist from plugin: $pluginId, playlistId: $id")
         return suspendCancellableCoroutine { cont ->
@@ -347,7 +347,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getArtistSongs(
         artistId: String,
         cursor: String?,
@@ -368,7 +368,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getArtistAlbums(
         artistId: String,
         cursor: String?,
@@ -389,7 +389,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getPlaylistSongs(
         playlistId: String,
         cursor: String?,
@@ -410,7 +410,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override suspend fun getStream(mediaId: String): com.viperplayer.plugin.v1.StreamSource {
         Timber.d("Getting stream from plugin: $pluginId, mediaId: $mediaId")
         return suspendCancellableCoroutine { cont ->
@@ -427,7 +427,7 @@ class PluginHandlerV1(
             }
         }
     }
-    
+
     override fun getSettingsActivityClass(): String? {
         return try {
             service.settingsActivityClass
@@ -436,7 +436,7 @@ class PluginHandlerV1(
             null
         }
     }
-    
+
     override suspend fun disconnect() {
         try {
             service.onDisconnect()

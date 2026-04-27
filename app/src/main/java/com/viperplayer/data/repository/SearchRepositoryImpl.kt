@@ -18,26 +18,26 @@ class SearchRepositoryImpl @Inject constructor(
     override suspend fun getSuggestions(query: String): Flow<List<Result<SearchSuggestions>>> {
         return pluginRepository.getSearchSuggestions(query)
     }
-    
+
     override suspend fun saveSearchHistory(query: String) {
         if (query.isNotBlank()) {
             val trimmedQuery = query.trim()
             searchHistoryDao.insert(SearchHistoryEntity(query = trimmedQuery))
         }
     }
-    
+
     override fun getRecentHistory(limit: Int): Flow<List<String>> {
         return searchHistoryDao.getRecentHistory(limit).map { entities ->
             entities.map { it.query }
         }
     }
-    
+
     override fun getHistoryContaining(query: String, limit: Int): Flow<List<String>> {
         return searchHistoryDao.getHistoryContaining(query.trim(), limit).map { entities ->
             entities.map { it.query }
         }
     }
-    
+
     override suspend fun removeHistoryEntry(query: String) {
         searchHistoryDao.deleteByQuery(query)
     }

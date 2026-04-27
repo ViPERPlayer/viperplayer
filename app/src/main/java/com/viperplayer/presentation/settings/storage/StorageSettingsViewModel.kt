@@ -26,10 +26,10 @@ class StorageSettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val cacheRepository: CacheRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(StorageSettingsUiState())
     val uiState: StateFlow<StorageSettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         viewModelScope.launch {
             settingsRepository.maxSongCacheSize.collect { size ->
@@ -42,17 +42,19 @@ class StorageSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun refreshSizes() {
         viewModelScope.launch {
-            _uiState.update { it.copy(
-                downloadedSongsSize = cacheRepository.getDownloadedSongsSize(),
-                songCacheSize = cacheRepository.getSongCacheSize(),
-                imageCacheSize = cacheRepository.getImageCacheSize()
-            ) }
+            _uiState.update {
+                it.copy(
+                    downloadedSongsSize = cacheRepository.getDownloadedSongsSize(),
+                    songCacheSize = cacheRepository.getSongCacheSize(),
+                    imageCacheSize = cacheRepository.getImageCacheSize()
+                )
+            }
         }
     }
-    
+
     fun clearAllDownloads() {
         viewModelScope.launch {
             _uiState.update { it.copy(isClearing = true) }
@@ -64,13 +66,13 @@ class StorageSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun setMaxSongCacheSize(size: Long) {
         viewModelScope.launch {
             settingsRepository.setMaxSongCacheSize(size)
         }
     }
-    
+
     fun clearSongCache() {
         viewModelScope.launch {
             _uiState.update { it.copy(isClearing = true) }
@@ -82,13 +84,13 @@ class StorageSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun setMaxImageCacheSize(size: Long) {
         viewModelScope.launch {
             settingsRepository.setMaxImageCacheSize(size)
         }
     }
-    
+
     fun clearImageCache() {
         viewModelScope.launch {
             _uiState.update { it.copy(isClearing = true) }

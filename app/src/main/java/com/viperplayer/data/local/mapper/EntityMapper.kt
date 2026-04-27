@@ -15,7 +15,7 @@ import com.viperplayer.domain.model.Song
  * Mappers between Room entities and domain models.
  */
 object EntityMapper {
-    
+
     // Artist mappings
     // Note: topSongs and albums are only available from plugin API, not stored in database
     fun ArtistEntity.toDomain(): Artist {
@@ -27,7 +27,7 @@ object EntityMapper {
             albums = emptyList() // Not stored in database, only from plugin API
         )
     }
-    
+
     fun Artist.toEntity(): ArtistEntity {
         return ArtistEntity(
             pluginId = id.pluginId,
@@ -39,7 +39,7 @@ object EntityMapper {
             lastUpdated = System.currentTimeMillis()
         )
     }
-    
+
     // Album mappings (requires artists to be loaded separately)
     fun AlbumEntity.toDomain(artists: List<Artist> = emptyList()): Album {
         return Album(
@@ -52,7 +52,7 @@ object EntityMapper {
             type = AlbumTypeConverter.toDomainType(type)
         )
     }
-    
+
     fun Album.toEntity(primaryArtistId: Long? = null): AlbumEntity {
         return AlbumEntity(
             pluginId = id.pluginId,
@@ -69,16 +69,21 @@ object EntityMapper {
             lastUpdated = System.currentTimeMillis()
         )
     }
-    
+
     // Song mappings (requires album and artists to be loaded separately)
     // Note: isPlayable is NOT stored in the database - it's computed at runtime
     // Note: requiresInternet defaults to true (for streaming), but can be set by plugins
-    fun SongEntity.toDomain(album: Album? = null, artists: List<Artist> = emptyList(), isPlayable: Boolean = true, requiresInternet: Boolean = true): Song {
+    fun SongEntity.toDomain(
+        album: Album? = null,
+        artists: List<Artist> = emptyList(),
+        isPlayable: Boolean = true,
+        requiresInternet: Boolean = true
+    ): Song {
         // Use local artwork path if available (convert to file:// URI), otherwise fall back to remote URL
-        val effectiveArtworkUrl = localArtworkPath?.let { 
+        val effectiveArtworkUrl = localArtworkPath?.let {
             if (it.startsWith("file://")) it else "file://$it"
         } ?: artworkUrl
-        
+
         return Song(
             id = MediaId(pluginId, sourceId),
             title = title,
@@ -97,7 +102,7 @@ object EntityMapper {
             isDownloaded = isDownloaded,
         )
     }
-    
+
     fun Song.toEntity(albumId: Long? = null): SongEntity {
         return SongEntity(
             pluginId = id.pluginId,
@@ -121,7 +126,7 @@ object EntityMapper {
             peakAmplitude = peakAmplitude,
         )
     }
-    
+
     // Playlist mappings
     fun PlaylistEntity.toDomain(songs: List<Song>? = null): Playlist {
         return Playlist(
@@ -136,7 +141,7 @@ object EntityMapper {
             songs = songs
         )
     }
-    
+
     fun Playlist.toEntity(): PlaylistEntity {
         return PlaylistEntity(
             pluginId = id.pluginId,

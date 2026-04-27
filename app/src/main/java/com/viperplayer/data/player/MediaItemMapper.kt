@@ -16,7 +16,7 @@ object MediaItemMapper {
      */
     fun Song.toMediaItem(): MediaItem {
         val mediaId = id.toString()
-        
+
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artistNames)

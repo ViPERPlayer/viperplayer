@@ -24,11 +24,12 @@ class PluginPreferences @Inject constructor(
 ) {
     companion object {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "plugin_preferences")
-        private fun disabledKey(pluginId: String) = booleanPreferencesKey("plugin_disabled_$pluginId")
+        private fun disabledKey(pluginId: String) =
+            booleanPreferencesKey("plugin_disabled_$pluginId")
     }
-    
+
     private val dataStore = context.dataStore
-    
+
     /**
      * Get disabled state for a plugin.
      * Defaults to false (enabled) if not set.
@@ -37,11 +38,17 @@ class PluginPreferences @Inject constructor(
         Timber.d("Getting disabled state for plugin: $pluginId")
         return dataStore.data.map { preferences ->
             val disabled = preferences[disabledKey(pluginId)] ?: false // Default to enabled
-            Timber.d("Plugin $pluginId disabled state: $disabled (default: ${preferences[disabledKey(pluginId)] == null})")
+            Timber.d(
+                "Plugin $pluginId disabled state: $disabled (default: ${
+                    preferences[disabledKey(
+                        pluginId
+                    )] == null
+                })"
+            )
             disabled
         }
     }
-    
+
     /**
      * Get all disabled plugin IDs.
      */
@@ -54,7 +61,7 @@ class PluginPreferences @Inject constructor(
         Timber.d("Disabled plugins: $disabledSet")
         disabledSet
     }
-    
+
     /**
      * Set disabled state for a plugin.
      */
@@ -70,7 +77,7 @@ class PluginPreferences @Inject constructor(
             throw e
         }
     }
-    
+
     /**
      * Get disabled state synchronously (for initial load).
      */

@@ -42,11 +42,11 @@ fun UpdaterSettingsScreen(
     viewModel: UpdaterSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
     LaunchedEffect(Unit) {
         viewModel.checkForUpdates()
     }
-    
+
     ViperScaffold(
         topBar = {
             TopAppBar(
@@ -66,7 +66,9 @@ fun UpdaterSettingsScreen(
                     ) {
                         if (uiState.updateState is UpdateState.Checking) {
                             LoadingIndicator(
-                                modifier = Modifier.padding(8.dp).size(20.dp)
+                                modifier = Modifier
+                                    .padding(8.dp)
+                                    .size(20.dp)
                             )
                         } else {
                             Icon(
@@ -91,7 +93,7 @@ fun UpdaterSettingsScreen(
             item {
                 UpdateStatusCard(updateState = uiState.updateState)
             }
-            
+
             when (val state = uiState.updateState) {
                 is UpdateState.UpdateAvailable -> {
                     if (state.changelog.isNotEmpty()) {
@@ -122,7 +124,7 @@ fun UpdaterSettingsScreen(
                             }
                         }
                     }
-                    
+
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -151,6 +153,7 @@ fun UpdaterSettingsScreen(
                         }
                     }
                 }
+
                 is UpdateState.Error -> {
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -176,7 +179,9 @@ fun UpdaterSettingsScreen(
                         }
                     }
                 }
-                else -> { /* No additional content for other states */ }
+
+                else -> { /* No additional content for other states */
+                }
             }
         }
     }
@@ -211,6 +216,7 @@ private fun UpdateStatusCard(
                             null
                         )
                     }
+
                     is UpdateState.UpToDate -> {
                         Quadruple(
                             Icons.Default.CheckCircle,
@@ -219,6 +225,7 @@ private fun UpdateStatusCard(
                             null
                         )
                     }
+
                     is UpdateState.UpdateAvailable -> {
                         Quadruple(
                             Icons.Default.Download,
@@ -227,6 +234,7 @@ private fun UpdateStatusCard(
                             updateState.latestVersion
                         )
                     }
+
                     is UpdateState.Downloading -> {
                         Quadruple(
                             Icons.Default.Download,
@@ -235,6 +243,7 @@ private fun UpdateStatusCard(
                             updateState.latestVersion
                         )
                     }
+
                     is UpdateState.Error -> {
                         Quadruple(
                             Icons.Default.Refresh,
@@ -243,6 +252,7 @@ private fun UpdateStatusCard(
                             null
                         )
                     }
+
                     is UpdateState.Idle -> {
                         Quadruple(
                             Icons.Default.Refresh,
@@ -252,7 +262,7 @@ private fun UpdateStatusCard(
                         )
                     }
                 }
-                
+
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
@@ -260,12 +270,15 @@ private fun UpdateStatusCard(
                         is UpdateState.UpdateAvailable, is UpdateState.Downloading -> {
                             MaterialTheme.colorScheme.primary
                         }
+
                         is UpdateState.UpToDate -> {
                             MaterialTheme.colorScheme.tertiary
                         }
+
                         is UpdateState.Error -> {
                             MaterialTheme.colorScheme.error
                         }
+
                         else -> {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }

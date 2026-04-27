@@ -19,10 +19,10 @@ data class ContentSettingsUiState(
 class ContentSettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(ContentSettingsUiState())
     val uiState: StateFlow<ContentSettingsUiState> = _uiState.asStateFlow()
-    
+
     init {
         viewModelScope.launch {
             settingsRepository.showExplicitContent.collect { enabled ->
@@ -30,7 +30,7 @@ class ContentSettingsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun setShowExplicitContent(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowExplicitContent(enabled)

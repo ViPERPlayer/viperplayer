@@ -36,16 +36,16 @@ class PluginsViewModel @Inject constructor(
     companion object {
         private const val TAG = "PluginsViewModel"
     }
-    
+
     private val _uiState = MutableStateFlow(PluginsUiState())
     val uiState: StateFlow<PluginsUiState> = _uiState.asStateFlow()
-    
+
     init {
         Timber.d("ViewModel initialized")
         observePlugins()
         refresh()
     }
-    
+
     private fun observePlugins() {
         Timber.d("Starting to observe plugins")
         viewModelScope.launch {
@@ -54,16 +54,16 @@ class PluginsViewModel @Inject constructor(
                 _uiState.update { it.copy(discoveredPlugins = plugins) }
             }
         }
-        
+
         viewModelScope.launch {
             pluginRepository.connectedPlugins.collect { plugins ->
                 Timber.d("Connected plugins updated: ${plugins.size} plugins")
-                _uiState.update { 
+                _uiState.update {
                     it.copy(connectedPlugins = plugins.associateBy { p -> p.info.id })
                 }
             }
         }
-        
+
         viewModelScope.launch {
 //            pluginRepository..collect { states ->
 //                Timber.d("Enabled states updated: $states")
@@ -71,7 +71,7 @@ class PluginsViewModel @Inject constructor(
 //            }
         }
     }
-    
+
     fun refresh() {
         Timber.d("refresh() called")
 
@@ -89,14 +89,14 @@ class PluginsViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun togglePlugin(pluginId: String) {
         Timber.d("togglePlugin() called for: $pluginId")
         viewModelScope.launch {
             val isEnabled = _uiState.value.enabledStates[pluginId] ?: true
             Timber.d("Plugin $pluginId current state: enabled=$isEnabled")
             _uiState.update { it.copy(togglingPluginId = pluginId, error = null) }
-            
+
             val result = if (isEnabled) {
                 Timber.d("Disabling plugin: $pluginId")
                 pluginRepository.disablePlugin(pluginId)
@@ -104,33 +104,34 @@ class PluginsViewModel @Inject constructor(
                 Timber.d("Enabling plugin: $pluginId")
                 pluginRepository.enablePlugin(pluginId)
             }
-            
+
             result.onFailure { e ->
                 Timber.e(e, "Failed to toggle plugin: $pluginId")
                 _uiState.update {
                     it.copy(
                         togglingPluginId = null,
-                        error = e.message ?: "Failed to ${if (isEnabled) "disable" else "enable"} plugin"
+                        error = e.message
+                            ?: "Failed to ${if (isEnabled) "disable" else "enable"} plugin"
                     )
                 }
             }
-            
+
             result.onSuccess {
                 Timber.d("Successfully toggled plugin: $pluginId")
             }
-            
+
             _uiState.update { it.copy(togglingPluginId = null) }
         }
     }
-    
+
     fun isEnabled(pluginId: String): Boolean {
         return _uiState.value.enabledStates[pluginId] ?: true
     }
-    
+
     fun isConnected(pluginId: String): Boolean {
         return _uiState.value.connectedPlugins.containsKey(pluginId)
     }
-    
+
     fun getConnectedPlugin(pluginId: String): Plugin? {
         return _uiState.value.connectedPlugins[pluginId]
     }

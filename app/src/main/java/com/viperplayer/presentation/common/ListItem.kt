@@ -185,7 +185,7 @@ fun ListItemTrailingWithDuration(
                 fontSize = 12.sp
             )
         }
-        
+
         IconButton(
             onClick = onMoreClick
         ) {
@@ -245,7 +245,7 @@ fun ListItem(
     val threshold = maxOffset * 0.55f
 
     val offset = remember { Animatable(0f) }
-    
+
     val draggableState = rememberDraggableState { delta ->
         scope.launch {
             val coercedOffset = (offset.value + delta).coerceIn(-maxOffset, maxOffset)
@@ -255,7 +255,7 @@ fun ListItem(
             if (isPastThreshold != wasPastThreshold) {
                 haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
             }
-            
+
             offset.snapTo(coercedOffset)
         }
     }

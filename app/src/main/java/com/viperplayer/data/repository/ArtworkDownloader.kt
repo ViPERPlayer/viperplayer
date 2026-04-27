@@ -30,7 +30,7 @@ class ArtworkDownloader @Inject constructor(
      */
     suspend fun downloadArtwork(artworkUrl: String, mediaId: MediaId): String? {
         if (artworkUrl.isBlank()) return null
-        
+
         return try {
             withContext(Dispatchers.IO) {
                 // Create artwork cache directory
@@ -38,34 +38,34 @@ class ArtworkDownloader @Inject constructor(
                 if (!artworkCacheDir.exists()) {
                     artworkCacheDir.mkdirs()
                 }
-                
+
                 // Generate unique filename based on mediaId
                 val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
                 val artworkFile = artworkCacheDir.resolve(filename)
-                
+
                 // Skip download if file already exists
                 if (artworkFile.exists()) {
                     Timber.d("Artwork already cached: ${artworkFile.absolutePath}")
                     return@withContext artworkFile.absolutePath
                 }
-                
+
                 // Download artwork using Coil
                 val request = ImageRequest.Builder(context)
                     .data(artworkUrl)
                     .allowHardware(false)
                     .build()
-                
+
                 val result = context.imageLoader.execute(request)
                 val bitmap = result.image?.toBitmap() ?: run {
                     Timber.e("Failed to decode bitmap from $artworkUrl")
                     return@withContext null
                 }
-                
+
                 // Save bitmap to file
                 artworkFile.outputStream().use { output ->
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)
                 }
-                
+
                 Timber.d("Artwork downloaded and cached: ${artworkFile.absolutePath}")
                 artworkFile.absolutePath
             }
@@ -74,7 +74,7 @@ class ArtworkDownloader @Inject constructor(
             null
         }
     }
-    
+
     /**
      * Gets the local artwork path if it exists, otherwise returns null.
      */
@@ -82,14 +82,14 @@ class ArtworkDownloader @Inject constructor(
         val artworkCacheDir = File(context.filesDir, "artwork")
         val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
         val artworkFile = artworkCacheDir.resolve(filename)
-        
+
         return if (artworkFile.exists()) {
             artworkFile.absolutePath
         } else {
             null
         }
     }
-    
+
     /**
      * Deletes cached artwork for a given media ID.
      */
@@ -99,7 +99,7 @@ class ArtworkDownloader @Inject constructor(
                 val artworkCacheDir = File(context.filesDir, "artwork")
                 val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
                 val artworkFile = artworkCacheDir.resolve(filename)
-                
+
                 if (artworkFile.exists()) {
                     artworkFile.delete()
                     Timber.d("Deleted cached artwork: ${artworkFile.absolutePath}")

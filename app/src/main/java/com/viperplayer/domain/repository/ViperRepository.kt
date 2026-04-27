@@ -13,12 +13,12 @@ interface ViperRepository {
      * This reflects the active preset or default state.
      */
     val effectsState: StateFlow<ViperEffectsState>
-    
+
     /**
      * Update a specific effect state. This will automatically persist the change.
      */
     suspend fun updateEffectsState(update: (ViperEffectsState) -> ViperEffectsState)
-    
+
     /**
      * Get the current active device ID, or null if using default.
      */

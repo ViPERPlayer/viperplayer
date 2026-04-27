@@ -16,7 +16,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-    
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -30,25 +30,25 @@ object DatabaseModule {
             .fallbackToDestructiveMigration(true) // For development
             .build()
     }
-    
+
     @Provides
     fun provideArtistDao(database: ViperPlayerDatabase) = database.artistDao()
-    
+
     @Provides
     fun provideAlbumDao(database: ViperPlayerDatabase) = database.albumDao()
-    
+
     @Provides
     fun provideSongDao(database: ViperPlayerDatabase) = database.songDao()
-    
+
     @Provides
     fun providePlaylistDao(database: ViperPlayerDatabase) = database.playlistDao()
-    
+
     @Provides
     fun provideGenreDao(database: ViperPlayerDatabase) = database.genreDao()
-    
+
     @Provides
     fun provideCrossRefDao(database: ViperPlayerDatabase) = database.crossRefDao()
-    
+
     @Provides
     fun provideSearchHistoryDao(database: ViperPlayerDatabase) = database.searchHistoryDao()
 }

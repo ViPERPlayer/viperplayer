@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,9 +58,8 @@ import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
 import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.search.model.ItemBadge
-import androidx.compose.ui.tooling.preview.Preview
-import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 @Composable
 fun ArtistDetailScreen(
@@ -138,6 +138,7 @@ private fun ArtistDetailScreenContent(
                     LoadingIndicator()
                 }
             }
+
             is ArtistDetailUiState.Error -> {
                 Box(
                     modifier = Modifier
@@ -161,6 +162,7 @@ private fun ArtistDetailScreenContent(
                     }
                 }
             }
+
             is ArtistDetailUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier
@@ -324,12 +326,14 @@ private fun ArtistDetailScreenContent(
                                                 onClick = { onNavigateToAlbum(item) }
                                             )
                                         }
+
                                         is Playlist -> {
                                             PlaylistCard(
                                                 playlist = item,
                                                 onClick = { onNavigateToPlaylist(item) }
                                             )
                                         }
+
                                         else -> {}
                                     }
                                 }

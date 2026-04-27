@@ -48,7 +48,7 @@ fun VerticalSlider(
                         transformOrigin = TransformOrigin(0f, 0f)
                     }
                     .requiredSizeIn(
-                        minWidth = height, 
+                        minWidth = height,
                         minHeight = width,
                         maxWidth = height,
                         maxHeight = width
@@ -65,7 +65,7 @@ fun VerticalSlider(
                 maxHeight = width.roundToPx()
             )
         )
-        
+
         layout(placeable.height, placeable.width) {
             // Position the rotated slider correctly
             // Rotation is about (0,0) (top-left)

@@ -44,7 +44,7 @@ class PluginRepositoryImpl @Inject constructor(
                 )
             }
         }
-    
+
     override val connectedPlugins: Flow<List<Plugin>>
         get() = dataSource.connectedPlugins.map { plugins ->
             plugins.values.mapNotNull { connected ->
@@ -60,11 +60,11 @@ class PluginRepositoryImpl @Inject constructor(
                 }
             }
         }
-    
+
     override suspend fun refreshPlugins() {
         dataSource.refreshPlugins()
     }
-    
+
     override suspend fun enablePlugin(pluginId: String): Result<Unit> {
         Timber.d("enablePlugin() called for: $pluginId")
         return try {
@@ -76,7 +76,7 @@ class PluginRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
-    
+
     override suspend fun disablePlugin(pluginId: String): Result<Unit> {
         Timber.d("disablePlugin() called for: $pluginId")
         return try {
@@ -92,7 +92,7 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestions>>> {
         return dataSource.getSearchSuggestions(query)
     }
-    
+
     override suspend fun search(
         query: String,
         filter: SearchFilter?,
@@ -107,41 +107,45 @@ class PluginRepositoryImpl @Inject constructor(
 
             val results = plugins.keys.map { pluginId ->
                 async {
-                    dataSource.search(pluginId, query, filter, cursor, limit).map { it.toDomain(pluginId) }
+                    dataSource.search(pluginId, query, filter, cursor, limit)
+                        .map { it.toDomain(pluginId) }
                 }
             }.awaitAll()
-            
+
             // Merge sections from all plugins, mapping them to domain models
             val successfulResults = results.mapNotNull { it.getOrNull() }
             val merged = successfulResults.flatMap { it.items }
 
-            Result.success(SearchResult(
-                items = merged,
-                nextCursor = null
-            ))
+            Result.success(
+                SearchResult(
+                    items = merged,
+                    nextCursor = null
+                )
+            )
         } catch (e: Exception) {
             Timber.e(e, "Error in search")
             Result.failure(e)
         }
     }
 
-    override suspend fun getHomeContent(): Result<List<Pair<String, com.viperplayer.domain.model.HomeContent>>> = coroutineScope {
-        try {
-            val plugins = dataSource.connectedPlugins.value
-            val results = plugins.keys.map { pluginId ->
-                async {
-                    val result = dataSource.getHomeContent(pluginId)
-                    result.map { pluginId to it.toDomain(pluginId) }
-                }
-            }.awaitAll()
-            
-            val successfulResults = results.mapNotNull { it.getOrNull() }
-            Result.success(successfulResults)
-        } catch (e: Exception) {
-            Result.failure(e)
+    override suspend fun getHomeContent(): Result<List<Pair<String, com.viperplayer.domain.model.HomeContent>>> =
+        coroutineScope {
+            try {
+                val plugins = dataSource.connectedPlugins.value
+                val results = plugins.keys.map { pluginId ->
+                    async {
+                        val result = dataSource.getHomeContent(pluginId)
+                        result.map { pluginId to it.toDomain(pluginId) }
+                    }
+                }.awaitAll()
+
+                val successfulResults = results.mapNotNull { it.getOrNull() }
+                Result.success(successfulResults)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
-    
+
     override suspend fun getBrowseCategories(
         cursor: String?,
         limit: Int
@@ -153,7 +157,7 @@ class PluginRepositoryImpl @Inject constructor(
                     dataSource.getBrowseCategories(pluginId, cursor, limit)
                 }
             }.awaitAll()
-            
+
             val successfulResults = results.mapNotNull { it.getOrNull() }
             val merged = PagedResult(
                 items = successfulResults.flatMap { it.items }
@@ -164,7 +168,7 @@ class PluginRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getCategoryContents(
         pluginId: String,
         categoryId: String,
@@ -179,7 +183,7 @@ class PluginRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getLibrarySongs(
         cursor: String?,
         limit: Int
@@ -191,17 +195,17 @@ class PluginRepositoryImpl @Inject constructor(
                     dataSource.getLibrarySongs(pluginId, cursor, limit)
                 }
             }.awaitAll()
-            
+
             val merged = PagedResult(
                 items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
             )
-            
+
             Result.success(merged)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getLibraryAlbums(
         cursor: String?,
         limit: Int
@@ -213,17 +217,17 @@ class PluginRepositoryImpl @Inject constructor(
                     dataSource.getLibraryAlbums(pluginId, cursor, limit)
                 }
             }.awaitAll()
-            
+
             val merged = PagedResult(
                 items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
             )
-            
+
             Result.success(merged)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getLibraryArtists(
         cursor: String?,
         limit: Int
@@ -235,11 +239,11 @@ class PluginRepositoryImpl @Inject constructor(
                     dataSource.getLibraryArtists(pluginId, cursor, limit)
                 }
             }.awaitAll()
-            
+
             val merged = PagedResult(
                 items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
             )
-            
+
             Timber.d("getLibraryArtists() completed: ${merged.items.size} artists from ${plugins.size} plugins")
             Result.success(merged)
         } catch (e: Exception) {
@@ -247,7 +251,7 @@ class PluginRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getLibraryPlaylists(
         cursor: String?,
         limit: Int
@@ -259,11 +263,11 @@ class PluginRepositoryImpl @Inject constructor(
                     dataSource.getLibraryPlaylists(pluginId, cursor, limit)
                 }
             }.awaitAll()
-            
+
             val merged = PagedResult(
                 items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
             )
-            
+
             Timber.d("getLibraryPlaylists() completed: ${merged.items.size} playlists from ${plugins.size} plugins")
             Result.success(merged)
         } catch (e: Exception) {
@@ -271,19 +275,19 @@ class PluginRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
-    
+
     override suspend fun getSong(mediaId: MediaId): Result<Song> {
         return dataSource.getSong(mediaId)
     }
-    
+
     override suspend fun getAlbum(mediaId: MediaId): Result<Album> {
         return dataSource.getAlbum(mediaId)
     }
-    
+
     override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
         return dataSource.getArtist(mediaId)
     }
-    
+
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
         return dataSource.getPlaylist(mediaId)
     }

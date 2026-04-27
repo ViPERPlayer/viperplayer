@@ -93,7 +93,7 @@ class LocalMediaDataSource @Inject constructor(
                         isPlayable = true,
                         requiresInternet = false,
                         isDownloaded = true,
-                        isLiked = false 
+                        isLiked = false
                     )
                 )
             }
@@ -101,7 +101,7 @@ class LocalMediaDataSource @Inject constructor(
         songs
     }
 
-    private fun getAlbumArtUri(albumId: Long): android.net.Uri? {
+    private fun getAlbumArtUri(albumId: Long): android.net.Uri {
         val sArtworkUri = "content://media/external/audio/albumart".toUri()
         return ContentUris.withAppendedId(sArtworkUri, albumId)
     }

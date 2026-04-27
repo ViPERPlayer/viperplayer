@@ -48,7 +48,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
-import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -78,7 +77,7 @@ fun MediaItemOptionsBottomSheet(
 ) {
     val currentSong by playerViewModel.currentSong.collectAsStateWithLifecycle()
     val isLiked by playerViewModel.isLiked.collectAsStateWithLifecycle()
-    
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -99,19 +98,22 @@ fun MediaItemOptionsBottomSheet(
                         onLike = onLike
                     )
                 }
+
                 is Album -> {
                     AlbumHeader(album = item)
                 }
+
                 is Artist -> {
                     ArtistHeader(artist = item)
                 }
+
                 is Playlist -> {
                     PlaylistHeader(playlist = item)
                 }
             }
-            
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            
+
             // Actions
             when (item) {
                 is Song -> {
@@ -130,6 +132,7 @@ fun MediaItemOptionsBottomSheet(
                         onViewDetails = onViewDetails
                     )
                 }
+
                 is Album -> {
                     AlbumActions(
                         album = item,
@@ -145,6 +148,7 @@ fun MediaItemOptionsBottomSheet(
                         onViewDetails = onViewDetails
                     )
                 }
+
                 is Artist -> {
                     ArtistActions(
                         artist = item,
@@ -153,6 +157,7 @@ fun MediaItemOptionsBottomSheet(
                         onViewDetails = onViewDetails
                     )
                 }
+
                 is Playlist -> {
                     PlaylistActions(
                         playlist = item,
@@ -167,7 +172,7 @@ fun MediaItemOptionsBottomSheet(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -192,7 +197,7 @@ private fun SongHeader(
                 .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop
         )
-        
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -208,7 +213,7 @@ private fun SongHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        
+
         IconButton(onClick = onLike) {
             Icon(
                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -234,7 +239,7 @@ private fun AlbumHeader(album: Album) {
                 .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop
         )
-        
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -268,7 +273,7 @@ private fun ArtistHeader(artist: Artist) {
                 .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
-        
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -297,7 +302,7 @@ private fun PlaylistHeader(playlist: Playlist) {
                 .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop
         )
-        
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)

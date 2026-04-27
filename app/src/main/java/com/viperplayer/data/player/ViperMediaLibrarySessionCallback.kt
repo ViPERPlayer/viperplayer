@@ -41,7 +41,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         private const val ALBUMS_ID = "albums"
         private const val PLAYLISTS_ID = "playlists"
         private const val SONGS_ID = "songs"
-        
+
         private const val PREFIX_ARTIST = "artist/"
         private const val PREFIX_ALBUM = "album/"
         private const val PREFIX_PLAYLIST = "playlist/"
@@ -81,9 +81,24 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                     parentId == ALBUMS_ID -> getAllAlbums()
                     parentId == PLAYLISTS_ID -> getAllPlaylists()
                     parentId == SONGS_ID -> getAllSongs()
-                    parentId.startsWith(PREFIX_ARTIST) -> getArtistChildren(parentId.removePrefix(PREFIX_ARTIST))
-                    parentId.startsWith(PREFIX_ALBUM) -> getAlbumChildren(parentId.removePrefix(PREFIX_ALBUM))
-                    parentId.startsWith(PREFIX_PLAYLIST) -> getPlaylistChildren(parentId.removePrefix(PREFIX_PLAYLIST))
+                    parentId.startsWith(PREFIX_ARTIST) -> getArtistChildren(
+                        parentId.removePrefix(
+                            PREFIX_ARTIST
+                        )
+                    )
+
+                    parentId.startsWith(PREFIX_ALBUM) -> getAlbumChildren(
+                        parentId.removePrefix(
+                            PREFIX_ALBUM
+                        )
+                    )
+
+                    parentId.startsWith(PREFIX_PLAYLIST) -> getPlaylistChildren(
+                        parentId.removePrefix(
+                            PREFIX_PLAYLIST
+                        )
+                    )
+
                     else -> emptyList()
                 }
                 LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
@@ -102,16 +117,20 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         return serviceScope.future {
             try {
                 // Try to resolve as Song first
-                val songId = try { MediaId.fromString(mediaId) } catch (e: Exception) { null }
+                val songId = try {
+                    MediaId.fromString(mediaId)
+                } catch (e: Exception) {
+                    null
+                }
                 if (songId != null) {
                     val song = mediaLibraryRepository.getSong(songId).first()
                         ?: pluginRepository.getSong(songId).getOrNull()
-                    
+
                     if (song != null) {
                         return@future LibraryResult.ofItem(song.toMediaItem(), null)
                     }
                 }
-                
+
                 // Fallback or other types if needed (usually onGetItem used for playable items)
                 LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
             } catch (e: Exception) {
@@ -146,14 +165,29 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
             try {
                 val result = searchUseCase(query)
                 val searchResult = result.getOrNull()
-                
+
                 if (searchResult != null) {
                     val mediaItems = searchResult.items.mapNotNull {
                         when (it) {
                             is Song -> it.toMediaItem()
-                            is Artist -> buildBrowsableItem(PREFIX_ARTIST + it.id.toString(), it.name, it.imageUrl)
-                            is Album -> buildBrowsableItem(PREFIX_ALBUM + it.id.toString(), it.name, it.artworkUrl)
-                            is Playlist -> buildBrowsableItem(PREFIX_PLAYLIST + it.id.toString(), it.name, it.artworkUrl)
+                            is Artist -> buildBrowsableItem(
+                                PREFIX_ARTIST + it.id.toString(),
+                                it.name,
+                                it.imageUrl
+                            )
+
+                            is Album -> buildBrowsableItem(
+                                PREFIX_ALBUM + it.id.toString(),
+                                it.name,
+                                it.artworkUrl
+                            )
+
+                            is Playlist -> buildBrowsableItem(
+                                PREFIX_PLAYLIST + it.id.toString(),
+                                it.name,
+                                it.artworkUrl
+                            )
+
                             else -> null
                         }
                     }
@@ -179,15 +213,15 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                     val mediaId = MediaId.fromString(mediaItem.mediaId)
                     val song = mediaLibraryRepository.getSong(mediaId).first()
                         ?: pluginRepository.getSong(mediaId).getOrNull()
-                    
-                    song?.toMediaItem() ?: mediaItem 
+
+                    song?.toMediaItem() ?: mediaItem
                 } catch (e: Exception) {
                     // If parsing fails or fetch fails, pass original item 
                     // (though it likely won't play if ID was invalid)
                     mediaItem
                 }
             }.toMutableList()
-            
+
             resolvedMediaItems
         }
     }
@@ -214,11 +248,15 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
             buildBrowsableItem(PREFIX_ALBUM + album.id.toString(), album.name, album.artworkUrl)
         }
     }
-    
+
     private suspend fun getAllPlaylists(): List<MediaItem> {
         val playlists = mediaLibraryRepository.getAllSavedPlaylists().first()
         return playlists.map { playlist ->
-            buildBrowsableItem(PREFIX_PLAYLIST + playlist.id.toString(), playlist.name, playlist.artworkUrl)
+            buildBrowsableItem(
+                PREFIX_PLAYLIST + playlist.id.toString(),
+                playlist.name,
+                playlist.artworkUrl
+            )
         }
     }
 
@@ -234,10 +272,10 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         if (artist != null && artist.topSongs.isNotEmpty()) {
             return artist.topSongs.map { it.toMediaItem() }
         }
-        
+
         // Fallback to local DB
         val allSongs = mediaLibraryRepository.getAllSavedSongs().first()
-        return allSongs.filter { song -> 
+        return allSongs.filter { song ->
             song.artists.any { it.id == artistId }
         }.map { it.toMediaItem() }
     }
@@ -250,7 +288,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         }
 
         val allSongs = mediaLibraryRepository.getAllSavedSongs().first()
-        return allSongs.filter { song -> 
+        return allSongs.filter { song ->
             song.album?.id == albumId
         }.map { it.toMediaItem() }
     }
@@ -271,11 +309,11 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
             .setTitle(title)
             .setIsBrowsable(true)
             .setIsPlayable(false)
-        
+
         if (iconUri != null) {
             // metadata.setArtworkUri(Uri.parse(iconUri)) // if Uri needed
         }
-            
+
         return MediaItem.Builder()
             .setMediaId(id)
             .setMediaMetadata(metadata.build())

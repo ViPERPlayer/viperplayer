@@ -112,7 +112,7 @@ private fun MiniPlayerProgressIndicator(
 ) {
     if (duration > 0) {
         var progress by remember { mutableFloatStateOf(0f) }
-        
+
         // Track when we last synced with actual position (for discontinuity detection)
         var lastSyncedPosition by remember { mutableLongStateOf(0L) }
         var lastSyncTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -134,7 +134,8 @@ private fun MiniPlayerProgressIndicator(
                     if (syncCounter >= 16) {
                         syncCounter = 0
                         val positionDiff = kotlin.math.abs(position - lastSyncedPosition)
-                        val isDiscontinuity = positionDiff > 1000 // More than 1 second difference = seek
+                        val isDiscontinuity =
+                            positionDiff > 1000 // More than 1 second difference = seek
 
                         if (isDiscontinuity) {
                             // Seek detected - sync immediately

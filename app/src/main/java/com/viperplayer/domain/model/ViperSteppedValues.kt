@@ -33,12 +33,12 @@ object ViperSteppedValues {
         1.90f,
         2.00f,
     )
-    
+
     /**
      * Default index for output gain (corresponds to value 1.00, which is index 11).
      */
     const val DEFAULT_OUTPUT_GAIN_INDEX = 11
-    
+
     /**
      * Stepped values for Master Limiter threshold limit.
      */
@@ -50,12 +50,12 @@ object ViperSteppedValues {
         0.9f,
         1.0f,
     )
-    
+
     /**
      * Default index for threshold limit (corresponds to value 100, which is index 5).
      */
     const val DEFAULT_THRESHOLD_LIMIT_INDEX = 5
-    
+
     /**
      * Gets the actual value for a given index.
      * @param index The index into the outputGainValues list
@@ -64,7 +64,7 @@ object ViperSteppedValues {
     fun getOutputGainValue(index: Int): Float {
         return outputGainValues[index]
     }
-    
+
     /**
      * Gets the actual threshold limit value for a given index.
      * @param index The index into the thresholdLimitValues list
@@ -73,7 +73,7 @@ object ViperSteppedValues {
     fun getThresholdLimitValue(index: Int): Float {
         return thresholdLimitValues[index]
     }
-    
+
     /**
      * Calculates the left and right gain values from output gain index and pan value.
      * @param outputGainIndex The index into the outputGainValues list
@@ -82,15 +82,15 @@ object ViperSteppedValues {
      */
     fun calculateLeftRightGains(outputGainIndex: Int, pan: Float): Pair<Float, Float> {
         val gainValue = getOutputGainValue(outputGainIndex)
-        
+
         // Calculate pan multipliers
         val panL = if (pan <= 0) 1f else (1f - pan)
         val panR = if (pan >= 0) 1f else (1f + pan)
-        
+
         // Calculate final gains: gain * pan
         val gainL = gainValue * panL
         val gainR = gainValue * panR
-        
+
         return gainL to gainR
     }
 }

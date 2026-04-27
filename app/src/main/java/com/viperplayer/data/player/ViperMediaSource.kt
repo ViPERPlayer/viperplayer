@@ -128,7 +128,8 @@ class ViperMediaSource(
         bandwidthMeter: BandwidthMeter
     ) {
         Timber.d("prepareSource() called")
-        val playbackLooper = Looper.myLooper() ?: throw IllegalStateException("playbackLooper is null!")
+        val playbackLooper =
+            Looper.myLooper() ?: throw IllegalStateException("playbackLooper is null!")
         val playbackDispatcher = Handler(playbackLooper).asCoroutineDispatcher()
 
         sourceScope.launch {
@@ -154,15 +155,21 @@ class ViperMediaSource(
                         val url = stream.url ?: throw IllegalArgumentException("URL is null")
                         updatedMediaItemBuilder.setUri(url.toUri())
                     }
+
                     StreamSource.Type.DASH -> {
-                        val xml = stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
-                        val dashUri = saveDashXmlToFile(xml) // Assuming this is a blocking IO function
+                        val xml =
+                            stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
+                        val dashUri =
+                            saveDashXmlToFile(xml) // Assuming this is a blocking IO function
                         updatedMediaItemBuilder.setUri(dashUri)
                     }
+
                     StreamSource.Type.AUDIO_STREAM -> {
-                        val audioStream = stream.audioStream ?: throw IllegalArgumentException("Audio stream is null")
+                        val audioStream = stream.audioStream
+                            ?: throw IllegalArgumentException("Audio stream is null")
                         updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
                     }
+
                     else -> throw IllegalArgumentException("Unknown stream type: ${stream.type}")
                 }
 
@@ -182,12 +189,14 @@ class ViperMediaSource(
                         }
 
                         StreamSource.Type.AUDIO_STREAM -> {
-                            sourceInfoRefreshError = UnsupportedOperationException("Audio stream not supported")
+                            sourceInfoRefreshError =
+                                UnsupportedOperationException("Audio stream not supported")
                             return@withContext
                         }
 
                         else -> {
-                            sourceInfoRefreshError = IllegalArgumentException("Unknown stream type: ${stream.type}")
+                            sourceInfoRefreshError =
+                                IllegalArgumentException("Unknown stream type: ${stream.type}")
                             return@withContext
                         }
                     }

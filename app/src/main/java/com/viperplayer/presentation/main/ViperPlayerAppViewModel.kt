@@ -61,18 +61,20 @@ class ViperPlayerAppViewModel @Inject constructor(
                     }
                 }
 
-                _uiState.update { it.copy(
-                    themeColor = themeColor,
-                    hasCurrentSong = song != null
-                ) }
+                _uiState.update {
+                    it.copy(
+                        themeColor = themeColor,
+                        hasCurrentSong = song != null
+                    )
+                }
             }
         }
     }
-    
+
     private fun observeThemeSettings() {
         viewModelScope.launch {
             settingsRepository.themeMode.collect { themeMode ->
-                _uiState.update { 
+                _uiState.update {
                     it.copy(themeMode = themeMode)
                 }
             }

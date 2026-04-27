@@ -10,13 +10,13 @@ interface SearchRepository {
 
     // Saves a search query to history
     suspend fun saveSearchHistory(query: String)
-    
+
     // Gets recent search history (when query is empty)
     fun getRecentHistory(limit: Int = 10): Flow<List<String>>
-    
+
     // Gets search history containing the query
     fun getHistoryContaining(query: String, limit: Int = 10): Flow<List<String>>
-    
+
     // Removes a search history entry
     suspend fun removeHistoryEntry(query: String)
 }

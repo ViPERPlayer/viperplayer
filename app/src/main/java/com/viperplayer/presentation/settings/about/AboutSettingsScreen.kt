@@ -34,7 +34,7 @@ fun AboutSettingsScreen(
     viewModel: AboutSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
     ViperScaffold(
         topBar = {
             TopAppBar(
@@ -85,11 +85,11 @@ fun AboutSettingsScreen(
                     }
                 }
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("Description")
             }
@@ -113,11 +113,11 @@ fun AboutSettingsScreen(
                     }
                 }
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             item {
                 SettingsCategory("Credits")
             }

@@ -38,7 +38,10 @@ interface ViperPresetDao {
     suspend fun updatePreset(preset: ViperPresetEntity)
 
     @Transaction
-    suspend fun updatePresetWithCoeffs(preset: ViperPresetEntity, coeffs: List<ViperDdcCoeffEntity>) {
+    suspend fun updatePresetWithCoeffs(
+        preset: ViperPresetEntity,
+        coeffs: List<ViperDdcCoeffEntity>
+    ) {
         updatePreset(preset)
         deleteCoeffsByPresetId(preset.id)
         if (coeffs.isNotEmpty()) {

@@ -38,7 +38,7 @@ class PlayerViewModel @Inject constructor(
 
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
     val duration: StateFlow<Long> = playerRepository.duration
-    
+
     /**
      * Gets the current playback position in milliseconds.
      * Use this for polling-based position updates where the UI controls the polling frequency.
@@ -50,7 +50,7 @@ class PlayerViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-    
+
     // Liked status - loaded from database and synced with current song
     val isLiked: StateFlow<Boolean> = currentSong
         .flatMapLatest { song ->
@@ -68,37 +68,37 @@ class PlayerViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
-    
+
     fun togglePlayPause() {
         viewModelScope.launch {
             playerRepository.togglePlayPause()
         }
     }
-    
+
     fun skipToNext() {
         viewModelScope.launch {
             playerRepository.skipToNext()
         }
     }
-    
+
     fun skipToPrevious() {
         viewModelScope.launch {
             playerRepository.skipToPrevious()
         }
     }
-    
+
     fun seekTo(positionMs: Long) {
         viewModelScope.launch {
             playerRepository.seekTo(positionMs)
         }
     }
-    
+
     fun toggleShuffle() {
         viewModelScope.launch {
             playerRepository.setShuffle(!playbackState.value.shuffleEnabled)
         }
     }
-    
+
     fun cycleRepeatMode() {
         viewModelScope.launch {
             val nextMode = when (playbackState.value.repeatMode) {
@@ -109,31 +109,31 @@ class PlayerViewModel @Inject constructor(
             playerRepository.setRepeatMode(nextMode)
         }
     }
-    
+
     fun addToQueue(song: Song) {
         viewModelScope.launch {
             playerRepository.addToQueue(song)
         }
     }
-    
+
     fun reorderQueue(fromIndex: Int, toIndex: Int) {
         viewModelScope.launch {
             playerRepository.reorderQueue(fromIndex, toIndex)
         }
     }
-    
+
     fun removeFromQueue(index: Int) {
         viewModelScope.launch {
             playerRepository.removeFromQueue(index)
         }
     }
-    
+
     fun duplicateInQueue(index: Int) {
         viewModelScope.launch {
             playerRepository.duplicateInQueue(index)
         }
     }
-    
+
     fun playFromQueue(index: Int) {
         viewModelScope.launch {
             playerRepository.playFromQueue(index)
@@ -146,13 +146,13 @@ class PlayerViewModel @Inject constructor(
             if (song != null) {
                 // Ensure song is saved to database first
                 mediaLibraryRepository.saveSong(song)
-                
+
                 // Then update liked status
                 val currentLiked = isLiked.value
                 val newLiked = !currentLiked
-                
+
                 mediaLibraryRepository.setSongLiked(song.id, newLiked)
-                
+
                 // If liking, also add to library (saved songs)
                 if (newLiked) {
                     mediaLibraryRepository.setSongSaved(song.id, true)
@@ -160,7 +160,7 @@ class PlayerViewModel @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Gets the current audio format from ExoPlayer.
      * Returns null if no track is playing or format information is not available.

@@ -13,7 +13,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class PluginHandlerFactory @Inject constructor() {
-    
+
     /**
      * Creates a plugin handler for the given binder and plugin ID.
      * Determines the API version from the binder interface descriptor.
@@ -30,11 +30,14 @@ class PluginHandlerFactory @Inject constructor() {
             Timber.e(e, "Error getting interface descriptor for plugin: $pluginId")
             throw PluginException(-1, "Failed to get interface descriptor: ${e.message}")
         }
-        
+
         return when (descriptor) {
             IViperPluginV1.DESCRIPTOR -> {
                 val service = IViperPluginV1.Stub.asInterface(binder)
-                    ?: throw PluginException(-1, "Failed to get IViperPluginV1 interface from binder")
+                    ?: throw PluginException(
+                        -1,
+                        "Failed to get IViperPluginV1 interface from binder"
+                    )
                 PluginHandlerV1(pluginId, service)
             }
             // Future API versions can be added here:
@@ -45,7 +48,7 @@ class PluginHandlerFactory @Inject constructor() {
             }
         }
     }
-    
+
     /**
      * Gets the API version from a binder without creating a handler.
      * Useful for connection logic that needs to know the version before creating the handler.

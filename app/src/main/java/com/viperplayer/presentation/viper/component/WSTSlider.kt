@@ -282,7 +282,7 @@ private fun WSTSliderImpl(
             it.layoutId == SliderComponents.TRACK
         }.measure(
             constraints.offset(
-                horizontal = - thumbPlaceable.width
+                horizontal = -thumbPlaceable.width
             ).copy(minHeight = 0)
         )
 
@@ -779,5 +779,6 @@ internal fun SliderRange(range: ClosedFloatingPointRange<Float>): SliderRange {
  * Check for if a given [SliderRange] is not [SliderRange.Unspecified].
  */
 @Stable
-internal val SliderRange.isSpecified: Boolean get() =
-    packedValue != SliderRange.Unspecified.packedValue
+internal val SliderRange.isSpecified: Boolean
+    get() =
+        packedValue != SliderRange.Unspecified.packedValue

@@ -32,28 +32,26 @@ import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import com.viperplayer.domain.model.Album
-import com.viperplayer.domain.model.Artist
+import androidx.navigation3.runtime.NavKey
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.determineLayoutVisibility
-import com.viperplayer.presentation.ktx.navigateSafe
 import com.viperplayer.presentation.navigation.AlbumDetail
 import com.viperplayer.presentation.navigation.ArtistDetail
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
+import com.viperplayer.presentation.navigation.Navigator
 import com.viperplayer.presentation.navigation.Search
 import com.viperplayer.presentation.navigation.Viper
-import com.viperplayer.presentation.navigation.ViperNavHost
+import com.viperplayer.presentation.navigation.ViperNavDisplay
+import com.viperplayer.presentation.navigation.rememberNavigationState
 import com.viperplayer.presentation.player.MiniPlayer
 import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import kotlinx.coroutines.launch
 
 data class BottomNavItem(
-    val route: Any,
+    val route: NavKey,
     val title: String,
     val icon: ImageVector
 )
@@ -70,7 +68,7 @@ fun ViperPlayerApp(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val systemDarkTheme = isSystemInDarkTheme()
-    
+
     val darkTheme = when (uiState.themeMode) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
@@ -88,11 +86,15 @@ fun ViperPlayerApp(
         ) {
             val scope = rememberCoroutineScope()
             val density = LocalDensity.current
-            val navController = rememberNavController()
             val windowInsets = NavigationBarDefaults.windowInsets
             val bottomInset = windowInsets.getBottom(density)
 
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val topLevelRoutes = remember { setOf(Home, Search, Library, Viper) }
+            val navigationState = rememberNavigationState(
+                startRoute = Home,
+                topLevelRoutes = topLevelRoutes
+            )
+            val navigator = remember { Navigator(navigationState) }
 
             var showPlayerBottomSheet by remember { mutableStateOf(false) }
 
@@ -103,8 +105,10 @@ fun ViperPlayerApp(
                 BottomNavItem(Viper, "ViPER", Icons.Rounded.Equalizer)
             )
 
+            val currentRoute =
+                navigationState.backStacks[navigationState.topLevelRoute]?.lastOrNull()
             val layoutState = determineLayoutVisibility(
-                currentDestination = navBackStackEntry,
+                currentRoute = currentRoute,
                 hasPlayingContent = uiState.hasCurrentSong,
             )
 
@@ -118,26 +122,19 @@ fun ViperPlayerApp(
                     Box {
                         NavigationBar {
                             bottomNavItems.forEach { item ->
-                                val isSelected = when (item.route) {
-                                    Home -> navBackStackEntry?.destination?.route?.contains("Home") == true
-                                    Search -> navBackStackEntry?.destination?.route?.contains("Search") == true
-                                    Library -> navBackStackEntry?.destination?.route?.contains("Library") == true
-                                    Viper -> navBackStackEntry?.destination?.route?.contains("Viper") == true
-                                    else -> false
-                                }
+                                val isSelected = item.route == navigationState.topLevelRoute
 
                                 NavigationBarItem(
-                                    icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = item.title
+                                        )
+                                    },
                                     label = { Text(item.title) },
                                     selected = isSelected,
                                     onClick = {
-                                        navController.navigate(item.route) {
-                                            popUpTo(navController.graph.startDestinationRoute!!) {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
+                                        navigator.navigate(item.route)
                                     }
                                 )
                             }
@@ -186,7 +183,8 @@ fun ViperPlayerApp(
 
                 val miniPlayerTargetY = if (layoutState.showMiniPlayer) {
                     // Sit above nav bar if visible, otherwise above inset
-                    val anchor = if (layoutState.showBottomNavBar) navBarTargetY else layoutBottom - bottomInset
+                    val anchor =
+                        if (layoutState.showBottomNavBar) navBarTargetY else layoutBottom - bottomInset
                     anchor - miniPlayerHeight
                 } else {
                     layoutBottom // hidden below screen
@@ -211,8 +209,9 @@ fun ViperPlayerApp(
 
                 val contentMeasurables = subcompose(SubcomposeSlot.Content) {
                     Box {
-                        ViperNavHost(
-                            navController = navController,
+                        ViperNavDisplay(
+                            navigationState = navigationState,
+                            navigator = navigator,
                             rootPadding = PaddingValues(bottom = bottomPadding),
                             modifier = Modifier.fillMaxSize()
                         )
@@ -260,15 +259,11 @@ fun ViperPlayerApp(
                     PlayerScreen(
                         onNavigateToArtist = { artist ->
                             showPlayerBottomSheet = false
-                            navController.navigateSafe(
-                                ArtistDetail(artist)
-                            )
+                            navigator.navigate(ArtistDetail(artist))
                         },
                         onNavigateToAlbum = { album ->
                             showPlayerBottomSheet = false
-                            navController.navigateSafe(
-                                AlbumDetail(album)
-                            )
+                            navigator.navigate(AlbumDetail(album))
                         }
                     )
                 }

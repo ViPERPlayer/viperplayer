@@ -1,6 +1,6 @@
 package com.viperplayer.presentation.common
 
-import androidx.navigation.NavBackStackEntry
+import androidx.navigation3.runtime.NavKey
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
 import com.viperplayer.presentation.navigation.Search
@@ -23,20 +23,18 @@ data class LayoutVisibilityState(
  * - Other screens show both (if there's content to play)
  */
 fun determineLayoutVisibility(
-    currentDestination: NavBackStackEntry?,
+    currentRoute: NavKey?,
     hasPlayingContent: Boolean,
 ): LayoutVisibilityState {
-    val route = currentDestination?.destination?.route
-
-    Timber.d("Current route: $route")
+    Timber.d("Current route: $currentRoute")
 
     // Determine if we should show the bottom nav bar
-    val showBottomNavBar = when (route) {
+    val showBottomNavBar = when (currentRoute) {
         null -> true
-        Home::class.java.name -> true
-        Search::class.java.name -> true
-        Library::class.java.name -> true
-        Viper::class.java.name -> true
+        Home -> true
+        Search -> true
+        Library -> true
+        Viper -> true
         else -> false
     }
 
