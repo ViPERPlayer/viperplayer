@@ -3,7 +3,6 @@ package com.viperplayer.presentation.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
-import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -16,7 +15,6 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -48,15 +46,15 @@ class AlbumDetailViewModel @AssistedInject constructor(
         fun create(albumDetail: AlbumDetail): AlbumDetailViewModel
     }
 
-    private val albumId: MediaId = albumDetail.initialAlbum.id
+    private val albumId = albumDetail.initialAlbum.id
 
     private val _uiState =
         MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading(albumDetail.initialAlbum))
-    val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()
+    val uiState = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
-    val currentSong: StateFlow<Song?> = playerRepository.currentSong
-    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+    val currentSong = playerRepository.currentSong
+    val isPlaying = playerRepository.playbackState
         .map { it.isPlaying }
         .stateIn(
             scope = viewModelScope,
