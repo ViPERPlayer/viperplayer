@@ -77,7 +77,7 @@ fun ViperPlayerApp(
 
     ViPERPlayerTheme(
         darkTheme = darkTheme,
-        pureDark = uiState.pureBlack && (uiState.themeMode == ThemeMode.DARK || uiState.themeMode == ThemeMode.SYSTEM),
+        pureDark = uiState.pureBlack,
         dynamicColor = uiState.dynamicThemeMode != DynamicThemeMode.OFF,
         seedColor = if (uiState.dynamicThemeMode == DynamicThemeMode.DYNAMIC) uiState.themeColor else null
     ) {

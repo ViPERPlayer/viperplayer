@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -99,6 +100,13 @@ fun CollapsingArtworkScaffold(
     ViperScaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
+            val density = LocalDensity.current
+            val topContentWindowInset = with(density) {
+                ViperScaffoldDefaults.contentWindowInsets
+                    .getTop(density)
+                    .toDp()
+            }
+
             Box {
                 // Artwork as background — matchParentSize tracks
                 // the LargeTopAppBar's dynamic height as it collapses
@@ -154,7 +162,7 @@ fun CollapsingArtworkScaffold(
                         }
                     },
                     actions = actions,
-                    expandedHeight = expandedHeight,
+                    expandedHeight = expandedHeight - topContentWindowInset,
                     scrollBehavior = scrollBehavior,
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,

@@ -13,9 +13,5 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent { ViperPlayerApp() }
-
-        nativeInit()
     }
-
-    private external fun nativeInit()
 }

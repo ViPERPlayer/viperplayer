@@ -29,10 +29,6 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
-    init {
-        System.loadLibrary("viper")
-    }
-
     override fun onCreate() {
         super.onCreate()
         setupCrashHandler()
