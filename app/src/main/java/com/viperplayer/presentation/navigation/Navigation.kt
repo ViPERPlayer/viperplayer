@@ -1,5 +1,10 @@
 package com.viperplayer.presentation.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -288,6 +293,46 @@ fun ViperNavDisplay(
     NavDisplay(
         entries = entries,
         onBack = { navigator.goBack() },
-        modifier = modifier
+        modifier = modifier,
+        transitionSpec = {
+            val topLevelOrder = listOf(Home, Search, Library, Viper)
+            val initialIndex = topLevelOrder.indexOf(initialState.key)
+            val targetIndex = topLevelOrder.indexOf(targetState.key)
+
+            val direction = if (initialIndex != -1 && targetIndex != -1) {
+                if (targetIndex > initialIndex) {
+                    AnimatedContentTransitionScope.SlideDirection.Start
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.End
+                }
+            } else {
+                AnimatedContentTransitionScope.SlideDirection.Start
+            }
+
+            slideIntoContainer(direction, tween(300)) + fadeIn(tween(300)) togetherWith
+                    slideOutOfContainer(direction, tween(300)) + fadeOut(tween(300))
+        },
+        popTransitionSpec = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.End,
+                tween(300)
+            ) + fadeIn(tween(300)) togetherWith
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(300)
+                    ) + fadeOut(tween(300))
+        },
+        predictivePopTransitionSpec = {
+            // A subtle predictive back animation that slides the exiting screen
+            // out slowly alongside the gesture, without the extreme scaling.
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.End,
+                tween(300)
+            ) + fadeIn(tween(300)) togetherWith
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(300)
+                    ) + fadeOut(tween(300))
+        }
     )
 }
