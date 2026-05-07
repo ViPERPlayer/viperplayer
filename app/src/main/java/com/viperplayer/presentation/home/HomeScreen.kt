@@ -169,74 +169,69 @@ private fun HomeScreenContent(
                     IconButton(onClick = onNavigateToHistory) {
                         Icon(
                             imageVector = Icons.Rounded.History,
-                            contentDescription = "History",
+                            contentDescription = stringResource(R.string.history),
                         )
                     }
                     IconButton(onClick = onNavigateToAnalytics) {
                         Icon(
                             imageVector = Icons.Rounded.QueryStats,
-                            contentDescription = "Stats",
+                            contentDescription = stringResource(R.string.stats),
                         )
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Rounded.Settings,
-                            contentDescription = "Settings",
+                            contentDescription = stringResource(R.string.settings),
                         )
                     }
                 },
             )
         }
     ) { contentPadding ->
-        val isRefreshing = (uiState as? HomeUiState.Content)?.isRefreshing ?: false
+        when (uiState) {
+            is HomeUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .padding(rootPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LoadingIndicator()
+                }
+            }
 
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            modifier = Modifier
-                .padding(contentPadding)
-                .fillMaxSize()
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = rootPadding
-            ) {
-                when (val state = uiState) {
-                    is HomeUiState.Loading -> {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                LoadingIndicator()
-                            }
-                        }
-                    }
+            is HomeUiState.Error -> {
+                Card(
+                    modifier = Modifier
+                        .padding(rootPadding)
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = uiState.message,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
 
-                    is HomeUiState.Error -> {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer
-                                )
-                            ) {
-                                Text(
-                                    text = state.message,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    is HomeUiState.Content -> {
+            is HomeUiState.Content -> {
+                PullToRefreshBox(
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = onRefresh,
+                    modifier = Modifier
+                        .padding(contentPadding)
+                        .fillMaxSize()
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = rootPadding
+                    ) {
                         // Empty state (no plugins)
-                        if (state.connectedPlugins.isEmpty()) {
+                        if (uiState.connectedPlugins.isEmpty()) {
                             item {
                                 Card(
                                     modifier = Modifier
@@ -266,7 +261,7 @@ private fun HomeScreenContent(
                         }
 
                         // Browse Categories
-                        if (state.categories.isNotEmpty()) {
+                        if (uiState.categories.isNotEmpty()) {
                             item {
                                 Text(
                                     text = "Browse",
@@ -281,7 +276,7 @@ private fun HomeScreenContent(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    items(state.categories) { category ->
+                                    items(uiState.categories) { category ->
                                         CategoryCard(
                                             category = category,
                                             onClick = { /* TODO: Navigate to category */ }
@@ -292,7 +287,7 @@ private fun HomeScreenContent(
                         }
 
                         // Quick Picks
-                        state.quickPicks?.let { quickPicks ->
+                        uiState.quickPicks?.let { quickPicks ->
                             if (quickPicks.isNotEmpty()) {
                                 item {
                                     Spacer(modifier = Modifier.height(24.dp))
@@ -330,7 +325,7 @@ private fun HomeScreenContent(
                         }
 
                         // Custom Sections
-                        state.sections.forEach { section ->
+                        uiState.sections.forEach { section ->
                             item {
                                 Spacer(modifier = Modifier.height(24.dp))
                                 Text(

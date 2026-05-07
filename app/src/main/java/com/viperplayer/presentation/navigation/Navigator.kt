@@ -11,7 +11,9 @@ class Navigator(val state: NavigationState) {
             // This is a top level route, just switch to it.
             state.topLevelRoute = route
         } else {
-            state.backStacks[state.topLevelRoute]?.add(route)
+            val currentStack = state.backStacks[state.topLevelRoute]
+                ?: error("Stack for ${state.topLevelRoute} not found")
+            currentStack.add(route)
         }
     }
 
@@ -21,6 +23,7 @@ class Navigator(val state: NavigationState) {
         val currentRoute = currentStack.last()
 
         // If we're at the base of the current route, go back to the start route stack.
+        // TODO: Should we also check here that the stack size is 1?
         if (currentRoute == state.topLevelRoute) {
             state.topLevelRoute = state.startRoute
         } else {

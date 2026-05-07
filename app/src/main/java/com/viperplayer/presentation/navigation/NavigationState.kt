@@ -74,7 +74,6 @@ class NavigationState(
 fun NavigationState.toEntries(
     entryProvider: (NavKey) -> NavEntry<NavKey>
 ): SnapshotStateList<NavEntry<NavKey>> {
-
     val decoratedEntries = backStacks.mapValues { (_, stack) ->
         val decorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator<NavKey>(),
@@ -88,6 +87,6 @@ fun NavigationState.toEntries(
     }
 
     return stacksInUse
-        .flatMap { decoratedEntries[it] ?: emptyList() }
+        .flatMap { decoratedEntries[it] ?: error("No entries for $it") }
         .toMutableStateList()
 }

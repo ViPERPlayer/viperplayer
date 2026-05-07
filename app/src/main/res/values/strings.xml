@@ -104,4 +104,11 @@
     <string name="dynamic_system_device_pitt_van_de_witt_flavor_2">Pitt Van De Witt (Flavor 2)</string>
     <string name="dynamic_system_device_pitt_van_de_witt_flavor_3">Pitt Van De Witt (Flavor 3)</string>
     <string name="back">Back</string>
+    <string name="history">History</string>
+    <string name="history_recently_played">Recently Played</string>
+    <string name="history_empty">No history available</string>
+    <string name="stats">Stats</string>
+    <string name="analytics_playback_statistics">Playback Statistics</string>
+    <string name="analytics_coming_soon">Analytics coming soon</string>
+    <string name="settings">Settings</string>
 </resources>
