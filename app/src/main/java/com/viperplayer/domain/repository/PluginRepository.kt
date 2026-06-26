@@ -11,7 +11,7 @@ import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.v1.SearchFilter
+import com.viperplayer.domain.model.SearchFilter
 import kotlinx.coroutines.flow.Flow
 
 /**

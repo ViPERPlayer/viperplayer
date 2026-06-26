@@ -1,6 +1,5 @@
 package com.viperplayer.data.repository
 
-import com.viperplayer.data.mapper.PluginMapper.toDomain
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -10,11 +9,11 @@ import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
-import com.viperplayer.plugin.v1.SearchFilter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -51,7 +50,7 @@ class PluginRepositoryImpl @Inject constructor(
                 try {
                     Plugin(
                         info = connected.info,
-                        capabilities = connected.handler.getCapabilities().getOrThrow().toDomain(),
+                        capabilities = connected.capabilities,
                         isConnected = true
                     )
                 } catch (e: Exception) {
@@ -108,7 +107,6 @@ class PluginRepositoryImpl @Inject constructor(
             val results = plugins.keys.map { pluginId ->
                 async {
                     dataSource.search(pluginId, query, filter, cursor, limit)
-                        .map { it.toDomain(pluginId) }
                 }
             }.awaitAll()
 
@@ -135,7 +133,7 @@ class PluginRepositoryImpl @Inject constructor(
                 val results = plugins.keys.map { pluginId ->
                     async {
                         val result = dataSource.getHomeContent(pluginId)
-                        result.map { pluginId to it.toDomain(pluginId) }
+                        result.map { pluginId to it }
                     }
                 }.awaitAll()
 
@@ -176,8 +174,7 @@ class PluginRepositoryImpl @Inject constructor(
         limit: Int
     ): Result<SearchResult> {
         return try {
-            val result = dataSource.getCategoryContents(pluginId, categoryId, cursor, limit)
-            result.map { it.toDomain(pluginId) }
+            dataSource.getCategoryContents(pluginId, categoryId, cursor, limit)
         } catch (e: Exception) {
             Timber.e(e, "Error in getCategoryContents")
             Result.failure(e)

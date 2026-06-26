@@ -5,171 +5,184 @@ import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CategoryContentType
+import com.viperplayer.domain.model.HomeContent
+import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.PluginCapabilities
 import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.domain.model.SearchResult
+import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.v1.MediaItemV1
-import com.viperplayer.plugin.v1.Album as AidlAlbum
-import com.viperplayer.plugin.v1.Album.AlbumType as AidlAlbumType
-import com.viperplayer.plugin.v1.Artist as AidlArtist
-import com.viperplayer.plugin.v1.BrowseCategory as AidlBrowseCategory
-import com.viperplayer.plugin.v1.BrowseCategory.CategoryContentType as AidlCategoryContentType
-import com.viperplayer.plugin.v1.Playlist as AidlPlaylist
-import com.viperplayer.plugin.v1.PluginCapabilities as AidlPluginCapabilities
-import com.viperplayer.plugin.v1.PluginInfo as AidlPluginInfo
-import com.viperplayer.plugin.v1.SearchResult as AidlSearchResult
-import com.viperplayer.plugin.v1.Song as AidlSong
+import com.viperplayer.plugin.model.Artwork
+import com.viperplayer.plugin.model.Capability
+import com.viperplayer.plugin.model.MediaType
+import com.viperplayer.plugin.model.PluginManifest
+import com.viperplayer.plugin.model.Page
+import com.viperplayer.plugin.model.Album as SdkAlbum
+import com.viperplayer.plugin.model.AlbumType as SdkAlbumType
+import com.viperplayer.plugin.model.Artist as SdkArtist
+import com.viperplayer.plugin.model.BrowseCategory as SdkBrowseCategory
+import com.viperplayer.plugin.model.CategoryContentType as SdkCategoryContentType
+import com.viperplayer.plugin.model.HomeContent as SdkHomeContent
+import com.viperplayer.plugin.model.HomeSection as SdkHomeSection
+import com.viperplayer.plugin.model.MediaItem as SdkMediaItem
+import com.viperplayer.plugin.model.Playlist as SdkPlaylist
+import com.viperplayer.plugin.model.SearchResult as SdkSearchResult
+import com.viperplayer.plugin.model.SearchSuggestions as SdkSearchSuggestions
+import com.viperplayer.plugin.model.SectionLayout as SdkSectionLayout
+import com.viperplayer.plugin.model.Song as SdkSong
 
 /**
- * Mappers to convert between AIDL models and domain models.
+ * Converts plugin-SDK models (opaque per-plugin ids, real nullables) into host domain models
+ * (globally-unique [MediaId], host-specific fields). All ids are namespaced with the producing
+ * plugin's id here.
  */
 object PluginMapper {
 
-    fun MediaItemV1.toDomain(pluginId: String): MediaItem {
-        return when (this.type) {
-            MediaItemV1.Type.SONG -> this.song!!.toDomain(pluginId)
-            MediaItemV1.Type.ALBUM -> this.album!!.toDomain(pluginId)
-            MediaItemV1.Type.ARTIST -> this.artist!!.toDomain(pluginId)
-            MediaItemV1.Type.PLAYLIST -> this.playlist!!.toDomain(pluginId)
-            else -> throw IllegalArgumentException("Unknown MediaItem type: ${this.type}")
-        }
+    private fun Artwork?.bestUrl(): String? = this?.fullUrl ?: this?.thumbnailUrl
+
+    fun SearchFilter.toMediaType(): MediaType = when (this) {
+        SearchFilter.SONG -> MediaType.SONG
+        SearchFilter.ALBUM -> MediaType.ALBUM
+        SearchFilter.ARTIST -> MediaType.ARTIST
+        SearchFilter.PLAYLIST -> MediaType.PLAYLIST
     }
 
-    fun String.toDomain(pluginId: String): MediaId = MediaId(pluginId, this)
-
-    fun AidlArtist.toDomain(pluginId: String): Artist = Artist(
-        id = id.toDomain(pluginId),
-        name = name,
-        imageUrl = artwork?.full,
-        topSongs = topSongs?.map { it.toDomain(pluginId) }.orEmpty(),
-        albums = albums?.map { it.toDomain(pluginId) }.orEmpty(),
-        playlists = playlists?.map { it.toDomain(pluginId) }.orEmpty(),
-        featuring = featuring?.map { it.toDomain(pluginId) }.orEmpty(),
-        appearsOn = appearsOn?.map { it.toDomain(pluginId) }.orEmpty(),
-        similarArtists = similarArtists?.map { it.toDomain(pluginId) }.orEmpty()
+    fun SdkSong.toDomain(pluginId: String): Song = Song(
+        id = MediaId(pluginId, id),
+        title = title,
+        artists = artists.map { it.toDomain(pluginId) },
+        album = album?.toDomain(pluginId),
+        durationMs = durationMs,
+        artworkUrl = artwork.bestUrl(),
+        trackNumber = trackNumber,
+        discNumber = discNumber,
+        isExplicit = isExplicit,
+        isPlayable = isPlayable,
+        requiresInternet = requiresInternet,
+        replayGainDb = replayGainDb,
+        peakAmplitude = peakAmplitude,
     )
 
-    fun Byte.toDomainAlbumType(): AlbumType = when (this) {
-        AidlAlbumType.ALBUM -> AlbumType.ALBUM
-        AidlAlbumType.SINGLE -> AlbumType.SINGLE
-        AidlAlbumType.EP -> AlbumType.EP
-        AidlAlbumType.COMPILATION -> AlbumType.COMPILATION
-        else -> AlbumType.ALBUM // Default fallback
-    }
-
-    fun AidlAlbum.toDomain(pluginId: String): Album = Album(
-        id = id.toDomain(pluginId),
+    fun SdkAlbum.toDomain(pluginId: String): Album = Album(
+        id = MediaId(pluginId, id),
         name = name,
         artists = artists.map { it.toDomain(pluginId) },
-        artworkUrl = artwork?.full,
-        releaseYear = if (hasReleaseYear) releaseYear else null,
-        trackCount = trackCount,
-        type = type.toDomainAlbumType(),
-        songs = songs?.mapIndexed { index, song -> song.toDomain(pluginId, index + 1) }
+        artworkUrl = artwork.bestUrl(),
+        releaseYear = releaseYear,
+        trackCount = trackCount ?: 0,
+        type = type.toDomain(),
+        songs = songs.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
     )
 
-    fun AidlSong.toDomain(
-        pluginId: String,
-        trackNumber: Int? = null,
-    ): Song {
-        return Song(
-            id = this.id.toDomain(pluginId),
-            title = this.title,
-            artists = this.artists.map { it.toDomain(pluginId) },
-            album = this.album?.toDomain(pluginId),
-            durationMs = if (hasDurationMs) this.durationMs else null,
-            artworkUrl = this.artwork?.full,
-            trackNumber = if (hasTrackNumber) this.trackNumber else trackNumber,
-            discNumber = if (hasDiscNumber) this.discNumber else null,
-            isExplicit = this.isExplicit,
-            isPlayable = this.isPlayable,
-            requiresInternet = this.requiresInternet,
-            replayGainDb = if (hasReplayGainDb) this.replayGainDb else null,
-            peakAmplitude = if (hasPeakAmplitude) this.peakAmplitude else null
-        )
-    }
+    fun SdkArtist.toDomain(pluginId: String): Artist = Artist(
+        id = MediaId(pluginId, id),
+        name = name,
+        imageUrl = artwork.bestUrl(),
+        topSongs = topSongs.map { it.toDomain(pluginId) },
+        albums = (albums + singles).map { it.toDomain(pluginId) },
+        playlists = playlists.map { it.toDomain(pluginId) },
+        featuring = emptyList(),
+        appearsOn = emptyList(),
+        similarArtists = similarArtists.map { it.toDomain(pluginId) },
+    )
 
-    fun AidlPlaylist.toDomain(pluginId: String): Playlist = Playlist(
-        id = id.toDomain(pluginId),
+    fun SdkPlaylist.toDomain(pluginId: String): Playlist = Playlist(
+        id = MediaId(pluginId, id),
         name = name,
         description = description,
-        artworkUrl = artwork?.full,
+        artworkUrl = artwork.bestUrl(),
         ownerName = ownerName,
-        songCount = songCount,
+        songCount = trackCount ?: 0,
         isPublic = true,
-        isEditable = false,
-        songs = songs?.map { it.toDomain(pluginId) }
+        isEditable = isEditable,
+        songs = songs.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
     )
 
-    fun Byte.toDomainCategoryContentType(): CategoryContentType = when (this) {
-        AidlCategoryContentType.CATEGORIES -> CategoryContentType.CATEGORIES
-        AidlCategoryContentType.PLAYLISTS -> CategoryContentType.PLAYLISTS
-        AidlCategoryContentType.ALBUMS -> CategoryContentType.ALBUMS
-        AidlCategoryContentType.ARTISTS -> CategoryContentType.ARTISTS
-        AidlCategoryContentType.SONGS -> CategoryContentType.SONGS
-        AidlCategoryContentType.MIXED -> CategoryContentType.MIXED
-        else -> CategoryContentType.MIXED // Default fallback
+    fun SdkMediaItem.toDomain(pluginId: String): MediaItem = when (this) {
+        is SdkSong -> toDomain(pluginId)
+        is SdkAlbum -> toDomain(pluginId)
+        is SdkArtist -> toDomain(pluginId)
+        is SdkPlaylist -> toDomain(pluginId)
     }
 
-    fun AidlBrowseCategory.toDomain(): BrowseCategory = BrowseCategory(
+    fun SdkSearchResult.toDomain(pluginId: String): SearchResult = SearchResult(
+        items = items.map { it.toDomain(pluginId) },
+        nextCursor = nextCursor,
+    )
+
+    fun SdkSearchSuggestions.toDomain(pluginId: String): SearchSuggestions = SearchSuggestions(
+        pluginId = pluginId,
+        suggestions = suggestions,
+        items = items.map { it.toDomain(pluginId) },
+    )
+
+    fun SdkBrowseCategory.toDomain(pluginId: String): BrowseCategory = BrowseCategory(
         id = id,
         pluginId = pluginId,
         name = name,
         description = description,
         imageUrl = imageUrl,
-        contentType = contentType.toDomainCategoryContentType()
+        contentType = contentType.toDomain(),
     )
 
-    fun AidlSearchResult.toDomain(pluginId: String): SearchResult {
-        return SearchResult(
-            items = items.map { it.toDomain(pluginId) },
-            nextCursor = nextCursor
-        )
-    }
+    fun SdkHomeContent.toDomain(pluginId: String): HomeContent = HomeContent(
+        quickPicks = quickPicks.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
+        sections = sections.map { it.toDomain(pluginId) },
+    )
 
-    fun AidlPluginInfo.toDomain(): PluginInfo = PluginInfo(
+    fun SdkHomeSection.toDomain(pluginId: String): HomeSection = HomeSection(
+        id = id,
+        title = title,
+        items = items.map { it.toDomain(pluginId) },
+        layout = when (layout) {
+            SdkSectionLayout.LIST -> HomeSection.Layout.LIST
+            SdkSectionLayout.GRID -> HomeSection.Layout.GRID
+        },
+    )
+
+    fun <T, R> Page<T>.toDomain(transform: (T) -> R): PagedResult<R> =
+        PagedResult(items.map(transform), nextCursor, totalCount)
+
+    fun PluginManifest.toDomainInfo(): PluginInfo = PluginInfo(
         id = id,
         name = name,
         version = version,
-        apiVersion = apiVersion,
+        apiVersion = protocolVersion,
         description = description,
         author = author,
+        settingsActivity = settingsActivity,
     )
 
-    fun AidlPluginCapabilities.toDomain(): PluginCapabilities = PluginCapabilities(
-        canSearch = canSearch,
-        canBrowse = canBrowse,
-        hasLibrary = hasLibrary,
-        hasPlaylists = hasPlaylists,
-        canSeek = canSeek,
-        hasLyrics = hasLyrics,
-        hasHighQuality = hasHighQuality,
-        supportsOffline = supportsOffline,
-        hasSettings = hasSettings
+    fun PluginManifest.toDomainCapabilities(): PluginCapabilities = PluginCapabilities(
+        canSearch = source?.search ?: false,
+        canBrowse = source?.browse ?: false,
+        hasLibrary = source?.library ?: false,
+        hasPlaylists = source?.playlists ?: false,
+        canSeek = source?.canSeek ?: false,
+        hasLyrics = Capability.LYRICS in capabilities,
+        hasHighQuality = false,
+        supportsOffline = source?.supportsOffline ?: false,
+        hasSettings = settingsActivity != null,
     )
 
-    fun com.viperplayer.plugin.v1.HomeContent.toDomain(pluginId: String): com.viperplayer.domain.model.HomeContent {
-        return com.viperplayer.domain.model.HomeContent(
-            quickPicks = quickPicks?.map { it.toDomain(pluginId) },
-            sections = sections.map { it.toDomain(pluginId) }
-        )
+    private fun SdkAlbumType.toDomain(): AlbumType = when (this) {
+        SdkAlbumType.ALBUM -> AlbumType.ALBUM
+        SdkAlbumType.SINGLE -> AlbumType.SINGLE
+        SdkAlbumType.EP -> AlbumType.EP
+        SdkAlbumType.COMPILATION -> AlbumType.COMPILATION
     }
 
-    fun com.viperplayer.plugin.v1.HomeSection.toDomain(pluginId: String): com.viperplayer.domain.model.HomeSection {
-        return com.viperplayer.domain.model.HomeSection(
-            id = id,
-            title = title,
-            items = items.map { it.toDomain(pluginId) },
-            layout = when (layout) {
-                com.viperplayer.plugin.v1.HomeSection.Layout.LIST -> com.viperplayer.domain.model.HomeSection.Layout.LIST
-                com.viperplayer.plugin.v1.HomeSection.Layout.GRID -> com.viperplayer.domain.model.HomeSection.Layout.GRID
-                else -> throw IllegalArgumentException("Unknown HomeSection layout: $layout")
-            }
-        )
+    private fun SdkCategoryContentType.toDomain(): CategoryContentType = when (this) {
+        SdkCategoryContentType.CATEGORIES -> CategoryContentType.CATEGORIES
+        SdkCategoryContentType.PLAYLISTS -> CategoryContentType.PLAYLISTS
+        SdkCategoryContentType.ALBUMS -> CategoryContentType.ALBUMS
+        SdkCategoryContentType.ARTISTS -> CategoryContentType.ARTISTS
+        SdkCategoryContentType.SONGS -> CategoryContentType.SONGS
+        SdkCategoryContentType.MIXED -> CategoryContentType.MIXED
     }
 }
-

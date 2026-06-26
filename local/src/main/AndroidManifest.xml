@@ -30,7 +30,7 @@
         </service>
 
         <meta-data
-            android:name="com.viperplayer.player.NAME"
+            android:name="com.viperplayer.plugin.NAME"
             android:value="Local Files" />
     </application>
 

@@ -11,12 +11,12 @@ plugins {
 
 android {
     namespace = "com.viperplayer"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.viperplayer"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -88,6 +88,16 @@ android {
 
     lint {
         disable += "UnsafeOptInUsageError"
+    }
+}
+
+// Dagger/Hilt (>= 2.57) unshades kotlin-metadata-jvm, so its Java annotation processor reads class
+// metadata via whatever version is on the classpath. Force it to match the Kotlin version, otherwise
+// Hilt's aggregating Java compile can't parse metadata newer than the version Dagger ships with
+// (e.g. "Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0").
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.get()}")
     }
 }
 

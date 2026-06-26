@@ -24,6 +24,7 @@ include(":app")
 include(":local")
 include(":plugin-sdk")
 include(":plugin-example")
+include(":dsp-example")
 
 // Media3
 includeBuild("external/media") {

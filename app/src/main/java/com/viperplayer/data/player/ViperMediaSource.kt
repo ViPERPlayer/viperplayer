@@ -16,12 +16,16 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaPeriod
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MediaSourceEventListener
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.Allocator
 import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.MediaId
-import com.viperplayer.plugin.v1.StreamSource
+import com.viperplayer.plugin.model.DashStream
+import com.viperplayer.plugin.model.HlsStream
+import com.viperplayer.plugin.model.PcmStream
+import com.viperplayer.plugin.model.UrlStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +37,11 @@ import timber.log.Timber
 import java.io.File
 import java.io.IOException
 
+/**
+ * A [MediaSource] that lazily resolves the real stream for a plugin-backed [MediaItem] (URL, DASH,
+ * HLS, or raw PCM over an FD) and delegates to the matching concrete source. The host owns the
+ * player; the plugin only tells it where/how to get the audio.
+ */
 class ViperMediaSource(
     private val context: Context,
     private val pluginDataSource: PluginDataSource,
@@ -41,6 +50,7 @@ class ViperMediaSource(
 ) : MediaSource {
     private val sourceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var chosenMediaSource: MediaSource? = null
+    private var pcmMediaSource: MediaSource? = null
     private val chosenOrDefaultMediaSource: MediaSource
         get() = chosenMediaSource ?: defaultMediaSource
     private var sourceInfoRefreshError: Exception? = null
@@ -76,10 +86,7 @@ class ViperMediaSource(
         }
     }
 
-    override fun addEventListener(
-        handler: Handler,
-        eventListener: MediaSourceEventListener
-    ) {
+    override fun addEventListener(handler: Handler, eventListener: MediaSourceEventListener) {
         defaultMediaSource.addEventListener(handler, eventListener)
         dashMediaSource.addEventListener(handler, eventListener)
     }
@@ -89,10 +96,7 @@ class ViperMediaSource(
         dashMediaSource.removeEventListener(eventListener)
     }
 
-    override fun addDrmEventListener(
-        handler: Handler,
-        eventListener: DrmSessionEventListener
-    ) {
+    override fun addDrmEventListener(handler: Handler, eventListener: DrmSessionEventListener) {
         defaultMediaSource.addDrmEventListener(handler, eventListener)
         dashMediaSource.addDrmEventListener(handler, eventListener)
     }
@@ -102,21 +106,14 @@ class ViperMediaSource(
         dashMediaSource.removeDrmEventListener(eventListener)
     }
 
-    override fun getInitialTimeline(): Timeline? {
-        return chosenOrDefaultMediaSource.initialTimeline
-    }
+    override fun getInitialTimeline(): Timeline? = chosenOrDefaultMediaSource.initialTimeline
 
-    override fun isSingleWindow(): Boolean {
-        return chosenOrDefaultMediaSource.isSingleWindow
-    }
+    override fun isSingleWindow(): Boolean = chosenOrDefaultMediaSource.isSingleWindow
 
-    override fun getMediaItem(): MediaItem {
-        return chosenOrDefaultMediaSource.mediaItem
-    }
+    override fun getMediaItem(): MediaItem = chosenOrDefaultMediaSource.mediaItem
 
-    override fun canUpdateMediaItem(mediaItem: MediaItem): Boolean {
-        return chosenOrDefaultMediaSource.canUpdateMediaItem(mediaItem)
-    }
+    override fun canUpdateMediaItem(mediaItem: MediaItem): Boolean =
+        chosenOrDefaultMediaSource.canUpdateMediaItem(mediaItem)
 
     override fun updateMediaItem(mediaItem: MediaItem) {
         chosenOrDefaultMediaSource.updateMediaItem(mediaItem)
@@ -125,82 +122,62 @@ class ViperMediaSource(
     override fun prepareSource(
         caller: MediaSource.MediaSourceCaller,
         playerId: PlayerId,
-        bandwidthMeter: BandwidthMeter
+        bandwidthMeter: BandwidthMeter,
     ) {
-        Timber.d("prepareSource() called")
-        val playbackLooper =
-            Looper.myLooper() ?: throw IllegalStateException("playbackLooper is null!")
+        val playbackLooper = Looper.myLooper() ?: throw IllegalStateException("playbackLooper is null!")
         val playbackDispatcher = Handler(playbackLooper).asCoroutineDispatcher()
 
         sourceScope.launch {
             try {
                 val mediaId = MediaId.fromString(mediaItem.mediaId)
-                val stream = pluginDataSource.getStream(mediaId).getOrThrow()
+                val resolved = pluginDataSource.getStream(mediaId).getOrThrow()
+                val source = resolved.source
 
                 val extras = Bundle().apply {
                     mediaItem.mediaMetadata.extras?.let { putAll(it) }
-                    stream.replayGainDb?.let { putFloat("replayGainDb", it) }
-                    stream.peakAmplitude?.let { putFloat("peakAmplitude", it) }
+                    source.replayGainDb?.let { putFloat("replayGainDb", it) }
+                    source.peakAmplitude?.let { putFloat("peakAmplitude", it) }
                 }
+                val baseBuilder = mediaItem.buildUpon().setMediaMetadata(
+                    mediaItem.mediaMetadata.buildUpon().setExtras(extras).build()
+                )
 
-                val updatedMediaItemBuilder = mediaItem.buildUpon()
-                    .setMediaMetadata(
-                        mediaItem.mediaMetadata.buildUpon()
-                            .setExtras(extras)
-                            .build()
-                    )
-
-                when (stream.type) {
-                    StreamSource.Type.URL -> {
-                        val url = stream.url ?: throw IllegalArgumentException("URL is null")
-                        updatedMediaItemBuilder.setUri(url.toUri())
+                val prepared: MediaSource = when (source) {
+                    is UrlStream -> {
+                        val item = baseBuilder.setUri(source.url.toUri()).build()
+                        defaultMediaSource.apply { updateMediaItem(item) }
                     }
 
-                    StreamSource.Type.DASH -> {
-                        val xml =
-                            stream.dashXml ?: throw IllegalArgumentException("DASH XML is null")
-                        val dashUri =
-                            saveDashXmlToFile(xml) // Assuming this is a blocking IO function
-                        updatedMediaItemBuilder.setUri(dashUri)
+                    is HlsStream -> {
+                        // Routed through the default factory; requires the media3 HLS module at runtime.
+                        val item = baseBuilder.setUri(source.url.toUri()).build()
+                        defaultMediaSource.apply { updateMediaItem(item) }
                     }
 
-                    StreamSource.Type.AUDIO_STREAM -> {
-                        val audioStream = stream.audioStream
-                            ?: throw IllegalArgumentException("Audio stream is null")
-                        updatedMediaItemBuilder.setUri("viper://stream/${audioStream.streamId}".toUri())
+                    is DashStream -> {
+                        val uri: Uri = source.manifest?.let { saveDashXmlToFile(it) }
+                            ?: source.manifestUrl?.toUri()
+                            ?: throw IllegalArgumentException("DASH stream has no manifest or URL")
+                        val item = baseBuilder.setUri(uri).build()
+                        dashMediaSource.apply {
+                            updateMediaItem(item)
+                            replaceManifestUri(uri)
+                        }
                     }
 
-                    else -> throw IllegalArgumentException("Unknown stream type: ${stream.type}")
+                    is PcmStream -> {
+                        val fd = resolved.fd
+                            ?: throw IllegalArgumentException("PCM stream is missing its descriptor")
+                        val item = baseBuilder.setUri("viper://pcm/${source.streamId}".toUri()).build()
+                        ProgressiveMediaSource.Factory(
+                            PcmStreamDataSource.Factory(fd, source.format, source.durationMs)
+                        ).createMediaSource(item).also { pcmMediaSource = it }
+                    }
                 }
-
-                val updatedMediaItem = updatedMediaItemBuilder.build()
 
                 withContext(playbackDispatcher) {
-                    chosenMediaSource = when (stream.type) {
-                        StreamSource.Type.URL -> {
-                            defaultMediaSource.updateMediaItem(updatedMediaItem)
-                            defaultMediaSource
-                        }
-
-                        StreamSource.Type.DASH -> {
-                            dashMediaSource.updateMediaItem(updatedMediaItem)
-                            dashMediaSource.replaceManifestUri(updatedMediaItem.localConfiguration!!.uri)
-                            dashMediaSource
-                        }
-
-                        StreamSource.Type.AUDIO_STREAM -> {
-                            sourceInfoRefreshError =
-                                UnsupportedOperationException("Audio stream not supported")
-                            return@withContext
-                        }
-
-                        else -> {
-                            sourceInfoRefreshError =
-                                IllegalArgumentException("Unknown stream type: ${stream.type}")
-                            return@withContext
-                        }
-                    }
-                    chosenOrDefaultMediaSource.prepareSource(caller, playerId, bandwidthMeter)
+                    chosenMediaSource = prepared
+                    prepared.prepareSource(caller, playerId, bandwidthMeter)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to prepare source")
@@ -221,10 +198,8 @@ class ViperMediaSource(
     override fun createPeriod(
         id: MediaSource.MediaPeriodId,
         allocator: Allocator,
-        startPositionUs: Long
-    ): MediaPeriod {
-        return chosenOrDefaultMediaSource.createPeriod(id, allocator, startPositionUs)
-    }
+        startPositionUs: Long,
+    ): MediaPeriod = chosenOrDefaultMediaSource.createPeriod(id, allocator, startPositionUs)
 
     override fun releasePeriod(mediaPeriod: MediaPeriod) {
         chosenOrDefaultMediaSource.releasePeriod(mediaPeriod)
@@ -237,26 +212,14 @@ class ViperMediaSource(
     override fun releaseSource(caller: MediaSource.MediaSourceCaller) {
         defaultMediaSource.releaseSource(caller)
         dashMediaSource.releaseSource(caller)
+        pcmMediaSource?.releaseSource(caller)
         sourceScope.cancel()
     }
 
-    /**
-     * Save DASH XML content to a temporary file and return the file URI.
-     */
     private fun saveDashXmlToFile(dashXml: String): Uri {
-        val dashDir = context.cacheDir.resolve("dash_manifests").apply {
-            if (!exists()) mkdirs()
-        }
-
-        // Generate unique filename based on current time to avoid collisions
-        val filename = "manifest_${System.currentTimeMillis()}.mpd"
-        val file = File(dashDir, filename)
-
-        // Write DASH XML to file
+        val dashDir = context.cacheDir.resolve("dash_manifests").apply { if (!exists()) mkdirs() }
+        val file = File(dashDir, "manifest_${System.currentTimeMillis()}.mpd")
         file.writeText(dashXml)
-
-        Timber.d("saveDashXmlToFile: DASH XML saved to: ${file.absolutePath}")
-
         return file.toUri()
     }
 }

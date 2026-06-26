@@ -2,7 +2,7 @@ package com.viperplayer.domain.usecase.search
 
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.repository.PluginRepository
-import com.viperplayer.plugin.v1.SearchFilter
+import com.viperplayer.domain.model.SearchFilter
 import javax.inject.Inject
 
 /**

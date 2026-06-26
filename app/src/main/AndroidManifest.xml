@@ -19,7 +19,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"
         android:minSdkVersion="33" />
     
-    <!-- Query installed plugins -->
+    <!-- Query installed plugin modules -->
     <queries>
         <intent>
             <action android:name="com.viperplayer.plugin.ViperPluginService" />

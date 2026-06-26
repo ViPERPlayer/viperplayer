@@ -147,7 +147,7 @@ fun PluginsScreen(
                         Button(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    data = Uri.parse("https://github.com/viperplayer/plugins")
+                                    data = "https://github.com/viperplayer/plugins".toUri()
                                 }
                                 context.startActivity(intent)
                             },
@@ -277,8 +277,8 @@ fun PluginCard(
     onDismissMenu: () -> Unit,
     onShowInfo: () -> Unit,
     onUninstall: () -> Unit,
+    modifier: Modifier = Modifier,
     onOpenSettings: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier

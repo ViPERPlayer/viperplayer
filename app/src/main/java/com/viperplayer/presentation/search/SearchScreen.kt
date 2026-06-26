@@ -67,7 +67,7 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
-import com.viperplayer.plugin.v1.SearchFilter
+import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
 import com.viperplayer.presentation.common.ViperScaffold

@@ -14,7 +14,7 @@ import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.usecase.search.SearchUseCase
-import com.viperplayer.plugin.v1.SearchFilter
+import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import dagger.hilt.android.lifecycle.HiltViewModel

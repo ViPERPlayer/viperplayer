@@ -3,133 +3,110 @@ package com.viperplayer.local.mapper
 import com.viperplayer.local.model.LocalAlbum
 import com.viperplayer.local.model.LocalArtist
 import com.viperplayer.local.model.LocalSong
-import com.viperplayer.plugin.v1.Album
-import com.viperplayer.plugin.v1.Artist
-import com.viperplayer.plugin.v1.Artwork
-import com.viperplayer.plugin.v1.Song
+import com.viperplayer.plugin.model.Album
+import com.viperplayer.plugin.model.AlbumType
+import com.viperplayer.plugin.model.Artist
+import com.viperplayer.plugin.model.Artwork
+import com.viperplayer.plugin.model.Song
 
 /**
- * Maps internal local models to plugin AIDL models.
+ * Maps internal local models to plugin SDK models.
+ *
+ * Ids: a song's id is its `content://` URI string (so the host can resolve and play it directly),
+ * while album/artist ids are the MediaStore album/artist ids. Local files are always offline, so
+ * songs are emitted with `requiresInternet = false`.
  */
 class LocalMapper {
 
     fun toSong(localSong: LocalSong): Song {
-        return Song().apply {
-            id = "local:${localSong.contentUri}"
-            title = localSong.title
+        val artwork = localSong.albumArtUri?.toArtwork()
+        return Song(
+            id = localSong.contentUri.toString(),
+            title = localSong.title,
             artists = listOf(
-                Artist().apply {
-                    id = "local:artist:${localSong.artistId}"
-                    name = localSong.artistName
-                }
-            )
-            album = Album().apply {
-                id = "local:album:${localSong.albumId}"
-                name = localSong.albumName
+                Artist(
+                    id = localSong.artistId.toString(),
+                    name = localSong.artistName,
+                ),
+            ),
+            album = Album(
+                id = localSong.albumId.toString(),
+                name = localSong.albumName,
                 artists = listOf(
-                    Artist().apply {
-                        id = "local:artist:${localSong.artistId}"
-                        name = localSong.artistName
-                    }
-                )
-                artwork = localSong.albumArtUri?.let { uri ->
-                    Artwork().apply {
-                        thumbnail = uri.toString()
-                        full = uri.toString()
-                    }
-                }
-                releaseYear = localSong.year ?: 0
-                hasReleaseYear = localSong.year != null
-            }
-            durationMs = localSong.duration
-            hasDurationMs = true
-            artwork = localSong.albumArtUri?.let { uri ->
-                Artwork().apply {
-                    thumbnail = uri.toString()
-                    full = uri.toString()
-                }
-            }
-            trackNumber = localSong.trackNumber
-            hasTrackNumber = true
-            isExplicit = false
-            isPlayable = true
-            requiresInternet = false
-            releaseYear = localSong.year ?: 0
-            hasReleaseYear = localSong.year != null
-        }
+                    Artist(
+                        id = localSong.artistId.toString(),
+                        name = localSong.artistName,
+                    ),
+                ),
+                artwork = artwork,
+                releaseYear = localSong.year,
+            ),
+            durationMs = localSong.duration,
+            artwork = artwork,
+            trackNumber = localSong.trackNumber,
+            releaseYear = localSong.year,
+            isExplicit = false,
+            isPlayable = true,
+            requiresInternet = false,
+        )
     }
 
     fun toAlbum(localAlbum: LocalAlbum): Album {
-        val songs = localAlbum.songs.map { toSong(it) }
-        
-        return Album().apply {
-            id = "local:album:${localAlbum.id}"
-            name = localAlbum.name
+        return Album(
+            id = localAlbum.id.toString(),
+            name = localAlbum.name,
             artists = listOf(
-                Artist().apply {
-                    id = "local:artist:${localAlbum.artistId}"
-                    name = localAlbum.artistName
-                }
-            )
-            artwork = localAlbum.artworkUri?.let { uri ->
-                Artwork().apply {
-                    thumbnail = uri.toString()
-                    full = uri.toString()
-                }
-            }
-            releaseYear = localAlbum.year ?: 0
-            hasReleaseYear = localAlbum.year != null
-            trackCount = localAlbum.trackCount
-            type = determineAlbumType(localAlbum.trackCount)
-            this.songs = songs
-        }
+                Artist(
+                    id = localAlbum.artistId.toString(),
+                    name = localAlbum.artistName,
+                ),
+            ),
+            artwork = localAlbum.artworkUri?.toArtwork(),
+            releaseYear = localAlbum.year,
+            trackCount = localAlbum.trackCount,
+            type = determineAlbumType(localAlbum.trackCount),
+            songs = localAlbum.songs.map { toSong(it) },
+        )
     }
 
     fun toArtist(localArtist: LocalArtist): Artist {
-        val topSongs = localArtist.songs.take(10).map { toSong(it) }
-        val albums = localArtist.albums.map { album ->
-            // Create album without songs list for artist view
-            Album().apply {
-                id = "local:album:${album.id}"
-                name = album.name
-                artists = listOf(
-                    Artist().apply {
-                        id = "local:artist:${localArtist.id}"
-                        name = localArtist.name
-                    }
-                )
-                artwork = album.artworkUri?.let { uri ->
-                    Artwork().apply {
-                        thumbnail = uri.toString()
-                        full = uri.toString()
-                    }
-                }
-                releaseYear = album.year ?: 0
-                hasReleaseYear = album.year != null
-                trackCount = album.trackCount
-                type = determineAlbumType(album.trackCount)
-                this.songs = ArrayList()
-            }
-        }
+        return Artist(
+            id = localArtist.id.toString(),
+            name = localArtist.name,
+            artwork = null,
+            topSongs = localArtist.songs.take(10).map { toSong(it) },
+            albums = localArtist.albums.map { album -> toAlbumSummary(album, localArtist) },
+        )
+    }
 
-        return Artist().apply {
-            id = "local:artist:${localArtist.id}"
-            name = localArtist.name
-            artwork = null
-            this.topSongs = topSongs
-            this.albums = albums
-            this.playlists = ArrayList()
-            this.featuring = ArrayList()
-            this.appearsOn = ArrayList()
-            this.similarArtists = ArrayList()
+    /** Album as it appears inside an artist view: no songs list, artist resolved to the parent. */
+    private fun toAlbumSummary(album: LocalAlbum, artist: LocalArtist): Album {
+        return Album(
+            id = album.id.toString(),
+            name = album.name,
+            artists = listOf(
+                Artist(
+                    id = artist.id.toString(),
+                    name = artist.name,
+                ),
+            ),
+            artwork = album.artworkUri?.toArtwork(),
+            releaseYear = album.year,
+            trackCount = album.trackCount,
+            type = determineAlbumType(album.trackCount),
+        )
+    }
+
+    private fun determineAlbumType(trackCount: Int): AlbumType {
+        return when {
+            trackCount == 1 -> AlbumType.SINGLE
+            trackCount <= 4 -> AlbumType.EP
+            else -> AlbumType.ALBUM
         }
     }
 
-    private fun determineAlbumType(trackCount: Int): Byte {
-        return when {
-            trackCount == 1 -> Album.AlbumType.SINGLE
-            trackCount <= 4 -> Album.AlbumType.EP
-            else -> Album.AlbumType.ALBUM
-        }
+    private fun android.net.Uri.toArtwork(): Artwork {
+        val uri = toString()
+        return Artwork(thumbnailUrl = uri, fullUrl = uri)
     }
 }
