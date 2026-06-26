@@ -808,6 +808,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             playlistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
         }
 
+    override suspend fun isPlaylistSaved(mediaId: MediaId): Boolean =
+        withContext(Dispatchers.IO) {
+            playlistDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)?.isSaved ?: false
+        }
+
     override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit =
         withContext(Dispatchers.IO) {
             playlistDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)

@@ -60,7 +60,7 @@ fun MasterLimiterEffect(
     ) {
         ValueSlider(
             title = stringResource(R.string.master_limiter_output_gain),
-            summary = outputGainSummaryValues[state.outputGain],
+            summary = outputGainSummaryValues.getOrElse(state.outputGain) { "" },
             summaryUnit = "dB",
             value = state.outputGain,
             onValueChange = onOutputGainChange,
@@ -78,7 +78,7 @@ fun MasterLimiterEffect(
         ValueSlider(
             title = stringResource(R.string.master_limiter_threshold_limit),
             value = state.thresholdLimit,
-            summary = thresholdLimitSummaryValues[state.thresholdLimit],
+            summary = thresholdLimitSummaryValues.getOrElse(state.thresholdLimit) { "" },
             summaryUnit = "dB",
             onValueChange = onThresholdLimitChange,
             onValueReset = onThresholdLimitReset,

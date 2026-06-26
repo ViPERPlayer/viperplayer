@@ -317,7 +317,9 @@ private fun ArtistDetailScreenContent(
                             ) {
                                 items(
                                     items = artistData.appearsOn.filter { it is Album || it is Playlist },
-                                    key = { item -> item.id.toString() }
+                                    // Namespace by type: an Album and a Playlist can share a MediaId,
+                                    // which would otherwise be a duplicate LazyList key (crash).
+                                    key = { item -> "${item.javaClass.simpleName}:${item.id}" }
                                 ) { item ->
                                     when (item) {
                                         is Album -> {

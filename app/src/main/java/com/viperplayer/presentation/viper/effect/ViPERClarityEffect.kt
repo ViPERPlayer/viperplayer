@@ -50,7 +50,7 @@ fun ViPERClarityEffect(
         )
         ValueSlider(
             title = stringResource(R.string.clarity_gain),
-            summary = gainSummaryValues[state.gain],
+            summary = gainSummaryValues.getOrElse(state.gain) { "" },
             summaryUnit = "dB",
             value = state.gain,
             onValueChange = onGainChange,

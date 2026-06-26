@@ -19,6 +19,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,18 +49,22 @@ class ViperPlayerAppViewModel @Inject constructor(
 
     private fun observeThemeColor() {
         viewModelScope.launch {
-            playerRepository.currentSong.collect { song ->
-                val themeColor = song?.artworkUrl?.let { artworkUrl ->
-                    withContext(Dispatchers.IO) {
-                        val result = context.imageLoader.execute(
-                            ImageRequest.Builder(context)
-                                .data(artworkUrl)
-                                .allowHardware(false)
-                                .build()
-                        )
-                        result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
+            // collectLatest: a new song cancels an in-flight decode. runCatching: a decode/OOM
+            // failure must not cancel the whole collector (which would freeze theme updates).
+            playerRepository.currentSong.collectLatest { song ->
+                val themeColor = runCatching {
+                    song?.artworkUrl?.let { artworkUrl ->
+                        withContext(Dispatchers.IO) {
+                            val result = context.imageLoader.execute(
+                                ImageRequest.Builder(context)
+                                    .data(artworkUrl)
+                                    .allowHardware(false)
+                                    .build()
+                            )
+                            result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
+                        }
                     }
-                }
+                }.getOrNull()
 
                 _uiState.update {
                     it.copy(

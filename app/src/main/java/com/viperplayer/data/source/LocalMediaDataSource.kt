@@ -56,7 +56,7 @@ class LocalMediaDataSource @Inject constructor(
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn)
+                val title = cursor.getString(titleColumn) ?: "Unknown"
                 val artistName = cursor.getString(artistColumn)
                 val artistId = cursor.getLong(artistIdColumn)
                 val albumName = cursor.getString(albumColumn)
@@ -89,7 +89,9 @@ class LocalMediaDataSource @Inject constructor(
                         album = album,
                         durationMs = duration,
                         artworkUrl = getAlbumArtUri(albumId)?.toString(),
-                        trackNumber = track, // MediaStore formatted track number (e.g. 1001 for disc 1 track 1)
+                        // MediaStore encodes TRACK as disc*1000 + track; decode both.
+                        trackNumber = if (track > 1000) track % 1000 else track.takeIf { it > 0 },
+                        discNumber = if (track > 1000) track / 1000 else null,
                         isPlayable = true,
                         requiresInternet = false,
                         isDownloaded = true,

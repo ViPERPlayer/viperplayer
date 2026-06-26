@@ -90,7 +90,9 @@ fun MediaItemOptionsBottomSheet(
                 is Song -> {
                     SongHeader(
                         song = item,
-                        isLiked = item.id == currentSong?.id && isLiked,
+                        // Live state for the playing song; the item's own stored flag otherwise
+                        // (a non-playing track was always shown unliked).
+                        isLiked = if (item.id == currentSong?.id) isLiked else item.isLiked,
                         onLike = onLike
                     )
                 }

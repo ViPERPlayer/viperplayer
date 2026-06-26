@@ -684,9 +684,14 @@ class ViperViewModel @Inject constructor(
     fun setIirEqualizerBandCount(count: Int) {
         viewModelScope.launch {
             viperRepository.updateEffectsState { state ->
-                // When changing band count, reset to defaults for that count
-                // or try to interpolate (too complex for now, just reset)
-                val newGains = IirEqualizerPresets.getPresetGains(state.iirEqualizer.preset, count)
+                // For a named preset, use its gains at the new count. For a custom curve, resize the
+                // existing gains (truncate/pad) instead of fetching "Custom" — which isn't a real
+                // preset and would flatten/wipe the user's curve.
+                val newGains = if (state.iirEqualizer.preset == "Custom") {
+                    List(count) { i -> state.iirEqualizer.bandGains.getOrElse(i) { 0f } }
+                } else {
+                    IirEqualizerPresets.getPresetGains(state.iirEqualizer.preset, count)
+                }
                 state.copy(
                     iirEqualizer = state.iirEqualizer.copy(
                         bandCount = count,

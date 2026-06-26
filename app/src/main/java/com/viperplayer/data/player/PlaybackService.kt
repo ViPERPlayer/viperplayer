@@ -181,6 +181,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     override fun onDestroy() {
         Timber.d("onDestroy() called")
         dispatcher.onServicePreSuperOnDestroy()
+        // Close the global audio-effect session before releasing the player, otherwise it stays
+        // registered with system equalizer apps (leak).
+        closeAudioEffectControlSession()
         mediaLibrarySession.release()
         player.release()
         super.onDestroy()

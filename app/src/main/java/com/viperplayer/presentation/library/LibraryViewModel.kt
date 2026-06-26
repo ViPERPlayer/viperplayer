@@ -320,11 +320,7 @@ class LibraryViewModel @Inject constructor(
 
     fun togglePlaylistLike(playlist: Playlist) {
         viewModelScope.launch {
-            val currentSaved = mediaLibraryRepository.getPlaylist(playlist.id).first()?.let {
-                // Check if it's saved (liked)
-                // For now, we'll use setPlaylistSaved
-                false // TODO: Get actual saved state
-            } ?: false
+            val currentSaved = mediaLibraryRepository.isPlaylistSaved(playlist.id)
             mediaLibraryRepository.setPlaylistSaved(playlist.id, !currentSaved)
         }
     }

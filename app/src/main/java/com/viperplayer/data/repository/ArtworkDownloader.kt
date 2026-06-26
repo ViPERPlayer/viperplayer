@@ -22,6 +22,13 @@ import javax.inject.Singleton
 class ArtworkDownloader @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
+    // Stable, collision-free cache key. sourceId.hashCode() (32-bit) collided -> wrong image served.
+    private fun cacheFilename(mediaId: MediaId): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("${mediaId.pluginId}:${mediaId.sourceId}".toByteArray())
+        return "artwork_" + digest.joinToString("") { "%02x".format(it.toInt() and 0xFF) } + ".jpg"
+    }
+
     /**
      * Downloads artwork from URL and saves it to local cache.
      * @param artworkUrl The URL of the artwork to download
@@ -40,7 +47,7 @@ class ArtworkDownloader @Inject constructor(
                 }
 
                 // Generate unique filename based on mediaId
-                val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
+                val filename = cacheFilename(mediaId)
                 val artworkFile = artworkCacheDir.resolve(filename)
 
                 // Skip download if file already exists
@@ -80,7 +87,7 @@ class ArtworkDownloader @Inject constructor(
      */
     fun getLocalArtworkPath(mediaId: MediaId): String? {
         val artworkCacheDir = File(context.filesDir, "artwork")
-        val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
+        val filename = cacheFilename(mediaId)
         val artworkFile = artworkCacheDir.resolve(filename)
 
         return if (artworkFile.exists()) {
@@ -97,7 +104,7 @@ class ArtworkDownloader @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 val artworkCacheDir = File(context.filesDir, "artwork")
-                val filename = "artwork_${mediaId.pluginId}_${mediaId.sourceId.hashCode()}.jpg"
+                val filename = cacheFilename(mediaId)
                 val artworkFile = artworkCacheDir.resolve(filename)
 
                 if (artworkFile.exists()) {
