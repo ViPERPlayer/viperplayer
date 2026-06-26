@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -72,6 +73,10 @@ class LibraryViewModel @Inject constructor(
     // Track if we're already observing playlists to avoid multiple collectors
     private var isObservingPlaylists = false
 
+    // The current tab's load coroutine — some tabs collect perpetual flows, so cancel the previous
+    // one before each reload, otherwise re-selecting a tab / refreshing leaks a collector per call.
+    private var loadJob: Job? = null
+
     init {
         loadContent(LibraryTab.SONGS)
     }
@@ -82,7 +87,8 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun loadContent(tab: LibraryTab) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {

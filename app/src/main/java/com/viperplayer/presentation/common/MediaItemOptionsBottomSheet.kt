@@ -78,17 +78,13 @@ fun MediaItemOptionsBottomSheet(
     val currentSong by playerViewModel.currentSong.collectAsStateWithLifecycle()
     val isLiked by playerViewModel.isLiked.collectAsStateWithLifecycle()
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+    // Content only: the caller owns the ModalBottomSheet, so this can't nest a second sheet.
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
             // Header
             when (item) {
                 is Song -> {
@@ -175,7 +171,6 @@ fun MediaItemOptionsBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
-    }
 }
 
 @Composable

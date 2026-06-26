@@ -509,6 +509,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         val songEntity = song.toEntity(albumId).copy(
             // CRITICAL: Preserve the existing ID to avoid breaking foreign key relationships
             id = existingSong?.id ?: 0L,
+            // Preserve the saved flag and album link: a partial re-save (e.g. via saveArtist) must
+            // not silently un-save the song or drop its album association.
+            isSaved = existingSong?.isSaved ?: false,
+            albumId = albumId ?: existingSong?.albumId,
             isLiked = existingSong?.isLiked ?: song.isLiked,
             isDownloaded = existingSong?.isDownloaded ?: song.isDownloaded,
             downloadPath = existingSong?.downloadPath ?: null,
@@ -547,19 +551,20 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
 
-        // Clear existing song-artist relationships
-        crossRefDao.deleteSongArtists(songId)
-
-        // Upsert all song artists, preserving their IDs, and create cross-refs
-        song.artists.forEachIndexed { index, artist ->
-            val artistId = upsertArtist(artist)
-            crossRefDao.insertSongArtist(
-                com.viperplayer.data.local.entity.SongArtistCrossRef(
-                    songId = songId,
-                    artistId = artistId,
-                    order = index
+        // Rewrite song-artist relationships only when the incoming song actually carries artists;
+        // a partial re-save (empty artists) must not strip the existing associations.
+        if (song.artists.isNotEmpty()) {
+            crossRefDao.deleteSongArtists(songId)
+            song.artists.forEachIndexed { index, artist ->
+                val artistId = upsertArtist(artist)
+                crossRefDao.insertSongArtist(
+                    com.viperplayer.data.local.entity.SongArtistCrossRef(
+                        songId = songId,
+                        artistId = artistId,
+                        order = index
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -746,27 +751,44 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun savePlaylist(playlist: Playlist): Unit = withContext(Dispatchers.IO) {
-        val playlistEntity = playlist.toEntity()
-        val playlistId = playlistDao.insert(playlistEntity)
+        // Upsert instead of REPLACE: REPLACE would churn the PK and CASCADE-delete every
+        // playlist_songs row (and reset status flags). Preserve the id + flags like saveSong does.
+        val existing = playlistDao.getByMediaId(playlist.id.pluginId, playlist.id.sourceId)
+        val playlistEntity = playlist.toEntity().copy(
+            id = existing?.id ?: 0L,
+            isLiked = existing?.isLiked ?: false,
+            isSaved = existing?.isSaved ?: false,
+            isDownloaded = existing?.isDownloaded ?: false,
+        )
+        val playlistId = if (existing != null) {
+            playlistDao.update(playlistEntity)
+            existing.id
+        } else {
+            playlistDao.insert(playlistEntity)
+        }
 
-        // Save songs and create cross-refs
-        playlist.songs?.forEachIndexed { index, song ->
-            saveSong(song)
-            val songEntity = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
-            songEntity?.let {
-                crossRefDao.insertPlaylistSong(
-                    com.viperplayer.data.local.entity.PlaylistSongCrossRef(
-                        playlistId = playlistId,
-                        songId = it.id,
-                        position = index
+        // Only rewrite the track list when the incoming playlist actually carries songs; a summary
+        // save (songs == null, e.g. from saveArtist) must not empty an existing playlist.
+        playlist.songs?.let { songs ->
+            crossRefDao.deletePlaylistSongs(playlistId)
+            songs.forEachIndexed { index, song ->
+                saveSong(song)
+                val songEntity = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+                songEntity?.let {
+                    crossRefDao.insertPlaylistSong(
+                        com.viperplayer.data.local.entity.PlaylistSongCrossRef(
+                            playlistId = playlistId,
+                            songId = it.id,
+                            position = index
+                        )
                     )
-                )
 
-                // Download artwork for songs added to local playlists
-                if (it.localArtworkPath == null && song.artworkUrl != null) {
-                    val localPath = artworkDownloader.downloadArtwork(song.artworkUrl, song.id)
-                    localPath?.let { path ->
-                        songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, path)
+                    // Download artwork for songs added to local playlists
+                    if (it.localArtworkPath == null && song.artworkUrl != null) {
+                        val localPath = artworkDownloader.downloadArtwork(song.artworkUrl, song.id)
+                        localPath?.let { path ->
+                            songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, path)
+                        }
                     }
                 }
             }

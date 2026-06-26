@@ -19,6 +19,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -256,6 +259,11 @@ fun LibraryScreen(
 
         // Media item options bottom sheet
         selectedMediaItem?.let { item ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedMediaItem = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
             MediaItemOptionsBottomSheet(
                 item = item,
                 onDismiss = { selectedMediaItem = null },
@@ -329,6 +337,7 @@ fun LibraryScreen(
                     selectedMediaItem = null
                 }
             )
+            }
         }
     }
 }
