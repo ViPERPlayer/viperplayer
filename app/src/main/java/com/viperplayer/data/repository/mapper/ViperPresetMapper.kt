@@ -8,12 +8,15 @@ import com.viperplayer.domain.model.AuditorySystemProtectionState
 import com.viperplayer.domain.model.DifferentialSurroundState
 import com.viperplayer.domain.model.DynamicSystemState
 import com.viperplayer.domain.model.FieldSurroundState
+import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.domain.model.MasterLimiterState
+import com.viperplayer.domain.model.PlaybackGainState
 import com.viperplayer.domain.model.SpeakerOptimizationState
 import com.viperplayer.domain.model.SpectrumExtensionState
 import com.viperplayer.domain.model.TubeSimulatorState
 import com.viperplayer.domain.model.ViperBassState
 import com.viperplayer.domain.model.ViperClarityState
+import com.viperplayer.domain.model.ViperConvolverState
 import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.model.ViperPreset
 
@@ -88,6 +91,27 @@ object ViperPresetMapper {
                     selectedDdcFile = preset.viperDdcSelectedFile,
                     coeffs = coeffsMap.ifEmpty { null }
                 ),
+                iirEqualizer = IirEqualizerState(
+                    enabled = preset.iirEqualizerEnabled,
+                    bandCount = preset.iirEqualizerBandCount,
+                    preset = preset.iirEqualizerPreset,
+                    bandGains = preset.iirEqualizerBandGains
+                        .takeIf { it.isNotBlank() }
+                        ?.split(",")
+                        ?.mapNotNull { it.toFloatOrNull() }
+                        ?: List(preset.iirEqualizerBandCount) { 0f },
+                ),
+                playbackGain = PlaybackGainState(
+                    enabled = preset.playbackGainEnabled,
+                    strength = preset.playbackGainStrength,
+                    maxGain = preset.playbackGainMaxGain,
+                    outputThreshold = preset.playbackGainOutputThreshold,
+                ),
+                convolver = ViperConvolverState(
+                    enabled = preset.convolverEnabled,
+                    impulseResponse = preset.convolverImpulseResponse,
+                    crossChannel = preset.convolverCrossChannel,
+                ),
             ),
             createdAt = preset.createdAt,
             updatedAt = preset.updatedAt,
@@ -144,6 +168,20 @@ object ViperPresetMapper {
             viperDdcEnabled = effectsState.viperDdc.enabled,
             viperDdcSelectedFile = effectsState.viperDdc.selectedDdcFile,
             // Coeffs handled separately
+            // IIR Equalizer
+            iirEqualizerEnabled = effectsState.iirEqualizer.enabled,
+            iirEqualizerBandCount = effectsState.iirEqualizer.bandCount,
+            iirEqualizerPreset = effectsState.iirEqualizer.preset,
+            iirEqualizerBandGains = effectsState.iirEqualizer.bandGains.joinToString(","),
+            // Playback Gain
+            playbackGainEnabled = effectsState.playbackGain.enabled,
+            playbackGainStrength = effectsState.playbackGain.strength,
+            playbackGainMaxGain = effectsState.playbackGain.maxGain,
+            playbackGainOutputThreshold = effectsState.playbackGain.outputThreshold,
+            // Convolver
+            convolverEnabled = effectsState.convolver.enabled,
+            convolverImpulseResponse = effectsState.convolver.impulseResponse,
+            convolverCrossChannel = effectsState.convolver.crossChannel,
         )
     }
 

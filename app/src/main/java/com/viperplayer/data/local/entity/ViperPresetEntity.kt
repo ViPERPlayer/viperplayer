@@ -1,5 +1,6 @@
 package com.viperplayer.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
@@ -79,5 +80,34 @@ data class ViperPresetEntity(
     // ViPER DDC
     val viperDdcEnabled: Boolean = ViperDefaults.DDC_ENABLED,
     val viperDdcSelectedFile: String? = null,
+
+    // IIR Equalizer (schema v2). @ColumnInfo defaults MUST match MIGRATION_1_2's ALTER ... DEFAULT
+    // so Room's runtime schema validation passes on upgrade.
+    @ColumnInfo(defaultValue = "0")
+    val iirEqualizerEnabled: Boolean = ViperDefaults.IIR_EQUALIZER_ENABLED,
+    @ColumnInfo(defaultValue = "10")
+    val iirEqualizerBandCount: Int = ViperDefaults.IIR_EQUALIZER_BAND_COUNT,
+    @ColumnInfo(defaultValue = "'Flat'")
+    val iirEqualizerPreset: String = ViperDefaults.IIR_EQUALIZER_PRESET,
+    // Band gains as comma-separated floats (variable length; empty -> a flat curve of bandCount).
+    @ColumnInfo(defaultValue = "''")
+    val iirEqualizerBandGains: String = "",
+
+    // Playback Gain (schema v2)
+    @ColumnInfo(defaultValue = "0")
+    val playbackGainEnabled: Boolean = ViperDefaults.PLAYBACK_GAIN_ENABLED,
+    @ColumnInfo(defaultValue = "1")
+    val playbackGainStrength: Int = ViperDefaults.PLAYBACK_GAIN_STRENGTH,
+    @ColumnInfo(defaultValue = "1")
+    val playbackGainMaxGain: Int = ViperDefaults.PLAYBACK_GAIN_MAX_GAIN,
+    @ColumnInfo(defaultValue = "0")
+    val playbackGainOutputThreshold: Float = ViperDefaults.PLAYBACK_GAIN_OUTPUT_THRESHOLD,
+
+    // Convolver (schema v2)
+    @ColumnInfo(defaultValue = "0")
+    val convolverEnabled: Boolean = ViperDefaults.CONVOLVER_ENABLED,
+    val convolverImpulseResponse: String? = ViperDefaults.CONVOLVER_IMPULSE_RESPONSE,
+    @ColumnInfo(defaultValue = "0")
+    val convolverCrossChannel: Int = ViperDefaults.CONVOLVER_CROSS_CHANNEL,
 )
 

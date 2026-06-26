@@ -3,6 +3,7 @@ package com.viperplayer.di
 import android.content.Context
 import androidx.room.Room
 import com.viperplayer.data.local.ViperPlayerDatabase
+import com.viperplayer.data.local.migration.MIGRATION_1_2
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +28,8 @@ object DatabaseModule {
             ViperPlayerDatabase::class.java,
             "viperplayer_database"
         )
-            .fallbackToDestructiveMigration(true) // For development
+            .addMigrations(MIGRATION_1_2)
+            .fallbackToDestructiveMigration(true) // last-resort for any future unmigrated bump
             .build()
     }
 
