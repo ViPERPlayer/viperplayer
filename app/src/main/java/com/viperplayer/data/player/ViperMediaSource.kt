@@ -25,6 +25,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.plugin.model.DashStream
 import com.viperplayer.plugin.model.HlsStream
 import com.viperplayer.plugin.model.PcmStream
+import com.viperplayer.plugin.model.UnknownStream
 import com.viperplayer.plugin.model.UrlStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -175,6 +176,10 @@ class ViperMediaSource(
                             PcmStreamDataSource.Factory(fd, source.format, source.durationMs)
                         ).createMediaSource(item)
                     }
+
+                    is UnknownStream -> throw IllegalArgumentException(
+                        "Plugin returned a stream type this host version doesn't support"
+                    )
                 }
 
                 withContext(playbackDispatcher) {

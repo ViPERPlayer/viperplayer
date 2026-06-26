@@ -171,6 +171,9 @@ class PluginDataSource @Inject constructor(
                 context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
             }
             if (!bound) {
+                // Android still requires unbindService even when bindService returns false, to
+                // release the connection record.
+                withContext(Dispatchers.Main) { runCatching { context.unbindService(connection) } }
                 connectionMutex.withLock { ongoingConnections.remove(pluginId) }
                 onPluginConnectionFailed(pluginId, retry = false)
             }

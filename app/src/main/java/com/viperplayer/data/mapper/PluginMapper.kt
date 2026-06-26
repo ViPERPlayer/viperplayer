@@ -30,6 +30,7 @@ import com.viperplayer.plugin.model.CategoryContentType as SdkCategoryContentTyp
 import com.viperplayer.plugin.model.HomeContent as SdkHomeContent
 import com.viperplayer.plugin.model.HomeSection as SdkHomeSection
 import com.viperplayer.plugin.model.MediaItem as SdkMediaItem
+import com.viperplayer.plugin.model.UnknownMediaItem
 import com.viperplayer.plugin.model.Playlist as SdkPlaylist
 import com.viperplayer.plugin.model.SearchResult as SdkSearchResult
 import com.viperplayer.plugin.model.SearchSuggestions as SdkSearchSuggestions
@@ -103,22 +104,23 @@ object PluginMapper {
         songs = songs.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
     )
 
-    fun SdkMediaItem.toDomain(pluginId: String): MediaItem = when (this) {
+    fun SdkMediaItem.toDomain(pluginId: String): MediaItem? = when (this) {
         is SdkSong -> toDomain(pluginId)
         is SdkAlbum -> toDomain(pluginId)
         is SdkArtist -> toDomain(pluginId)
         is SdkPlaylist -> toDomain(pluginId)
+        is UnknownMediaItem -> null // a media kind this host doesn't understand; skip it
     }
 
     fun SdkSearchResult.toDomain(pluginId: String): SearchResult = SearchResult(
-        items = items.map { it.toDomain(pluginId) },
+        items = items.mapNotNull { it.toDomain(pluginId) },
         nextCursor = nextCursor,
     )
 
     fun SdkSearchSuggestions.toDomain(pluginId: String): SearchSuggestions = SearchSuggestions(
         pluginId = pluginId,
         suggestions = suggestions,
-        items = items.map { it.toDomain(pluginId) },
+        items = items.mapNotNull { it.toDomain(pluginId) },
     )
 
     fun SdkBrowseCategory.toDomain(pluginId: String): BrowseCategory = BrowseCategory(
@@ -131,14 +133,14 @@ object PluginMapper {
     )
 
     fun SdkHomeContent.toDomain(pluginId: String): HomeContent = HomeContent(
-        quickPicks = quickPicks.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
+        quickPicks = quickPicks.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomain(pluginId) },
         sections = sections.map { it.toDomain(pluginId) },
     )
 
     fun SdkHomeSection.toDomain(pluginId: String): HomeSection = HomeSection(
         id = id,
         title = title,
-        items = items.map { it.toDomain(pluginId) },
+        items = items.mapNotNull { it.toDomain(pluginId) },
         layout = when (layout) {
             SdkSectionLayout.LIST -> HomeSection.Layout.LIST
             SdkSectionLayout.GRID -> HomeSection.Layout.GRID
