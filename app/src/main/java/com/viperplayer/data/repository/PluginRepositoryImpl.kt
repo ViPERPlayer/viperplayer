@@ -1,10 +1,12 @@
 package com.viperplayer.data.repository
 
+import android.util.Base64
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
@@ -19,6 +21,9 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -107,22 +112,25 @@ class PluginRepositoryImpl @Inject constructor(
                 return@coroutineScope Result.success(SearchResult())
             }
 
-            val results = plugins.keys.map { pluginId ->
+            val perPlugin = decodeCursors(cursor)
+            // First page: query every connected plugin. Load-more: only those that returned a cursor.
+            val targets = if (cursor == null) plugins.keys else perPlugin.keys.filter { it in plugins.keys }
+            val results = targets.map { pluginId ->
                 async {
-                    dataSource.search(pluginId, query, filter, cursor, limit)
+                    pluginId to dataSource.search(pluginId, query, filter, perPlugin[pluginId], limit).getOrNull()
                 }
             }.awaitAll()
 
-            // Merge sections from all plugins, mapping them to domain models
-            val successfulResults = results.mapNotNull { it.getOrNull() }
-            val merged = successfulResults.flatMap { it.items }
+            val merged = mutableListOf<MediaItem>()
+            val nextCursors = mutableMapOf<String, String>()
+            results.forEach { (pluginId, searchResult) ->
+                searchResult?.let {
+                    merged += it.items
+                    it.nextCursor?.let { c -> nextCursors[pluginId] = c }
+                }
+            }
 
-            Result.success(
-                SearchResult(
-                    items = merged,
-                    nextCursor = null
-                )
-            )
+            Result.success(SearchResult(items = merged, nextCursor = encodeCursors(nextCursors)))
         } catch (e: Exception) {
             Timber.e(e, "Error in search")
             Result.failure(e)
@@ -150,23 +158,9 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getBrowseCategories(
         cursor: String?,
         limit: Int
-    ): Result<PagedResult<BrowseCategory>> = coroutineScope {
-        try {
-            val plugins = dataSource.connectedPlugins.value
-            val results = plugins.keys.map { pluginId ->
-                async {
-                    dataSource.getBrowseCategories(pluginId, cursor, limit)
-                }
-            }.awaitAll()
-
-            val successfulResults = results.mapNotNull { it.getOrNull() }
-            val merged = PagedResult(
-                items = successfulResults.flatMap { it.items }
-            )
-
-            Result.success(merged)
-        } catch (e: Exception) {
-            Result.failure(e)
+    ): Result<PagedResult<BrowseCategory>> = runCatching {
+        aggregatePaged(cursor) { pluginId, pluginCursor ->
+            dataSource.getBrowseCategories(pluginId, pluginCursor, limit).getOrNull()
         }
     }
 
@@ -187,93 +181,77 @@ class PluginRepositoryImpl @Inject constructor(
     override suspend fun getLibrarySongs(
         cursor: String?,
         limit: Int
-    ): Result<PagedResult<Song>> = coroutineScope {
-        try {
-            val plugins = dataSource.connectedPlugins.value
-            val results = plugins.keys.map { pluginId ->
-                async {
-                    dataSource.getLibrarySongs(pluginId, cursor, limit)
-                }
-            }.awaitAll()
-
-            val merged = PagedResult(
-                items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
-            )
-
-            Result.success(merged)
-        } catch (e: Exception) {
-            Result.failure(e)
+    ): Result<PagedResult<Song>> = runCatching {
+        aggregatePaged(cursor) { pluginId, pluginCursor ->
+            dataSource.getLibrarySongs(pluginId, pluginCursor, limit).getOrNull()
         }
     }
 
     override suspend fun getLibraryAlbums(
         cursor: String?,
         limit: Int
-    ): Result<PagedResult<Album>> = coroutineScope {
-        try {
-            val plugins = dataSource.connectedPlugins.value
-            val results = plugins.keys.map { pluginId ->
-                async {
-                    dataSource.getLibraryAlbums(pluginId, cursor, limit)
-                }
-            }.awaitAll()
-
-            val merged = PagedResult(
-                items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
-            )
-
-            Result.success(merged)
-        } catch (e: Exception) {
-            Result.failure(e)
+    ): Result<PagedResult<Album>> = runCatching {
+        aggregatePaged(cursor) { pluginId, pluginCursor ->
+            dataSource.getLibraryAlbums(pluginId, pluginCursor, limit).getOrNull()
         }
     }
 
     override suspend fun getLibraryArtists(
         cursor: String?,
         limit: Int
-    ): Result<PagedResult<Artist>> = coroutineScope {
-        try {
-            val plugins = dataSource.connectedPlugins.value
-            val results = plugins.keys.map { pluginId ->
-                async {
-                    dataSource.getLibraryArtists(pluginId, cursor, limit)
-                }
-            }.awaitAll()
-
-            val merged = PagedResult(
-                items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
-            )
-
-            Timber.d("getLibraryArtists() completed: ${merged.items.size} artists from ${plugins.size} plugins")
-            Result.success(merged)
-        } catch (e: Exception) {
-            Timber.e(e, "Error in getLibraryArtists()")
-            Result.failure(e)
+    ): Result<PagedResult<Artist>> = runCatching {
+        aggregatePaged(cursor) { pluginId, pluginCursor ->
+            dataSource.getLibraryArtists(pluginId, pluginCursor, limit).getOrNull()
         }
     }
 
     override suspend fun getLibraryPlaylists(
         cursor: String?,
         limit: Int
-    ): Result<PagedResult<Playlist>> = coroutineScope {
-        try {
-            val plugins = dataSource.connectedPlugins.value
-            val results = plugins.keys.map { pluginId ->
-                async {
-                    dataSource.getLibraryPlaylists(pluginId, cursor, limit)
-                }
-            }.awaitAll()
-
-            val merged = PagedResult(
-                items = results.mapNotNull { it.getOrNull() }.flatMap { it.items }
-            )
-
-            Timber.d("getLibraryPlaylists() completed: ${merged.items.size} playlists from ${plugins.size} plugins")
-            Result.success(merged)
-        } catch (e: Exception) {
-            Timber.e(e, "Error in getLibraryPlaylists()")
-            Result.failure(e)
+    ): Result<PagedResult<Playlist>> = runCatching {
+        aggregatePaged(cursor) { pluginId, pluginCursor ->
+            dataSource.getLibraryPlaylists(pluginId, pluginCursor, limit).getOrNull()
         }
+    }
+
+    // ---- multi-plugin pagination ----
+    // An aggregate cursor packs each plugin's own opaque cursor as base64(JSON); on "load more"
+    // only the plugins that still have a cursor are re-queried, each with its own.
+    private val cursorJson = Json { ignoreUnknownKeys = true }
+
+    private fun decodeCursors(cursor: String?): Map<String, String> = cursor?.let {
+        runCatching {
+            cursorJson.decodeFromString<Map<String, String>>(
+                String(Base64.decode(it, Base64.NO_WRAP), Charsets.UTF_8)
+            )
+        }.getOrNull()
+    } ?: emptyMap()
+
+    private fun encodeCursors(cursors: Map<String, String>): String? =
+        cursors.takeIf { it.isNotEmpty() }?.let {
+            Base64.encodeToString(cursorJson.encodeToString(it).toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        }
+
+    private suspend fun <T> aggregatePaged(
+        cursor: String?,
+        fetch: suspend (pluginId: String, pluginCursor: String?) -> PagedResult<T>?,
+    ): PagedResult<T> = coroutineScope {
+        val connected = dataSource.connectedPlugins.value.keys
+        val perPlugin = decodeCursors(cursor)
+        // First page: query every connected plugin. Load-more: only those that returned a cursor.
+        val targets = if (cursor == null) connected else perPlugin.keys.filter { it in connected }
+        val results = targets.map { pluginId ->
+            async { pluginId to runCatching { fetch(pluginId, perPlugin[pluginId]) }.getOrNull() }
+        }.awaitAll()
+        val merged = mutableListOf<T>()
+        val nextCursors = mutableMapOf<String, String>()
+        results.forEach { (pluginId, page) ->
+            page?.let {
+                merged += it.items
+                it.nextCursor?.let { c -> nextCursors[pluginId] = c }
+            }
+        }
+        PagedResult(merged, encodeCursors(nextCursors))
     }
 
     override suspend fun getSong(mediaId: MediaId): Result<Song> {

@@ -198,17 +198,24 @@ class PluginDataSource @Inject constructor(
                 hostVersion = hostVersion,
             )
 
-            val stillWanted = _discoveredPlugins.value.containsKey(discovered.id) &&
-                !pluginPreferences.isDisabledSync(discovered.id)
-            if (!stillWanted) {
+            val connected = ConnectedPlugin(pluginConnection, serviceConnection)
+            // Decide acceptance atomically with the insertion: if a disconnect/disable raced the
+            // handshake (so our ongoing entry was removed/replaced), don't publish a stale, dead
+            // connection over it.
+            val accepted = connectionMutex.withLock {
+                val stillWanted = ongoingConnections[discovered.id] === serviceConnection &&
+                    _discoveredPlugins.value.containsKey(discovered.id) &&
+                    !pluginPreferences.isDisabledSync(discovered.id)
+                if (stillWanted) {
+                    _connectedPlugins.update { it + (discovered.id to connected) }
+                    ongoingConnections.remove(discovered.id)
+                }
+                stillWanted
+            }
+            if (!accepted) {
+                runCatching { pluginConnection.shutdown() }
                 onPluginConnectionFailed(discovered.id, retry = false)
                 return
-            }
-
-            val connected = ConnectedPlugin(pluginConnection, serviceConnection)
-            connectionMutex.withLock {
-                _connectedPlugins.update { it + (discovered.id to connected) }
-                ongoingConnections.remove(discovered.id)
             }
             Timber.d("Plugin connected: ${connected.info.name} (${connected.capabilities})")
         } catch (e: Exception) {
@@ -237,9 +244,16 @@ class PluginDataSource @Inject constructor(
 
     private fun onPluginDisconnected(pluginId: String) {
         scope.launch {
-            connectionMutex.withLock {
+            // The service died: drop it AND unbind, otherwise the ServiceConnection stays registered
+            // (a leaked binding with no later way to release it).
+            val serviceConnection = connectionMutex.withLock {
+                val sc = _connectedPlugins.value[pluginId]?.serviceConnection ?: ongoingConnections[pluginId]
                 _connectedPlugins.update { it - pluginId }
                 ongoingConnections.remove(pluginId)
+                sc
+            }
+            serviceConnection?.let {
+                withContext(Dispatchers.Main) { runCatching { context.unbindService(it) } }
             }
         }
     }
