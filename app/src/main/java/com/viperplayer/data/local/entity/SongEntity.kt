@@ -1,5 +1,6 @@
 package com.viperplayer.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -41,6 +42,8 @@ data class SongEntity(
     val isLiked: Boolean = false,
     val isSaved: Boolean = false,
     val isDownloaded: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val isVideo: Boolean = false,
     val downloadPath: String? = null,
     val localArtworkPath: String? = null, // Local path to cached artwork
     // Audio normalization

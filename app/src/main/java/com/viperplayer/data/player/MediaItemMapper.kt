@@ -38,6 +38,7 @@ object MediaItemMapper {
             putString("albumName", album?.name)
             putString("artworkUrl", artworkUrl)
             putLong("durationMs", durationMs ?: 0L)
+            putBoolean("isVideo", isVideo)
             replayGainDb?.let { putFloat("replayGainDb", it) }
             peakAmplitude?.let { putFloat("peakAmplitude", it) }
         }

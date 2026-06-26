@@ -28,6 +28,7 @@ import com.viperplayer.plugin.host.PluginDiscovery
 import com.viperplayer.plugin.host.ResolvedStream
 import com.viperplayer.plugin.host.DiscoveredPlugin
 import com.viperplayer.plugin.host.SourceClient
+import com.viperplayer.plugin.model.MediaType
 import com.viperplayer.plugin.model.PageRequest
 import com.viperplayer.plugin.model.PluginErrorCode
 import com.viperplayer.plugin.model.PluginException
@@ -393,8 +394,9 @@ class PluginDataSource @Inject constructor(
     }.onFailure { Timber.e(it, "home content failed for $pluginId") }
 
     /** Resolve a playable stream for [mediaId]. The returned [ResolvedStream] may carry a live FD. */
-    suspend fun getStream(mediaId: MediaId): Result<ResolvedStream> = runCatching {
-        source(mediaId.pluginId).resolveStream(mediaId.sourceId)
+    suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
+        val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
+        source(mediaId.pluginId).resolveStream(mediaId.sourceId, type)
     }.onFailure { Timber.e(it, "getStream failed for $mediaId") }
 
     private inner class HostBridgeImpl : HostBridge {

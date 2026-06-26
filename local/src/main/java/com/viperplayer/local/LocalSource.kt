@@ -117,7 +117,7 @@ class LocalSource(context: Context) : SourceProvider {
         return paginate(mediaScanner.getAllArtists().map { mapper.toArtist(it) }, page)
     }
 
-    override suspend fun resolveStream(songId: String): StreamResponse {
+    override suspend fun resolveStream(songId: String, type: MediaType): StreamResponse {
         // The song id is the MediaStore content:// URI, which the host can play directly.
         return StreamResponse.url(songId)
     }

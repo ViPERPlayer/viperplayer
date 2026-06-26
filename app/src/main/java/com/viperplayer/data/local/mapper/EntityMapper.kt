@@ -100,6 +100,7 @@ object EntityMapper {
             peakAmplitude = peakAmplitude,
             isLiked = isLiked,
             isDownloaded = isDownloaded,
+            isVideo = isVideo,
         )
     }
 
@@ -117,6 +118,7 @@ object EntityMapper {
             isLiked = isLiked,
             isSaved = false,
             isDownloaded = isDownloaded,
+            isVideo = isVideo,
             downloadPath = null,
             localArtworkPath = null,
             playCount = 0,

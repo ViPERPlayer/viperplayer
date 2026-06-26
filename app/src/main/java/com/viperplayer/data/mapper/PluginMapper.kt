@@ -30,12 +30,15 @@ import com.viperplayer.plugin.model.CategoryContentType as SdkCategoryContentTyp
 import com.viperplayer.plugin.model.HomeContent as SdkHomeContent
 import com.viperplayer.plugin.model.HomeSection as SdkHomeSection
 import com.viperplayer.plugin.model.MediaItem as SdkMediaItem
+import com.viperplayer.plugin.model.PlayableItem as SdkPlayableItem
 import com.viperplayer.plugin.model.UnknownMediaItem
+import com.viperplayer.plugin.model.UnknownPlayableItem
 import com.viperplayer.plugin.model.Playlist as SdkPlaylist
 import com.viperplayer.plugin.model.SearchResult as SdkSearchResult
 import com.viperplayer.plugin.model.SearchSuggestions as SdkSearchSuggestions
 import com.viperplayer.plugin.model.SectionLayout as SdkSectionLayout
 import com.viperplayer.plugin.model.Song as SdkSong
+import com.viperplayer.plugin.model.Video as SdkVideo
 
 /**
  * Converts plugin-SDK models (opaque per-plugin ids, real nullables) into host domain models
@@ -67,7 +70,32 @@ object PluginMapper {
         requiresInternet = requiresInternet,
         replayGainDb = replayGainDb,
         peakAmplitude = peakAmplitude,
+        isVideo = false,
     )
+
+    fun SdkVideo.toDomain(pluginId: String): Song = Song(
+        id = MediaId(pluginId, id),
+        title = title,
+        artists = artists.map { it.toDomain(pluginId) },
+        album = album?.toDomain(pluginId),
+        durationMs = durationMs,
+        artworkUrl = artwork.bestUrl(),
+        trackNumber = trackNumber,
+        discNumber = discNumber,
+        isExplicit = isExplicit,
+        isPlayable = isPlayable,
+        requiresInternet = true,
+        replayGainDb = replayGainDb,
+        peakAmplitude = peakAmplitude,
+        isVideo = true,
+    )
+
+    /** A playable (song or video) inside a mixed list -> domain Song; unknown kinds are skipped. */
+    fun SdkPlayableItem.toDomainSong(pluginId: String): Song? = when (this) {
+        is SdkSong -> toDomain(pluginId)
+        is SdkVideo -> toDomain(pluginId)
+        is UnknownPlayableItem -> null
+    }
 
     fun SdkAlbum.toDomain(pluginId: String): Album = Album(
         id = MediaId(pluginId, id),
@@ -77,14 +105,14 @@ object PluginMapper {
         releaseYear = releaseYear,
         trackCount = trackCount ?: 0,
         type = type.toDomain(),
-        songs = songs.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
+        songs = songs.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomainSong(pluginId) },
     )
 
     fun SdkArtist.toDomain(pluginId: String): Artist = Artist(
         id = MediaId(pluginId, id),
         name = name,
         imageUrl = artwork.bestUrl(),
-        topSongs = topSongs.map { it.toDomain(pluginId) },
+        topSongs = topSongs.mapNotNull { it.toDomainSong(pluginId) },
         albums = (albums + singles).map { it.toDomain(pluginId) },
         playlists = playlists.map { it.toDomain(pluginId) },
         featuring = emptyList(),
@@ -101,15 +129,17 @@ object PluginMapper {
         songCount = trackCount ?: 0,
         isPublic = true,
         isEditable = isEditable,
-        songs = songs.takeIf { it.isNotEmpty() }?.map { it.toDomain(pluginId) },
+        songs = songs.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomainSong(pluginId) },
     )
 
     fun SdkMediaItem.toDomain(pluginId: String): MediaItem? = when (this) {
         is SdkSong -> toDomain(pluginId)
+        is SdkVideo -> toDomain(pluginId)
         is SdkAlbum -> toDomain(pluginId)
         is SdkArtist -> toDomain(pluginId)
         is SdkPlaylist -> toDomain(pluginId)
         is UnknownMediaItem -> null // a media kind this host doesn't understand; skip it
+        is UnknownPlayableItem -> null // an unknown playable kind; skip it
     }
 
     fun SdkSearchResult.toDomain(pluginId: String): SearchResult = SearchResult(

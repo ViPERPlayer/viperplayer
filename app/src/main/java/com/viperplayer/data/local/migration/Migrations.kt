@@ -29,3 +29,13 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("ALTER TABLE viper_presets ADD COLUMN convolverCrossChannel INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * v2 -> v3: a playable's source can be a video (music videos in playlists/albums), resolved through
+ * the plugin's video endpoint. Matches SongEntity.isVideo's @ColumnInfo(defaultValue = "0").
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE songs ADD COLUMN isVideo INTEGER NOT NULL DEFAULT 0")
+    }
+}

@@ -25,6 +25,8 @@ data class Song(
     val peakAmplitude: Float? = null, // Peak amplitude (0.0-1.0+)
     val isLiked: Boolean = false,
     val isDownloaded: Boolean = false,
+    /** True if this playable's source is a video (resolved through the plugin's video endpoint). */
+    val isVideo: Boolean = false,
 ) : MediaItem, Parcelable {
     val artistNames: String?
         get() = artists.joinToString { it.name }.takeIf { it.isNotEmpty() }

@@ -133,7 +133,8 @@ class ViperMediaSource(
         sourceScope.launch {
             try {
                 val mediaId = MediaId.fromString(mediaItem.mediaId)
-                val resolved = pluginDataSource.getStream(mediaId).getOrThrow()
+                val isVideo = mediaItem.mediaMetadata.extras?.getBoolean("isVideo") == true
+                val resolved = pluginDataSource.getStream(mediaId, isVideo).getOrThrow()
                 val source = resolved.source
 
                 val extras = Bundle().apply {
