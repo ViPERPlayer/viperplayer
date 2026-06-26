@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -149,9 +151,13 @@ class SearchViewModel @Inject constructor(
     private var nextCursor: String? = null
     private var isSearchingMore = false
 
+    // The in-flight full-search coroutine; cancel it before each new search so a slow earlier query
+    // can't overwrite a newer one (or advance pagination from the wrong cursor).
+    private var searchJob: Job? = null
+
     init {
         viewModelScope.launch {
-            _query.flatMapLatest { query ->
+            _query.debounce(250L).flatMapLatest { query ->
                 if (query.isBlank()) {
                     searchRepository.getRecentHistory(limit = 10)
                 } else {
@@ -165,7 +171,7 @@ class SearchViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _query.flatMapLatest { query ->
+            _query.debounce(250L).flatMapLatest { query ->
                 if (query.isBlank()) {
                     flowOf(emptyList())
                 } else {
@@ -338,7 +344,8 @@ class SearchViewModel @Inject constructor(
         _lastSearchedQuery.value = query
         nextCursor = null
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             searchRepository.saveSearchHistory(query)
 
             searchUseCase(query, _selectedFilter.value)

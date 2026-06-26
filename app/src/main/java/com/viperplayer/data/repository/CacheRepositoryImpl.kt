@@ -62,7 +62,7 @@ class CacheRepositoryImpl @Inject constructor(
         var totalBytesCleared = 0L
         try {
             // Clear ExoPlayer cache
-            totalBytesCleared += 0L /*exoPlayerCache.clearCache()*/
+            totalBytesCleared += exoPlayerCache.clearCache()
 
             // Clear DASH manifests
             val dashDir = File(context.cacheDir, "dash_manifests")

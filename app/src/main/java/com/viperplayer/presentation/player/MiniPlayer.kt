@@ -111,58 +111,10 @@ private fun MiniPlayerProgressIndicator(
     modifier: Modifier = Modifier
 ) {
     if (duration > 0) {
-        var progress by remember { mutableFloatStateOf(0f) }
-
-        // Track when we last synced with actual position (for discontinuity detection)
-        var lastSyncedPosition by remember { mutableLongStateOf(0L) }
-        var lastSyncTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-        var syncCounter by remember { mutableIntStateOf(0) }
-
-        // 16ms loop for smooth 60fps updates
-        LaunchedEffect(isPlaying, duration, position) {
-            // Initialize from current position
-            progress = (position.toFloat() / duration).coerceIn(0f, 1f)
-            lastSyncedPosition = position
-            lastSyncTime = System.currentTimeMillis()
-
-            while (true) {
-                delay(16) // ~60fps updates
-
-                if (isPlaying && duration > 0) {
-                    // Every ~250ms (every 16th frame), check for discontinuities (seeks)
-                    syncCounter++
-                    if (syncCounter >= 16) {
-                        syncCounter = 0
-                        val positionDiff = kotlin.math.abs(position - lastSyncedPosition)
-                        val isDiscontinuity =
-                            positionDiff > 1000 // More than 1 second difference = seek
-
-                        if (isDiscontinuity) {
-                            // Seek detected - sync immediately
-                            lastSyncedPosition = position
-                            lastSyncTime = System.currentTimeMillis()
-                            progress = (position.toFloat() / duration).coerceIn(0f, 1f)
-                            continue
-                        } else {
-                            // Small drift - update tracking
-                            lastSyncedPosition = position
-                            lastSyncTime = System.currentTimeMillis()
-                        }
-                    }
-
-                    // Calculate elapsed time and interpolate forward
-                    val currentTime = System.currentTimeMillis()
-                    val elapsed = (currentTime - lastSyncTime).toFloat()
-                    val interpolatedPosition = lastSyncedPosition + elapsed
-                    progress = (interpolatedPosition / duration).coerceIn(0f, 1f)
-                } else {
-                    // When paused, sync to exact position
-                    progress = (position.toFloat() / duration).coerceIn(0f, 1f)
-                    lastSyncedPosition = position
-                    lastSyncTime = System.currentTimeMillis()
-                }
-            }
-        }
+        // The parent already samples position at ~60fps and passes it down, so bind progress
+        // directly. The previous LaunchedEffect interpolation was keyed on `position` (so it
+        // relaunched every frame and never accumulated) — pure churn for no benefit.
+        val progress = (position.toFloat() / duration).coerceIn(0f, 1f)
 
         CircularProgressIndicator(
             progress = { progress },

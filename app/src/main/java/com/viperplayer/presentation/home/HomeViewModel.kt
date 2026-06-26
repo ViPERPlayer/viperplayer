@@ -2,6 +2,7 @@ package com.viperplayer.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.MediaItem
@@ -62,6 +63,10 @@ class HomeViewModel @Inject constructor(
 
     private var lastConnectedPlugins: List<Plugin> = emptyList()
 
+    // The content-load coroutine; cancel the previous one so overlapping loads (auto-update on every
+    // connectedPlugins emission + refresh) can't let an older/slower response overwrite a newer one.
+    private var loadJob: Job? = null
+
     init {
         onTimeChanged()
         observeConnectedPlugins()
@@ -78,7 +83,8 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadContent(isRefreshing: Boolean = false, fromAutoUpdate: Boolean = false) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.update { state ->
                 when (state) {
                     is HomeUiState.Loading -> state // Keep loading

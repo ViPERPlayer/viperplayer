@@ -75,6 +75,12 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     private fun loadPlaylistDetails() {
         viewModelScope.launch {
+            // Liked Songs is backed by a perpetual DB collector started on the first load; a later
+            // refresh must not reset to Loading (the collector won't necessarily re-emit), or the
+            // screen sticks on the spinner forever.
+            if (playlistId.pluginId == "local" && playlistId.sourceId == "liked_songs" && isObservingLikedSongs) {
+                return@launch
+            }
             _uiState.update {
                 val initialPlaylist = when (it) {
                     is PlaylistDetailUiState.Success -> it.playlist

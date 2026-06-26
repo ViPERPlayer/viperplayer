@@ -23,6 +23,7 @@ import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
@@ -58,6 +59,10 @@ class PlayerRepositoryImpl @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // The async "build the rest of the queue" coroutine; cancel it before starting new playback so
+    // a previous playAll can't keep adding its songs into the new queue.
+    private var queueBuildJob: Job? = null
 
     private val _playbackContext = MutableStateFlow<PlaybackContext?>(null)
 
@@ -132,6 +137,7 @@ class PlayerRepositoryImpl @Inject constructor(
 
 
     override suspend fun play(song: Song, context: PlaybackContext?) {
+        queueBuildJob?.cancel()
         _playbackContext.value = context
 
         // Save song with full metadata (album, artists, etc.)
@@ -147,6 +153,7 @@ class PlayerRepositoryImpl @Inject constructor(
     override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) {
         if (songs.isEmpty()) return
 
+        queueBuildJob?.cancel()
         _playbackContext.value = context
 
         val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
@@ -167,7 +174,7 @@ class PlayerRepositoryImpl @Inject constructor(
         controller.play()
 
         // 2. Build the rest of the queue asynchronously
-        scope.launch {
+        queueBuildJob = scope.launch {
             // Save all songs to database (skip the start song since it's already saved)
             songs.forEachIndexed { index, song ->
                 if (index != safeStartIndex) {

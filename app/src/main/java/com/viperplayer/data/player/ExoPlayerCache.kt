@@ -34,4 +34,11 @@ class ExoPlayerCache @Inject constructor(
     fun getCacheSize(): Long {
         return cache.cacheSpace
     }
+
+    /** Remove all cached content from the live cache. Returns the number of bytes freed. */
+    fun clearCache(): Long {
+        val before = cache.cacheSpace
+        cache.keys.toList().forEach { key -> runCatching { cache.removeResource(key) } }
+        return before - cache.cacheSpace
+    }
 }

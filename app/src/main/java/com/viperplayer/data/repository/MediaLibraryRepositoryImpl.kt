@@ -217,13 +217,16 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 is Album -> saveAlbum(item)
                 is Song -> saveSong(item)
                 is Playlist -> savePlaylist(item)
-                is Artist -> saveArtist(item)
+                // Shallow record only — see similarArtists below.
+                is Artist -> upsertArtist(item)
             }
         }
 
-        // Save similar artists
+        // Save similar artists shallowly (record only): recursing with saveArtist would re-enter
+        // their similarArtists/appearsOn graphs, which are commonly mutual (A<->B) -> unbounded
+        // recursion / StackOverflow.
         artist.similarArtists.forEach { similarArtist ->
-            saveArtist(similarArtist)
+            upsertArtist(similarArtist)
         }
     }
 
