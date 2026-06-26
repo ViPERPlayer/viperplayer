@@ -65,10 +65,11 @@ class PluginsViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-//            pluginRepository..collect { states ->
-//                Timber.d("Enabled states updated: $states")
-//                _uiState.update { it.copy(enabledStates = states) }
-//            }
+            pluginRepository.disabledPlugins.collect { disabled ->
+                Timber.d("Disabled plugins updated: $disabled")
+                // enabledStates maps a plugin id to false only when disabled; absent => enabled.
+                _uiState.update { it.copy(enabledStates = disabled.associateWith { false }) }
+            }
         }
     }
 

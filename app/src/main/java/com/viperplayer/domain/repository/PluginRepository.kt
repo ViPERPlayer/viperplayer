@@ -31,6 +31,11 @@ interface PluginRepository {
     val connectedPlugins: Flow<List<Plugin>>
 
     /**
+     * Flow of plugin ids the user has explicitly disabled.
+     */
+    val disabledPlugins: Flow<Set<String>>
+
+    /**
      * Discover all installed plugins.
      */
     suspend fun refreshPlugins()

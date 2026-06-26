@@ -175,8 +175,21 @@ fun PluginsScreen(
                         val connectedPlugin = viewModel.getConnectedPlugin(plugin.id)
                         val isToggling = uiState.togglingPluginId == plugin.id
 
+                        // Discovery only knows the package label + APK version; the connected
+                        // plugin's manifest carries the authoritative name, protocol version,
+                        // author and settings activity. Prefer it when connected.
+                        val displayInfo = connectedPlugin?.info?.let { connected ->
+                            plugin.copy(
+                                name = connected.name,
+                                apiVersion = connected.apiVersion,
+                                author = connected.author ?: plugin.author,
+                                description = connected.description ?: plugin.description,
+                                settingsActivity = connected.settingsActivity,
+                            )
+                        } ?: plugin
+
                         PluginCard(
-                            plugin = plugin,
+                            plugin = displayInfo,
                             isEnabled = isEnabled,
                             isConnected = isConnected,
                             isToggling = isToggling,
@@ -186,7 +199,7 @@ fun PluginsScreen(
                             onLongPress = { menuPluginId = plugin.id },
                             onDismissMenu = { menuPluginId = null },
                             onShowInfo = {
-                                showInfoDialog = plugin
+                                showInfoDialog = displayInfo
                                 menuPluginId = null
                             },
                             onUninstall = {
@@ -198,14 +211,15 @@ fun PluginsScreen(
                                 context.startActivity(intent)
                             },
                             onOpenSettings = {
-                                if (plugin.settingsActivity != null) {
+                                val settingsActivity = displayInfo.settingsActivity
+                                if (settingsActivity != null) {
                                     val intent = Intent().apply {
                                         component = ComponentName(
-                                            plugin.id,
-                                            if (plugin.settingsActivity.startsWith(".")) {
-                                                plugin.id + plugin.settingsActivity
+                                            displayInfo.id,
+                                            if (settingsActivity.startsWith(".")) {
+                                                displayInfo.id + settingsActivity
                                             } else {
-                                                plugin.settingsActivity
+                                                settingsActivity
                                             }
                                         )
                                     }
@@ -237,11 +251,13 @@ fun PluginsScreen(
                         text = "Version: ${plugin.version}",
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "API Version: ${plugin.apiVersion}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    plugin.apiVersion?.let { apiVersion ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "API Version: $apiVersion",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                     if (!plugin.description.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = plugin.description, style = MaterialTheme.typography.bodyMedium)
@@ -342,14 +358,16 @@ fun PluginCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "API v${plugin.apiVersion}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    plugin.apiVersion?.let { apiVersion ->
+                        Text(
+                            text = "API v$apiVersion",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (isConnected) Spacer(modifier = Modifier.width(8.dp))
+                    }
 
                     if (isConnected) {
-                        Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = MaterialTheme.colorScheme.primaryContainer

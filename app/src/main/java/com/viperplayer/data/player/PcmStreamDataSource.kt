@@ -9,6 +9,7 @@ import androidx.media3.datasource.DataSpec
 import com.viperplayer.plugin.model.AudioFormat
 import com.viperplayer.plugin.model.PcmEncoding
 import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.SequenceInputStream
 import java.nio.ByteBuffer
@@ -31,6 +32,11 @@ class PcmStreamDataSource(
 
     override fun open(dataSpec: DataSpec): Long {
         uri = dataSpec.uri
+        if (dataSpec.position != 0L) {
+            // A live PCM pipe can't be re-read from an arbitrary byte offset; refuse the seek
+            // instead of serving misaligned audio. (Real seeking goes via the plugin's seekStream.)
+            throw IOException("PCM stream does not support seeking (position=${dataSpec.position})")
+        }
         transferInitializing(dataSpec)
         input = SequenceInputStream(
             ByteArrayInputStream(header),
@@ -58,16 +64,22 @@ class PcmStreamDataSource(
         }
         runCatching { input?.close() }
         input = null
+        // Close the pfd even if open() was never called, so the descriptor never leaks.
+        runCatching { pfd.close() }
     }
 
-    /** One-shot factory: the FD is single-use, so the produced source is consumed once. */
+    /** Single-use: a PCM pipe can be consumed exactly once, so the produced source is too. */
     class Factory(
         private val pfd: ParcelFileDescriptor,
         private val format: AudioFormat,
         private val durationMs: Long?,
     ) : DataSource.Factory {
-        override fun createDataSource(): DataSource =
-            PcmStreamDataSource(pfd, buildWavHeader(format, durationMs))
+        private var used = false
+        override fun createDataSource(): DataSource {
+            check(!used) { "PcmStreamDataSource.Factory is single-use; a PCM pipe can't be replayed" }
+            used = true
+            return PcmStreamDataSource(pfd, buildWavHeader(format, durationMs))
+        }
     }
 
     companion object {
@@ -83,12 +95,12 @@ class PcmStreamDataSource(
             val sampleRate = format.sampleRate
             val byteRate = sampleRate * channels * bitsPerSample / 8
             val blockAlign = channels * bitsPerSample / 8
-            val dataSize: Long = if (durationMs != null && durationMs > 0) {
+            val dataSize: Long = (if (durationMs != null && durationMs > 0) {
                 durationMs * byteRate / 1000
             } else {
                 // Live stream of unknown length: advertise a large size; the pipe EOF ends playback.
                 (Int.MAX_VALUE - 64).toLong()
-            }
+            }).coerceAtMost((Int.MAX_VALUE - 44).toLong()) // keep dataSize and 36+dataSize within Int
 
             return ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {
                 put("RIFF".toByteArray(Charsets.US_ASCII))

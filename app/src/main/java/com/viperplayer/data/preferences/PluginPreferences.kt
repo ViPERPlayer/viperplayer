@@ -54,9 +54,9 @@ class PluginPreferences @Inject constructor(
      */
     val disabledPlugins: Flow<Set<String>> = dataStore.data.map { preferences ->
         val disabledSet = preferences.asMap()
-            .filterKeys { it.name.startsWith("plugin_disabled") }
+            .filterKeys { it.name.startsWith("plugin_disabled_") }
             .filterValues { it as? Boolean ?: false }
-            .keys.map { it.name.removePrefix("plugin_disabled") }
+            .keys.map { it.name.removePrefix("plugin_disabled_") }
             .toSet()
         Timber.d("Disabled plugins: $disabledSet")
         disabledSet

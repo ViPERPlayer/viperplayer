@@ -368,10 +368,12 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     override fun onPlayerError(error: PlaybackException) {
         Timber.e(error, "onPlayerError() called with: error = $error")
 
-        // Try to skip to next song if available
+        // Try to skip to next song if available. After a fatal error the player is in STATE_IDLE,
+        // so it must be re-prepared or it stays frozen on the next item.
         if (player.hasNextMediaItem()) {
             Timber.d("Skipping to next song due to playback error")
             player.seekToNextMediaItem()
+            player.prepare()
         } else {
             Timber.d("No next song available, stopping playback")
             player.stop()

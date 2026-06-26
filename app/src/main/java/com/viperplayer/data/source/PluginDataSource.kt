@@ -74,6 +74,9 @@ class PluginDataSource @Inject constructor(
     private val _connectedPlugins = MutableStateFlow<Map<String, ConnectedPlugin>>(emptyMap())
     val connectedPlugins: StateFlow<Map<String, ConnectedPlugin>> = _connectedPlugins.asStateFlow()
 
+    /** Set of plugin ids the user has explicitly disabled. */
+    val disabledPlugins: Flow<Set<String>> get() = pluginPreferences.disabledPlugins
+
     private val ongoingConnections = mutableMapOf<String, ServiceConnection>()
     private val connectionMutex = Mutex()
 

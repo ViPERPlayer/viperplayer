@@ -60,6 +60,9 @@ class PluginRepositoryImpl @Inject constructor(
             }
         }
 
+    override val disabledPlugins: Flow<Set<String>>
+        get() = dataSource.disabledPlugins
+
     override suspend fun refreshPlugins() {
         dataSource.refreshPlugins()
     }

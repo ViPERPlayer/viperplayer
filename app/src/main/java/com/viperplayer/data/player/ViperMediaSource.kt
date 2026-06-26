@@ -50,9 +50,11 @@ class ViperMediaSource(
 ) : MediaSource {
     private val sourceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var chosenMediaSource: MediaSource? = null
-    private var pcmMediaSource: MediaSource? = null
     private val chosenOrDefaultMediaSource: MediaSource
         get() = chosenMediaSource ?: defaultMediaSource
+
+    // Written from the IO resolution coroutine, read on the playback thread.
+    @Volatile
     private var sourceInfoRefreshError: Exception? = null
 
     class Factory(
@@ -171,7 +173,7 @@ class ViperMediaSource(
                         val item = baseBuilder.setUri("viper://pcm/${source.streamId}".toUri()).build()
                         ProgressiveMediaSource.Factory(
                             PcmStreamDataSource.Factory(fd, source.format, source.durationMs)
-                        ).createMediaSource(item).also { pcmMediaSource = it }
+                        ).createMediaSource(item)
                     }
                 }
 
@@ -181,7 +183,7 @@ class ViperMediaSource(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to prepare source")
-                sourceInfoRefreshError = IOException("Failed to prepare source")
+                sourceInfoRefreshError = IOException("Failed to prepare source", e)
             }
         }
     }
@@ -210,10 +212,11 @@ class ViperMediaSource(
     }
 
     override fun releaseSource(caller: MediaSource.MediaSourceCaller) {
-        defaultMediaSource.releaseSource(caller)
-        dashMediaSource.releaseSource(caller)
-        pcmMediaSource?.releaseSource(caller)
+        // Cancel any in-flight resolution first so it can't prepare a source after release.
         sourceScope.cancel()
+        // Only the chosen source was ever prepared; releasing default/dash/pcm unconditionally
+        // would be an unbalanced releaseSource() (Media3 requires one release per prepare).
+        chosenMediaSource?.releaseSource(caller)
     }
 
     private fun saveDashXmlToFile(dashXml: String): Uri {
