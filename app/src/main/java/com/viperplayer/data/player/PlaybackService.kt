@@ -252,13 +252,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     }
 
     private fun createAudioProcessorChain(): AudioProcessorChain {
-        // DefaultAudioProcessorChain auto-inserts a SilenceSkippingAudioProcessor that only supports
-        // 16-bit PCM and throws on our float output (e.g. an MP3 decoded to PCM_FLOAT).
-        // Build a float-safe chain: ViPER + Sonic (both handle float) without silence skipping.
+        // DefaultAudioProcessorChain auto-inserts media3's SilenceSkippingAudioProcessor that only
+        // supports 16-bit PCM and throws on our float output (e.g. an MP3 decoded to
+        // PCM_FLOAT). FloatSilenceSkippingAudioProcessor is a float-capable port, so the chain is
+        // ViPER + silence skipper + Sonic (all handle float).
         val sonic = SonicAudioProcessor()
+        val floatSilenceSkipper = FloatSilenceSkippingAudioProcessor()
         return object : AudioProcessorChain {
             override fun getAudioProcessors(): Array<AudioProcessor> =
-                arrayOf<AudioProcessor>(viperAudioProcessor, sonic)
+                arrayOf<AudioProcessor>(viperAudioProcessor, floatSilenceSkipper, sonic)
 
             override fun applyPlaybackParameters(playbackParameters: PlaybackParameters): PlaybackParameters {
                 sonic.setSpeed(playbackParameters.speed)
@@ -266,12 +268,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 return playbackParameters
             }
 
-            override fun applySkipSilenceEnabled(skipSilenceEnabled: Boolean): Boolean = false
+            override fun applySkipSilenceEnabled(skipSilenceEnabled: Boolean): Boolean {
+                floatSilenceSkipper.setEnabled(skipSilenceEnabled)
+                return skipSilenceEnabled
+            }
 
             override fun getMediaDuration(playoutDuration: Long): Long =
                 sonic.getMediaDuration(playoutDuration)
 
-            override fun getSkippedOutputFrameCount(): Long = 0L
+            override fun getSkippedOutputFrameCount(): Long = floatSilenceSkipper.getSkippedFrames()
         }
     }
 
