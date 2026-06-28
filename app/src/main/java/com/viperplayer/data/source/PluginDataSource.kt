@@ -22,6 +22,8 @@ import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.AudioQuality
+import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.plugin.host.HostBridge
 import com.viperplayer.plugin.host.PluginConnection
 import com.viperplayer.plugin.host.PluginDiscovery
@@ -40,6 +42,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,6 +69,7 @@ import javax.inject.Singleton
 class PluginDataSource @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val pluginPreferences: PluginPreferences,
+    private val settingsRepository: SettingsRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -408,8 +412,17 @@ class PluginDataSource @Inject constructor(
     /** Resolve a playable stream for [mediaId]. The returned [ResolvedStream] may carry a live FD. */
     suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
-        source(mediaId.pluginId).resolveStream(mediaId.sourceId, type)
+        val maxBitrateKbps = maxBitrateKbpsFor(settingsRepository.audioQuality.first())
+        source(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
     }.onFailure { Timber.e(it, "getStream failed for $mediaId") }
+
+    /** Map the user's audio-quality setting to a max bitrate (kbps) the plugin caps to; null = highest. */
+    private fun maxBitrateKbpsFor(quality: AudioQuality): Int? = when (quality) {
+        AudioQuality.LOW -> 128
+        AudioQuality.MEDIUM -> 256
+        AudioQuality.HIGH -> 320
+        AudioQuality.LOSSLESS -> null
+    }
 
     private inner class HostBridgeImpl : HostBridge {
         override fun onContentChanged(pluginId: String) {
