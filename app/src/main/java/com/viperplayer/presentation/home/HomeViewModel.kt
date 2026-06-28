@@ -15,8 +15,11 @@ import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -63,6 +66,12 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    // The currently-playing track + play state, so home item cards can show the now-playing indicator.
+    val currentSong: StateFlow<Song?> = playerRepository.currentSong
+    val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
+        .map { it.isPlaying }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var lastConnectedPlugins: List<Plugin> = emptyList()
 

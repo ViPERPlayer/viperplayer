@@ -48,6 +48,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.presentation.common.PlayingArtworkOverlay
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -120,8 +122,12 @@ fun HomeScreen(
         }
     }
 
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     HomeScreenContent(
         uiState = uiState,
+        currentSongId = currentSong?.id,
+        isPlaying = isPlaying,
         rootPadding = rootPadding,
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
@@ -139,6 +145,8 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenContent(
     uiState: HomeUiState,
+    currentSongId: MediaId? = null,
+    isPlaying: Boolean = false,
     rootPadding: PaddingValues,
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
@@ -329,8 +337,11 @@ private fun HomeScreenContent(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(quickPicks) { item ->
+                                            val active = isCurrent(item, currentSongId)
                                             MediaItemCard(
                                                 item = item,
+                                                isActive = active,
+                                                isPlaying = active && isPlaying,
                                                 onClick = {
                                                     when (item) {
                                                         is Album -> onNavigateToAlbum(item)
@@ -350,6 +361,8 @@ private fun HomeScreenContent(
                         uiState.sections.forEach { section ->
                             homeSection(
                                 section = section,
+                                currentSongId = currentSongId,
+                                isPlaying = isPlaying,
                                 onFilterSelected = onFilterSelected,
                             ) { item ->
                                 when (item) {
@@ -405,8 +418,14 @@ fun CategoryCard(
 // Home section rendering — a distinct design per HomeSection subtype
 // ============================================================================
 
+/** True when [item] is the track currently loaded in the player (matched by id). */
+private fun isCurrent(item: MediaItem, currentSongId: MediaId?): Boolean =
+    currentSongId != null && (item as? Song)?.id == currentSongId
+
 private fun LazyListScope.homeSection(
     section: HomeSection,
+    currentSongId: MediaId?,
+    isPlaying: Boolean,
     onFilterSelected: (HomeSection, String) -> Unit,
     onItemClick: (MediaItem) -> Unit,
 ) {
@@ -471,7 +490,13 @@ private fun LazyListScope.homeSection(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             gridItems(section.items) { item ->
-                                CompactItemTile(item = item, onClick = { onItemClick(item) })
+                                val active = isCurrent(item, currentSongId)
+                                CompactItemTile(
+                                    item = item,
+                                    isActive = active,
+                                    isPlaying = active && isPlaying,
+                                    onClick = { onItemClick(item) },
+                                )
                             }
                         }
                     }
@@ -482,7 +507,14 @@ private fun LazyListScope.homeSection(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             items(section.items) { item ->
-                                MediaItemCard(item = item, onClick = { onItemClick(item) }, itemShape = section.itemShape)
+                                val active = isCurrent(item, currentSongId)
+                                MediaItemCard(
+                                    item = item,
+                                    isActive = active,
+                                    isPlaying = active && isPlaying,
+                                    onClick = { onItemClick(item) },
+                                    itemShape = section.itemShape,
+                                )
                             }
                         }
                     }
@@ -501,9 +533,12 @@ private fun LazyListScope.homeSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     rowItems.forEach { item ->
+                        val active = isCurrent(item, currentSongId)
                         Box(modifier = Modifier.weight(1f)) {
                             MediaItemCard(
                                 item = item,
+                                isActive = active,
+                                isPlaying = active && isPlaying,
                                 onClick = { onItemClick(item) },
                                 itemShape = section.itemShape,
                                 fillWidth = true,
@@ -518,7 +553,13 @@ private fun LazyListScope.homeSection(
         is ListSection -> {
             sectionHeader(section.title, section.subtitle)
             items(section.items) { item ->
-                TrackRow(item = item, onClick = { onItemClick(item) })
+                val active = isCurrent(item, currentSongId)
+                TrackRow(
+                    item = item,
+                    isActive = active,
+                    isPlaying = active && isPlaying,
+                    onClick = { onItemClick(item) },
+                )
             }
         }
 
@@ -565,6 +606,8 @@ fun MediaItemCard(
     modifier: Modifier = Modifier,
     itemShape: ItemShape = ItemShape.SQUARE,
     fillWidth: Boolean = false,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
 ) {
     val circle = itemShape == ItemShape.CIRCLE
     val artShape = if (circle) CircleShape else RoundedCornerShape(8.dp)
@@ -582,17 +625,21 @@ fun MediaItemCard(
             .clickable(onClick = onClick),
         horizontalAlignment = if (circle) Alignment.CenterHorizontally else Alignment.Start,
     ) {
-        AsyncImage(
-            model = item.displayArtworkUrl(),
-            contentDescription = item.displayTitle(),
-            modifier = artModifier.clip(artShape),
-            contentScale = ContentScale.Crop,
-        )
+        Box(modifier = artModifier.clip(artShape), contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = item.displayArtworkUrl(),
+                contentDescription = item.displayTitle(),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+        }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = item.displayTitle(),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
+            color = if (isActive) MaterialTheme.colorScheme.primary else Color.Unspecified,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = textAlign,
@@ -614,7 +661,12 @@ fun MediaItemCard(
 
 /** A compact horizontal row (thumbnail + title/subtitle) used by [ListSection]. */
 @Composable
-private fun TrackRow(item: MediaItem, onClick: () -> Unit) {
+private fun TrackRow(
+    item: MediaItem,
+    onClick: () -> Unit,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -622,20 +674,27 @@ private fun TrackRow(item: MediaItem, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AsyncImage(
-            model = item.displayArtworkUrl(),
-            contentDescription = item.displayTitle(),
+        Box(
             modifier = Modifier
                 .size(56.dp)
                 .clip(if (item is Artist) CircleShape else RoundedCornerShape(6.dp)),
-            contentScale = ContentScale.Crop,
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = item.displayArtworkUrl(),
+                contentDescription = item.displayTitle(),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.displayTitle(),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
+                color = if (isActive) MaterialTheme.colorScheme.primary else Color.Unspecified,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -654,27 +713,39 @@ private fun TrackRow(item: MediaItem, onClick: () -> Unit) {
 
 /** A fixed-width horizontal tile (small art + title) for multi-row carousel shelves. */
 @Composable
-private fun CompactItemTile(item: MediaItem, onClick: () -> Unit) {
+private fun CompactItemTile(
+    item: MediaItem,
+    onClick: () -> Unit,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+) {
     Row(
         modifier = Modifier
             .width(280.dp)
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AsyncImage(
-            model = item.displayArtworkUrl(),
-            contentDescription = item.displayTitle(),
+        Box(
             modifier = Modifier
                 .size(52.dp)
                 .clip(if (item is Artist) CircleShape else RoundedCornerShape(6.dp)),
-            contentScale = ContentScale.Crop,
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = item.displayArtworkUrl(),
+                contentDescription = item.displayTitle(),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+        }
         Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.displayTitle(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
+                color = if (isActive) MaterialTheme.colorScheme.primary else Color.Unspecified,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

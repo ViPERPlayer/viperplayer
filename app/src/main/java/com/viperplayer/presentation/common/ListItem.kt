@@ -103,21 +103,29 @@ fun ListItemLeadingArtwork(
                 )
         )
 
-        AnimatedVisibility(
-            visible = isActive
-        ) {
-            if (isPlaying) {
-                PlayingIndicator(
-                    color = Color.White,
-                    modifier = Modifier.height(24.dp)
-                )
-            } else {
-                Icon(
-                    Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    tint = Color.White,
-                )
-            }
+        PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+    }
+}
+
+/**
+ * The now-playing overlay shown centered over artwork: the animated bar graph while playing, a play
+ * arrow when the current item is paused. Shared by [ListItemLeadingArtwork] and the home cards so the
+ * indicator looks identical everywhere — don't inline a second copy.
+ */
+@Composable
+fun PlayingArtworkOverlay(isActive: Boolean, isPlaying: Boolean, modifier: Modifier = Modifier) {
+    AnimatedVisibility(visible = isActive, modifier = modifier) {
+        if (isPlaying) {
+            PlayingIndicator(
+                color = Color.White,
+                modifier = Modifier.height(24.dp)
+            )
+        } else {
+            Icon(
+                Icons.Rounded.PlayArrow,
+                contentDescription = "Play",
+                tint = Color.White,
+            )
         }
     }
 }
