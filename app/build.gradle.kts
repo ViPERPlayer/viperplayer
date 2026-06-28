@@ -142,6 +142,7 @@ dependencies {
     // Media3 / ExoPlayer
     implementation("androidx.media3:media3-exoplayer:1.10.0")
     implementation("androidx.media3:media3-exoplayer-dash:1.10.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.10.0") // HLS playback (e.g. a plugin)
     implementation("androidx.media3:media3-session:1.10.0")
     implementation("androidx.media3:media3-datasource:1.10.0")
     implementation("androidx.media3:media3-datasource-okhttp:1.10.0")
