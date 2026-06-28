@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +17,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.QueryStats
@@ -47,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,9 +63,16 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.GridSection
+import com.viperplayer.domain.model.HeroSection
 import com.viperplayer.domain.model.HomeSection
+import com.viperplayer.domain.model.ItemShape
+import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginCapabilities
@@ -324,38 +339,14 @@ private fun HomeScreenContent(
                             }
                         }
 
-                        // Custom Sections
+                        // Custom Sections — each design (carousel/grid/list/hero/banner) renders distinctly.
                         uiState.sections.forEach { section ->
-                            item {
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Text(
-                                    text = section.title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            item {
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(section.items) { item ->
-                                        MediaItemCard(
-                                            item = item,
-                                            onClick = {
-                                                when (item) {
-                                                    is Album -> onNavigateToAlbum(item)
-                                                    is Artist -> onNavigateToArtist(item)
-                                                    is Playlist -> onNavigateToPlaylist(item)
-                                                    is Song -> onPlaySongFromSection(
-                                                        item,
-                                                        section.id
-                                                    )
-                                                }
-                                            }
-                                        )
-                                    }
+                            homeSection(section) { item ->
+                                when (item) {
+                                    is Album -> onNavigateToAlbum(item)
+                                    is Artist -> onNavigateToArtist(item)
+                                    is Playlist -> onNavigateToPlaylist(item)
+                                    is Song -> onPlaySongFromSection(item, section.id)
                                 }
                             }
                         }
@@ -400,64 +391,327 @@ fun CategoryCard(
     }
 }
 
+// ============================================================================
+// Home section rendering — a distinct design per HomeSection subtype
+// ============================================================================
+
+private fun LazyListScope.homeSection(
+    section: HomeSection,
+    onItemClick: (MediaItem) -> Unit,
+) {
+    when (section) {
+        is CarouselSection -> {
+            sectionHeader(section.title, section.subtitle)
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(section.items) { item ->
+                        MediaItemCard(item = item, onClick = { onItemClick(item) }, itemShape = section.itemShape)
+                    }
+                }
+            }
+        }
+
+        is GridSection -> {
+            sectionHeader(section.title, section.subtitle)
+            val columns = section.columns.coerceAtLeast(1)
+            items(section.items.chunked(columns)) { rowItems ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    rowItems.forEach { item ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            MediaItemCard(
+                                item = item,
+                                onClick = { onItemClick(item) },
+                                itemShape = section.itemShape,
+                                fillWidth = true,
+                            )
+                        }
+                    }
+                    repeat(columns - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            }
+        }
+
+        is ListSection -> {
+            sectionHeader(section.title, section.subtitle)
+            items(section.items) { item ->
+                TrackRow(item = item, onClick = { onItemClick(item) })
+            }
+        }
+
+        is HeroSection -> item {
+            Spacer(modifier = Modifier.height(24.dp))
+            HeroCard(section = section, onClick = { onItemClick(section.item) })
+        }
+
+        is BannerSection -> item {
+            Spacer(modifier = Modifier.height(24.dp))
+            BannerCard(section = section)
+        }
+    }
+}
+
+private fun LazyListScope.sectionHeader(title: String, subtitle: String?) {
+    item {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(top = 24.dp, bottom = 8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** A square/circle/wide artwork card used in carousels and grids. */
 @Composable
 fun MediaItemCard(
-    item: com.viperplayer.domain.model.MediaItem,
+    item: MediaItem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    itemShape: ItemShape = ItemShape.SQUARE,
+    fillWidth: Boolean = false,
 ) {
-    val title = when (item) {
-        is Song -> item.title
-        is Album -> item.name
-        is Artist -> item.name
-        is Playlist -> item.name
+    val circle = itemShape == ItemShape.CIRCLE
+    val artShape = if (circle) CircleShape else RoundedCornerShape(8.dp)
+    val aspect = if (itemShape == ItemShape.WIDE) 16f / 9f else 1f
+    val artModifier = when {
+        fillWidth -> Modifier.fillMaxWidth().aspectRatio(aspect)
+        itemShape == ItemShape.WIDE -> Modifier.width(200.dp).aspectRatio(aspect)
+        else -> Modifier.size(140.dp)
     }
-
-    val subtitle = when (item) {
-        is Song -> item.artistNames
-        is Album -> item.artistName
-        is Artist -> null
-        is Playlist -> item.description
-    }
-
-    val artworkUrl = when (item) {
-        is Song -> item.artworkUrl
-        is Album -> item.artworkUrl
-        is Artist -> item.imageUrl
-        is Playlist -> item.artworkUrl
-    }
+    val textAlign = if (circle) TextAlign.Center else null
+    val textWidth = if (circle) Modifier.fillMaxWidth() else Modifier
 
     Column(
-        modifier = modifier
-            .width(140.dp)
-            .clickable(onClick = onClick)
+        modifier = (if (fillWidth) modifier.fillMaxWidth() else modifier.width(140.dp))
+            .clickable(onClick = onClick),
+        horizontalAlignment = if (circle) Alignment.CenterHorizontally else Alignment.Start,
     ) {
         AsyncImage(
-            model = artworkUrl,
-            contentDescription = title,
-            modifier = Modifier
-                .size(140.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
+            model = item.displayArtworkUrl(),
+            contentDescription = item.displayTitle(),
+            modifier = artModifier.clip(artShape),
+            contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = title,
+            text = item.displayTitle(),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            textAlign = textAlign,
+            modifier = textWidth,
         )
-        subtitle?.let {
+        item.displaySubtitle()?.let {
             Text(
                 text = it,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                textAlign = textAlign,
+                modifier = textWidth,
             )
         }
     }
+}
+
+/** A compact horizontal row (thumbnail + title/subtitle) used by [ListSection]. */
+@Composable
+private fun TrackRow(item: MediaItem, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AsyncImage(
+            model = item.displayArtworkUrl(),
+            contentDescription = item.displayTitle(),
+            modifier = Modifier
+                .size(56.dp)
+                .clip(if (item is Artist) CircleShape else RoundedCornerShape(6.dp)),
+            contentScale = ContentScale.Crop,
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.displayTitle(),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            item.displaySubtitle()?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** A large featured item with a backdrop and a darkening scrim, used by [HeroSection]. */
+@Composable
+private fun HeroCard(section: HeroSection, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(180.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = section.backgroundImageUrl ?: section.item.displayArtworkUrl(),
+                contentDescription = section.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))
+                    )
+            )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
+                if (section.title.isNotBlank()) {
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    text = section.item.displayTitle(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                (section.description ?: section.subtitle ?: section.item.displaySubtitle())?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A promotional banner (image or tinted) with title/text, used by [BannerSection]. */
+@Composable
+private fun BannerCard(section: BannerSection) {
+    val hasImage = !section.imageUrl.isNullOrBlank()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(120.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = if (hasImage) CardDefaults.cardColors()
+        else CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (hasImage) {
+                AsyncImage(
+                    model = section.imageUrl,
+                    contentDescription = section.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)))
+                        )
+                )
+            }
+            val onColor = if (hasImage) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(16.dp)
+            ) {
+                if (section.title.isNotBlank()) {
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = onColor,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                (section.text ?: section.subtitle)?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = onColor.copy(alpha = 0.85f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun MediaItem.displayTitle(): String = when (this) {
+    is Song -> title
+    is Album -> name
+    is Artist -> name
+    is Playlist -> name
+}
+
+private fun MediaItem.displaySubtitle(): String? = when (this) {
+    is Song -> artistNames
+    is Album -> artistName
+    is Artist -> null
+    is Playlist -> description
+}
+
+private fun MediaItem.displayArtworkUrl(): String? = when (this) {
+    is Song -> artworkUrl
+    is Album -> artworkUrl
+    is Artist -> imageUrl
+    is Playlist -> artworkUrl
 }
 
 @Composable
@@ -626,12 +880,12 @@ fun PreviewHomeScreenContentWithSections() {
                 categories = getSampleCategories(),
                 quickPicks = null,
                 sections = listOf(
-                    HomeSection(
+                    CarouselSection(
                         id = "recently_played",
                         title = "Recently Played",
                         items = getSampleAlbums()
                     ),
-                    HomeSection(
+                    CarouselSection(
                         id = "recommended",
                         title = "Recommended for You",
                         items = getSamplePlaylists()
@@ -656,17 +910,17 @@ fun PreviewHomeScreenContentFull() {
                 categories = getSampleCategories(),
                 quickPicks = getSampleAlbums().take(3),
                 sections = listOf(
-                    HomeSection(
+                    CarouselSection(
                         id = "recently_played",
                         title = "Recently Played",
                         items = getSampleAlbums()
                     ),
-                    HomeSection(
+                    CarouselSection(
                         id = "top_artists",
                         title = "Top Artists",
                         items = getSampleArtists()
                     ),
-                    HomeSection(
+                    CarouselSection(
                         id = "your_playlists",
                         title = "Your Playlists",
                         items = getSamplePlaylists()
@@ -691,7 +945,7 @@ fun PreviewHomeScreenContentRefreshing() {
                 categories = getSampleCategories(),
                 quickPicks = getSampleAlbums().take(3),
                 sections = listOf(
-                    HomeSection(
+                    CarouselSection(
                         id = "recently_played",
                         title = "Recently Played",
                         items = getSampleAlbums()

@@ -5,9 +5,16 @@ import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CategoryContentType
+import com.viperplayer.domain.model.BannerSection
+import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.GridSection
+import com.viperplayer.domain.model.HeroSection
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
+import com.viperplayer.domain.model.ItemShape
+import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.SectionAction
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
@@ -36,7 +43,14 @@ import com.viperplayer.plugin.model.UnknownPlayableItem
 import com.viperplayer.plugin.model.Playlist as SdkPlaylist
 import com.viperplayer.plugin.model.SearchResult as SdkSearchResult
 import com.viperplayer.plugin.model.SearchSuggestions as SdkSearchSuggestions
-import com.viperplayer.plugin.model.SectionLayout as SdkSectionLayout
+import com.viperplayer.plugin.model.BannerSection as SdkBannerSection
+import com.viperplayer.plugin.model.CarouselSection as SdkCarouselSection
+import com.viperplayer.plugin.model.GridSection as SdkGridSection
+import com.viperplayer.plugin.model.HeroSection as SdkHeroSection
+import com.viperplayer.plugin.model.ItemShape as SdkItemShape
+import com.viperplayer.plugin.model.ListSection as SdkListSection
+import com.viperplayer.plugin.model.SectionAction as SdkSectionAction
+import com.viperplayer.plugin.model.UnknownSection as SdkUnknownSection
 import com.viperplayer.plugin.model.Song as SdkSong
 import com.viperplayer.plugin.model.Video as SdkVideo
 
@@ -164,18 +178,49 @@ object PluginMapper {
 
     fun SdkHomeContent.toDomain(pluginId: String): HomeContent = HomeContent(
         quickPicks = quickPicks.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomain(pluginId) },
-        sections = sections.map { it.toDomain(pluginId) },
+        sections = sections.mapNotNull { it.toDomain(pluginId) },
     )
 
-    fun SdkHomeSection.toDomain(pluginId: String): HomeSection = HomeSection(
-        id = id,
-        title = title,
-        items = items.mapNotNull { it.toDomain(pluginId) },
-        layout = when (layout) {
-            SdkSectionLayout.LIST -> HomeSection.Layout.LIST
-            SdkSectionLayout.GRID -> HomeSection.Layout.GRID
-        },
-    )
+    /** Maps a section design 1:1; an unknown design (or a hero whose single item can't map) is dropped. */
+    fun SdkHomeSection.toDomain(pluginId: String): HomeSection? = when (this) {
+        is SdkCarouselSection -> CarouselSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            items = items.mapNotNull { it.toDomain(pluginId) }, itemShape = itemShape.toDomain(),
+        )
+
+        is SdkGridSection -> GridSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            items = items.mapNotNull { it.toDomain(pluginId) }, columns = columns,
+            itemShape = itemShape.toDomain(),
+        )
+
+        is SdkListSection -> ListSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            items = items.mapNotNull { it.toDomain(pluginId) },
+        )
+
+        is SdkHeroSection -> item.toDomain(pluginId)?.let { domainItem ->
+            HeroSection(
+                id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+                item = domainItem, backgroundImageUrl = backgroundImageUrl, description = description,
+            )
+        }
+
+        is SdkBannerSection -> BannerSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            text = text, imageUrl = imageUrl,
+        )
+
+        is SdkUnknownSection -> null
+    }
+
+    private fun SdkSectionAction.toDomain(): SectionAction = SectionAction(label = label, targetId = targetId)
+
+    private fun SdkItemShape.toDomain(): ItemShape = when (this) {
+        SdkItemShape.SQUARE -> ItemShape.SQUARE
+        SdkItemShape.CIRCLE -> ItemShape.CIRCLE
+        SdkItemShape.WIDE -> ItemShape.WIDE
+    }
 
     fun <T, R> Page<T>.toDomain(transform: (T) -> R): PagedResult<R> =
         PagedResult(items.map(transform), nextCursor, totalCount)
