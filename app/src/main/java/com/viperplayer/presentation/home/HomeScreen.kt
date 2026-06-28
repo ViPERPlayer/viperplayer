@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -69,6 +70,7 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.FilterState
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
 import com.viperplayer.domain.model.HomeSection
@@ -129,7 +131,8 @@ fun HomeScreen(
         onNavigateToAnalytics = onNavigateToAnalytics,
         onRefresh = viewModel::refresh,
         onPlaySongFromQuickPicks = viewModel::playSongFromQuickPicks,
-        onPlaySongFromSection = viewModel::playSongFromSection
+        onPlaySongFromSection = viewModel::playSongFromSection,
+        onFilterSelected = viewModel::onSectionFilterSelected
     )
 }
 
@@ -145,7 +148,8 @@ private fun HomeScreenContent(
     onNavigateToAnalytics: () -> Unit,
     onRefresh: () -> Unit,
     onPlaySongFromQuickPicks: (Song) -> Unit,
-    onPlaySongFromSection: (Song, String) -> Unit
+    onPlaySongFromSection: (Song, String) -> Unit,
+    onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> }
 ) {
     var titleOverflowed by remember { mutableStateOf(false) }
     val title = uiState.userName.let { userName ->
@@ -344,7 +348,10 @@ private fun HomeScreenContent(
 
                         // Custom Sections — each design (carousel/grid/list/hero/banner) renders distinctly.
                         uiState.sections.forEach { section ->
-                            homeSection(section) { item ->
+                            homeSection(
+                                section = section,
+                                onFilterSelected = onFilterSelected,
+                            ) { item ->
                                 when (item) {
                                     is Album -> onNavigateToAlbum(item)
                                     is Artist -> onNavigateToArtist(item)
@@ -400,36 +407,83 @@ fun CategoryCard(
 
 private fun LazyListScope.homeSection(
     section: HomeSection,
+    onFilterSelected: (HomeSection, String) -> Unit,
     onItemClick: (MediaItem) -> Unit,
 ) {
     when (section) {
         is CarouselSection -> {
             sectionHeader(section.title, section.subtitle)
-            if (section.rows > 1) {
-                // Multi-row shelf: a horizontal grid of compact tiles, `rows` items per column.
-                item {
-                    LazyHorizontalGrid(
-                        rows = GridCells.Fixed(section.rows),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height((section.rows * 68).dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        gridItems(section.items) { item ->
-                            CompactItemTile(item = item, onClick = { onItemClick(item) })
-                        }
-                    }
-                }
-            } else {
+            if (section.filters.isNotEmpty()) {
+                // A row of genre/category chips above the shelf; tapping one re-filters the section.
                 item {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(section.items) { item ->
-                            MediaItemCard(item = item, onClick = { onItemClick(item) }, itemShape = section.itemShape)
+                        items(section.filters) { filter ->
+                            FilterChip(
+                                selected = filter.selected,
+                                onClick = { onFilterSelected(section, filter.key) },
+                                label = { Text(filter.label) },
+                            )
+                        }
+                    }
+                }
+            }
+            // The shelf area shows a spinner / an isolated error / the items, per the filter state.
+            val shelfHeight = if (section.rows > 1) (section.rows * 68).dp else 188.dp
+            when (section.filterState) {
+                FilterState.Loading -> item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(shelfHeight),
+                        contentAlignment = Alignment.Center,
+                    ) { LoadingIndicator() }
+                }
+
+                FilterState.Error -> item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(shelfHeight)
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Couldn't load — tap a genre to retry.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+
+                FilterState.Idle -> if (section.rows > 1) {
+                    // Multi-row shelf: a horizontal grid of compact tiles, `rows` items per column.
+                    item {
+                        LazyHorizontalGrid(
+                            rows = GridCells.Fixed(section.rows),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(shelfHeight),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            gridItems(section.items) { item ->
+                                CompactItemTile(item = item, onClick = { onItemClick(item) })
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(section.items) { item ->
+                                MediaItemCard(item = item, onClick = { onItemClick(item) }, itemShape = section.itemShape)
+                            }
                         }
                     }
                 }

@@ -90,6 +90,15 @@ interface PluginRepository {
     ): Result<SearchResult>
 
     /**
+     * Re-filter a home section: ask its owning plugin for fresh items for [filterKey].
+     */
+    suspend fun filterSection(
+        pluginId: String,
+        sectionId: String,
+        filterKey: String
+    ): Result<SearchResult>
+
+    /**
      * Get library songs from all plugins.
      */
     suspend fun getLibrarySongs(

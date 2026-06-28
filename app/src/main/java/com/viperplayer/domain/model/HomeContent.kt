@@ -14,6 +14,9 @@ enum class ItemShape { SQUARE, CIRCLE, WIDE }
 /** Optional "see all" / navigation affordance shown on a section header. */
 data class SectionAction(val label: String, val targetId: String? = null)
 
+/** An interactive chip on a section (e.g. a genre selector); tapping it re-filters the section. */
+data class SectionFilter(val label: String, val key: String, val selected: Boolean = false)
+
 /**
  * A home-screen section provided by a plugin. Sealed so each visual design carries exactly the fields
  * it needs; the host renders each design differently (see HomeScreen). Mirrors the plugin-SDK's
@@ -25,19 +28,28 @@ sealed interface HomeSection {
     val subtitle: String?
     val action: SectionAction?
 
+    /** Id of the plugin that produced this section; the host routes filter taps back to it. */
+    val pluginId: String
+
     /** Every media item in this section (a single-element list for [HeroSection], empty for [BannerSection]). */
     val items: List<MediaItem>
 }
 
 /** Horizontal scroller of cards — the most common design. [rows] > 1 makes it a multi-row shelf. */
+/** Transient load state of a section's in-place filter refresh (host UI only, never a plugin field). */
+enum class FilterState { Idle, Loading, Error }
+
 data class CarouselSection(
     override val id: String,
     override val title: String,
     override val subtitle: String? = null,
     override val action: SectionAction? = null,
+    override val pluginId: String = "",
     override val items: List<MediaItem> = emptyList(),
     val itemShape: ItemShape = ItemShape.SQUARE,
     val rows: Int = 1,
+    val filters: List<SectionFilter> = emptyList(),
+    val filterState: FilterState = FilterState.Idle,
 ) : HomeSection
 
 /** Multi-column grid of cards. */
@@ -46,6 +58,7 @@ data class GridSection(
     override val title: String,
     override val subtitle: String? = null,
     override val action: SectionAction? = null,
+    override val pluginId: String = "",
     override val items: List<MediaItem> = emptyList(),
     val columns: Int = 2,
     val itemShape: ItemShape = ItemShape.SQUARE,
@@ -57,6 +70,7 @@ data class ListSection(
     override val title: String,
     override val subtitle: String? = null,
     override val action: SectionAction? = null,
+    override val pluginId: String = "",
     override val items: List<MediaItem> = emptyList(),
 ) : HomeSection
 
@@ -66,6 +80,7 @@ data class HeroSection(
     override val title: String,
     override val subtitle: String? = null,
     override val action: SectionAction? = null,
+    override val pluginId: String = "",
     val item: MediaItem,
     val backgroundImageUrl: String? = null,
     val description: String? = null,
@@ -79,6 +94,7 @@ data class BannerSection(
     override val title: String,
     override val subtitle: String? = null,
     override val action: SectionAction? = null,
+    override val pluginId: String = "",
     val text: String? = null,
     val imageUrl: String? = null,
 ) : HomeSection {

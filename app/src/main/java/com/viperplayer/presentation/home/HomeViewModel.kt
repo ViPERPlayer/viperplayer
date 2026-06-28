@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.FilterState
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PlaybackContext
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -211,6 +214,46 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Handle error silently
             }
+        }
+    }
+
+    /**
+     * A filter chip on [section] was tapped: ask the owning plugin for fresh items and, on success,
+     * swap them into that section (keeping its title/rows/chips) and mark the tapped chip selected.
+     * Only [CarouselSection]s carry filters. Failures are ignored so a bad tap can't break the feed.
+     */
+    fun onSectionFilterSelected(section: HomeSection, filterKey: String) {
+        viewModelScope.launch {
+            // 1. Optimistic: select the tapped chip and show a spinner in this section, immediately.
+            updateCarousel(section.id) {
+                it.copy(
+                    filters = it.filters.map { f -> f.copy(selected = f.key == filterKey) },
+                    filterState = FilterState.Loading,
+                )
+            }
+            // 2. Fetch this section's items for the chosen filter from its owning plugin.
+            // 3. Apply to this section alone — new items on success, an in-section error otherwise.
+            pluginRepository.filterSection(section.pluginId, section.id, filterKey).fold(
+                onSuccess = { res ->
+                    updateCarousel(section.id) { it.copy(items = res.items, filterState = FilterState.Idle) }
+                },
+                onFailure = { e ->
+                    Timber.w(e, "filterSection failed for ${section.id} ($filterKey)")
+                    updateCarousel(section.id) { it.copy(filterState = FilterState.Error) }
+                },
+            )
+        }
+    }
+
+    /** Replace one carousel section (by id) in the current Content state via [transform]. */
+    private fun updateCarousel(sectionId: String, transform: (CarouselSection) -> CarouselSection) {
+        _uiState.update { state ->
+            if (state !is HomeUiState.Content) return@update state
+            state.copy(
+                sections = state.sections.map { s ->
+                    if (s.id == sectionId && s is CarouselSection) transform(s) else s
+                },
+            )
         }
     }
 

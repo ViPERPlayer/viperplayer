@@ -178,6 +178,19 @@ class PluginRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun filterSection(
+        pluginId: String,
+        sectionId: String,
+        filterKey: String
+    ): Result<SearchResult> {
+        return try {
+            dataSource.filterSection(pluginId, sectionId, filterKey)
+        } catch (e: Exception) {
+            Timber.e(e, "Error in filterSection")
+            Result.failure(e)
+        }
+    }
+
     override suspend fun getLibrarySongs(
         cursor: String?,
         limit: Int

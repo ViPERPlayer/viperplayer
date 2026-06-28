@@ -393,6 +393,11 @@ class PluginDataSource @Inject constructor(
         source(pluginId).getHome().toDomain(pluginId)
     }.onFailure { Timber.e(it, "home content failed for $pluginId") }
 
+    suspend fun filterSection(pluginId: String, sectionId: String, filterKey: String): Result<SearchResult> =
+        runCatching {
+            source(pluginId).filterSection(sectionId, filterKey).toDomain(pluginId)
+        }.onFailure { Timber.e(it, "filter section failed for $pluginId") }
+
     /** Resolve a playable stream for [mediaId]. The returned [ResolvedStream] may carry a live FD. */
     suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG

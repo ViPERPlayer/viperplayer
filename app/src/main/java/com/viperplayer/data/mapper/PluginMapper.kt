@@ -15,6 +15,7 @@ import com.viperplayer.domain.model.ItemShape
 import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.SectionAction
+import com.viperplayer.domain.model.SectionFilter
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
@@ -50,6 +51,7 @@ import com.viperplayer.plugin.model.HeroSection as SdkHeroSection
 import com.viperplayer.plugin.model.ItemShape as SdkItemShape
 import com.viperplayer.plugin.model.ListSection as SdkListSection
 import com.viperplayer.plugin.model.SectionAction as SdkSectionAction
+import com.viperplayer.plugin.model.SectionFilter as SdkSectionFilter
 import com.viperplayer.plugin.model.UnknownSection as SdkUnknownSection
 import com.viperplayer.plugin.model.Song as SdkSong
 import com.viperplayer.plugin.model.Video as SdkVideo
@@ -185,30 +187,35 @@ object PluginMapper {
     fun SdkHomeSection.toDomain(pluginId: String): HomeSection? = when (this) {
         is SdkCarouselSection -> CarouselSection(
             id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
             items = items.mapNotNull { it.toDomain(pluginId) }, itemShape = itemShape.toDomain(),
-            rows = rows,
+            rows = rows, filters = filters.map { it.toDomain() },
         )
 
         is SdkGridSection -> GridSection(
             id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
             items = items.mapNotNull { it.toDomain(pluginId) }, columns = columns,
             itemShape = itemShape.toDomain(),
         )
 
         is SdkListSection -> ListSection(
             id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
             items = items.mapNotNull { it.toDomain(pluginId) },
         )
 
         is SdkHeroSection -> item.toDomain(pluginId)?.let { domainItem ->
             HeroSection(
                 id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+                pluginId = pluginId,
                 item = domainItem, backgroundImageUrl = backgroundImageUrl, description = description,
             )
         }
 
         is SdkBannerSection -> BannerSection(
             id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
             text = text, imageUrl = imageUrl,
         )
 
@@ -216,6 +223,8 @@ object PluginMapper {
     }
 
     private fun SdkSectionAction.toDomain(): SectionAction = SectionAction(label = label, targetId = targetId)
+
+    private fun SdkSectionFilter.toDomain(): SectionFilter = SectionFilter(label = label, key = key, selected = selected)
 
     private fun SdkItemShape.toDomain(): ItemShape = when (this) {
         SdkItemShape.SQUARE -> ItemShape.SQUARE
