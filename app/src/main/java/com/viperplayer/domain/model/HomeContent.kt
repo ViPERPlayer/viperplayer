@@ -29,7 +29,7 @@ sealed interface HomeSection {
     val items: List<MediaItem>
 }
 
-/** Horizontal scroller of cards — the most common design. */
+/** Horizontal scroller of cards — the most common design. [rows] > 1 makes it a multi-row shelf. */
 data class CarouselSection(
     override val id: String,
     override val title: String,
@@ -37,6 +37,7 @@ data class CarouselSection(
     override val action: SectionAction? = null,
     override val items: List<MediaItem> = emptyList(),
     val itemShape: ItemShape = ItemShape.SQUARE,
+    val rows: Int = 1,
 ) : HomeSection
 
 /** Multi-column grid of cards. */

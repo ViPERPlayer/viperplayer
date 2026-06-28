@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -402,13 +405,32 @@ private fun LazyListScope.homeSection(
     when (section) {
         is CarouselSection -> {
             sectionHeader(section.title, section.subtitle)
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(section.items) { item ->
-                        MediaItemCard(item = item, onClick = { onItemClick(item) }, itemShape = section.itemShape)
+            if (section.rows > 1) {
+                // Multi-row shelf: a horizontal grid of compact tiles, `rows` items per column.
+                item {
+                    LazyHorizontalGrid(
+                        rows = GridCells.Fixed(section.rows),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height((section.rows * 68).dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        gridItems(section.items) { item ->
+                            CompactItemTile(item = item, onClick = { onItemClick(item) })
+                        }
+                    }
+                }
+            } else {
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(section.items) { item ->
+                            MediaItemCard(item = item, onClick = { onItemClick(item) }, itemShape = section.itemShape)
+                        }
                     }
                 }
             }
@@ -559,6 +581,45 @@ private fun TrackRow(item: MediaItem, onClick: () -> Unit) {
             Text(
                 text = item.displayTitle(),
                 style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            item.displaySubtitle()?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** A fixed-width horizontal tile (small art + title) for multi-row carousel shelves. */
+@Composable
+private fun CompactItemTile(item: MediaItem, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .width(280.dp)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AsyncImage(
+            model = item.displayArtworkUrl(),
+            contentDescription = item.displayTitle(),
+            modifier = Modifier
+                .size(52.dp)
+                .clip(if (item is Artist) CircleShape else RoundedCornerShape(6.dp)),
+            contentScale = ContentScale.Crop,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.displayTitle(),
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

@@ -186,6 +186,7 @@ object PluginMapper {
         is SdkCarouselSection -> CarouselSection(
             id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
             items = items.mapNotNull { it.toDomain(pluginId) }, itemShape = itemShape.toDomain(),
+            rows = rows,
         )
 
         is SdkGridSection -> GridSection(
