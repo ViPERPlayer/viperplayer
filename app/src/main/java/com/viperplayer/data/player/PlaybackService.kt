@@ -16,7 +16,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessorChain
+import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -249,12 +252,27 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     }
 
     private fun createAudioProcessorChain(): AudioProcessorChain {
-        Timber.d("createAudioProcessorChain: creating chain with ViperAudioProcessor")
-        val chain = DefaultAudioSink.DefaultAudioProcessorChain(
-            viperAudioProcessor
-        )
-        Timber.d("createAudioProcessorChain: chain created with ${chain.audioProcessors.size} processors")
-        return chain
+        // DefaultAudioProcessorChain auto-inserts a SilenceSkippingAudioProcessor that only supports
+        // 16-bit PCM and throws on our float output (e.g. an MP3 decoded to PCM_FLOAT).
+        // Build a float-safe chain: ViPER + Sonic (both handle float) without silence skipping.
+        val sonic = SonicAudioProcessor()
+        return object : AudioProcessorChain {
+            override fun getAudioProcessors(): Array<AudioProcessor> =
+                arrayOf<AudioProcessor>(viperAudioProcessor, sonic)
+
+            override fun applyPlaybackParameters(playbackParameters: PlaybackParameters): PlaybackParameters {
+                sonic.setSpeed(playbackParameters.speed)
+                sonic.setPitch(playbackParameters.pitch)
+                return playbackParameters
+            }
+
+            override fun applySkipSilenceEnabled(skipSilenceEnabled: Boolean): Boolean = false
+
+            override fun getMediaDuration(playoutDuration: Long): Long =
+                sonic.getMediaDuration(playoutDuration)
+
+            override fun getSkippedOutputFrameCount(): Long = 0L
+        }
     }
 
     private fun createMediaLibrarySession(): MediaLibrarySession {
