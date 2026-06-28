@@ -43,7 +43,9 @@ import androidx.media3.session.MediaSession
 import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
 import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RepeatMode
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,6 +81,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var mediaSessionServiceListener: ViperMediaSessionServiceListener
+
+    @Inject
+    lateinit var mediaLibraryRepository: MediaLibraryRepository
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -333,6 +338,19 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("onMediaItemTransition() called with: mediaItem = $mediaItem, reason = $reason")
+
+        // Record a play whenever a new media item starts (manual, skip, or auto-advance): bumps the
+        // song's play count/lastPlayed and inserts a per-play event that powers History and Stats.
+        // The song is persisted before playback begins (saveSong precedes setMediaItem), so the
+        // event's foreign key resolves; if it somehow isn't, the repository simply skips the event.
+        if (mediaItem != null) {
+            MediaId.fromString(mediaItem.mediaId)?.let { mediaId ->
+                lifecycleScope.launch {
+                    runCatching { mediaLibraryRepository.incrementSongPlayCount(mediaId) }
+                        .onFailure { Timber.e(it, "Failed to record play for $mediaId") }
+                }
+            }
+        }
 
         // Apply ReplayGain as volume when a new media item starts playing
         // Convert from dB to linear: linear = 10^(dB/20)

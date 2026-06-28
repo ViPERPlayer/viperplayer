@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.viperplayer.data.local.ViperPlayerDatabase
 import com.viperplayer.data.local.migration.MIGRATION_1_2
 import com.viperplayer.data.local.migration.MIGRATION_2_3
+import com.viperplayer.data.local.migration.MIGRATION_3_4
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,7 +30,7 @@ object DatabaseModule {
             ViperPlayerDatabase::class.java,
             "viperplayer_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigration(true) // last-resort for any future unmigrated bump
             .build()
     }
@@ -54,5 +55,8 @@ object DatabaseModule {
 
     @Provides
     fun provideSearchHistoryDao(database: ViperPlayerDatabase) = database.searchHistoryDao()
+
+    @Provides
+    fun providePlayEventDao(database: ViperPlayerDatabase) = database.playEventDao()
 }
 

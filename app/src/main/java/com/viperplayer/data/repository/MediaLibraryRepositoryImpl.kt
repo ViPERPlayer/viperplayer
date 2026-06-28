@@ -4,17 +4,24 @@ import com.viperplayer.data.local.dao.AlbumDao
 import com.viperplayer.data.local.dao.ArtistDao
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.GenreDao
+import com.viperplayer.data.local.dao.PlayEventDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
+import com.viperplayer.data.local.entity.PlayEventEntity
+import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SongWithStats
+import com.viperplayer.domain.model.StatPeriod
+import com.viperplayer.domain.model.StatsSummary
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +46,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val genreDao: GenreDao,
     private val crossRefDao: CrossRefDao,
+    private val playEventDao: PlayEventDao,
     private val pluginRepository: PluginRepository,
     private val artworkDownloader: ArtworkDownloader,
     private val networkConnectivityChecker: NetworkConnectivityChecker,
@@ -617,7 +625,105 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun incrementSongPlayCount(mediaId: MediaId): Unit =
         withContext(Dispatchers.IO) {
             songDao.incrementPlayCount(mediaId.pluginId, mediaId.sourceId)
+            // Also record a discrete play event so History and the time-windowed Stats screen have a
+            // per-play signal. Resolve the local song row first; if the song isn't persisted yet there
+            // is nothing to reference (the FK would fail), so we simply skip the event.
+            val songId = songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)?.id
+            if (songId != null) {
+                playEventDao.insert(
+                    PlayEventEntity(
+                        songId = songId,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            }
         }
+
+    // History & Stats
+
+    /**
+     * Hydrate a [SongEntity] into a domain [Song] with its artists, album, and runtime playability —
+     * mirrors the inline logic used by the getAll*Songs flows. Must be called from a coroutine.
+     */
+    private suspend fun songEntityToDomain(
+        entity: SongEntity,
+        connectedPluginIds: Set<String>,
+        isInternetAvailable: Boolean
+    ): Song {
+        val artistIds = crossRefDao.getArtistIdsForSong(entity.id)
+        val artists = artistIds.mapNotNull { loadArtist(it) }
+        val album = entity.albumId?.let { albumId ->
+            albumDao.getById(albumId).first()?.let { albumEntity ->
+                val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                val albumArtists = albumArtistIds.mapNotNull { loadArtist(it) }
+                albumEntity.toDomain(albumArtists)
+            }
+        }
+        // Default to true for database songs (assume streaming), as elsewhere in this repository.
+        val requiresInternet = true
+        val isPlayable = computeIsPlayable(
+            entity,
+            connectedPluginIds,
+            requiresInternet,
+            isInternetAvailable
+        )
+        return entity.toDomain(album, artists, isPlayable, requiresInternet)
+    }
+
+    override fun getMostPlayedSongs(period: StatPeriod, limit: Int): Flow<List<SongWithStats>> {
+        // Lower bound captured once when the flow is built; the DAO flow re-emits on any event write.
+        // Upper bound is open-ended so plays recorded after the screen opens still count.
+        val fromTimestamp = period.fromTimestamp()
+        return combine(
+            playEventDao.mostPlayedSongs(fromTimestamp, Long.MAX_VALUE, limit),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { rows, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            rows.map { row ->
+                SongWithStats(
+                    song = songEntityToDomain(row.song, connectedPluginIds, isInternetAvailable),
+                    playCount = row.eventCount.toInt(),
+                    timeListenedMs = row.timeListenedMs
+                )
+            }
+        }
+    }
+
+    override fun getStatsSummary(period: StatPeriod): Flow<StatsSummary> {
+        val fromTimestamp = period.fromTimestamp()
+        return playEventDao.statsSummary(fromTimestamp, Long.MAX_VALUE).map { summary ->
+            StatsSummary(
+                totalPlays = summary.totalPlays,
+                distinctSongs = summary.distinctSongs,
+                totalTimeMs = summary.totalTimeMs
+            )
+        }
+    }
+
+    override fun getHistory(limit: Int): Flow<List<HistoryEntry>> {
+        return combine(
+            playEventDao.recentHistory(limit),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { rows, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            rows.map { row ->
+                HistoryEntry(
+                    song = songEntityToDomain(row.song, connectedPluginIds, isInternetAvailable),
+                    playedAt = row.eventTimestamp
+                )
+            }
+        }
+    }
+
+    override suspend fun getFirstPlayTimestamp(): Long? = withContext(Dispatchers.IO) {
+        playEventDao.firstEventTimestamp()
+    }
+
+    override suspend fun clearHistory(): Unit = withContext(Dispatchers.IO) {
+        playEventDao.clearAll()
+    }
 
     // Playlists
     override fun getPlaylist(mediaId: MediaId): Flow<Playlist?> {

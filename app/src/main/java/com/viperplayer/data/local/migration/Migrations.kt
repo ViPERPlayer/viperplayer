@@ -39,3 +39,28 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE songs ADD COLUMN isVideo INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * v3 -> v4: add the `play_events` table that records one row per play of a song (with an epoch-millis
+ * timestamp), powering the History timeline and the time-windowed Stats screen. Previously only the
+ * running `songs.playCount` / `songs.lastPlayed` totals were kept, which can't express per-period stats.
+ *
+ * The CREATE TABLE / CREATE INDEX statements below must byte-match what Room generates for
+ * [PlayEventEntity] (verified against the generated ViperPlayerDatabase_Impl), or Room's runtime
+ * schema validation will reject the migration. Existing tables are left untouched, so no user data
+ * is lost.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `play_events` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`songId` INTEGER NOT NULL, " +
+                "`timestamp` INTEGER NOT NULL, " +
+                "`durationListenedMs` INTEGER, " +
+                "FOREIGN KEY(`songId`) REFERENCES `songs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_play_events_songId` ON `play_events` (`songId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_play_events_timestamp` ON `play_events` (`timestamp`)")
+    }
+}

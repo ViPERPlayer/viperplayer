@@ -107,8 +107,36 @@
     <string name="history">History</string>
     <string name="history_recently_played">Recently Played</string>
     <string name="history_empty">No history available</string>
+    <string name="history_clear">Clear history</string>
+    <string name="history_clear_confirm_title">Clear history?</string>
+    <string name="history_clear_confirm_message">This permanently deletes your entire listening history.</string>
+    <string name="action_cancel">Cancel</string>
+    <!-- History date section headers -->
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_this_week">This week</string>
+    <string name="history_this_month">This month</string>
+    <string name="history_earlier">Earlier</string>
     <string name="stats">Stats</string>
     <string name="analytics_playback_statistics">Playback Statistics</string>
     <string name="analytics_coming_soon">Analytics coming soon</string>
+    <!-- Stats screen -->
+    <string name="stats_most_played">Most played</string>
+    <string name="stats_empty">No stats for this period yet</string>
+    <string name="stats_plays">Plays</string>
+    <string name="stats_songs">Songs</string>
+    <string name="stats_listening_time">Listening time</string>
+    <string name="action_play_all">Play all</string>
+    <!-- Stats period chips -->
+    <string name="stat_period_week">Week</string>
+    <string name="stat_period_month">Month</string>
+    <string name="stat_period_3_months">3 months</string>
+    <string name="stat_period_6_months">6 months</string>
+    <string name="stat_period_year">Year</string>
+    <string name="stat_period_all">All time</string>
+    <plurals name="play_count">
+        <item quantity="one">%d play</item>
+        <item quantity="other">%d plays</item>
+    </plurals>
     <string name="settings">Settings</string>
 </resources>

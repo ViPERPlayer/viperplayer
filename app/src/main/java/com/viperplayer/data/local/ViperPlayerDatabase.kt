@@ -7,6 +7,7 @@ import com.viperplayer.data.local.dao.AlbumDao
 import com.viperplayer.data.local.dao.ArtistDao
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.GenreDao
+import com.viperplayer.data.local.dao.PlayEventDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SearchHistoryDao
 import com.viperplayer.data.local.dao.SongDao
@@ -17,6 +18,7 @@ import com.viperplayer.data.local.entity.AlbumTypeConverter
 import com.viperplayer.data.local.entity.ArtistEntity
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
+import com.viperplayer.data.local.entity.PlayEventEntity
 import com.viperplayer.data.local.entity.PlaylistEntity
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
 import com.viperplayer.data.local.entity.QueueSongCrossRef
@@ -44,9 +46,10 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         SearchHistoryEntity::class,
         QueueSongCrossRef::class,
         ViperPresetEntity::class,
-        ViperDdcCoeffEntity::class
+        ViperDdcCoeffEntity::class,
+        PlayEventEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(AlbumTypeConverter::class, DynamicSystemDeviceTypeConverter::class)
@@ -59,5 +62,6 @@ abstract class ViperPlayerDatabase : RoomDatabase() {
     abstract fun crossRefDao(): CrossRefDao
     abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun viperPresetDao(): ViperPresetDao
+    abstract fun playEventDao(): PlayEventDao
 }
 

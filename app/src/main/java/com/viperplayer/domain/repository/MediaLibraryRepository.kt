@@ -2,9 +2,13 @@ package com.viperplayer.domain.repository
 
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SongWithStats
+import com.viperplayer.domain.model.StatPeriod
+import com.viperplayer.domain.model.StatsSummary
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -46,6 +50,22 @@ interface MediaLibraryRepository {
     )
 
     suspend fun incrementSongPlayCount(mediaId: MediaId)
+
+    // History & Stats (backed by per-play events)
+    /** Songs ranked by play count within [period], with per-period play count and listening time. */
+    fun getMostPlayedSongs(period: StatPeriod, limit: Int = 50): Flow<List<SongWithStats>>
+
+    /** Aggregate totals (plays, distinct songs, listening time) for [period]. */
+    fun getStatsSummary(period: StatPeriod): Flow<StatsSummary>
+
+    /** Chronological listening history (newest first), one entry per play, capped to [limit]. */
+    fun getHistory(limit: Int = 200): Flow<List<HistoryEntry>>
+
+    /** Epoch millis of the first ever recorded play, or null if there is no history yet. */
+    suspend fun getFirstPlayTimestamp(): Long?
+
+    /** Delete the entire listening history. */
+    suspend fun clearHistory()
 
     // Playlists
     fun getPlaylist(mediaId: MediaId): Flow<Playlist?>
