@@ -264,7 +264,8 @@ fun ViperPlayerApp(
                         onNavigateToAlbum = { album ->
                             showPlayerBottomSheet = false
                             navigator.navigate(AlbumDetail(album))
-                        }
+                        },
+                        onCollapse = { showPlayerBottomSheet = false }
                     )
                 }
             }
