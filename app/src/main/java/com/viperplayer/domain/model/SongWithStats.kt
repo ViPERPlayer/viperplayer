@@ -8,7 +8,10 @@ data class SongWithStats(
     val song: Song,
     /** Number of plays within the selected period. */
     val playCount: Int,
-    /** Total listening time within the period in milliseconds (playCount × song duration). */
+    /**
+     * Total time actually listened within the period, in milliseconds: sum of each play's measured
+     * play time, falling back to the song's full duration for plays not yet measured.
+     */
     val timeListenedMs: Long
 )
 

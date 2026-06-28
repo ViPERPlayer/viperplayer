@@ -19,7 +19,7 @@ data class SongWithPlayStats(
     @Embedded val song: SongEntity,
     /** Number of plays of this song inside the queried window. */
     val eventCount: Long,
-    /** Total listening time inside the window, derived as eventCount × song duration. */
+    /** Total listening time inside the window: sum of measured per-play durations (full-duration fallback). */
     val timeListenedMs: Long
 )
 
@@ -49,15 +49,16 @@ interface PlayEventDao {
 
     /**
      * Most played songs within [fromTimestamp]..[toTimestamp] (inclusive), ranked by play count
-     * then by listening time. Listening time is `plays × duration` (durations are nullable, so a
-     * missing duration contributes 0). Each returned row carries the full song plus its per-window
-     * play count and time.
+     * then by listening time. Listening time sums each play's actual measured listened duration
+     * ([PlayEventEntity.durationListenedMs], reported by the player), falling back to the song's full
+     * duration for plays not yet measured (e.g. in-flight, or interrupted before the player reported).
+     * Each returned row carries the full song plus its per-window play count and time.
      */
     @Query(
         """
         SELECT songs.*,
                COUNT(play_events.id) AS eventCount,
-               COUNT(play_events.id) * COALESCE(songs.durationMs, 0) AS timeListenedMs
+               SUM(COALESCE(play_events.durationListenedMs, songs.durationMs, 0)) AS timeListenedMs
         FROM play_events
         INNER JOIN songs ON songs.id = play_events.songId
         WHERE play_events.timestamp BETWEEN :fromTimestamp AND :toTimestamp
@@ -74,13 +75,14 @@ interface PlayEventDao {
 
     /**
      * Aggregate totals for the window: total plays, distinct songs, and total listening time
-     * (sum of each play's song duration). Always returns exactly one row (zeros when empty).
+     * (sum of each play's actual measured listened duration, falling back to the song's full
+     * duration for plays not yet measured). Always returns exactly one row (zeros when empty).
      */
     @Query(
         """
         SELECT COUNT(play_events.id) AS totalPlays,
                COUNT(DISTINCT play_events.songId) AS distinctSongs,
-               COALESCE(SUM(COALESCE(songs.durationMs, 0)), 0) AS totalTimeMs
+               COALESCE(SUM(COALESCE(play_events.durationListenedMs, songs.durationMs, 0)), 0) AS totalTimeMs
         FROM play_events
         INNER JOIN songs ON songs.id = play_events.songId
         WHERE play_events.timestamp BETWEEN :fromTimestamp AND :toTimestamp
@@ -101,6 +103,26 @@ interface PlayEventDao {
         """
     )
     fun recentHistory(limit: Int): Flow<List<PlayEventWithSong>>
+
+    /**
+     * Backfill the actual listened duration onto the most recent not-yet-measured play of [songId].
+     * Called when the player reports a finished playback session: a play is inserted at track start
+     * with a null duration, and this fills in the real time once it's known. Targeting the latest
+     * null row correctly matches the session that just ended (sessions complete in order).
+     */
+    @Query(
+        """
+        UPDATE play_events
+        SET durationListenedMs = :durationListenedMs
+        WHERE id = (
+            SELECT id FROM play_events
+            WHERE songId = :songId AND durationListenedMs IS NULL
+            ORDER BY timestamp DESC
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun recordListenedTimeForLatest(songId: Long, durationListenedMs: Long)
 
     /** Epoch millis of the very first recorded play, or null if there is no history yet. */
     @Query("SELECT MIN(timestamp) FROM play_events")

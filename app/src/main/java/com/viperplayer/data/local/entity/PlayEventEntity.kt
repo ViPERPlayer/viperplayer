@@ -37,8 +37,9 @@ data class PlayEventEntity(
     /** Epoch millis when the play was recorded. */
     val timestamp: Long,
     /**
-     * Optional actual listened duration in ms. Currently unused for stats (time-listened is derived
-     * as playCount × song duration), but persisted for future precise listening-time tracking.
+     * Actual listened duration in ms, as reported by the player when the playback session ends
+     * (real play time, excluding pauses/buffering). Null until measured — stats fall back to the
+     * song's full duration for not-yet-measured plays.
      */
     val durationListenedMs: Long? = null
 )

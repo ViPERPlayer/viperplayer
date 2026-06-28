@@ -51,6 +51,12 @@ interface MediaLibraryRepository {
 
     suspend fun incrementSongPlayCount(mediaId: MediaId)
 
+    /**
+     * Record the actual time a song was listened to (real play time, excluding pauses) for the most
+     * recent play of [mediaId]. Called when the player reports a finished playback session.
+     */
+    suspend fun recordListenedTime(mediaId: MediaId, durationListenedMs: Long)
+
     // History & Stats (backed by per-play events)
     /** Songs ranked by play count within [period], with per-period play count and listening time. */
     fun getMostPlayedSongs(period: StatPeriod, limit: Int = 50): Flow<List<SongWithStats>>

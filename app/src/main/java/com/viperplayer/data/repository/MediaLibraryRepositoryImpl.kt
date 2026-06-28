@@ -639,6 +639,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun recordListenedTime(mediaId: MediaId, durationListenedMs: Long): Unit =
+        withContext(Dispatchers.IO) {
+            // The player reports the real listened time (excluding pauses) when a session ends.
+            // Fill it onto the most recent unmeasured play of this song so Stats reflect actual
+            // listening rather than the full-duration estimate used as a fallback.
+            if (durationListenedMs <= 0L) return@withContext
+            val songId = songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)?.id
+                ?: return@withContext
+            playEventDao.recordListenedTimeForLatest(songId, durationListenedMs)
+        }
+
     // History & Stats
 
     /**

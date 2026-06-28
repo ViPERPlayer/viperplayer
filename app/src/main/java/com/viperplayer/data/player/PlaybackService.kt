@@ -17,6 +17,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Timeline
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessorChain
 import androidx.media3.common.audio.SonicAudioProcessor
@@ -433,6 +434,22 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         playbackStats: PlaybackStats
     ) {
         Timber.d("onPlaybackStatsReady() called with: eventTime = $eventTime, playbackStats = $playbackStats")
+
+        // A playback session finished: record how long the track was ACTUALLY playing (excludes
+        // pauses/buffering) so Stats reflect real listening instead of a full-duration estimate.
+        val listenedMs = playbackStats.totalPlayTimeMs
+        if (listenedMs <= 0L) return
+
+        val timeline = eventTime.timeline
+        if (timeline.isEmpty || eventTime.windowIndex >= timeline.windowCount) return
+        val mediaItem = timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
+
+        MediaId.fromString(mediaItem.mediaId)?.let { mediaId ->
+            lifecycleScope.launch {
+                runCatching { mediaLibraryRepository.recordListenedTime(mediaId, listenedMs) }
+                    .onFailure { Timber.e(it, "Failed to record listened time for $mediaId") }
+            }
+        }
     }
 
     private fun openAudioEffectControlSession() {
