@@ -389,6 +389,13 @@ class PluginDataSource @Inject constructor(
                 .toDomain { it.toDomain(playlistId.pluginId) }
         }.onFailure { Timber.e(it, "playlist songs failed for $playlistId") }
 
+    /** Radio/autoplay seed: songs related to [songId], used to keep the queue going. */
+    suspend fun getRelatedSongs(songId: MediaId): Result<PagedResult<Song>> =
+        runCatching {
+            source(songId.pluginId).getRelatedSongs(songId.sourceId)
+                .toDomain { it.toDomain(songId.pluginId) }
+        }.onFailure { Timber.e(it, "related songs failed for $songId") }
+
     suspend fun getHomeContent(pluginId: String): Result<HomeContent> = runCatching {
         source(pluginId).getHome().toDomain(pluginId)
     }.onFailure { Timber.e(it, "home content failed for $pluginId") }

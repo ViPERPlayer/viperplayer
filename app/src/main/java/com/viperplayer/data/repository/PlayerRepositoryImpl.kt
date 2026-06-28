@@ -22,6 +22,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
+import com.viperplayer.domain.repository.PluginRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +57,8 @@ import javax.inject.Singleton
 class PlayerRepositoryImpl @Inject constructor(
     private val mediaControllerManager: MediaControllerManager,
     private val playerStatePersistence: PlayerStatePersistence,
-    private val mediaLibraryRepository: MediaLibraryRepository
+    private val mediaLibraryRepository: MediaLibraryRepository,
+    private val pluginRepository: PluginRepository
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -116,6 +118,17 @@ class PlayerRepositoryImpl @Inject constructor(
                 awaitClose { controller.removeListener(listener) }
             }
         }
+
+    // Radio/autoplay: queue-tail song ids we've already extended from (avoids duplicate fetches/loops).
+    private val autoplaySeeds = mutableSetOf<String>()
+    private var autoplayJob: Job? = null
+
+    init {
+        // Keep playback going: whenever the queue nears its end, append songs related to its tail.
+        controllerStateFlow
+            .onEach { maybeExtendQueue(it) }
+            .launchIn(scope)
+    }
 
     // Playback state (state, shuffle, repeat, volume, queue info) - NO position, song, or duration
     override val playbackState: StateFlow<PlaybackInfo> =
@@ -198,6 +211,39 @@ class PlayerRepositoryImpl @Inject constructor(
             for (i in (safeStartIndex + 1) until allMediaItems.size) {
                 controller.addMediaItem(allMediaItems[i])
             }
+        }
+    }
+
+    /**
+     * Autoplay/radio: when the queue is within ~2 items of the end, append songs related to the
+     * queue's tail ([PluginRepository.getRelatedSongs]) so playback never stops. Seeded from the
+     * tail, so a playlist that ends continues with playlist-flavoured radio and a lone song
+     * continues with similar songs. Skipped when repeat-all is on (the queue already loops).
+     */
+    private fun maybeExtendQueue(controller: Player) {
+        // Never run while playAll is still building the queue — appends would interleave with its
+        // adds and skew the indices (tapping next would jump around).
+        if (queueBuildJob?.isActive == true) return
+        val count = controller.mediaItemCount
+        if (count == 0 || controller.repeatMode == Player.REPEAT_MODE_ALL) return
+        if (controller.currentMediaItemIndex < count - 2) return
+        if (autoplayJob?.isActive == true) return
+
+        val tailMediaId = controller.getMediaItemAt(count - 1)?.mediaId ?: return
+        if (tailMediaId in autoplaySeeds) return
+        val seed = MediaId.fromString(tailMediaId) ?: return
+        autoplaySeeds.add(tailMediaId)
+
+        autoplayJob = scope.launch {
+            val related = pluginRepository.getRelatedSongs(seed).getOrNull()?.items.orEmpty()
+            val existing = (0 until controller.mediaItemCount)
+                .mapNotNull { controller.getMediaItemAt(it)?.mediaId }
+                .toSet()
+            val fresh = related.filter { it.id.toString() !in existing }
+            Timber.d("autoplay: tail=$tailMediaId related=${related.size} new=${fresh.size} queue=${controller.mediaItemCount}")
+            if (fresh.isEmpty()) return@launch
+            fresh.forEach { runCatching { mediaLibraryRepository.saveSong(it) } }
+            fresh.toMediaItems().forEach { controller.addMediaItem(it) }
         }
     }
 

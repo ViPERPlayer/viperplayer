@@ -306,5 +306,9 @@ class PluginRepositoryImpl @Inject constructor(
     ): Result<PagedResult<Song>> {
         return dataSource.getPlaylistSongs(playlistId, cursor, limit)
     }
+
+    override suspend fun getRelatedSongs(songId: MediaId): Result<PagedResult<Song>> {
+        return dataSource.getRelatedSongs(songId)
+    }
 }
 

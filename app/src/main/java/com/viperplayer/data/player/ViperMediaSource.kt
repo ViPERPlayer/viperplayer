@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.core.net.toUri
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.analytics.PlayerId
@@ -48,6 +49,7 @@ class ViperMediaSource(
     private val pluginDataSource: PluginDataSource,
     private val defaultMediaSource: MediaSource,
     private val dashMediaSource: DashMediaSource,
+    private val defaultMediaSourceFactory: DefaultMediaSourceFactory,
 ) : MediaSource {
     private val sourceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var chosenMediaSource: MediaSource? = null
@@ -85,7 +87,9 @@ class ViperMediaSource(
         override fun createMediaSource(mediaItem: MediaItem): MediaSource {
             val defaultMediaSource = defaultMediaSourceFactory.createMediaSource(mediaItem)
             val dashMediaSource = dashMediaSourceFactory.createMediaSource(mediaItem)
-            return ViperMediaSource(context, pluginDataSource, defaultMediaSource, dashMediaSource)
+            return ViperMediaSource(
+                context, pluginDataSource, defaultMediaSource, dashMediaSource, defaultMediaSourceFactory,
+            )
         }
     }
 
@@ -153,9 +157,23 @@ class ViperMediaSource(
                     }
 
                     is HlsStream -> {
-                        // Routed through the default factory; requires the media3 HLS module at runtime.
-                        val item = baseBuilder.setUri(source.url.toUri()).build()
-                        defaultMediaSource.apply { updateMediaItem(item) }
+                        // HLS always needs a fresh source from the factory: the pre-created
+                        // `defaultMediaSource` is progressive and updateMediaItem() can't change a
+                        // source's type to HLS; and an HlsMediaSource captures any DrmSessionManager at
+                        // construction. The factory picks HlsMediaSource from the .m3u8 and, for DRM
+                        // tracks (Widevine), its default DrmSessionManagerProvider reads the
+                        // DrmConfiguration and POSTs key requests to the license URL. Needs the media3
+                        // HLS module at runtime.
+                        val builder = baseBuilder.setUri(source.url.toUri())
+                        source.drm?.let { drm ->
+                            builder.setDrmConfiguration(
+                                MediaItem.DrmConfiguration.Builder(drmSchemeUuid(drm.scheme))
+                                    .setLicenseUri(drm.licenseUrl)
+                                    .setLicenseRequestHeaders(drm.licenseHeaders)
+                                    .build()
+                            )
+                        }
+                        defaultMediaSourceFactory.createMediaSource(builder.build())
                     }
 
                     is DashStream -> {
@@ -223,6 +241,14 @@ class ViperMediaSource(
         // Only the chosen source was ever prepared; releasing default/dash/pcm unconditionally
         // would be an unbalanced releaseSource() (Media3 requires one release per prepare).
         chosenMediaSource?.releaseSource(caller)
+    }
+
+    /** Map a plugin [com.viperplayer.plugin.model.DrmConfig] scheme name to its content-protection UUID. */
+    private fun drmSchemeUuid(scheme: String): java.util.UUID = when (scheme.lowercase()) {
+        "widevine" -> C.WIDEVINE_UUID
+        "playready" -> C.PLAYREADY_UUID
+        "clearkey" -> C.CLEARKEY_UUID
+        else -> throw IllegalArgumentException("Unsupported DRM scheme: $scheme")
     }
 
     private fun saveDashXmlToFile(dashXml: String): Uri {

@@ -177,6 +177,9 @@ interface PluginRepository {
         limit: Int = 50
     ): Result<PagedResult<Song>>
 
+    /** Songs related to [songId] — the radio/autoplay seed used to keep the queue going. */
+    suspend fun getRelatedSongs(songId: MediaId): Result<PagedResult<Song>>
+
     companion object {
         const val SEARCH_TYPE_SONG = 1
         const val SEARCH_TYPE_ALBUM = 2
