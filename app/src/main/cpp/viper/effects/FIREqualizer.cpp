@@ -1,42 +1,20 @@
 #include "FIREqualizer.h"
 #include <cstring>
 
-// Q25 fixed-point scale. 1.0 is represented as 2^25.
-// 0x0006573c = 33554432.00 (== 2^25)
-static constexpr double kQ25Scale = 33554432.0;
-
-// Rounding constant added before the >> 25 in every fixed-point multiply.
-// 0x1000000 == 2^24 == half of 2^25, i.e. round-to-nearest for the Q25 shift.
-static constexpr int64_t kRoundQ25 = 0x1000000;
-
-// Q25 multiply with round-to-nearest: (int32)((a * b + 2^24) >> 25).
-static inline int32_t mulQ25(int64_t a, int64_t b) {
-    return static_cast<int32_t>((a * b + kRoundQ25) >> 25);
-}
-
 // ---------------------------------------------------------------------------
-// Tap-window offsets into the 256-deep history rings, one entry per dyadic
-// moving-average stage.
-//
-// In the original binary these are two adjacent 9-int read-only tables:
-//   add-window table at vaddr 0x65910 (relocated base 0x68c40 -> 0xce550)
-//   sub-window table at vaddr 0x65934 (= add table + 9 ints)
-// Process() reads them as: index = (ringPos + table[j]) & 0xff.
-//
-// UNRECOVERED: the constants dump provided is section-relative (addresses
-// restart at 0 per section), so the 9+9 integer values at 0xce550 could not be
-// byte-extracted. They must be recovered from the binary's .rodata. The dyadic
-// structure of the algorithm (stage j has shift j+1, i.e. box width 2^(j+1))
-// strongly implies the entering/leaving taps are symmetric +/- 2^j around the
-// ring center, but this is NOT confirmed, so the values are left as an explicit
-// non-functional placeholder rather than guessed.
+// Tap offsets into the 256-deep history ring, one per dyadic stage (j = 0..8):
+// the "add" stage reads the sample entering each window, the "subtract" stage
+// the sample leaving it. Recovered from the original's two adjacent 9-int
+// .rodata tables (Ghidra 0xce550 add, 0xce574 sub):
+//   add[j] = +2^j  -> { 1,  2,  4,  8,  16,  32,  64,  128,  256 }
+//   sub[j] = -2^j  -> {-1, -2, -4, -8, -16, -32, -64, -128, -256 }
+// (Indexing is (ringPos + offset) & 0xff, so the 256 entries wrap to the center.)
 // ---------------------------------------------------------------------------
-static const int32_t kWindowAddOffsets[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-static const int32_t kWindowSubOffsets[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const int32_t kWindowAddOffsets[9] = {1, 2, 4, 8, 16, 32, 64, 128, 256};
+static const int32_t kWindowSubOffsets[9] = {-1, -2, -4, -8, -16, -32, -64, -128, -256};
 
 FIREqualizer::FIREqualizer() {
-    // Original: SetBandLevel(this, i, 0.0f) for i = 0..9, which writes the
-    // neutral Q25 gain (== 2^25) into every band slot.
+    // Original: SetBandLevel(i, 0.0f) for i = 0..9 -> unity (flat) gain in every band.
     for (uint32_t band = 0; band < 10; band++) {
         SetBandLevel(band, 0.0f);
     }
@@ -52,15 +30,19 @@ void FIREqualizer::SetBandLevel(uint32_t band, float level) {
     if (band > 9) {
         return;
     }
-    // Positive gains are doubled before encoding (asymmetric boost/cut curve).
+    // Positive gains are doubled before being taken around unity (asymmetric
+    // boost/cut curve), matching the original.
     if (level > 0.0f) {
         level = level + level;
     }
-    // Encode as Q25 around unity: (level + 1.0) * 2^25, rounded.
-    uint32_t encoded = static_cast<uint32_t>((static_cast<double>(level) + 1.0) * kQ25Scale + 0.5);
-    // Clamp negatives to 0: q & ~(arithmetic_shift_right(q, 31)).
-    encoded &= ~(static_cast<int32_t>(encoded) >> 31);
-    mBandGains[9 - band] = static_cast<int32_t>(encoded);
+    // Linear gain around unity. The original encodes round((level + 1) * 2^25) in
+    // Q25 and clamps negatives to 0; here the 2^25 scale cancels with the Q25
+    // multiply in Process(), so we store the linear value directly.
+    float gain = level + 1.0f;
+    if (gain < 0.0f) {
+        gain = 0.0f;
+    }
+    mBandGains[9 - band] = gain;
 }
 
 void FIREqualizer::SetSamplingRate(uint32_t samplingRate) {
@@ -96,7 +78,7 @@ void FIREqualizer::Reset() {
     mRingPos = 0;
 }
 
-void FIREqualizer::Process(int32_t *samples, int32_t frameCount) {
+void FIREqualizer::Process(float *samples, int32_t frameCount) {
     if (samples == nullptr || !mEnabled || frameCount <= 0) {
         return;
     }
@@ -104,13 +86,13 @@ void FIREqualizer::Process(int32_t *samples, int32_t frameCount) {
     uint32_t ringPos = mRingPos;
 
     for (int32_t frame = 0; frame < frameCount; frame++) {
-        int32_t *left = &samples[frame * 2];
-        int32_t *right = &samples[frame * 2 + 1];
+        float *left = &samples[frame * 2];
+        float *right = &samples[frame * 2 + 1];
 
         // 1. Read the center-tap (delayed) input leaving the recent ring, then
         //    push the current input sample into the ring.
-        int32_t centerL = mInputL[ringPos];
-        int32_t centerR = mInputR[ringPos];
+        float centerL = mInputL[ringPos];
+        float centerR = mInputR[ringPos];
         mInputL[ringPos] = *left;
         mInputR[ringPos] = *right;
 
@@ -121,24 +103,24 @@ void FIREqualizer::Process(int32_t *samples, int32_t frameCount) {
             mAccumR[j] += mInputR[idx];
         }
 
-        // 3. Normalise each running sum into a moving average: avg[j] = sum >> (j+1).
-        int32_t avgL[kStageCount];
-        int32_t avgR[kStageCount];
+        // 3. Normalise each running sum into a moving average: avg[j] = sum / 2^(j+1).
+        float avgL[kStageCount];
+        float avgR[kStageCount];
         for (int j = 0; j < kStageCount; j++) {
-            int shift = j + 1; // always < 32, so the wide-shift branch in the original is dead.
-            avgL[j] = static_cast<int32_t>(mAccumL[j] >> shift);
-            avgR[j] = static_cast<int32_t>(mAccumR[j] >> shift);
+            float scale = 1.0f / static_cast<float>(1u << (j + 1)); // 1/2 .. 1/512
+            avgL[j] = static_cast<float>(mAccumL[j]) * scale;
+            avgR[j] = static_cast<float>(mAccumR[j]) * scale;
         }
 
-        // 4. Telescope the band contributions, each weighted by its Q25 gain.
-        int32_t outL = mulQ25(centerL - avgL[0], mBandGains[0]);
-        int32_t outR = mulQ25(mBandGains[0], centerR - avgR[0]);
+        // 4. Telescope the band contributions, each weighted by its band gain.
+        float outL = (centerL - avgL[0]) * mBandGains[0];
+        float outR = (centerR - avgR[0]) * mBandGains[0];
         for (int j = 1; j < kStageCount; j++) {
-            outL += mulQ25(avgL[j - 1] - avgL[j], mBandGains[j]);
-            outR += mulQ25(mBandGains[j], avgR[j - 1] - avgR[j]);
+            outL += (avgL[j - 1] - avgL[j]) * mBandGains[j];
+            outR += (avgR[j - 1] - avgR[j]) * mBandGains[j];
         }
-        outL += mulQ25(avgL[kStageCount - 1], mBandGains[9]);
-        outR += mulQ25(mBandGains[9], avgR[kStageCount - 1]);
+        outL += avgL[kStageCount - 1] * mBandGains[9];
+        outR += avgR[kStageCount - 1] * mBandGains[9];
 
         // 5. Subtract the samples leaving each window (from the delayed ring).
         for (int j = 0; j < kStageCount; j++) {
