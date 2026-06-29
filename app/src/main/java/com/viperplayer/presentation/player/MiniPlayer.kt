@@ -7,6 +7,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -215,16 +217,23 @@ fun MiniPlayerContent(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Thumbnail background
-                    song?.artworkUrl?.let { thumbnailUrl ->
-                        AsyncImage(
-                            model = thumbnailUrl,
-                            contentDescription = "Artwork",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                        )
+                    // Thumbnail background — crossfades when the track changes.
+                    AnimatedContent(
+                        targetState = song?.artworkUrl,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "miniArtwork",
+                        modifier = Modifier.fillMaxSize()
+                    ) { thumbnailUrl ->
+                        if (thumbnailUrl != null) {
+                            AsyncImage(
+                                model = thumbnailUrl,
+                                contentDescription = "Artwork",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                            )
+                        }
                     }
 
                     // Semi-transparent overlay for better icon visibility
@@ -238,8 +247,8 @@ fun MiniPlayerContent(
 
                     androidx.compose.animation.AnimatedVisibility(
                         visible = !isPlaying,
-                        enter = fadeIn(),
-                        exit = fadeOut()
+                        enter = fadeIn() + scaleIn(initialScale = 0.7f),
+                        exit = fadeOut() + scaleOut(targetScale = 0.7f)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
