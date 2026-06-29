@@ -1,6 +1,12 @@
 package com.viperplayer.presentation.player
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -35,6 +41,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -80,6 +88,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -151,6 +160,7 @@ fun PlayerScreen(
     val duration by viewModel.duration.collectAsStateWithLifecycle()
     val isLiked by viewModel.isLiked.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
+    val queue by viewModel.queue.collectAsStateWithLifecycle()
 
     // Poll position
     var currentPosition by remember { mutableLongStateOf(0L) }
@@ -188,6 +198,25 @@ fun PlayerScreen(
 
     val isPlaying = playbackState.isPlaying
 
+    // Artwork pager over the queue: swipe to preview/switch tracks. Falls back to the single song
+    // when the queue is empty so there's always exactly one page.
+    val pagerSongs = if (queue.isEmpty()) listOf(song) else queue
+    val currentIndex = pagerSongs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = currentIndex) { pagerSongs.size }
+    // External track change (skip buttons / auto-advance) -> animate the pager to it.
+    LaunchedEffect(currentIndex) {
+        if (currentIndex != pagerState.currentPage) pagerState.animateScrollToPage(currentIndex)
+    }
+    // User settled on a different page -> play that track. Guarded against the index it's already on
+    // so the programmatic scroll above never loops back into another play call.
+    LaunchedEffect(pagerState, pagerSongs) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            if (page != currentIndex && page in pagerSongs.indices) {
+                viewModel.playFromQueue(page)
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Full-bleed artwork (also the seed for the dynamic theme), over a gradient placeholder.
         Box(
@@ -202,12 +231,17 @@ fun PlayerScreen(
                     )
                 )
         ) {
-            AsyncImage(
-                model = song.artworkUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier.fillMaxSize()
-            )
+            ) { page ->
+                AsyncImage(
+                    model = pagerSongs[page].artworkUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         // Top scrim for status-bar / context legibility.
@@ -322,31 +356,41 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = song.title,
-                            color = Color.White,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.6).sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.infiniteBasicMarquee()
-                        )
-                        val subtitle = listOfNotNull(song.artistNames, song.album?.name)
-                            .joinToString(" · ")
-                        if (subtitle.isNotEmpty()) {
+                    AnimatedContent(
+                        targetState = song,
+                        transitionSpec = {
+                            (fadeIn(tween(280)) + slideInVertically(tween(280)) { it / 4 }) togetherWith
+                                (fadeOut(tween(160)) + slideOutVertically(tween(160)) { -it / 4 })
+                        },
+                        label = "trackInfo",
+                        modifier = Modifier.weight(1f)
+                    ) { current ->
+                        Column {
                             Text(
-                                text = subtitle,
-                                color = Color.White.copy(alpha = 0.82f),
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Medium,
+                                text = current.title,
+                                color = Color.White,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.6).sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .padding(top = 5.dp)
-                                    .infiniteBasicMarquee()
+                                modifier = Modifier.infiniteBasicMarquee()
                             )
+                            val subtitle = listOfNotNull(current.artistNames, current.album?.name)
+                                .joinToString(" · ")
+                            if (subtitle.isNotEmpty()) {
+                                Text(
+                                    text = subtitle,
+                                    color = Color.White.copy(alpha = 0.82f),
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .padding(top = 5.dp)
+                                        .infiniteBasicMarquee()
+                                )
+                            }
                         }
                     }
                     LikeButton(isLiked = isLiked, onClick = { viewModel.toggleLike() })
