@@ -20,6 +20,9 @@ interface ArtistDao {
     @Query("SELECT * FROM artists WHERE id = :id")
     fun getById(id: Long): Flow<ArtistEntity?>
 
+    @Query("SELECT * FROM artists WHERE id = :id LIMIT 1")
+    suspend fun getByIdSync(id: Long): ArtistEntity?
+
     @Query("SELECT * FROM artists WHERE pluginId = :pluginId AND sourceId = :sourceId")
     fun getByMediaIdFlow(pluginId: String, sourceId: String): Flow<ArtistEntity?>
 

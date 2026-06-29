@@ -492,6 +492,9 @@ class PlayerRepositoryImpl @Inject constructor(
                 old.map { it.copy(isLiked = false, isDownloaded = false) } ==
                     new.map { it.copy(isLiked = false, isDownloaded = false) }
             }
+            // Share ONE collection across all consumers (UI + state persistence) instead of each
+            // independently re-running the per-row hydration — this is the heaviest flow in the app.
+            .stateIn(scope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     init {
         // Persist player state whenever it changes

@@ -27,6 +27,7 @@ import com.viperplayer.domain.repository.PluginRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -55,8 +56,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     // Helper function to load artist
     private suspend fun loadArtist(artistId: Long): Artist? {
-        val artistEntity = artistDao.getById(artistId).first() ?: return null
-        return artistEntity.toDomain()
+        return artistDao.getByIdSync(artistId)?.toDomain()
     }
 
     /**
@@ -346,42 +346,39 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     // Songs
     override fun getSong(mediaId: MediaId): Flow<Song?> {
+        // Hydrate the artist/album graph only when the song row itself changes (deduped via
+        // distinctUntilChanged on the entity) — NOT on every connectivity tick — and via one-shot
+        // sync queries instead of three duplicate row subscriptions + per-row Flow fan-out.
+        val hydrated: Flow<Pair<SongEntity, Song>?> =
+            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId)
+                .distinctUntilChanged()
+                .map { entity -> entity?.let { it to hydrateSong(it) } }
+        // isPlayable is the only connectivity-dependent field, so layer it on cheaply.
         return combine(
-            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
-            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id },
-            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.albumId },
+            hydrated,
             pluginRepository.connectedPlugins,
             networkConnectivityChecker.isInternetAvailable
-        ) { songEntity, songId, albumId, connectedPlugins, isInternetAvailable ->
-            if (songEntity == null) return@combine null
-
-            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
-            // Default to true for database songs (assume streaming)
-            val requiresInternet = true
-            val isPlayable = computeIsPlayable(
-                songEntity,
-                connectedPluginIds,
-                requiresInternet,
-                isInternetAvailable
-            )
-
-            val artistIds = songId?.let { crossRefDao.getArtistIdsForSong(it) } ?: emptyList()
-            val artists = artistIds.mapNotNull { artistId ->
-                loadArtist(artistId)
+        ) { pair, connectedPlugins, isInternetAvailable ->
+            pair?.let { (entity, song) ->
+                val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+                song.copy(
+                    isPlayable = computeIsPlayable(entity, connectedPluginIds, true, isInternetAvailable)
+                )
             }
-
-            val album = albumId?.let {
-                albumDao.getById(it).first()?.let { albumEntity ->
-                    val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
-                    val albumArtists = albumArtistIds.mapNotNull { artistId ->
-                        loadArtist(artistId)
-                    }
-                    albumEntity.toDomain(albumArtists)
-                }
-            }
-
-            songEntity.toDomain(album, artists, isPlayable, requiresInternet)
         }
+    }
+
+    /** Loads a song's artists + album graph using one-shot sync queries (no per-row Flow subscriptions). */
+    private suspend fun hydrateSong(entity: SongEntity): Song {
+        val artists = crossRefDao.getArtistIdsForSong(entity.id).mapNotNull { loadArtist(it) }
+        val album = entity.albumId?.let { albumId ->
+            albumDao.getByIdSync(albumId)?.let { albumEntity ->
+                val albumArtists =
+                    crossRefDao.getArtistIdsForAlbum(albumEntity.id).mapNotNull { loadArtist(it) }
+                albumEntity.toDomain(albumArtists)
+            }
+        }
+        return entity.toDomain(album, artists, isPlayable = true, requiresInternet = true)
     }
 
     override fun getAllLikedSongs(): Flow<List<Song>> {
