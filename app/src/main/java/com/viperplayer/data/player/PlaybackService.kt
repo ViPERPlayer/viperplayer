@@ -51,6 +51,7 @@ import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -117,6 +118,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
         // Restore player state if available
         restorePlayerState()
+
+        // Wire audio settings (skip-silence + ReplayGain) reactively to the player.
+        observeAudioSettings()
     }
 
     /**
@@ -353,44 +357,46 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             }
         }
 
-        // Apply ReplayGain as volume when a new media item starts playing
-        // Convert from dB to linear: linear = 10^(dB/20)
+        // Re-apply ReplayGain for the newly-started track. (It is also re-applied live when the
+        // ReplayGain settings change — see observeAudioSettings.)
         if (mediaItem != null) {
-            // TODO: Move to flow in order to observe replayGainEnabled and replayGainPreampDb
-            val replayGainDb = mediaItem.mediaMetadata.extras?.getFloat("replayGainDb")
-            val peakAmplitude = mediaItem.mediaMetadata.extras?.getFloat("peakAmplitude")
+            lifecycleScope.launch { applyReplayGain() }
+        }
+    }
 
-            // Check if ReplayGain is enabled
-            lifecycleScope.launch {
-                val replayGainEnabled = settingsRepository.replayGainEnabled.first()
-
-                val volume = if (replayGainEnabled && replayGainDb != null) {
-                    // Get preamp from settings and add it to ReplayGain
-                    val preampDb = settingsRepository.replayGainPreampDb.first()
-                    val finalGainDb = replayGainDb + preampDb
-
-                    // Convert from dB to linear: linear = 10^(dB/20)
-                    val replayGain = if (finalGainDb == 0f) {
-                        1.0f // 0 dB = 1.0 linear
-                    } else {
-                        10f.pow(finalGainDb / 20f)
-                    }
-
-                    // Apply peak amplitude limiting if available
-                    if (peakAmplitude != null && peakAmplitude > 0f) {
-                        min(replayGain, 1f / peakAmplitude)
-                    } else {
-                        replayGain
-                    }
-                } else {
-                    1f
-                }
-
-                Timber.d("onMediaItemTransition: volume=$volume (replayGainEnabled=$replayGainEnabled, replayGainDb=$replayGainDb, preampDb=${settingsRepository.replayGainPreampDb.first()}, peakAmplitude=$peakAmplitude)")
-
-                player.volume = volume.coerceIn(0f, 1f)
+    private fun observeAudioSettings() {
+        // Skip silence -> ExoPlayer's flag, which flows into the audio-processor chain.
+        lifecycleScope.launch {
+            settingsRepository.skipSilence.collect { enabled ->
+                player.skipSilenceEnabled = enabled
             }
         }
+        // ReplayGain -> re-apply to the current track whenever the toggle or preamp changes (track
+        // changes re-apply via onMediaItemTransition). The first emission applies the initial state.
+        lifecycleScope.launch {
+            combine(
+                settingsRepository.replayGainEnabled,
+                settingsRepository.replayGainPreampDb,
+            ) { _, _ -> }.collect { applyReplayGain() }
+        }
+    }
+
+    /** Sets the player volume from the current track's ReplayGain tags + preamp (peak-limited). */
+    private suspend fun applyReplayGain() {
+        val enabled = settingsRepository.replayGainEnabled.first()
+        val preampDb = settingsRepository.replayGainPreampDb.first()
+        val extras = player.currentMediaItem?.mediaMetadata?.extras
+        val replayGainDb = extras?.getFloat("replayGainDb")
+        val peakAmplitude = extras?.getFloat("peakAmplitude")
+        val volume = if (enabled && replayGainDb != null) {
+            val finalGainDb = replayGainDb + preampDb
+            val gain = if (finalGainDb == 0f) 1f else 10f.pow(finalGainDb / 20f)
+            if (peakAmplitude != null && peakAmplitude > 0f) min(gain, 1f / peakAmplitude) else gain
+        } else {
+            1f
+        }
+        Timber.d("applyReplayGain: volume=$volume (enabled=$enabled, replayGainDb=$replayGainDb, preampDb=$preampDb, peak=$peakAmplitude)")
+        player.volume = volume.coerceIn(0f, 1f)
     }
 
     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
