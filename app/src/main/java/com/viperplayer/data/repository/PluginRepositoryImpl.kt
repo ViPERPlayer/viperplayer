@@ -4,7 +4,13 @@ import android.util.Base64
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.GridSection
+import com.viperplayer.domain.model.HeroSection
+import com.viperplayer.domain.model.HomeSection
+import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
@@ -17,10 +23,12 @@ import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -34,7 +42,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PluginRepositoryImpl @Inject constructor(
-    private val dataSource: PluginDataSource
+    private val dataSource: PluginDataSource,
+    private val settingsRepository: SettingsRepository,
 ) : PluginRepository {
     override val discoveredPlugins: Flow<List<PluginInfo>>
         get() = dataSource.discoveredPlugins.map { plugins ->
@@ -131,7 +140,12 @@ class PluginRepositoryImpl @Inject constructor(
                 }
             }
 
-            Result.success(SearchResult(items = merged, nextCursor = encodeCursors(nextCursors)))
+            Result.success(
+                SearchResult(
+                    items = merged.withoutExplicit(hideExplicit()),
+                    nextCursor = encodeCursors(nextCursors),
+                )
+            )
         } catch (e: Exception) {
             Timber.e(e, "Error in search")
             Result.failure(e)
@@ -149,7 +163,13 @@ class PluginRepositoryImpl @Inject constructor(
                     }
                 }.awaitAll()
 
+                val hide = hideExplicit()
                 val successfulResults = results.mapNotNull { it.getOrNull() }
+                    .map { (pluginId, content) ->
+                        pluginId to content.copy(
+                            sections = content.sections.map { section -> section.withoutExplicit(hide) }
+                        )
+                    }
                 Result.success(successfulResults)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -273,15 +293,18 @@ class PluginRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getAlbum(mediaId: MediaId): Result<Album> {
-        return dataSource.getAlbum(mediaId)
+        val hide = hideExplicit()
+        return dataSource.getAlbum(mediaId).map { it.copy(songs = it.songs?.songsWithoutExplicit(hide)) }
     }
 
     override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
-        return dataSource.getArtist(mediaId)
+        val hide = hideExplicit()
+        return dataSource.getArtist(mediaId).map { it.copy(topSongs = it.topSongs.songsWithoutExplicit(hide)) }
     }
 
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
-        return dataSource.getPlaylist(mediaId)
+        val hide = hideExplicit()
+        return dataSource.getPlaylist(mediaId).map { it.copy(songs = it.songs?.songsWithoutExplicit(hide)) }
     }
 
     override suspend fun getLyrics(song: Song): Result<Lyrics?> {
@@ -299,7 +322,9 @@ class PluginRepositoryImpl @Inject constructor(
         cursor: String?,
         limit: Int
     ): Result<PagedResult<Song>> {
+        val hide = hideExplicit()
         return dataSource.getArtistSongs(artistId, cursor, limit)
+            .map { it.copy(items = it.items.songsWithoutExplicit(hide)) }
     }
 
     override suspend fun getArtistAlbums(
@@ -315,11 +340,32 @@ class PluginRepositoryImpl @Inject constructor(
         cursor: String?,
         limit: Int
     ): Result<PagedResult<Song>> {
+        val hide = hideExplicit()
         return dataSource.getPlaylistSongs(playlistId, cursor, limit)
+            .map { it.copy(items = it.items.songsWithoutExplicit(hide)) }
     }
 
     override suspend fun getRelatedSongs(songId: MediaId): Result<PagedResult<Song>> {
         return dataSource.getRelatedSongs(songId)
+    }
+
+    // --- Explicit-content filtering (Settings > Content > Show Explicit Content) ----------------
+    // Browse/discovery surfaces only (search, home, detail tracklists). The play queue, the
+    // related-songs feed, and the local library are intentionally NOT filtered here.
+    /** True when explicit tracks should be hidden. */
+    private suspend fun hideExplicit(): Boolean = !settingsRepository.showExplicitContent.first()
+
+    private fun List<MediaItem>.withoutExplicit(hide: Boolean): List<MediaItem> =
+        if (hide) filterNot { it is Song && it.isExplicit } else this
+
+    private fun List<Song>.songsWithoutExplicit(hide: Boolean): List<Song> =
+        if (hide) filterNot { it.isExplicit } else this
+
+    private fun HomeSection.withoutExplicit(hide: Boolean): HomeSection = when (this) {
+        is CarouselSection -> copy(items = items.withoutExplicit(hide))
+        is GridSection -> copy(items = items.withoutExplicit(hide))
+        is ListSection -> copy(items = items.withoutExplicit(hide))
+        is HeroSection, is BannerSection -> this
     }
 }
 
