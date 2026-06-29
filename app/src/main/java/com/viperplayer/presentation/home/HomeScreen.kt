@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Brush
@@ -306,9 +308,10 @@ private fun HomeScreenContent(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    items(uiState.categories) { category ->
+                                    itemsIndexed(uiState.categories) { index, category ->
                                         CategoryCard(
                                             category = category,
+                                            modifier = Modifier.revealOnAppear(index),
                                             onClick = { /* TODO: Navigate to category */ }
                                         )
                                     }
@@ -336,10 +339,11 @@ private fun HomeScreenContent(
                                         contentPadding = PaddingValues(horizontal = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        items(quickPicks) { item ->
+                                        itemsIndexed(quickPicks) { index, item ->
                                             val active = isCurrent(item, currentSongId)
                                             MediaItemCard(
                                                 item = item,
+                                                modifier = Modifier.revealOnAppear(index),
                                                 isActive = active,
                                                 isPlaying = active && isPlaying,
                                                 onClick = {
@@ -506,10 +510,11 @@ private fun LazyListScope.homeSection(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(section.items) { item ->
+                            itemsIndexed(section.items) { index, item ->
                                 val active = isCurrent(item, currentSongId)
                                 MediaItemCard(
                                     item = item,
+                                    modifier = Modifier.revealOnAppear(index),
                                     isActive = active,
                                     isPlaying = active && isPlaying,
                                     onClick = { onItemClick(item) },
@@ -525,11 +530,12 @@ private fun LazyListScope.homeSection(
         is GridSection -> {
             sectionHeader(section.title, section.subtitle)
             val columns = section.columns.coerceAtLeast(1)
-            items(section.items.chunked(columns)) { rowItems ->
+            itemsIndexed(section.items.chunked(columns)) { index, rowItems ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .revealOnAppear(index),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     rowItems.forEach { item ->
@@ -552,14 +558,16 @@ private fun LazyListScope.homeSection(
 
         is ListSection -> {
             sectionHeader(section.title, section.subtitle)
-            items(section.items) { item ->
+            itemsIndexed(section.items) { index, item ->
                 val active = isCurrent(item, currentSongId)
-                TrackRow(
-                    item = item,
-                    isActive = active,
-                    isPlaying = active && isPlaying,
-                    onClick = { onItemClick(item) },
-                )
+                Box(modifier = Modifier.revealOnAppear(index)) {
+                    TrackRow(
+                        item = item,
+                        isActive = active,
+                        isPlaying = active && isPlaying,
+                        onClick = { onItemClick(item) },
+                    )
+                }
             }
         }
 

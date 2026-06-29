@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -422,9 +424,9 @@ fun SearchScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = rootPadding.bottom()
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = state.items,
-                            ) { item ->
+                            ) { index, item ->
                                 ListItem(
                                     type = item.type,
                                     title = item.title,
@@ -529,6 +531,7 @@ fun SearchScreen(
                                     modifier = Modifier
                                         .animateItem()
                                         .fillMaxWidth()
+                                        .revealOnAppear(index)
                                 )
                             }
 

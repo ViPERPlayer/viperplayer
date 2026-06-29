@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Refresh
@@ -127,7 +129,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                items(uiState.songs) { song ->
+                                itemsIndexed(uiState.songs) { index, song ->
                                     ListItem(
                                         type = SearchItem.Type.SONG,
                                         title = song.title,
@@ -148,7 +150,7 @@ fun LibraryScreen(
                                             { viewModel.addToQueue(song) }
                                         } else null,
                                         modifier = Modifier
-                                            .animateItem()
+                                            .animateItem().revealOnAppear(index)
                                             .fillMaxWidth()
                                             .then(
                                                 if (!song.isPlayable) {
@@ -171,7 +173,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                items(uiState.albums) { album ->
+                                itemsIndexed(uiState.albums) { index, album ->
                                     ListItem(
                                         type = SearchItem.Type.ALBUM,
                                         title = album.name,
@@ -185,7 +187,7 @@ fun LibraryScreen(
                                         onMoreClick = { selectedMediaItem = album },
                                         onLongClick = { selectedMediaItem = album },
                                         modifier = Modifier
-                                            .animateItem()
+                                            .animateItem().revealOnAppear(index)
                                             .fillMaxWidth()
                                     )
                                 }
@@ -201,7 +203,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                items(uiState.artists) { artist ->
+                                itemsIndexed(uiState.artists) { index, artist ->
                                     ListItem(
                                         type = SearchItem.Type.ARTIST,
                                         title = artist.name,
@@ -214,7 +216,7 @@ fun LibraryScreen(
                                         onMoreClick = { selectedMediaItem = artist },
                                         onLongClick = { selectedMediaItem = artist },
                                         modifier = Modifier
-                                            .animateItem()
+                                            .animateItem().revealOnAppear(index)
                                             .fillMaxWidth()
                                     )
                                 }
@@ -230,7 +232,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                items(uiState.playlists) { playlist ->
+                                itemsIndexed(uiState.playlists) { index, playlist ->
                                     ListItem(
                                         type = SearchItem.Type.PLAYLIST,
                                         title = playlist.name,
@@ -246,7 +248,7 @@ fun LibraryScreen(
                                         onMoreClick = { selectedMediaItem = playlist },
                                         onLongClick = { selectedMediaItem = playlist },
                                         modifier = Modifier
-                                            .animateItem()
+                                            .animateItem().revealOnAppear(index)
                                             .fillMaxWidth()
                                     )
                                 }
