@@ -25,7 +25,7 @@ public:
     uint32_t lowFreqX, highFreqX;
     uint32_t lowFreqY, highFreqY;
     uint32_t samplingRate;
-    float qPeak;
+    int32_t qPeak;   // truncated, clamped to <= 1600 (binary stores it as an int)
     float bassGain;
     float sideGainX, sideGainY;
 

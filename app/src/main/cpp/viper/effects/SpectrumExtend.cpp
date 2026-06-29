@@ -1,5 +1,13 @@
 #include "SpectrumExtend.h"
 
+// Filter quality factor shared by the high-pass and low-pass stages.
+// 0x3f378d50 = 0.7170000076f
+static constexpr float SPECTRUM_FILTER_Q = 0.717f;
+// Low-pass cutoff is placed this far below Nyquist. 0x44fa0000 = 2000.0f
+static constexpr float SPECTRUM_LOWPASS_MARGIN = 2000.0f;
+
+// Target harmonic spectrum: the odd harmonics (1st, 3rd, 5th, 7th, 9th) at 0.02 each.
+// 0.02f = 0x3ca3d70a. Data @ 0xCE848.
 static const float SPECTRUM_HARMONICS[10] = {
         0.02f,
         0.0f,
@@ -36,15 +44,17 @@ void SpectrumExtend::Process(float *samples, uint32_t size) {
 }
 
 void SpectrumExtend::Reset() {
+    // High-pass at the reference frequency isolates the upper band that gets re-harmonised.
     this->highpass[0].RefreshFilter(MultiBiquad::FilterType::HIGH_PASS, 0.0, (float) this->referenceFreq, this->samplingRate,
-                                    0.717, false);
+                                    SPECTRUM_FILTER_Q, false);
     this->highpass[1].RefreshFilter(MultiBiquad::FilterType::HIGH_PASS, 0.0, (float) this->referenceFreq, this->samplingRate,
-                                    0.717, false);
+                                    SPECTRUM_FILTER_Q, false);
 
-    this->lowpass[0].RefreshFilter(MultiBiquad::FilterType::LOW_PASS, 0.0, (float) this->samplingRate / 2.0f - 2000.0f,
-                                   this->samplingRate, 0.717, false);
-    this->lowpass[1].RefreshFilter(MultiBiquad::FilterType::LOW_PASS, 0.0, (float) this->samplingRate / 2.0f - 2000.0f,
-                                   this->samplingRate, 0.717, false);
+    // Low-pass just below Nyquist keeps the generated harmonics from aliasing.
+    this->lowpass[0].RefreshFilter(MultiBiquad::FilterType::LOW_PASS, 0.0, (float) this->samplingRate / 2.0f - SPECTRUM_LOWPASS_MARGIN,
+                                   this->samplingRate, SPECTRUM_FILTER_Q, false);
+    this->lowpass[1].RefreshFilter(MultiBiquad::FilterType::LOW_PASS, 0.0, (float) this->samplingRate / 2.0f - SPECTRUM_LOWPASS_MARGIN,
+                                   this->samplingRate, SPECTRUM_FILTER_Q, false);
 
     this->harmonics[0].Reset();
     this->harmonics[1].Reset();

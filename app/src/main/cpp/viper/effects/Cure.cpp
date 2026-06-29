@@ -18,7 +18,6 @@ float Cure::GetLevelDelay() {
     return this->crossfeed.GetLevelDelay();
 }
 
-// TODO: Fix with crossfeed
 struct Crossfeed::Preset Cure::GetPreset() {
     return this->crossfeed.GetPreset();
 }
@@ -41,9 +40,9 @@ void Cure::SetCutoff(uint16_t cutoff) {
 
 void Cure::SetEnable(bool enabled) {
     if (this->enabled != enabled) {
-        if (enabled) {
-            Reset();
-        }
+        // The original resets on every state transition (enable AND disable),
+        // not only when enabling. Reset runs before the flag is updated.
+        Reset();
         this->enabled = enabled;
     }
 }

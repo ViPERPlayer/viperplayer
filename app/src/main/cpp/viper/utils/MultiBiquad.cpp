@@ -119,7 +119,7 @@ MultiBiquad::RefreshFilter(FilterType type, float gainAmp, float frequency, uint
             b2 = 1.0 - y * gain;
             break;
         }
-        case LOW_SHELF: { // TODO: Check me!
+        case LOW_SHELF: { // Verified against decomp 00066b48 case 6 (z = 2*sqrt(gain)*alpha)
             double tmp1 = (gain + 1.0) - (gain - 1.0) * cosOmega;
             double tmp2 = (gain + 1.0) + (gain - 1.0) * cosOmega;
             a1 = ((gain - 1.0) + (gain + 1.0) * cosOmega) * -2.0;
@@ -130,7 +130,7 @@ MultiBiquad::RefreshFilter(FilterType type, float gainAmp, float frequency, uint
             b2 = (tmp1 - z) * gain;
             break;
         }
-        case HIGH_SHELF: { // TODO: Check me!
+        case HIGH_SHELF: { // Verified against decomp 00066b48 case 7 (z = 2*sqrt(gain)*alpha)
             double tmp1 = (gain + 1.0) + (gain - 1.0) * cosOmega;
             double tmp2 = (gain + 1.0) - (gain - 1.0) * cosOmega;
             a2 = tmp2 - z;

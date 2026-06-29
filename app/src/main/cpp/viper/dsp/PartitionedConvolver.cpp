@@ -5,7 +5,7 @@
 namespace viper {
 namespace dsp {
 
-PartitionedConvolver::PartitionedConvolver() : fft(0), blockSize(0), segments(0) {}
+PartitionedConvolver::PartitionedConvolver() : blockSize(0), segments(0) {}
 
 PartitionedConvolver::~PartitionedConvolver() { ReleaseResources(); }
 
@@ -38,7 +38,7 @@ bool PartitionedConvolver::LoadKernel(const float *kernel, uint32_t length,
   this->segments = (length + blockSize - 1) / blockSize;
 
   // Initialize FFT for size 2*blockSize
-  fft = viper::utils::FFT(blockSize * 2);
+  fft = std::make_unique<viper::utils::FFT>(blockSize * 2);
 
   // Resize storage
   kernelPartitions.resize(segments);
@@ -71,7 +71,7 @@ bool PartitionedConvolver::LoadKernel(const float *kernel, uint32_t length,
 
     // FFT [Size 2N]
     kernelPartitions[i].resize(blockSize + 1);
-    fft.Forward(timeDomainBuffer.data(), kernelPartitions[i].data());
+    fft->Forward(timeDomainBuffer.data(), kernelPartitions[i].data());
 
     // Initialize input partitions
     inputPartitions[i].resize(blockSize + 1, std::complex<float>(0.0f, 0.0f));
@@ -93,7 +93,7 @@ void PartitionedConvolver::ProcessBlock(const float *inBlock, float *outBlock) {
 
   // 2. FFT current block -> F[0]
   // Use scratch buffer: processPartition
-  fft.Forward(processTimeDomain.data(), processPartition.data());
+  fft->Forward(processTimeDomain.data(), processPartition.data());
 
   // 3. Shift input partitions history
   // inputPartitions[0] is most recent
@@ -116,7 +116,7 @@ void PartitionedConvolver::ProcessBlock(const float *inBlock, float *outBlock) {
 
   // 5. IFFT
   // Use scratch buffer: processResultTime
-  fft.Inverse(processResultFreq.data(), processResultTime.data());
+  fft->Inverse(processResultFreq.data(), processResultTime.data());
 
   // 6. Overlap-Add
   for (uint32_t i = 0; i < blockSize; i++) {

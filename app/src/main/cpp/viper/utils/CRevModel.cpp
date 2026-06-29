@@ -53,6 +53,7 @@ CRevModel::CRevModel() {
     allpassL[3].SetBuffer(buffers[22], 225);
     allpassR[3].SetBuffer(buffers[23], 248);
 
+    // Allpass feedback fixed at 0x1000000 (Q25) = 0.5 (ctor @ 000696d8).
     allpassL[0].SetFeedback(0.5);
     allpassR[0].SetFeedback(0.5);
     allpassL[1].SetFeedback(0.5);
@@ -62,7 +63,12 @@ CRevModel::CRevModel() {
     allpassL[3].SetFeedback(0.5);
     allpassR[3].SetFeedback(0.5);
 
-    SetWet(0.167);
+    // Default parameters from ctor @ 000696d8 (Q25 values):
+    //   SetWet(0x558106=0.16699787), SetRoomSize(0x1000000=0.5),
+    //   SetDry(0x800000=0.25), SetDamp(0x1000000=0.5),
+    //   SetWidth(0x2000000=1.0), SetMode(0). Reverberation's ctor overrides
+    //   roomSize/width/damp/wet with 0 and dry with 0.5 immediately after.
+    SetWet(0.16699787f);
     SetRoomSize(0.5);
     SetDry(0.25);
     SetDamp(0.5);
@@ -87,10 +93,12 @@ float CRevModel::GetDry() {
 }
 
 float CRevModel::GetMode() {
-    if (this->mode >= 0.5) {
-        return 1.0;
+    // GetMode @ 00069650: returns exactly 1.0 (0x2000000 in Q25) when frozen
+    // (mode >= 0.5 / 0x1000000), otherwise exactly 0.0.
+    if (this->mode >= 0.5f) {
+        return 1.0f;
     }
-    return this->mode;
+    return 0.0f;
 }
 
 float CRevModel::GetRoomSize() {
@@ -135,8 +143,8 @@ void CRevModel::ProcessReplace(float *bufL, float *bufR, uint32_t size) {
             outR = this->allpassR[i].Process(outR);
         }
 
-        bufL[idx] = outL * this->unknown1 + outR * this->unknown2 + bufL[idx] * this->dry;
-        bufR[idx] = outR * this->unknown1 + outL * this->unknown2 + bufR[idx] * this->dry;
+        bufL[idx] = outL * this->wet1 + outR * this->wet2 + bufL[idx] * this->dry;
+        bufR[idx] = outR * this->wet1 + outL * this->wet2 + bufR[idx] * this->dry;
     }
 }
 
@@ -155,11 +163,13 @@ void CRevModel::Reset() {
 }
 
 void CRevModel::SetDamp(float damp) {
+    // SetDamp @ 000694e8: param * 0xccccce(Q25) = param * 0.4
     this->damp = damp * 0.4f;
     UpdateCoeffs();
 }
 
 void CRevModel::SetDry(float dry) {
+    // SetDry @ 000695b8: dry << 1 = dry * 2
     this->dry = dry * 2.0f;
 }
 
@@ -169,11 +179,14 @@ void CRevModel::SetMode(float mode) {
 }
 
 void CRevModel::SetRoomSize(float roomSize) {
+    // SetRoomSize @ 00069460: param * 0x8f5c2a(Q25) + 0x1666666(Q25)
+    //   = param * 0.28 + 0.7
     this->roomSize = (roomSize * 0.28f) + 0.7f;
     UpdateCoeffs();
 }
 
 void CRevModel::SetWet(float wet) {
+    // SetWet @ 00069554: param * 0x6000000(Q25) = param * 3
     this->wet = wet * 3.0f;
     UpdateCoeffs();
 }
@@ -184,17 +197,19 @@ void CRevModel::SetWidth(float width) {
 }
 
 void CRevModel::UpdateCoeffs() {
-    this->unknown1 = this->wet * (this->width / 2.0f + 0.5f);
-    this->unknown2 = this->wet * (1.0f - this->width) / 2.0f;
+    this->wet1 = this->wet * (this->width / 2.0f + 0.5f);
+    this->wet2 = this->wet * (1.0f - this->width) / 2.0f;
 
-    if (this->mode >= 0.5) {
-        this->internalRoomSize = 1.0;
-        this->internalDamp = 0.0;
-        this->gain = 0.0;
+    if (this->mode >= 0.5f) {
+        // Frozen mode (mode >= 0x1000000): hold the buffers, no input gain.
+        this->internalRoomSize = 1.0f;
+        this->internalDamp = 0.0f;
+        this->gain = 0.0f;
     } else {
         this->internalRoomSize = this->roomSize;
         this->internalDamp = this->damp;
-        this->gain = 0.015;
+        // 0x7ae14 = 503316 in Q25 = 0.015 (Freeverb fixedgain).
+        this->gain = 0.015f;
     }
 
     for (int i = 0; i < 8; i++) {

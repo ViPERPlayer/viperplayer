@@ -19,6 +19,17 @@ void Reverberation::Reset() {
     this->model.Reset();
 }
 
+void Reverberation::SetSamplingRate(uint32_t samplingRate) {
+    // SetSamplingRate @ 00068e14: ignore no-op changes; otherwise cache the new
+    // rate and reset the model. The comb/allpass buffer lengths are fixed (tuned
+    // for 44100 Hz in the original) and are NOT rescaled here.
+    if (this->samplingRate == samplingRate) {
+        return;
+    }
+    this->samplingRate = samplingRate;
+    this->model.Reset();
+}
+
 void Reverberation::SetDamp(float value) {
     this->model.SetDamp(value);
 }

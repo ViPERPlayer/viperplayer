@@ -60,12 +60,22 @@ private:
   viper::utils::CircularBuffer inputBuffer;
   viper::utils::CircularBuffer outputBuffer;
 
-  // Cross channel handling (simplified for now as per decompiled hint)
-  // Decompiled code has SetCrossChannel but logic was a bit obscure.
-  // It seems to mix channels if cross channel is set.
+  // Cross channel mixing: outL = L + level*R, outR = R + level*L.
+  // SetCrossChannel clamps level to [0,1]; mixing is only applied when the
+  // level exceeds CROSS_CHANNEL_THRESHOLD (tracked by crossChannelEnabled),
+  // matching the original Convolver::SetCrossChannel.
   float crossChannelLevel;
+  bool crossChannelEnabled;
 
+  // 0x1000 in Convolver::Convolver / SetKernel (PConvSingle block size argument)
   static const uint32_t CONVOLVER_BLOCK_SIZE = 4096;
+
+  // Original requires a kernel of at least 16 samples per channel
+  // (Convolver::SetKernel: `if (param_2 < 0x10) return;`).
+  static const uint32_t MIN_KERNEL_SAMPLES = 16;
+
+  // 0x00064074 = 0x38d1b717 = 9.999999747e-05f (cross-channel enable threshold)
+  static constexpr float CROSS_CHANNEL_THRESHOLD = 9.999999747e-05f;
 
   // Scratch buffers for Process loop
   std::vector<float> scratchInterleaved;

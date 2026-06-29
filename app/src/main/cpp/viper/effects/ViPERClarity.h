@@ -5,7 +5,7 @@
 #include "../utils/HiFi.h"
 #include "../utils/HighShelf.h"
 
-// Iscle: Verified with the latest version at 13/12/2022
+// Verified against ViPER4Android v2505 (ARM NEON decompilation).
 
 class ViPERClarity {
 public:

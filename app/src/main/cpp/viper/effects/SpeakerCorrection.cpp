@@ -1,6 +1,12 @@
 #include "SpeakerCorrection.h"
 
-// Iscle: Verified with the latest version at 13/12/2022
+// Verified against ViPER4Android v2505 (libv4a_fx_jb_NEON.so).
+// Topology per channel (SpeakerCorrection::Process @ 0x69e0c):
+//   out = lowPass -> highPass -> (out / 2) ; out += bandPass(out)
+// The original uses FixedBiquad (Q24 fixed-point) for low/band pass and a
+// MultiBiquad for the high pass; this reconstruction uses the double-precision
+// Biquad/MultiBiquad equivalents. The "/ 2" matches the Q24 halving
+// ((x << 24 + 2^24) >> 25) in the original.
 
 SpeakerCorrection::SpeakerCorrection(uint32_t samplingRate) : samplingRate(samplingRate) {
     Reset();
@@ -32,10 +38,14 @@ void SpeakerCorrection::Reset() {
     this->bandPass[0].Reset();
     this->bandPass[1].Reset();
 
+    // High pass: 80 Hz, Q = 1.0, 0 dB gain (RefreshFilter type 1 = HIGH_PASS).
+    // 0x42a00000 = 80.0f (freq), 0x3f800000 = 1.0f (Q), gain 0.0, octaves=false.
     this->highPass[0].RefreshFilter(MultiBiquad::FilterType::HIGH_PASS, 0.0, 80.0, this->samplingRate, 1.0, false);
     this->highPass[1].RefreshFilter(MultiBiquad::FilterType::HIGH_PASS, 0.0, 80.0, this->samplingRate, 1.0, false);
+    // Low pass: 13500 Hz, Q = 1.0. 0x4652f000 = 13500.0f, 0x3f800000 = 1.0f.
     this->lowPass[0].SetLowPassParameter(13500.0, this->samplingRate, 1.0);
     this->lowPass[1].SetLowPassParameter(13500.0, this->samplingRate, 1.0);
+    // Band pass: 420 Hz, Q = 3.88. 0x43d20000 = 420.0f, 0x407851ec = 3.88f.
     this->bandPass[0].SetBandPassParameter(420.0, this->samplingRate, 3.88);
     this->bandPass[1].SetBandPassParameter(420.0, this->samplingRate, 3.88);
 }

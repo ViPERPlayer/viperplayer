@@ -6,7 +6,7 @@
 #include "../utils/WaveBuffer.h"
 #include "../utils/Polyphase.h"
 
-// Iscle: Verified with the latest version at 13/12/2022
+// Reconstructed from ViPER4Android v2505.
 
 class ViPERBass {
 public:
@@ -28,7 +28,9 @@ public:
 
 private:
     Polyphase polyphase;
-    Biquad biquad[2];
+    // Native ViPERBass owns a single FixedBiquad (one low-pass on the mono mix used
+    // by both NATURAL_BASS and PURE_BASS_PLUS); there is no per-channel second biquad.
+    Biquad biquad;
     Subwoofer subwoofer;
     WaveBuffer waveBuffer;
     bool enable = false;
@@ -36,6 +38,6 @@ private:
     uint32_t samplingRate;
     float samplingRatePeriod;
     float antiPop = 0;
-    uint32_t speaker = 60;
+    uint32_t speaker = 60; // 0x6c024: default 0x3c == 60 Hz
     float bassFactor = 0;
 };

@@ -1,8 +1,5 @@
 #include "IIREqualizer.h"
 #include <cmath>
-#include <numbers>
-#include <stdexcept>
-#include <iostream>
 
 namespace viper {
 namespace dsp {
@@ -55,20 +52,28 @@ namespace dsp {
 
     void IIREqualizer::setupBands() {
         mBandFrequencies.clear();
-        double qFactor = 1.414; // Default Q, will be calculated per band type
+        // NOTE: these center frequencies and Q values are reconstruction
+        // approximations (standard ISO octave fractions / constant-Q bandwidth).
+        // They are NOT the binary's tables -- the original min-phase coefficient
+        // generator (MinPhaseIIRCoeffs::GetIndexFrequency) keeps per-band-count
+        // frequency tables in .rodata that could not be extracted from the
+        // provided section-relative dump. The original also supports a 25-band
+        // mode (not represented by this 3-value enum); adding it would require
+        // changing the enum + JNI ordinal mapping in another unit.
+        double qFactor = 1.414;
 
         switch (mBandCountType) {
-            case BandCount::BANDS_10: // ISO Octave bands
+            case BandCount::BANDS_10: // ISO octave bands
                 mBandFrequencies = {31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0};
-                qFactor = 1.414; // Approximate Q for 1 octave bandwidth
+                qFactor = 1.414; // ~1 octave bandwidth (unverified vs binary)
                 break;
-            case BandCount::BANDS_15: // ISO 2/3 Octave bands
+            case BandCount::BANDS_15: // ISO 2/3 octave bands
                  mBandFrequencies = {25.0, 40.0, 63.0, 100.0, 160.0, 250.0, 400.0, 630.0, 1000.0, 1600.0, 2500.0, 4000.0, 6300.0, 10000.0, 16000.0};
-                 qFactor = 2.145; // Approximate Q for 2/3 octave
+                 qFactor = 2.145; // ~2/3 octave bandwidth (unverified vs binary)
                  break;
-            case BandCount::BANDS_31: // ISO 1/3 Octave bands
+            case BandCount::BANDS_31: // ISO 1/3 octave bands
                 mBandFrequencies = {20.0, 25.0, 31.5, 40.0, 50.0, 63.0, 80.0, 100.0, 125.0, 160.0, 200.0, 250.0, 315.0, 400.0, 500.0, 630.0, 800.0, 1000.0, 1250.0, 1600.0, 2000.0, 2500.0, 3150.0, 4000.0, 5000.0, 6300.0, 8000.0, 10000.0, 12500.0, 16000.0, 20000.0};
-                qFactor = 4.318; // Approximate Q for 1/3 octave
+                qFactor = 4.318; // ~1/3 octave bandwidth (unverified vs binary)
                 break;
         }
 
@@ -151,7 +156,7 @@ namespace dsp {
                  samples[i+1] = static_cast<float>(right);
              }
         }
-        // Other channel counts ignored in this strict implementation
+        // Channel counts other than 1 or 2 are not handled.
     }
 
     double IIREqualizer::getBandFrequency(int bandIndex) const {

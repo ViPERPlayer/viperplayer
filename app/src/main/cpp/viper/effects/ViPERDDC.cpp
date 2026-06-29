@@ -17,13 +17,20 @@ void ViPERDDC::Process(float *samples, uint32_t size) {
 
     const std::vector<std::array<float, 5>> *coeffsArr = &it->second;
 
+    // Stereo, interleaved. The two channels share no state, so processing both within
+    // one section loop is equivalent to the original's two separate per-channel passes
+    // (@0006df90: left cascade first, then right cascade).
     for (uint32_t i = 0; i < size * 2; i += 2) {
         float sampleL = samples[i];
         float sampleR = samples[i + 1];
 
+        // Cascade of biquads: each section's output becomes the next section's input.
         for (uint32_t j = 0; j < this->arrSize; j++) {
             const std::array<float, 5> *coeffs = &(*coeffsArr)[j];
 
+            // Coefficient layout { b0, b1, b2, a1, a2 }; a1/a2 are pre-negated so the
+            // Direct-Form-I difference equation below is purely additive (matches the
+            // original's piVar7[0..4] usage).
             float b0 = (*coeffs)[0];
             float b1 = (*coeffs)[1];
             float b2 = (*coeffs)[2];
@@ -82,14 +89,13 @@ void ViPERDDC::Reset() {
     if (!this->setCoeffsOk) return;
     if (this->arrSize == 0) return;
 
+    // Fidelity: the original Reset (@0006dbb0) clears ONLY the x1 input-history
+    // buffers (0x14 = x1L, 0x18 = x1R); the x2/y1/y2 buffers are intentionally left
+    // untouched. This is preserved verbatim so behaviour matches v2505 exactly. (The
+    // full buffers are still zero-initialised once when the cascade is first sized in
+    // AddCoeffs, so a fresh filter still starts from silence.)
     std::fill(this->x1L.begin(), this->x1L.end(), 0.0f);
     std::fill(this->x1R.begin(), this->x1R.end(), 0.0f);
-    std::fill(this->x2L.begin(), this->x2L.end(), 0.0f);
-    std::fill(this->x2R.begin(), this->x2R.end(), 0.0f);
-    std::fill(this->y1L.begin(), this->y1L.end(), 0.0f);
-    std::fill(this->y1R.begin(), this->y1R.end(), 0.0f);
-    std::fill(this->y2L.begin(), this->y2L.end(), 0.0f);
-    std::fill(this->y2R.begin(), this->y2R.end(), 0.0f);
 }
 
 void ViPERDDC::ClearCoeffs() {
@@ -112,9 +118,10 @@ void ViPERDDC::AddCoeffs(uint32_t rate, const std::vector<std::array<float, 5>>&
         this->y1R.resize(this->arrSize);
         this->y2L.resize(this->arrSize);
         this->y2R.resize(this->arrSize);
-        
-        // Clear buffers
-        Reset();
+
+        // resize() value-initialises every history element to 0.0f, so the whole
+        // cascade starts from silence (the original memset's all eight state arrays
+        // when SetCoeffs allocates them @0006dc6c).
         this->setCoeffsOk = true;
     } else {
         // Validation: subsequent rates must have same size

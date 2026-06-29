@@ -1,6 +1,6 @@
 #include "ViPERClarity.h"
 
-// Iscle: Verified with the latest version at 13/12/2022
+// Verified against ViPER4Android v2505 (ARM NEON decompilation).
 
 ViPERClarity::ViPERClarity(uint32_t samplingRate) : noiseSharpening(samplingRate), hifi(samplingRate), samplingRate(samplingRate) {
     Reset();
@@ -33,7 +33,11 @@ void ViPERClarity::Reset() {
     this->noiseSharpening.Reset();
     SetClarityToFilter();
     for (auto &highShelf : this->highShelf) {
-        highShelf.SetFrequency(8250.0);
+        highShelf.SetFrequency(8250.0f); // 0x4600e800 = 8250.0
+        // Matches the original ordering (SetFrequency -> SetQuality -> SetSamplingRate).
+        // HighShelf stores the quality value but never reads it (SetSamplingRate only uses
+        // frequency + gain), so this is functionally a no-op but kept for API fidelity.
+        highShelf.SetQuality(100.0f); // 0x42c80000 = 100.0
         highShelf.SetSamplingRate(this->samplingRate);
     }
     this->hifi.SetSamplingRate(this->samplingRate);
@@ -50,6 +54,8 @@ void ViPERClarity::SetClarity(float gainPercent) {
 }
 
 void ViPERClarity::SetClarityToFilter() {
+    // NoiseSharpening receives the raw clarity amount; the high-shelf / HiFi paths receive
+    // clarity + 1.0 so that a clarity of 0 maps to unity gain (0 dB shelf, HiFi gain 1.0).
     this->noiseSharpening.SetGain(this->clarityGainPercent);
     this->highShelf[0].SetGain(this->clarityGainPercent + 1.0f);
     this->highShelf[1].SetGain(this->clarityGainPercent + 1.0f);

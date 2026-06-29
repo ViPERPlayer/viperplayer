@@ -14,6 +14,10 @@ void HighShelf::SetFrequency(float freq) {
     this->frequency = freq;
 }
 
+void HighShelf::SetQuality(float quality) {
+    this->quality = quality;
+}
+
 void HighShelf::SetGain(float gain) {
     this->gain = 20.0 * log10((double) gain);
 }

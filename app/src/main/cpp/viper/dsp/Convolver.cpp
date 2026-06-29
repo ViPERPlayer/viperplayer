@@ -5,10 +5,10 @@ namespace viper {
 namespace dsp {
 
 Convolver::Convolver()
-    : enabled(false), samplingRate(44100), inputBuffer(2, CONVOLVER_BLOCK_SIZE * 4), outputBuffer(2, CONVOLVER_BLOCK_SIZE * 4), crossChannelLevel(0.0f) {
+    // 0xac44 = 44100 default sampling rate (Convolver::Convolver @ 00063cd8)
+    : enabled(false), samplingRate(44100), inputBuffer(2, CONVOLVER_BLOCK_SIZE * 4), outputBuffer(2, CONVOLVER_BLOCK_SIZE * 4), crossChannelLevel(0.0f), crossChannelEnabled(false) {
 
-  convLeft = PartitionedConvolver();
-  convRight = PartitionedConvolver();
+  // convLeft/convRight are already default-constructed.
 
   // Allocate scratch buffers
   scratchInterleaved.resize(CONVOLVER_BLOCK_SIZE * 2);
@@ -24,10 +24,15 @@ Convolver::~Convolver() {}
 
 void Convolver::SetEnable(bool enable) {
   std::lock_guard<std::recursive_mutex> lock(mutex);
-  if (this->enabled != enable) {
-    this->enabled = enable;
+  // Matches Convolver::SetEnable @ 000640c4: when transitioning from disabled
+  // to enabled the state is flushed via Reset() *before* the flag is raised;
+  // disabling does not reset.
+  if (!this->enabled) {
+    if (!enable)
+      return;
     Reset();
   }
+  this->enabled = enable;
 }
 
 bool Convolver::GetEnabled() const { return enabled; }
@@ -45,6 +50,9 @@ void Convolver::LoadKernelMono(const float *kernel, uint32_t samples) {
   if (!kernel || samples == 0)
     return;
 
+  if (samples < MIN_KERNEL_SAMPLES)
+    return;
+
   // Apply same kernel to both channels
   convLeft.LoadKernel(kernel, samples, CONVOLVER_BLOCK_SIZE);
   convRight.LoadKernel(kernel, samples, CONVOLVER_BLOCK_SIZE);
@@ -54,7 +62,7 @@ void Convolver::LoadKernelMono(const float *kernel, uint32_t samples) {
 void Convolver::LoadKernelStereo(const float *kernelL, const float *kernelR,
                                  uint32_t samples) {
   std::lock_guard<std::recursive_mutex> lock(mutex);
-  if (!kernelL || !kernelR || samples == 0)
+  if (!kernelL || !kernelR || samples < MIN_KERNEL_SAMPLES)
     return;
 
   convLeft.LoadKernel(kernelL, samples, CONVOLVER_BLOCK_SIZE);
@@ -93,7 +101,18 @@ bool Convolver::IsKernelLoaded() const {
 
 void Convolver::SetCrossChannel(float level) {
   std::lock_guard<std::recursive_mutex> lock(mutex);
-  this->crossChannelLevel = level;
+  // Convolver::SetCrossChannel @ 00064018: clamp to [0,1] and only arm the
+  // mixing once the level rises above the enable threshold.
+  if (level < 0.0f) {
+    crossChannelLevel = 0.0f;
+    crossChannelEnabled = false;
+  } else if (level > 1.0f) {
+    crossChannelLevel = 1.0f; // 0x3f800000 = 1.0f
+    crossChannelEnabled = true;
+  } else {
+    crossChannelLevel = level;
+    crossChannelEnabled = level > CROSS_CHANNEL_THRESHOLD;
+  }
 }
 
 void Convolver::Reset() {
@@ -111,13 +130,12 @@ void Convolver::Process(float *input, float *output, uint32_t frameCount) {
     return;
   }
   
-  // Push input samples (Interleaved)
+  // Push input samples (interleaved) into the staging buffer.
   inputBuffer.Push(input, frameCount);
-//... (rest of method follows)
 
+  // Drain whole blocks while enough input has accumulated.
   while (inputBuffer.GetSize() >= CONVOLVER_BLOCK_SIZE) {
-    // Pop a block
-    // Pop a block
+    // Pop one block of interleaved stereo.
     inputBuffer.Pop(scratchInterleaved.data(), CONVOLVER_BLOCK_SIZE);
 
     // Deinterlace
@@ -130,8 +148,8 @@ void Convolver::Process(float *input, float *output, uint32_t frameCount) {
     convLeft.ProcessBlock(scratchInputL.data(), scratchOutputL.data());
     convRight.ProcessBlock(scratchInputR.data(), scratchOutputR.data());
 
-    // Apply Cross Channel Mixing
-    if (crossChannelLevel > 0.0001f) {
+    // Apply Cross Channel Mixing (outL = L + level*R, outR = R + level*L)
+    if (crossChannelEnabled) {
       for (uint32_t i = 0; i < CONVOLVER_BLOCK_SIZE; i++) {
         float l = scratchOutputL[i];
         float r = scratchOutputR[i];

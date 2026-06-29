@@ -13,6 +13,8 @@ Crossfeed::Crossfeed(uint32_t samplingRate) : samplingRate(samplingRate) {
     this->b1_hi = 0.f;
     this->gain = 0.f;
     memset(&this->lfs, 0, 6 * sizeof(float));
+    // Default preset packed as 0x2d02bc: low 16 bits = cutoff (0x2bc = 700 Hz),
+    // high 16 bits = feedback (0x2d = 45, i.e. 4.5 in tenths-of-dB units).
     this->preset.cutoff = 700;
     this->preset.feedback = 45;
     Reset();
@@ -43,10 +45,14 @@ float Crossfeed::GetFeedback() {
 }
 
 float Crossfeed::GetLevelDelay() {
-    if (this->preset.cutoff <= 1800) { // TODO: Previous version reports <= 2000
-        return (float) ((18700.0 / (double) this->preset.cutoff) * 10.0);
+    // Original: `if (cutoff - 300u < 0x6a5)` -> valid range is [300, 2000] inclusive.
+    uint16_t cutoff = this->preset.cutoff;
+    if (cutoff >= 300 && cutoff <= 2000) {
+        // 0x0006e8e4 = 18700.0f
+        return (float) ((18700.0 / (double) cutoff) * 10.0);
     } else {
-        return 0.0;
+        // 0x0006e8e8 = 0.0f
+        return 0.0f;
     }
 }
 
@@ -61,10 +67,13 @@ void Crossfeed::ProcessFrames(float *buffer, uint32_t size) {
 }
 
 void Crossfeed::Reset() {
+    // The original ARM build stores the five filter coefficients and the gain as
+    // Q25 fixed-point integers (coeff = round(value * 0x0006e800), where
+    // 0x0006e800 = 2^25 = 33554432.0) and applies them with a 64-bit multiply
+    // followed by `(x + 2^24) >> 25`. This port keeps them as float; the
+    // coefficient math below is identical (bs2b), only the quantization differs.
     uint16_t cutoff = this->preset.cutoff;
-    uint16_t level = this->preset.feedback;
-
-    level /= 10.0;
+    double level = this->preset.feedback / 10.0; // 45 -> 4.5 (keep the fraction)
 
     double GB_lo = level * -5.0 / 6.0 - 3.0;
     double GB_hi = level / 6.0 - 3.0;

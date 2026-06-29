@@ -254,6 +254,67 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setConvolverCrossChannel(state.convolver.crossChannel)
         }
 
+        // FET Compressor
+        if (current == null || current.fetCompressor.enabled != state.fetCompressor.enabled) {
+            nativeDriver.setFetCompressorEnabled(state.fetCompressor.enabled)
+        }
+        if (current == null || current.fetCompressor.threshold != state.fetCompressor.threshold) {
+            nativeDriver.setFetCompressorThreshold(state.fetCompressor.threshold)
+        }
+        if (current == null || current.fetCompressor.ratio != state.fetCompressor.ratio) {
+            nativeDriver.setFetCompressorRatio(state.fetCompressor.ratio)
+        }
+        if (current == null || current.fetCompressor.knee != state.fetCompressor.knee) {
+            nativeDriver.setFetCompressorKnee(state.fetCompressor.knee)
+        }
+        if (current == null || current.fetCompressor.autoKnee != state.fetCompressor.autoKnee) {
+            nativeDriver.setFetCompressorAutoKnee(state.fetCompressor.autoKnee)
+        }
+        if (current == null || current.fetCompressor.gain != state.fetCompressor.gain) {
+            nativeDriver.setFetCompressorGain(state.fetCompressor.gain)
+        }
+        if (current == null || current.fetCompressor.autoGain != state.fetCompressor.autoGain) {
+            nativeDriver.setFetCompressorAutoGain(state.fetCompressor.autoGain)
+        }
+        if (current == null || current.fetCompressor.attack != state.fetCompressor.attack) {
+            nativeDriver.setFetCompressorAttack(state.fetCompressor.attack)
+        }
+        if (current == null || current.fetCompressor.autoAttack != state.fetCompressor.autoAttack) {
+            nativeDriver.setFetCompressorAutoAttack(state.fetCompressor.autoAttack)
+        }
+        if (current == null || current.fetCompressor.release != state.fetCompressor.release) {
+            nativeDriver.setFetCompressorRelease(state.fetCompressor.release)
+        }
+        if (current == null || current.fetCompressor.autoRelease != state.fetCompressor.autoRelease) {
+            nativeDriver.setFetCompressorAutoRelease(state.fetCompressor.autoRelease)
+        }
+        if (current == null || current.fetCompressor.kneeMulti != state.fetCompressor.kneeMulti) {
+            nativeDriver.setFetCompressorKneeMulti(state.fetCompressor.kneeMulti)
+        }
+        if (current == null || current.fetCompressor.maxAttack != state.fetCompressor.maxAttack) {
+            nativeDriver.setFetCompressorMaxAttack(state.fetCompressor.maxAttack)
+        }
+        if (current == null || current.fetCompressor.maxRelease != state.fetCompressor.maxRelease) {
+            nativeDriver.setFetCompressorMaxRelease(state.fetCompressor.maxRelease)
+        }
+        if (current == null || current.fetCompressor.crest != state.fetCompressor.crest) {
+            nativeDriver.setFetCompressorCrest(state.fetCompressor.crest)
+        }
+        if (current == null || current.fetCompressor.adapt != state.fetCompressor.adapt) {
+            nativeDriver.setFetCompressorAdapt(state.fetCompressor.adapt)
+        }
+        if (current == null || current.fetCompressor.noClip != state.fetCompressor.noClip) {
+            nativeDriver.setFetCompressorNoClip(state.fetCompressor.noClip)
+        }
+
+        // Headphone Surround+ (VHE)
+        if (current == null || current.headphoneSurround.enabled != state.headphoneSurround.enabled) {
+            nativeDriver.setHeadphoneSurroundEnabled(state.headphoneSurround.enabled)
+        }
+        if (current == null || current.headphoneSurround.level != state.headphoneSurround.level) {
+            nativeDriver.setHeadphoneSurroundLevel(state.headphoneSurround.level)
+        }
+
         // Handle Impulse Response File Loading
         val newIrPath = state.convolver.impulseResponse
         if (newIrPath != null && newIrPath != loadedIrPath) {

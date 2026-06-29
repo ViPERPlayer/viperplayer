@@ -5,7 +5,9 @@
 #include "../utils/Biquad.h"
 #include <array>
 
-// Iscle: Verified with the latest version at 13/12/2022
+// Verified against ViPER4Android v2505. Original default sampling rate is
+// 44100 (0xac44) set in the no-arg constructor; here it is supplied by the
+// caller, matching the convention used by the other effect units.
 
 class SpeakerCorrection {
 public:

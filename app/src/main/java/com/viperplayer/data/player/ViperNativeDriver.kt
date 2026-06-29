@@ -72,6 +72,29 @@ class ViperNativeDriver @Inject constructor() {
     external fun viperDdcClearCoeffs()
     external fun viperDdcAddCoeffs(samplingRate: Int, coeffs: FloatArray)
 
+    // FET Compressor
+    external fun setFetCompressorEnabled(enabled: Boolean)
+    external fun setFetCompressorThreshold(value: Int)   // 0..100
+    external fun setFetCompressorRatio(value: Int)
+    external fun setFetCompressorKnee(value: Int)
+    external fun setFetCompressorAutoKnee(enabled: Boolean)
+    external fun setFetCompressorGain(value: Int)
+    external fun setFetCompressorAutoGain(enabled: Boolean)
+    external fun setFetCompressorAttack(value: Int)
+    external fun setFetCompressorAutoAttack(enabled: Boolean)
+    external fun setFetCompressorRelease(value: Int)
+    external fun setFetCompressorAutoRelease(enabled: Boolean)
+    external fun setFetCompressorKneeMulti(value: Int)
+    external fun setFetCompressorMaxAttack(value: Int)
+    external fun setFetCompressorMaxRelease(value: Int)
+    external fun setFetCompressorCrest(value: Int)
+    external fun setFetCompressorAdapt(value: Int)
+    external fun setFetCompressorNoClip(enabled: Boolean)
+
+    // Headphone Surround+ (VHE)
+    external fun setHeadphoneSurroundEnabled(enabled: Boolean)
+    external fun setHeadphoneSurroundLevel(level: Int) // 0..4 (quality)
+
     // Convolver
     external fun setConvolverEnabled(enabled: Boolean)
     external fun setConvolverImpulseResponse(channels: Int, kernel: FloatArray)

@@ -53,6 +53,12 @@ data class ViperEffectsState(
     // Convolver
     val convolver: ViperConvolverState = ViperConvolverState(),
 
+    // FET Compressor
+    val fetCompressor: FetCompressorState = FetCompressorState(),
+
+    // Headphone Surround+ (VHE)
+    val headphoneSurround: HeadphoneSurroundState = HeadphoneSurroundState(),
+
     // IIR Equalizer
     val iirEqualizer: IirEqualizerState = IirEqualizerState(),
 ) {
@@ -140,6 +146,33 @@ data class AnalogXState(
 @Serializable
 data class SpeakerOptimizationState(
     val enabled: Boolean = ViperDefaults.SPEAKER_OPTIMIZATION_ENABLED,
+)
+
+@Serializable
+data class FetCompressorState(
+    val enabled: Boolean = false,
+    val threshold: Int = 100,
+    val ratio: Int = 100,
+    val knee: Int = 0,
+    val autoKnee: Boolean = true,
+    val gain: Int = 0,
+    val autoGain: Boolean = true,
+    val attack: Int = 20,
+    val autoAttack: Boolean = true,
+    val release: Int = 50,
+    val autoRelease: Boolean = true,
+    val kneeMulti: Int = 0,
+    val maxAttack: Int = 80,
+    val maxRelease: Int = 100,
+    val crest: Int = 20,
+    val adapt: Int = 50,
+    val noClip: Boolean = true,
+)
+
+@Serializable
+data class HeadphoneSurroundState(
+    val enabled: Boolean = false,
+    val level: Int = 0, // 0..4 quality / effect level
 )
 
 @Serializable

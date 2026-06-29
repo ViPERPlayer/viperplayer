@@ -4,6 +4,8 @@
 #include "effects/SpectrumExtend.h"
 #include "effects/Reverberation.h"
 #include "effects/DynamicSystem.h"
+#include "effects/FETCompressor.h"
+#include "effects/VHE.h"
 #include "effects/ViPERClarity.h"
 #include "effects/SpeakerCorrection.h"
 #include "effects/AnalogX.h"
@@ -34,10 +36,12 @@ public:
     // Effects
     ViPERDDC viperDdc;
     viper::dsp::Convolver convolver;
+    VHE vhe;
     SpectrumExtend spectrumExtend;
     viper::dsp::IIREqualizer iirEqualizer;
     ColorfulMusic colorfulMusic;
     Reverberation reverberation;
+    FETCompressor fetCompressor;
     DynamicSystem dynamicSystem;
     ViPERBass viperBass;
     ViPERClarity viperClarity;

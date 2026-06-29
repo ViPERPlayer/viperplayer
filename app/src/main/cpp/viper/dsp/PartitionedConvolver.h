@@ -28,7 +28,7 @@ private:
   uint32_t blockSize;
   uint32_t segments;
 
-  viper::utils::FFT fft;
+  std::unique_ptr<viper::utils::FFT> fft;
 
   // Kernel partitions: [segment][frequency_bin]
   std::vector<std::vector<std::complex<float>>> kernelPartitions;

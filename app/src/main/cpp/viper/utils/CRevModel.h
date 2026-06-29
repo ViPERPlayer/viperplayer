@@ -32,8 +32,11 @@ private:
     float damp;
     float internalDamp;
     float wet;
-    float unknown1;
-    float unknown2;
+    // Stereo wet-mix coefficients derived from wet/width in UpdateCoeffs:
+    //   wet1 = wet * (width/2 + 0.5)  (same-channel wet gain)
+    //   wet2 = wet * (1 - width)/2    (cross-channel wet gain)
+    float wet1;
+    float wet2;
     float dry;
     float width;
     float mode;

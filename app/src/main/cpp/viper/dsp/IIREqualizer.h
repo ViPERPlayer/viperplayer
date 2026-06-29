@@ -8,11 +8,16 @@
 namespace viper {
 namespace dsp {
 
-    // Forward declaration of Biquad to keep internal details hidden from public API if desired,
-    // but for simplicity and performance in this strict implementation, we might define it here or in a separate header.
-    // Given the constraints "no dependencies on other classes other than the ones you write", 
-    // and "independent", we will define it entirely within this module.
-    
+    // NOTE ON FIDELITY: this class does NOT correspond to any single class in the
+    // original ViPER4Android v2505 binary. The original IIR equalizer path builds
+    // min-phase IIR coefficients via `MinPhaseIIRCoeffs` (Q25 fixed-point) and runs
+    // them through `IIRFilter` (both owned by other units). The original supports
+    // 10/15/25/31 bands and requires a sample rate >= 44100 Hz. The peaking-biquad
+    // design below, and its per-band-count frequency/Q tables, are a floating-point
+    // reconstruction approximation and are NOT derived from the binary -- the
+    // ground-truth coefficient math (MinPhaseIIRCoeffs::UpdateCoeffs) is too
+    // corrupted in the decompilation to recover exactly. The public API is kept
+    // stable because ViPER.cpp and the JNI layer depend on it.
     class IIREqualizer {
     public:
         enum class BandCount {

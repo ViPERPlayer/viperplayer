@@ -7,11 +7,11 @@ public:
     IIR_1st();
 
     void Mute();
-    void SetCoefficients(float b0, float b1, float a1);
+    void setCoefficients(float b0, float b1, float a1);
     void setHPF_A(float frequency, uint32_t samplingRate);
     void setHPF_BW(float frequency, uint32_t samplingRate);
     void setHPF_C(float frequency, uint32_t samplingRate);
-    void setHPFwLPS_A(float frequency, uint32_t samplingRate);
+    void setHPFwLFS_A(float frequency, uint32_t samplingRate);
     void setHSF_A(float f1, float f2, uint32_t samplingRate);
     void setLPF_A(float frequency, uint32_t samplingRate);
     void setLPF_BW(float frequency, uint32_t samplingRate);

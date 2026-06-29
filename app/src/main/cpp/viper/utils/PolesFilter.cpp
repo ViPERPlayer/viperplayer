@@ -14,10 +14,11 @@ void PolesFilter::UpdateCoeff() {
     memset(&this->channels[0], 0, sizeof(ChannelState));
     memset(&this->channels[1], 0, sizeof(ChannelState));
 
-    this->channels[0].lowPoleCoeff = (float) this->lowCutFreq * (float) M_PI / (float) this->samplingRate;
-    this->channels[1].lowPoleCoeff = (float) this->lowCutFreq * (float) M_PI / (float) this->samplingRate;
-    this->channels[0].highPoleCoeff = (float) this->highCutFreq * (float) M_PI / (float) this->samplingRate;
-    this->channels[1].highPoleCoeff = (float) this->highCutFreq * (float) M_PI / (float) this->samplingRate;
+    // Original PolesFilter::UpdateCoeff: real coeff = 2*sin(pi*f/fs) (Q25 in binary)
+    float lc = (float) (2.0 * sin(M_PI * (double) this->lowCutFreq / (double) this->samplingRate));
+    float hc = (float) (2.0 * sin(M_PI * (double) this->highCutFreq / (double) this->samplingRate));
+    this->channels[0].lowPoleCoeff = this->channels[1].lowPoleCoeff = lc;
+    this->channels[0].highPoleCoeff = this->channels[1].highPoleCoeff = hc;
 }
 
 static inline void DoFilterSide(ChannelState *channel, float inputSample, float *lowOut, float *highOut, float *bandOut) {

@@ -13,7 +13,7 @@ public:
     uint16_t GetCutoff();
     float GetFeedback();
     float GetLevelDelay();
-    struct Crossfeed::Preset GetPreset(); // TODO: Fix with crossfeed
+    struct Crossfeed::Preset GetPreset();
     void Process(float *buffer, uint32_t size);
     void Reset();
     void SetCutoff(uint16_t cutoff);

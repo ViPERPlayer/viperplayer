@@ -7,9 +7,10 @@ TimeConstDelay::TimeConstDelay() {
 }
 
 float TimeConstDelay::ProcessSample(float sample) {
+    if (this->sampleCount == 0) return 0.0f; // matches original null-buffer guard
     float val = this->samples[this->offset];
     this->samples[this->offset] = sample;
-    this->offset = (uint32_t) modff((float) this->offset + 1, (float *) &this->sampleCount); // TODO: check if this is correct
+    this->offset = (this->offset + 1) % this->sampleCount;
     return val;
 }
 

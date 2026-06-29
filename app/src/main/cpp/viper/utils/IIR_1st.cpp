@@ -15,7 +15,7 @@ void IIR_1st::Mute() {
     this->prevSample = 0.f;
 }
 
-void IIR_1st::SetCoefficients(float b0, float b1, float a1) {
+void IIR_1st::setCoefficients(float b0, float b1, float a1) {
     this->b0 = b0;
     this->b1 = b1;
     this->a1 = a1;
@@ -46,8 +46,8 @@ void IIR_1st::setHPF_C(float frequency, uint32_t samplingRate) {
     this->a1 = ((float) samplingRate - frequency) / ((float) samplingRate + frequency);
 }
 
-void IIR_1st::setHPFwLPS_A(float frequency, uint32_t samplingRate) {
-    this->a1 = -0.12f;
+void IIR_1st::setHPFwLFS_A(float frequency, uint32_t samplingRate) {
+    this->a1 = -0.12f;  // decomp stores 0xffc28f5d = round(-0.12 * 2^25)
     this->b0 = -1.f;
     this->b1 = angle(frequency, samplingRate);
     float norm = (1 - this->a1) / fabsf(this->b0 + this->b1);
@@ -67,8 +67,10 @@ void IIR_1st::setHSF_A(float f1, float f2, uint32_t samplingRate) {
 void IIR_1st::setLPF_A(float frequency, uint32_t samplingRate) {
     this->a1 = angle(frequency, samplingRate);
     this->b0 = 1.f;
-    this->b1 = 0.12f;
-    float norm = (1 + this->a1) / (this->b0 + this->b1);
+    this->b1 = 0.12f;  // 0x6a7d0 (d) = 0.12
+    // Decomp (0006a728): b0 = (1 - a1)/1.12, b1 = (1 - a1)/1.12 * 0.12, giving unity DC gain
+    // H(1) = (b0+b1)/(1-a1) = 1. The original divides by 1.12 (= 0x6a7c0 (d)); here (b0+b1)=1.12.
+    float norm = (1 - this->a1) / (this->b0 + this->b1);
     this->b0 *= norm;
     this->b1 *= norm;
 }
@@ -88,7 +90,9 @@ void IIR_1st::setLPF_C(float frequency, uint32_t samplingRate) {
 }
 
 void IIR_1st::setLSF_A(float f1, float f2, uint32_t samplingRate) {
-    this->a1 = angle(f1, samplingRate);
+    // Decomp (0006a870): a1 = -angle(f1) (stored as round(0.5 - angle(f1)*2^25)),
+    // b0 = -1, b1 = +angle(f2); no normalization. The pole is NEGATED here, unlike setHSF_A.
+    this->a1 = -angle(f1, samplingRate);
     this->b0 = -1.f;
     this->b1 = angle(f2, samplingRate);
 }
@@ -105,7 +109,7 @@ void IIR_1st::setPoleHPF(float frequency, uint32_t samplingRate) {
     float tmp = (2.f + cos_omega);
     float coeff = tmp - sqrtf(tmp * tmp - 1.f);
     this->a1 = -coeff;
-    this->b0 = 1.f - coeff;
+    this->b0 = coeff - 1.f;  // decomp (0006ace0): b0 = (coeff - 1), i.e. negative of the LPF case
     this->b1 = 0;
 }
 
@@ -131,7 +135,7 @@ void IIR_1st::setZero(float b1) {
 void IIR_1st::setZeroHPF(float frequency, uint32_t samplingRate) {
     float omega = omega();
     float cos_omega = cosf(omega);
-    float tmp = (1.f - 2.f * cos_omega);
+    float tmp = (1.f + 2.f * cos_omega);  // decomp (0006ae58): tmp = 1 + 2*cos(omega)
     float coeff = tmp - sqrtf(tmp * tmp - 1.f);
     this->a1 = 0.f;
     this->b0 = 1.f / (1.f + coeff);
@@ -141,7 +145,7 @@ void IIR_1st::setZeroHPF(float frequency, uint32_t samplingRate) {
 void IIR_1st::setZeroLPF(float frequency, uint32_t samplingRate) {
     float omega = omega();
     float cos_omega = cosf(omega);
-    float tmp = (1.f + 2.f * cos_omega);
+    float tmp = (1.f - 2.f * cos_omega);  // decomp (0006ad98): tmp = 1 - 2*cos(omega)
     float coeff = tmp - sqrtf(tmp * tmp - 1.f);
     this->a1 = 0.f;
     this->b0 = 1.f / (1.f + coeff);
