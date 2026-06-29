@@ -164,9 +164,7 @@ fun PlayerScreen(
     var showQueueBottomSheet by remember { mutableStateOf(false) }
     var showDetailsBottomSheet by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
-    var showListenTogether by remember { mutableStateOf(false) }
-    var showShareInvite by remember { mutableStateOf(false) }
-    var showQr by remember { mutableStateOf(false) }
+    var showSocialSheets by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
 
     val song = currentSong
@@ -415,7 +413,7 @@ fun PlayerScreen(
                             .height(56.dp)
                             .clip(RoundedCornerShape(22.dp))
                             .background(Color.White.copy(alpha = 0.14f))
-                            .clickable { showListenTogether = true }
+                            .clickable { showSocialSheets = true }
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -424,21 +422,21 @@ fun PlayerScreen(
                             imageVector = Icons.Filled.Speaker,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(23.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "This phone",
                                 color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Output device",
-                                color = Color.White.copy(alpha = 0.72f),
-                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.65f),
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1
                             )
@@ -506,16 +504,14 @@ fun PlayerScreen(
         }
     }
 
-    // Listen-together / devices, share, and QR sheets (the social entry points).
-    PlayerSocialSheets(
-        song = song,
-        showListenTogether = showListenTogether,
-        showShareInvite = showShareInvite,
-        showQr = showQr,
-        onShowListenTogether = { showListenTogether = it },
-        onShowShareInvite = { showShareInvite = it },
-        onShowQr = { showQr = it }
-    )
+    // Listen-together / devices / share / QR — one sheet with an internal back stack. Composed only
+    // while open so the stack resets to the Listen-together page each time it's opened.
+    if (showSocialSheets) {
+        PlayerSocialSheets(
+            song = song,
+            onDismiss = { showSocialSheets = false }
+        )
+    }
 }
 
 /**
