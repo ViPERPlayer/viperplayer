@@ -13,6 +13,7 @@ import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
+import com.viperplayer.BuildConfig
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.SettingsRepository
@@ -84,19 +85,10 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     }
 
     private fun initializeTimber() {
-        Timber.plant(Timber.DebugTree())
-//        if (BuildConfig.DEBUG) {
-//            Timber.plant(Timber.DebugTree())
-//        } else {
-//            // In release builds, you might want to use a crash reporting tree
-//            // For now, we'll use a no-op tree or you can add CrashlyticsTree
-//            Timber.plant(object : Timber.Tree() {
-//                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-//                    // In release, you might want to send logs to crash reporting service
-//                    // For now, we'll just ignore them
-//                }
-//            })
-//        }
+        // Debug logging only in debug builds — release ships silent (no Timber chatter / leaked tags).
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
     }
 
     private fun isMainProcess(): Boolean {
