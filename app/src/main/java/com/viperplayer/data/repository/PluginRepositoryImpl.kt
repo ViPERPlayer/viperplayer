@@ -5,6 +5,7 @@ import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PagedResult
@@ -281,6 +282,16 @@ class PluginRepositoryImpl @Inject constructor(
 
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> {
         return dataSource.getPlaylist(mediaId)
+    }
+
+    override suspend fun getLyrics(song: Song): Result<Lyrics?> {
+        return dataSource.getLyrics(
+            id = song.id,
+            title = song.title,
+            artist = song.artistNames,
+            album = song.album?.name,
+            durationMs = song.durationMs
+        )
     }
 
     override suspend fun getArtistSongs(

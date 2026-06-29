@@ -150,6 +150,7 @@ fun PlayerScreen(
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val duration by viewModel.duration.collectAsStateWithLifecycle()
     val isLiked by viewModel.isLiked.collectAsStateWithLifecycle()
+    val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
 
     // Poll position
     var currentPosition by remember { mutableLongStateOf(0L) }
@@ -162,6 +163,10 @@ fun PlayerScreen(
 
     var showQueueBottomSheet by remember { mutableStateOf(false) }
     var showDetailsBottomSheet by remember { mutableStateOf(false) }
+    var showLyrics by remember { mutableStateOf(false) }
+    var showListenTogether by remember { mutableStateOf(false) }
+    var showShareInvite by remember { mutableStateOf(false) }
+    var showQr by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
 
     val song = currentSong
@@ -302,6 +307,16 @@ fun PlayerScreen(
 
             // Bottom cluster
             Column(modifier = Modifier.padding(horizontal = 26.dp, vertical = 26.dp)) {
+                // Current lyric line — only when the track actually has lyrics.
+                lyrics?.let { lyricsData ->
+                    LyricLine(
+                        lyrics = lyricsData,
+                        positionMs = currentPosition,
+                        onClick = { showLyrics = true },
+                        modifier = Modifier.padding(bottom = 18.dp)
+                    )
+                }
+
                 // Title + artist/album + like
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -400,6 +415,7 @@ fun PlayerScreen(
                             .height(56.dp)
                             .clip(RoundedCornerShape(22.dp))
                             .background(Color.White.copy(alpha = 0.14f))
+                            .clickable { showListenTogether = true }
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -468,13 +484,38 @@ fun PlayerScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
-            QueueBottomSheet(
+            QueueSheet(
                 viewModel = viewModel,
                 currentSong = song,
                 onDismiss = { showQueueBottomSheet = false }
             )
         }
     }
+
+    if (showLyrics) {
+        ModalBottomSheet(
+            onDismissRequest = { showLyrics = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            LyricsSheet(
+                viewModel = viewModel,
+                onSeek = { viewModel.seekTo(it) },
+                onDismiss = { showLyrics = false }
+            )
+        }
+    }
+
+    // Listen-together / devices, share, and QR sheets (the social entry points).
+    PlayerSocialSheets(
+        song = song,
+        showListenTogether = showListenTogether,
+        showShareInvite = showShareInvite,
+        showQr = showQr,
+        onShowListenTogether = { showListenTogether = it },
+        onShowShareInvite = { showShareInvite = it },
+        onShowQr = { showQr = it }
+    )
 }
 
 /**
@@ -981,306 +1022,6 @@ private fun DetailRow(
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-fun QueueBottomSheet(
-    viewModel: PlayerViewModel,
-    currentSong: Song?,
-    onDismiss: () -> Unit
-) {
-    val queue by viewModel.queue.collectAsStateWithLifecycle()
-
-    // Track which item is being dragged
-    var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var draggedOverIndex by remember { mutableStateOf<Int?>(null) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Header
-        Text(
-            text = "Queue (${queue.size})",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        HorizontalDivider()
-
-        if (queue.isEmpty()) {
-            Text(
-                text = "Queue is empty",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(vertical = 32.dp)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                itemsIndexed(queue) { index, song ->
-                    val isCurrentSong = currentSong?.id == song.id
-                    val isDragged = draggedIndex == index
-                    val isDraggedOver = draggedOverIndex == index
-
-                    QueueItem(
-                        song = song,
-                        index = index,
-                        queueSize = queue.size,
-                        isCurrentSong = isCurrentSong,
-                        isDragged = isDragged,
-                        isDraggedOver = isDraggedOver,
-                        onDragStart = { draggedIndex = index },
-                        onDragEnd = {
-                            draggedIndex?.let { fromIndex ->
-                                draggedOverIndex?.let { toIndex ->
-                                    if (fromIndex != toIndex) {
-                                        viewModel.reorderQueue(fromIndex, toIndex)
-                                    }
-                                }
-                            }
-                            draggedIndex = null
-                            draggedOverIndex = null
-                        },
-                        onDragOver = { overIndex ->
-                            draggedOverIndex = overIndex
-                        },
-                        onRemove = {
-                            viewModel.removeFromQueue(index)
-                        },
-                        onDuplicate = {
-                            viewModel.duplicateInQueue(index)
-                        },
-                        onPlay = {
-                            viewModel.playFromQueue(index)
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QueueItem(
-    song: Song,
-    index: Int,
-    queueSize: Int,
-    isCurrentSong: Boolean,
-    isDragged: Boolean,
-    isDraggedOver: Boolean,
-    onDragStart: () -> Unit,
-    onDragEnd: () -> Unit,
-    onDragOver: (Int) -> Unit,
-    onRemove: () -> Unit,
-    onDuplicate: () -> Unit,
-    onPlay: () -> Unit
-) {
-    val density = LocalDensity.current
-    var itemHeight by remember { mutableStateOf(0.dp) }
-    var cumulativeDrag by remember { mutableStateOf(0f) }
-    var lastOverIndex by remember { mutableStateOf(index) }
-
-    // Swipe state
-    var swipeOffset by remember { mutableStateOf(0f) }
-    var isSwipeInProgress by remember { mutableStateOf(false) }
-    val swipeThreshold = 100.dp
-
-    val animatedSwipeOffset by animateFloatAsState(
-        targetValue = if (isSwipeInProgress) swipeOffset else 0f,
-        animationSpec = tween(300),
-        label = "swipe"
-    )
-
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // Background actions (visible when swiped)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.CenterEnd)
-                .background(
-                    when {
-                        animatedSwipeOffset < 0 -> MaterialTheme.colorScheme.errorContainer
-                        animatedSwipeOffset > 0 -> MaterialTheme.colorScheme.primaryContainer
-                        else -> Color.Transparent
-                    }
-                )
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = if (animatedSwipeOffset < 0) Arrangement.Start else Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (animatedSwipeOffset < 0) {
-                // Swipe left - delete
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Delete",
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else if (animatedSwipeOffset > 0) {
-                // Swipe right - duplicate
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Play next",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Play next",
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
-        // Main content
-        ListItem(
-            title = song.title,
-            badges = emptyList(),
-            subtitle = song.artists.joinToString { it.name },
-            isActive = isCurrentSong,
-            leadingContent = {
-                com.viperplayer.presentation.common.ListItemLeadingArtwork(
-                    artworkUrl = song.artworkUrl,
-                    type = SearchItem.Type.SONG,
-                    isActive = isCurrentSong,
-                    isPlaying = false
-                )
-            },
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.Filled.DragHandle,
-                    contentDescription = "Drag to reorder",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            onClick = onPlay,
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset(x = with(density) { animatedSwipeOffset.dp })
-                .background(
-                    color = when {
-                        isDragged -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                        isDraggedOver -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                        isCurrentSong -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                        else -> MaterialTheme.colorScheme.surface
-                    }
-                )
-                .pointerInput(index, queueSize, itemHeight) {
-                    var isLongPress = false
-                    var dragStartTime = 0L
-                    val longPressTimeout = 300L // milliseconds
-
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            dragStartTime = System.currentTimeMillis()
-                            isLongPress = false
-                        },
-                        onDragEnd = {
-                            val thresholdPx = with(density) { swipeThreshold.toPx() }
-
-                            if (isLongPress) {
-                                // Vertical drag for reordering ended
-                                cumulativeDrag = 0f
-                                lastOverIndex = index
-                                onDragEnd()
-                            } else {
-                                // Horizontal swipe ended
-                                when {
-                                    swipeOffset < -thresholdPx -> {
-                                        // Swipe left - delete
-                                        onRemove()
-                                        swipeOffset = 0f
-                                    }
-
-                                    swipeOffset > thresholdPx -> {
-                                        // Swipe right - duplicate
-                                        onDuplicate()
-                                        swipeOffset = 0f
-                                    }
-
-                                    else -> {
-                                        // Snap back
-                                        swipeOffset = 0f
-                                    }
-                                }
-                                isSwipeInProgress = false
-                            }
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-
-                            val elapsed = System.currentTimeMillis() - dragStartTime
-
-                            // Determine if this is a long press (for vertical reordering) or a swipe (horizontal)
-                            if (!isLongPress) {
-                                if (elapsed > longPressTimeout && kotlin.math.abs(dragAmount.y) > kotlin.math.abs(
-                                        dragAmount.x
-                                    ) * 1.5f
-                                ) {
-                                    // Long press detected with vertical movement - start reordering
-                                    isLongPress = true
-                                    cumulativeDrag = 0f
-                                    lastOverIndex = index
-                                    isSwipeInProgress = false
-                                    swipeOffset = 0f
-                                    onDragStart()
-                                } else if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(
-                                        dragAmount.y
-                                    ) * 1.5f
-                                ) {
-                                    // Horizontal movement detected - start swiping
-                                    if (!isSwipeInProgress) {
-                                        isSwipeInProgress = true
-                                    }
-                                    swipeOffset = (swipeOffset + dragAmount.x).coerceIn(
-                                        -with(density) { swipeThreshold.toPx() * 1.5f },
-                                        with(density) { swipeThreshold.toPx() * 1.5f }
-                                    )
-                                }
-                            } else {
-                                // Long press is active - handle vertical reordering
-                                val itemHeightPx = with(density) { itemHeight.toPx() }
-                                if (itemHeightPx == 0f) return@detectDragGestures
-
-                                cumulativeDrag += dragAmount.y
-
-                                val threshold = itemHeightPx * 0.5f
-                                val newOverIndex = when {
-                                    cumulativeDrag < -threshold && index > 0 -> index - 1
-                                    cumulativeDrag > threshold && index < queueSize - 1 -> index + 1
-                                    else -> index
-                                }
-
-                                if (newOverIndex != lastOverIndex) {
-                                    onDragOver(newOverIndex)
-                                    lastOverIndex = newOverIndex
-                                    cumulativeDrag = 0f
-                                }
-                            }
-                        }
-                    )
-                }
-                .onSizeChanged { size ->
-                    itemHeight = with(density) { size.height.toDp() }
-                }
         )
     }
 }

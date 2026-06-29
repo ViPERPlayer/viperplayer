@@ -24,6 +24,7 @@ material3 = "1.5.0-alpha22"
 ktor = "3.5.0"
 room = "2.8.4"
 xdl = "2.4.0"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -92,6 +93,7 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 
 # xDL
 xdl = { module = "io.github.hexhacking:xdl", version.ref = "xdl" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

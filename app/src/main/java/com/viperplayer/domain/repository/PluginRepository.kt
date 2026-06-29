@@ -3,6 +3,7 @@ package com.viperplayer.domain.repository
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
@@ -149,6 +150,12 @@ interface PluginRepository {
      * Get playlist details with tracks.
      */
     suspend fun getPlaylist(mediaId: MediaId): Result<Playlist>
+
+    /**
+     * Get synced/plain lyrics for a song from a lyrics-capable plugin.
+     * Returns success with `null` when no plugin can provide lyrics for the track.
+     */
+    suspend fun getLyrics(song: Song): Result<Lyrics?>
 
     /**
      * Get artist songs.

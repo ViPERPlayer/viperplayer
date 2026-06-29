@@ -15,6 +15,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.HomeContent
+import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
@@ -30,6 +31,7 @@ import com.viperplayer.plugin.host.PluginDiscovery
 import com.viperplayer.plugin.host.ResolvedStream
 import com.viperplayer.plugin.host.DiscoveredPlugin
 import com.viperplayer.plugin.host.SourceClient
+import com.viperplayer.plugin.model.LyricsRequest
 import com.viperplayer.plugin.model.MediaType
 import com.viperplayer.plugin.model.PageRequest
 import com.viperplayer.plugin.model.PluginErrorCode
@@ -374,6 +376,25 @@ class PluginDataSource @Inject constructor(
     suspend fun getPlaylist(id: MediaId): Result<Playlist> = runCatching {
         source(id.pluginId).getPlaylist(id.sourceId).toDomain(id.pluginId)
     }.onFailure { Timber.e(it, "getPlaylist failed for $id") }
+
+    suspend fun getLyrics(
+        id: MediaId,
+        title: String?,
+        artist: String?,
+        album: String?,
+        durationMs: Long?
+    ): Result<Lyrics?> = runCatching {
+        // Lyrics is an optional capability — client.lyrics is null when the plugin doesn't advertise it.
+        plugin(id.pluginId).client.lyrics?.getLyrics(
+            LyricsRequest(
+                songId = id.sourceId,
+                title = title,
+                artist = artist,
+                album = album,
+                durationMs = durationMs
+            )
+        )?.toDomain()
+    }.onFailure { Timber.e(it, "getLyrics failed for $id") }
 
     suspend fun getArtistSongs(artistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Song>> =
         runCatching {

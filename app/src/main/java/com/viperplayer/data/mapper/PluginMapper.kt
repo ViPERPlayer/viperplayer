@@ -13,6 +13,8 @@ import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ItemShape
 import com.viperplayer.domain.model.ListSection
+import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsLine
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.SectionAction
 import com.viperplayer.domain.model.SectionFilter
@@ -37,6 +39,7 @@ import com.viperplayer.plugin.model.BrowseCategory as SdkBrowseCategory
 import com.viperplayer.plugin.model.CategoryContentType as SdkCategoryContentType
 import com.viperplayer.plugin.model.HomeContent as SdkHomeContent
 import com.viperplayer.plugin.model.HomeSection as SdkHomeSection
+import com.viperplayer.plugin.model.Lyrics as SdkLyrics
 import com.viperplayer.plugin.model.MediaItem as SdkMediaItem
 import com.viperplayer.plugin.model.PlayableItem as SdkPlayableItem
 import com.viperplayer.plugin.model.UnknownMediaItem
@@ -146,6 +149,12 @@ object PluginMapper {
         isPublic = true,
         isEditable = isEditable,
         songs = songs.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomainSong(pluginId) },
+    )
+
+    fun SdkLyrics.toDomain(): Lyrics = Lyrics(
+        synced = synced,
+        lines = lines.map { LyricsLine(startMs = it.startMs, text = it.text) },
+        plainText = plainText,
     )
 
     fun SdkMediaItem.toDomain(pluginId: String): MediaItem? = when (this) {

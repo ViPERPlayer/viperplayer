@@ -1,0 +1,191 @@
+package com.viperplayer.presentation.player
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.domain.model.Lyrics
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+/**
+ * The single-line lyric teaser shown on the player over the artwork. Shows the current synced line
+ * (or the first non-blank line of plain lyrics), italic with a pulse glyph. Tapping opens the full
+ * lyrics sheet. Render only when [lyrics] is non-null.
+ */
+@Composable
+fun LyricLine(
+    lyrics: Lyrics,
+    positionMs: Long,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val text = remember(lyrics, positionMs) { currentLyricText(lyrics, positionMs) } ?: return
+
+    Row(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.GraphicEq,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.92f),
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = text,
+            color = Color.White.copy(alpha = 0.92f),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontStyle = FontStyle.Italic,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+private fun currentLyricText(lyrics: Lyrics, positionMs: Long): String? {
+    if (lyrics.synced && lyrics.lines.isNotEmpty()) {
+        val idx = lyrics.currentLineIndex(positionMs)
+        val line = lyrics.lines.getOrNull(if (idx >= 0) idx else 0)
+        return line?.text?.takeIf { it.isNotBlank() }
+    }
+    return lyrics.plainText
+        ?.lineSequence()
+        ?.firstOrNull { it.isNotBlank() }
+        ?.trim()
+}
+
+/**
+ * Full lyrics sheet. Synced lyrics scroll and highlight the active line (tap a line to seek there);
+ * plain lyrics render as scrollable text.
+ */
+@Composable
+fun LyricsSheet(
+    viewModel: PlayerViewModel,
+    onSeek: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
+
+    var position by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            position = viewModel.getCurrentPosition()
+            delay(200)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "Lyrics",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        val current = lyrics
+        when {
+            current == null || current.isEmpty -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No lyrics available for this track",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            current.synced && current.lines.isNotEmpty() -> {
+                val activeIndex = current.currentLineIndex(position)
+                val listState = rememberLazyListState()
+                LaunchedEffect(activeIndex) {
+                    if (activeIndex >= 0) {
+                        listState.animateScrollToItem(
+                            index = activeIndex.coerceAtMost(current.lines.lastIndex),
+                            scrollOffset = -200
+                        )
+                    }
+                }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.heightIn(max = 520.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    itemsIndexed(current.lines) { index, line ->
+                        val active = index == activeIndex
+                        Text(
+                            text = line.text,
+                            color = if (active) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                            },
+                            fontSize = if (active) 20.sp else 17.sp,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSeek(line.startMs) }
+                                .padding(vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                Text(
+                    text = current.plainText.orEmpty(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .heightIn(max = 520.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+            }
+        }
+    }
+}
