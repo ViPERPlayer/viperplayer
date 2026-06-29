@@ -7,10 +7,13 @@ import com.viperplayer.domain.model.AnalogXState
 import com.viperplayer.domain.model.AuditorySystemProtectionState
 import com.viperplayer.domain.model.DifferentialSurroundState
 import com.viperplayer.domain.model.DynamicSystemState
+import com.viperplayer.domain.model.FetCompressorState
 import com.viperplayer.domain.model.FieldSurroundState
+import com.viperplayer.domain.model.HeadphoneSurroundState
 import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.domain.model.MasterLimiterState
 import com.viperplayer.domain.model.PlaybackGainState
+import com.viperplayer.domain.model.ReverberationState
 import com.viperplayer.domain.model.SpeakerOptimizationState
 import com.viperplayer.domain.model.SpectrumExtensionState
 import com.viperplayer.domain.model.TubeSimulatorState
@@ -112,6 +115,37 @@ object ViperPresetMapper {
                     impulseResponse = preset.convolverImpulseResponse,
                     crossChannel = preset.convolverCrossChannel,
                 ),
+                fetCompressor = FetCompressorState(
+                    enabled = preset.fetCompressorEnabled,
+                    threshold = preset.fetCompressorThreshold,
+                    ratio = preset.fetCompressorRatio,
+                    knee = preset.fetCompressorKnee,
+                    autoKnee = preset.fetCompressorAutoKnee,
+                    gain = preset.fetCompressorGain,
+                    autoGain = preset.fetCompressorAutoGain,
+                    attack = preset.fetCompressorAttack,
+                    autoAttack = preset.fetCompressorAutoAttack,
+                    release = preset.fetCompressorRelease,
+                    autoRelease = preset.fetCompressorAutoRelease,
+                    kneeMulti = preset.fetCompressorKneeMulti,
+                    maxAttack = preset.fetCompressorMaxAttack,
+                    maxRelease = preset.fetCompressorMaxRelease,
+                    crest = preset.fetCompressorCrest,
+                    adapt = preset.fetCompressorAdapt,
+                    noClip = preset.fetCompressorNoClip,
+                ),
+                headphoneSurround = HeadphoneSurroundState(
+                    enabled = preset.headphoneSurroundEnabled,
+                    level = preset.headphoneSurroundLevel,
+                ),
+                reverberation = ReverberationState(
+                    enabled = preset.reverberationEnabled,
+                    roomSize = preset.reverberationRoomSize,
+                    width = preset.reverberationWidth,
+                    damp = preset.reverberationDamp,
+                    wet = preset.reverberationWet,
+                    dry = preset.reverberationDry,
+                ),
             ),
             createdAt = preset.createdAt,
             updatedAt = preset.updatedAt,
@@ -182,6 +216,34 @@ object ViperPresetMapper {
             convolverEnabled = effectsState.convolver.enabled,
             convolverImpulseResponse = effectsState.convolver.impulseResponse,
             convolverCrossChannel = effectsState.convolver.crossChannel,
+            // FET Compressor
+            fetCompressorEnabled = effectsState.fetCompressor.enabled,
+            fetCompressorThreshold = effectsState.fetCompressor.threshold,
+            fetCompressorRatio = effectsState.fetCompressor.ratio,
+            fetCompressorKnee = effectsState.fetCompressor.knee,
+            fetCompressorAutoKnee = effectsState.fetCompressor.autoKnee,
+            fetCompressorGain = effectsState.fetCompressor.gain,
+            fetCompressorAutoGain = effectsState.fetCompressor.autoGain,
+            fetCompressorAttack = effectsState.fetCompressor.attack,
+            fetCompressorAutoAttack = effectsState.fetCompressor.autoAttack,
+            fetCompressorRelease = effectsState.fetCompressor.release,
+            fetCompressorAutoRelease = effectsState.fetCompressor.autoRelease,
+            fetCompressorKneeMulti = effectsState.fetCompressor.kneeMulti,
+            fetCompressorMaxAttack = effectsState.fetCompressor.maxAttack,
+            fetCompressorMaxRelease = effectsState.fetCompressor.maxRelease,
+            fetCompressorCrest = effectsState.fetCompressor.crest,
+            fetCompressorAdapt = effectsState.fetCompressor.adapt,
+            fetCompressorNoClip = effectsState.fetCompressor.noClip,
+            // Headphone Surround+ (VHE)
+            headphoneSurroundEnabled = effectsState.headphoneSurround.enabled,
+            headphoneSurroundLevel = effectsState.headphoneSurround.level,
+            // Reverberation
+            reverberationEnabled = effectsState.reverberation.enabled,
+            reverberationRoomSize = effectsState.reverberation.roomSize,
+            reverberationWidth = effectsState.reverberation.width,
+            reverberationDamp = effectsState.reverberation.damp,
+            reverberationWet = effectsState.reverberation.wet,
+            reverberationDry = effectsState.reverberation.dry,
         )
     }
 

@@ -49,7 +49,7 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         ViperDdcCoeffEntity::class,
         PlayEventEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(AlbumTypeConverter::class, DynamicSystemDeviceTypeConverter::class)

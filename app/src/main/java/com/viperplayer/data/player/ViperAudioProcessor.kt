@@ -315,6 +315,26 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setHeadphoneSurroundLevel(state.headphoneSurround.level)
         }
 
+        // Reverberation
+        if (current == null || current.reverberation.enabled != state.reverberation.enabled) {
+            nativeDriver.setReverberationEnabled(state.reverberation.enabled)
+        }
+        if (current == null || current.reverberation.roomSize != state.reverberation.roomSize) {
+            nativeDriver.setReverberationRoomSize(state.reverberation.roomSize)
+        }
+        if (current == null || current.reverberation.width != state.reverberation.width) {
+            nativeDriver.setReverberationWidth(state.reverberation.width)
+        }
+        if (current == null || current.reverberation.damp != state.reverberation.damp) {
+            nativeDriver.setReverberationDamp(state.reverberation.damp)
+        }
+        if (current == null || current.reverberation.wet != state.reverberation.wet) {
+            nativeDriver.setReverberationWet(state.reverberation.wet)
+        }
+        if (current == null || current.reverberation.dry != state.reverberation.dry) {
+            nativeDriver.setReverberationDry(state.reverberation.dry)
+        }
+
         // Handle Impulse Response File Loading
         val newIrPath = state.convolver.impulseResponse
         if (newIrPath != null && newIrPath != loadedIrPath) {

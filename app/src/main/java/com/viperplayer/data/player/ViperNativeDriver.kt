@@ -95,6 +95,14 @@ class ViperNativeDriver @Inject constructor() {
     external fun setHeadphoneSurroundEnabled(enabled: Boolean)
     external fun setHeadphoneSurroundLevel(level: Int) // 0..4 (quality)
 
+    // Reverberation (values 0..100, sent to native as value/100 -> 0..1)
+    external fun setReverberationEnabled(enabled: Boolean)
+    external fun setReverberationRoomSize(value: Int)
+    external fun setReverberationWidth(value: Int)
+    external fun setReverberationDamp(value: Int)
+    external fun setReverberationWet(value: Int)
+    external fun setReverberationDry(value: Int)
+
     // Convolver
     external fun setConvolverEnabled(enabled: Boolean)
     external fun setConvolverImpulseResponse(channels: Int, kernel: FloatArray)

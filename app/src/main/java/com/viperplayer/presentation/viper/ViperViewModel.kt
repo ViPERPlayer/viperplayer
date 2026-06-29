@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.DynamicSystemDeviceType
+import com.viperplayer.domain.model.FetCompressorState
 import com.viperplayer.domain.model.IirEqualizerPresets
 import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.domain.model.ViperDefaults
@@ -741,6 +742,146 @@ class ViperViewModel @Inject constructor(
                     iirEqualizer = IirEqualizerState()
                 )
             }
+        }
+    }
+
+    // FET Compressor
+    private val fetDefaults = FetCompressorState()
+
+    private fun updateFet(transform: (FetCompressorState) -> FetCompressorState) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(fetCompressor = transform(it.fetCompressor)) }
+        }
+    }
+
+    fun setFetCompressorEnabled(enabled: Boolean) = updateFet { it.copy(enabled = enabled) }
+
+    fun setFetCompressorThreshold(value: Int) = updateFet { it.copy(threshold = value) }
+    fun resetFetCompressorThreshold() = updateFet { it.copy(threshold = fetDefaults.threshold) }
+
+    fun setFetCompressorRatio(value: Int) = updateFet { it.copy(ratio = value) }
+    fun resetFetCompressorRatio() = updateFet { it.copy(ratio = fetDefaults.ratio) }
+
+    fun setFetCompressorKnee(value: Int) = updateFet { it.copy(knee = value) }
+    fun resetFetCompressorKnee() = updateFet { it.copy(knee = fetDefaults.knee) }
+
+    fun setFetCompressorAutoKnee(enabled: Boolean) = updateFet { it.copy(autoKnee = enabled) }
+
+    fun setFetCompressorGain(value: Int) = updateFet { it.copy(gain = value) }
+    fun resetFetCompressorGain() = updateFet { it.copy(gain = fetDefaults.gain) }
+
+    fun setFetCompressorAutoGain(enabled: Boolean) = updateFet { it.copy(autoGain = enabled) }
+
+    fun setFetCompressorAttack(value: Int) = updateFet { it.copy(attack = value) }
+    fun resetFetCompressorAttack() = updateFet { it.copy(attack = fetDefaults.attack) }
+
+    fun setFetCompressorAutoAttack(enabled: Boolean) = updateFet { it.copy(autoAttack = enabled) }
+
+    fun setFetCompressorRelease(value: Int) = updateFet { it.copy(release = value) }
+    fun resetFetCompressorRelease() = updateFet { it.copy(release = fetDefaults.release) }
+
+    fun setFetCompressorAutoRelease(enabled: Boolean) = updateFet { it.copy(autoRelease = enabled) }
+
+    fun setFetCompressorKneeMulti(value: Int) = updateFet { it.copy(kneeMulti = value) }
+    fun resetFetCompressorKneeMulti() = updateFet { it.copy(kneeMulti = fetDefaults.kneeMulti) }
+
+    fun setFetCompressorMaxAttack(value: Int) = updateFet { it.copy(maxAttack = value) }
+    fun resetFetCompressorMaxAttack() = updateFet { it.copy(maxAttack = fetDefaults.maxAttack) }
+
+    fun setFetCompressorMaxRelease(value: Int) = updateFet { it.copy(maxRelease = value) }
+    fun resetFetCompressorMaxRelease() = updateFet { it.copy(maxRelease = fetDefaults.maxRelease) }
+
+    fun setFetCompressorCrest(value: Int) = updateFet { it.copy(crest = value) }
+    fun resetFetCompressorCrest() = updateFet { it.copy(crest = fetDefaults.crest) }
+
+    fun setFetCompressorAdapt(value: Int) = updateFet { it.copy(adapt = value) }
+    fun resetFetCompressorAdapt() = updateFet { it.copy(adapt = fetDefaults.adapt) }
+
+    fun setFetCompressorNoClip(enabled: Boolean) = updateFet { it.copy(noClip = enabled) }
+
+    // Headphone Surround+ (VHE)
+    fun setHeadphoneSurroundEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(headphoneSurround = it.headphoneSurround.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setHeadphoneSurroundLevel(level: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(headphoneSurround = it.headphoneSurround.copy(level = level)) }
+        }
+    }
+
+    fun resetHeadphoneSurroundLevel() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(headphoneSurround = it.headphoneSurround.copy(level = 0)) }
+        }
+    }
+
+    // Reverberation
+    fun setReverberationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setReverberationRoomSize(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(roomSize = value)) }
+        }
+    }
+
+    fun resetReverberationRoomSize() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(roomSize = ViperDefaults.REVERBERATION_ROOM_SIZE)) }
+        }
+    }
+
+    fun setReverberationWidth(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(width = value)) }
+        }
+    }
+
+    fun resetReverberationWidth() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(width = ViperDefaults.REVERBERATION_WIDTH)) }
+        }
+    }
+
+    fun setReverberationDamp(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(damp = value)) }
+        }
+    }
+
+    fun resetReverberationDamp() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(damp = ViperDefaults.REVERBERATION_DAMP)) }
+        }
+    }
+
+    fun setReverberationWet(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(wet = value)) }
+        }
+    }
+
+    fun resetReverberationWet() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(wet = ViperDefaults.REVERBERATION_WET)) }
+        }
+    }
+
+    fun setReverberationDry(value: Int) {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(dry = value)) }
+        }
+    }
+
+    fun resetReverberationDry() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState { it.copy(reverberation = it.reverberation.copy(dry = ViperDefaults.REVERBERATION_DRY)) }
         }
     }
 }

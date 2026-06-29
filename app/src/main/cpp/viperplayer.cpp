@@ -502,6 +502,41 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setHeadphoneSurroundLevel(JNI
     viperEngine.vhe.SetEffectLevel((int) level);
 }
 
+// Reverberation
+// The reverberation member sits in the engine's effect chain (ViPER::process).
+// Wiring mirrors the ViperBass pattern: the JNI functions call the public member's
+// setters directly. UI values arrive as 0..100 and are normalised to the [0,1]
+// Freeverb range the CRevModel setters expect.
+extern "C" JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+    viperEngine.reverberation.SetEnable(enabled);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationRoomSize(JNIEnv *env, jobject thiz, jint value) {
+    viperEngine.reverberation.SetRoomSize((float) value / 100.0f);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationWidth(JNIEnv *env, jobject thiz, jint value) {
+    viperEngine.reverberation.SetWidth((float) value / 100.0f);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationDamp(JNIEnv *env, jobject thiz, jint value) {
+    viperEngine.reverberation.SetDamp((float) value / 100.0f);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationWet(JNIEnv *env, jobject thiz, jint value) {
+    viperEngine.reverberation.SetWet((float) value / 100.0f);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationDry(JNIEnv *env, jobject thiz, jint value) {
+    viperEngine.reverberation.SetDry((float) value / 100.0f);
+}
+
 // Common
 extern "C"
 JNIEXPORT void JNICALL

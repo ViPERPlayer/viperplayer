@@ -27,10 +27,13 @@ import com.viperplayer.presentation.viper.effect.AuditorySystemProtectionEffect
 import com.viperplayer.presentation.viper.effect.ConvolverEffect
 import com.viperplayer.presentation.viper.effect.DifferentialSurroundEffect
 import com.viperplayer.presentation.viper.effect.DynamicSystemEffect
+import com.viperplayer.presentation.viper.effect.FETCompressorEffect
 import com.viperplayer.presentation.viper.effect.FieldSurroundEffect
+import com.viperplayer.presentation.viper.effect.HeadphoneSurroundPlusEffect
 import com.viperplayer.presentation.viper.effect.IirEqualizerEffect
 import com.viperplayer.presentation.viper.effect.MasterLimiterEffect
 import com.viperplayer.presentation.viper.effect.PlaybackGainControlEffect
+import com.viperplayer.presentation.viper.effect.ReverberationEffect
 import com.viperplayer.presentation.viper.effect.SpeakerOptimizationEffect
 import com.viperplayer.presentation.viper.effect.SpectrumExtensionEffect
 import com.viperplayer.presentation.viper.effect.TubeSimulator6N1JEffect
@@ -103,7 +106,37 @@ fun ViperScreen(
                         onOutputThresholdChange = { viewModel.setPlaybackGainOutputThreshold(it) },
                         onOutputThresholdReset = { viewModel.resetPlaybackGainOutputThreshold() }
                     )
-//                    FETCompressorEffect()
+                    FETCompressorEffect(
+                        state = effects.fetCompressor,
+                        onEnabledChange = { viewModel.setFetCompressorEnabled(it) },
+                        onThresholdChange = { viewModel.setFetCompressorThreshold(it) },
+                        onThresholdReset = { viewModel.resetFetCompressorThreshold() },
+                        onRatioChange = { viewModel.setFetCompressorRatio(it) },
+                        onRatioReset = { viewModel.resetFetCompressorRatio() },
+                        onKneeChange = { viewModel.setFetCompressorKnee(it) },
+                        onKneeReset = { viewModel.resetFetCompressorKnee() },
+                        onAutoKneeChange = { viewModel.setFetCompressorAutoKnee(it) },
+                        onGainChange = { viewModel.setFetCompressorGain(it) },
+                        onGainReset = { viewModel.resetFetCompressorGain() },
+                        onAutoGainChange = { viewModel.setFetCompressorAutoGain(it) },
+                        onAttackChange = { viewModel.setFetCompressorAttack(it) },
+                        onAttackReset = { viewModel.resetFetCompressorAttack() },
+                        onAutoAttackChange = { viewModel.setFetCompressorAutoAttack(it) },
+                        onReleaseChange = { viewModel.setFetCompressorRelease(it) },
+                        onReleaseReset = { viewModel.resetFetCompressorRelease() },
+                        onAutoReleaseChange = { viewModel.setFetCompressorAutoRelease(it) },
+                        onKneeMultiChange = { viewModel.setFetCompressorKneeMulti(it) },
+                        onKneeMultiReset = { viewModel.resetFetCompressorKneeMulti() },
+                        onMaxAttackChange = { viewModel.setFetCompressorMaxAttack(it) },
+                        onMaxAttackReset = { viewModel.resetFetCompressorMaxAttack() },
+                        onMaxReleaseChange = { viewModel.setFetCompressorMaxRelease(it) },
+                        onMaxReleaseReset = { viewModel.resetFetCompressorMaxRelease() },
+                        onCrestChange = { viewModel.setFetCompressorCrest(it) },
+                        onCrestReset = { viewModel.resetFetCompressorCrest() },
+                        onAdaptChange = { viewModel.setFetCompressorAdapt(it) },
+                        onAdaptReset = { viewModel.resetFetCompressorAdapt() },
+                        onNoClipChange = { viewModel.setFetCompressorNoClip(it) }
+                    )
                     ViperDdcEffect(
                         state = effects.viperDdc,
                         ddcFiles = state.ddcFiles,
@@ -155,8 +188,26 @@ fun ViperScreen(
                         onDelayChange = { viewModel.setDifferentialSurroundDelay(it) },
                         onDelayReset = { viewModel.resetDifferentialSurroundDelay() }
                     )
-//                    HeadphoneSurroundPlusEffect()
-//                    ReverberationEffect()
+                    HeadphoneSurroundPlusEffect(
+                        state = effects.headphoneSurround,
+                        onEnabledChange = { viewModel.setHeadphoneSurroundEnabled(it) },
+                        onLevelChange = { viewModel.setHeadphoneSurroundLevel(it) },
+                        onLevelReset = { viewModel.resetHeadphoneSurroundLevel() }
+                    )
+                    ReverberationEffect(
+                        state = effects.reverberation,
+                        onEnabledChange = { viewModel.setReverberationEnabled(it) },
+                        onRoomSizeChange = { viewModel.setReverberationRoomSize(it) },
+                        onRoomSizeReset = { viewModel.resetReverberationRoomSize() },
+                        onWidthChange = { viewModel.setReverberationWidth(it) },
+                        onWidthReset = { viewModel.resetReverberationWidth() },
+                        onDampChange = { viewModel.setReverberationDamp(it) },
+                        onDampReset = { viewModel.resetReverberationDamp() },
+                        onWetChange = { viewModel.setReverberationWet(it) },
+                        onWetReset = { viewModel.resetReverberationWet() },
+                        onDryChange = { viewModel.setReverberationDry(it) },
+                        onDryReset = { viewModel.resetReverberationDry() }
+                    )
                     DynamicSystemEffect(
                         state = effects.dynamicSystem,
                         onEnabledChange = { viewModel.setDynamicSystemEnabled(it) },

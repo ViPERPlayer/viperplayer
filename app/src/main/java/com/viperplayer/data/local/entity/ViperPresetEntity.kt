@@ -109,5 +109,62 @@ data class ViperPresetEntity(
     val convolverImpulseResponse: String? = ViperDefaults.CONVOLVER_IMPULSE_RESPONSE,
     @ColumnInfo(defaultValue = "0")
     val convolverCrossChannel: Int = ViperDefaults.CONVOLVER_CROSS_CHANNEL,
+
+    // FET Compressor (schema v5). @ColumnInfo defaults MUST match MIGRATION_4_5's
+    // ALTER ... DEFAULT and the FetCompressorState() defaults.
+    @ColumnInfo(defaultValue = "0")
+    val fetCompressorEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "100")
+    val fetCompressorThreshold: Int = 100,
+    @ColumnInfo(defaultValue = "100")
+    val fetCompressorRatio: Int = 100,
+    @ColumnInfo(defaultValue = "0")
+    val fetCompressorKnee: Int = 0,
+    @ColumnInfo(defaultValue = "1")
+    val fetCompressorAutoKnee: Boolean = true,
+    @ColumnInfo(defaultValue = "0")
+    val fetCompressorGain: Int = 0,
+    @ColumnInfo(defaultValue = "1")
+    val fetCompressorAutoGain: Boolean = true,
+    @ColumnInfo(defaultValue = "20")
+    val fetCompressorAttack: Int = 20,
+    @ColumnInfo(defaultValue = "1")
+    val fetCompressorAutoAttack: Boolean = true,
+    @ColumnInfo(defaultValue = "50")
+    val fetCompressorRelease: Int = 50,
+    @ColumnInfo(defaultValue = "1")
+    val fetCompressorAutoRelease: Boolean = true,
+    @ColumnInfo(defaultValue = "0")
+    val fetCompressorKneeMulti: Int = 0,
+    @ColumnInfo(defaultValue = "80")
+    val fetCompressorMaxAttack: Int = 80,
+    @ColumnInfo(defaultValue = "100")
+    val fetCompressorMaxRelease: Int = 100,
+    @ColumnInfo(defaultValue = "20")
+    val fetCompressorCrest: Int = 20,
+    @ColumnInfo(defaultValue = "50")
+    val fetCompressorAdapt: Int = 50,
+    @ColumnInfo(defaultValue = "1")
+    val fetCompressorNoClip: Boolean = true,
+
+    // Headphone Surround+ / VHE (schema v5)
+    @ColumnInfo(defaultValue = "0")
+    val headphoneSurroundEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val headphoneSurroundLevel: Int = 0,
+
+    // Reverberation (schema v5)
+    @ColumnInfo(defaultValue = "0")
+    val reverberationEnabled: Boolean = ViperDefaults.REVERBERATION_ENABLED,
+    @ColumnInfo(defaultValue = "50")
+    val reverberationRoomSize: Int = ViperDefaults.REVERBERATION_ROOM_SIZE,
+    @ColumnInfo(defaultValue = "100")
+    val reverberationWidth: Int = ViperDefaults.REVERBERATION_WIDTH,
+    @ColumnInfo(defaultValue = "50")
+    val reverberationDamp: Int = ViperDefaults.REVERBERATION_DAMP,
+    @ColumnInfo(defaultValue = "30")
+    val reverberationWet: Int = ViperDefaults.REVERBERATION_WET,
+    @ColumnInfo(defaultValue = "50")
+    val reverberationDry: Int = ViperDefaults.REVERBERATION_DRY,
 )
 

@@ -56,6 +56,14 @@ object ViperDefaults {
     // Speaker Optimization
     const val SPEAKER_OPTIMIZATION_ENABLED = false
 
+    // Reverberation (all normalized 0-100 %; sent to native as value/100 -> 0..1 Freeverb params)
+    const val REVERBERATION_ENABLED = false
+    const val REVERBERATION_ROOM_SIZE = 50 // 0-100, medium room
+    const val REVERBERATION_WIDTH = 100    // 0-100, full stereo width
+    const val REVERBERATION_DAMP = 50      // 0-100, moderate high-frequency damping
+    const val REVERBERATION_WET = 30       // 0-100, audible reverb mix
+    const val REVERBERATION_DRY = 50       // 0-100, ~unity dry passthrough (native doubles dry)
+
     // DDC
     const val DDC_ENABLED = false
 

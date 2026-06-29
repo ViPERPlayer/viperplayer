@@ -64,3 +64,44 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_play_events_timestamp` ON `play_events` (`timestamp`)")
     }
 }
+
+/**
+ * v4 -> v5: persist the FET compressor, Headphone Surround+ (VHE), and Reverberation effects in
+ * `viper_presets`. These were previously dropped on save/load, so they were wiped whenever a preset
+ * was reloaded (e.g. switching audio device).
+ *
+ * Each ADD COLUMN's type/NOT NULL/DEFAULT must match the corresponding [ViperPresetEntity] field
+ * (incl. its @ColumnInfo defaultValue) exactly, or Room's runtime schema validation will fail.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // FET Compressor
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorEnabled INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorThreshold INTEGER NOT NULL DEFAULT 100")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorRatio INTEGER NOT NULL DEFAULT 100")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorKnee INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorAutoKnee INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorGain INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorAutoGain INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorAttack INTEGER NOT NULL DEFAULT 20")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorAutoAttack INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorRelease INTEGER NOT NULL DEFAULT 50")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorAutoRelease INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorKneeMulti INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorMaxAttack INTEGER NOT NULL DEFAULT 80")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorMaxRelease INTEGER NOT NULL DEFAULT 100")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorCrest INTEGER NOT NULL DEFAULT 20")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorAdapt INTEGER NOT NULL DEFAULT 50")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN fetCompressorNoClip INTEGER NOT NULL DEFAULT 1")
+        // Headphone Surround+ (VHE)
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN headphoneSurroundEnabled INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN headphoneSurroundLevel INTEGER NOT NULL DEFAULT 0")
+        // Reverberation
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationEnabled INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationRoomSize INTEGER NOT NULL DEFAULT 50")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationWidth INTEGER NOT NULL DEFAULT 100")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationDamp INTEGER NOT NULL DEFAULT 50")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationWet INTEGER NOT NULL DEFAULT 30")
+        db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationDry INTEGER NOT NULL DEFAULT 50")
+    }
+}

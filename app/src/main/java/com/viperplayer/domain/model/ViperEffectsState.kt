@@ -59,6 +59,9 @@ data class ViperEffectsState(
     // Headphone Surround+ (VHE)
     val headphoneSurround: HeadphoneSurroundState = HeadphoneSurroundState(),
 
+    // Reverberation
+    val reverberation: ReverberationState = ReverberationState(),
+
     // IIR Equalizer
     val iirEqualizer: IirEqualizerState = IirEqualizerState(),
 ) {
@@ -173,6 +176,16 @@ data class FetCompressorState(
 data class HeadphoneSurroundState(
     val enabled: Boolean = false,
     val level: Int = 0, // 0..4 quality / effect level
+)
+
+@Serializable
+data class ReverberationState(
+    val enabled: Boolean = ViperDefaults.REVERBERATION_ENABLED,
+    val roomSize: Int = ViperDefaults.REVERBERATION_ROOM_SIZE,   // 0..100 (% normalized)
+    val width: Int = ViperDefaults.REVERBERATION_WIDTH,          // 0..100 (% stereo width)
+    val damp: Int = ViperDefaults.REVERBERATION_DAMP,            // 0..100 (% damping)
+    val wet: Int = ViperDefaults.REVERBERATION_WET,              // 0..100 (% wet/reverb mix)
+    val dry: Int = ViperDefaults.REVERBERATION_DRY,              // 0..100 (% dry/original mix)
 )
 
 @Serializable
