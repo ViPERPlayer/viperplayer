@@ -95,7 +95,7 @@ fun MiniPlayer(
         song = currentSong,
         isPlaying = isPlaying,
         duration = duration,
-        position = position,
+        position = { position },
         isLiked = isLiked,
         onTogglePlayPause = { viewModel.togglePlayPause() },
         onSkipToNext = { viewModel.skipToNext() },
@@ -107,7 +107,7 @@ fun MiniPlayer(
 
 @Composable
 private fun MiniPlayerProgressIndicator(
-    position: Long,
+    position: () -> Long,
     duration: Long,
     isPlaying: Boolean,
     modifier: Modifier = Modifier
@@ -116,7 +116,7 @@ private fun MiniPlayerProgressIndicator(
         // The parent already samples position at ~60fps and passes it down, so bind progress
         // directly. The previous LaunchedEffect interpolation was keyed on `position` (so it
         // relaunched every frame and never accumulated) — pure churn for no benefit.
-        val progress = (position.toFloat() / duration).coerceIn(0f, 1f)
+        val progress = (position().toFloat() / duration).coerceIn(0f, 1f)
 
         CircularProgressIndicator(
             progress = { progress },
@@ -133,7 +133,7 @@ fun MiniPlayerContent(
     song: Song?,
     isPlaying: Boolean,
     duration: Long,
-    position: Long,
+    position: () -> Long,
     isLiked: Boolean,
     onTogglePlayPause: () -> Unit,
     onSkipToNext: () -> Unit,
@@ -381,7 +381,7 @@ fun MiniPlayerPreview() {
                 ),
                 isPlaying = false,
                 duration = 180000L,
-                position = 50000L,
+                position = { 50000L },
                 isLiked = false,
                 onTogglePlayPause = {},
                 onSkipToNext = {},

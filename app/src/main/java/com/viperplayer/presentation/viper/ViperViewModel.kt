@@ -2,6 +2,7 @@ package com.viperplayer.presentation.viper
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.DynamicSystemDeviceType
@@ -39,6 +40,7 @@ data class ViperUiState(
  * ViewModel for ViPER screen.
  * This is the single ViewModel that manages all ViPER effects state.
  */
+@Stable
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class ViperViewModel @Inject constructor(

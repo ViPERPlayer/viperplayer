@@ -1,5 +1,6 @@
 package com.viperplayer.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -7,6 +8,7 @@ import kotlinx.serialization.Serializable
  * This represents the complete configuration of all effects.
  */
 @Serializable
+@Immutable
 data class ViperEffectsState(
     // Global
     val enabled: Boolean = ViperDefaults.ENABLED,
@@ -74,6 +76,7 @@ data class ViperEffectsState(
 }
 
 @Serializable
+@Immutable
 data class MasterLimiterState(
     val outputGain: Int = ViperDefaults.OUTPUT_GAIN_INDEX,
     val outputPan: Float = ViperDefaults.OUTPUT_PAN,
@@ -81,12 +84,14 @@ data class MasterLimiterState(
 )
 
 @Serializable
+@Immutable
 data class SpectrumExtensionState(
     val enabled: Boolean = ViperDefaults.SPECTRUM_EXTENSION_ENABLED,
     val strength: Int = ViperDefaults.SPECTRUM_EXTENSION_STRENGTH,
 )
 
 @Serializable
+@Immutable
 data class FieldSurroundState(
     val enabled: Boolean = ViperDefaults.FIELD_SURROUND_ENABLED,
     val surroundStrength: Int = ViperDefaults.FIELD_SURROUND_STRENGTH,
@@ -94,12 +99,14 @@ data class FieldSurroundState(
 )
 
 @Serializable
+@Immutable
 data class DifferentialSurroundState(
     val enabled: Boolean = ViperDefaults.DIFFERENTIAL_SURROUND_ENABLED,
     val delay: Int = ViperDefaults.DIFFERENTIAL_SURROUND_DELAY,
 )
 
 @Serializable
+@Immutable
 data class PlaybackGainState(
     val enabled: Boolean = ViperDefaults.PLAYBACK_GAIN_ENABLED,
     val strength: Int = ViperDefaults.PLAYBACK_GAIN_STRENGTH,
@@ -108,6 +115,7 @@ data class PlaybackGainState(
 )
 
 @Serializable
+@Immutable
 data class DynamicSystemState(
     val enabled: Boolean = ViperDefaults.DYNAMIC_SYSTEM_ENABLED,
     val deviceType: DynamicSystemDeviceType = ViperDefaults.DYNAMIC_SYSTEM_DEVICE_TYPE,
@@ -115,11 +123,13 @@ data class DynamicSystemState(
 )
 
 @Serializable
+@Immutable
 data class TubeSimulatorState(
     val enabled: Boolean = ViperDefaults.TUBE_SIMULATOR_ENABLED,
 )
 
 @Serializable
+@Immutable
 data class ViperBassState(
     val enabled: Boolean = ViperDefaults.VIPER_BASS_ENABLED,
     val mode: Int = ViperDefaults.VIPER_BASS_MODE,
@@ -128,6 +138,7 @@ data class ViperBassState(
 )
 
 @Serializable
+@Immutable
 data class ViperClarityState(
     val enabled: Boolean = ViperDefaults.VIPER_CLARITY_ENABLED,
     val mode: Int = ViperDefaults.VIPER_CLARITY_MODE,
@@ -135,23 +146,27 @@ data class ViperClarityState(
 )
 
 @Serializable
+@Immutable
 data class AuditorySystemProtectionState(
     val enabled: Boolean = ViperDefaults.AUDITORY_SYSTEM_PROTECTION_ENABLED,
     val level: Int = ViperDefaults.AUDITORY_SYSTEM_PROTECTION_LEVEL,
 )
 
 @Serializable
+@Immutable
 data class AnalogXState(
     val enabled: Boolean = ViperDefaults.ANALOG_X_ENABLED,
     val level: Int = ViperDefaults.ANALOG_X_LEVEL,
 )
 
 @Serializable
+@Immutable
 data class SpeakerOptimizationState(
     val enabled: Boolean = ViperDefaults.SPEAKER_OPTIMIZATION_ENABLED,
 )
 
 @Serializable
+@Immutable
 data class FetCompressorState(
     val enabled: Boolean = false,
     val threshold: Int = 100,
@@ -173,12 +188,14 @@ data class FetCompressorState(
 )
 
 @Serializable
+@Immutable
 data class HeadphoneSurroundState(
     val enabled: Boolean = false,
     val level: Int = 0, // 0..4 quality / effect level
 )
 
 @Serializable
+@Immutable
 data class ReverberationState(
     val enabled: Boolean = ViperDefaults.REVERBERATION_ENABLED,
     val roomSize: Int = ViperDefaults.REVERBERATION_ROOM_SIZE,   // 0..100 (% normalized)
@@ -189,6 +206,7 @@ data class ReverberationState(
 )
 
 @Serializable
+@Immutable
 data class IirEqualizerState(
     val enabled: Boolean = ViperDefaults.IIR_EQUALIZER_ENABLED,
     val bandCount: Int = ViperDefaults.IIR_EQUALIZER_BAND_COUNT,
