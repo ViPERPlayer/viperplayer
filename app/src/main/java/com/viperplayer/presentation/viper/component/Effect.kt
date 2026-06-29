@@ -1,6 +1,11 @@
 package com.viperplayer.presentation.viper.component
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -99,13 +104,34 @@ fun Effect(
                 maxLines = 1,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            if (content != null) {
+                // Expand affordance: chevron rotates 0 -> 180 as the section opens.
+                val chevronRotation by animateFloatAsState(
+                    targetValue = if (expanded) 180f else 0f,
+                    animationSpec = tween(250),
+                    label = "effectChevron"
+                )
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.graphicsLayer { rotationZ = chevronRotation },
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (checked != null && onCheckedChange != null) {
                 Switch(checked = checked, onCheckedChange = onCheckedChange)
             }
         }
         if (content != null) {
             AnimatedVisibility(visible = expanded) {
-                Column {
+                // Dim the controls when the effect is toggled off, so the section visibly reflects
+                // its enabled state without collapsing.
+                val contentAlpha by animateFloatAsState(
+                    targetValue = if (checked == false) 0.4f else 1f,
+                    animationSpec = tween(250),
+                    label = "effectContentAlpha"
+                )
+                Column(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
                     content()
                 }
             }
