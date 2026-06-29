@@ -102,7 +102,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {

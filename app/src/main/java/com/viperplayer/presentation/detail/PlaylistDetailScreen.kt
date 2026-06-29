@@ -63,7 +63,7 @@ fun PlaylistDetailScreen(
     onNavigateToAlbum: (Album) -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
