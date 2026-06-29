@@ -164,7 +164,9 @@ fun PlayerScreen(
     var showQueueBottomSheet by remember { mutableStateOf(false) }
     var showDetailsBottomSheet by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
-    var showSocialSheets by remember { mutableStateOf(false) }
+    var showListenTogether by remember { mutableStateOf(false) }
+    var showShareInvite by remember { mutableStateOf(false) }
+    var showQr by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
 
     val song = currentSong
@@ -413,7 +415,7 @@ fun PlayerScreen(
                             .height(56.dp)
                             .clip(RoundedCornerShape(22.dp))
                             .background(Color.White.copy(alpha = 0.14f))
-                            .clickable { showSocialSheets = true }
+                            .clickable { showListenTogether = true }
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -504,14 +506,17 @@ fun PlayerScreen(
         }
     }
 
-    // Listen-together / devices / share / QR — one sheet with an internal back stack. Composed only
-    // while open so the stack resets to the Listen-together page each time it's opened.
-    if (showSocialSheets) {
-        PlayerSocialSheets(
-            song = song,
-            onDismiss = { showSocialSheets = false }
-        )
-    }
+    // Listen-together / devices / share / QR — independent sheets that layer: opening a nested one
+    // doesn't close the one beneath, so dismissing it reveals the previous sheet.
+    PlayerSocialSheets(
+        song = song,
+        showListenTogether = showListenTogether,
+        showShareInvite = showShareInvite,
+        showQr = showQr,
+        onShowListenTogether = { showListenTogether = it },
+        onShowShareInvite = { showShareInvite = it },
+        onShowQr = { showQr = it }
+    )
 }
 
 /**

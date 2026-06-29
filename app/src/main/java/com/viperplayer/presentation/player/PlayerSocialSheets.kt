@@ -43,7 +43,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -74,13 +73,16 @@ import com.viperplayer.domain.model.Song
  * device" lists the real local output. The link carries a generated session code for when a backend
  * is added.
  */
-private enum class SocialPage { LISTEN_TOGETHER, SHARE_INVITE, QR }
-
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSocialSheets(
     song: Song,
-    onDismiss: () -> Unit,
+    showListenTogether: Boolean,
+    showShareInvite: Boolean,
+    showQr: Boolean,
+    onShowListenTogether: (Boolean) -> Unit,
+    onShowShareInvite: (Boolean) -> Unit,
+    onShowQr: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val sessionCode = rememberSaveable { generateSessionCode() }
@@ -89,40 +91,51 @@ fun PlayerSocialSheets(
         "Listen with me: ${song.title}${song.artistNames?.let { " — $it" } ?: ""}\n$inviteUrl"
     }
 
-    // One sheet with an internal back stack so Share / QR layer on top of Listen-together and a
-    // "back" returns to the previous page instead of closing the whole sheet. The host composes this
-    // only while open, so the stack starts fresh at LISTEN_TOGETHER each time it opens.
-    val backStack = remember { mutableStateListOf(SocialPage.LISTEN_TOGETHER) }
-    fun push(page: SocialPage) { backStack.add(page) }
-    fun pop() { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
-        when (backStack.last()) {
-            SocialPage.LISTEN_TOGETHER -> ListenTogetherContent(
+    // Independent sheets that LAYER: opening a nested one (Share / QR) does NOT close the sheet
+    // beneath it, so dismissing the top one reveals the previous sheet again.
+    if (showListenTogether) {
+        ModalBottomSheet(
+            onDismissRequest = { onShowListenTogether(false) },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            ListenTogetherContent(
                 song = song,
-                onShareInvite = { push(SocialPage.SHARE_INVITE) },
-                onQr = { push(SocialPage.QR) }
+                onShareInvite = { onShowShareInvite(true) },
+                onQr = { onShowQr(true) }
             )
+        }
+    }
 
-            SocialPage.SHARE_INVITE -> ShareInviteContent(
+    if (showShareInvite) {
+        ModalBottomSheet(
+            onDismissRequest = { onShowShareInvite(false) },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            ShareInviteContent(
                 song = song,
                 inviteUrl = inviteUrl,
                 onCopy = { copyToClipboard(context, inviteUrl) },
                 onSystemShare = { systemShare(context, shareText) },
-                onQr = { push(SocialPage.QR) },
-                onBack = { pop() }
+                onQr = { onShowQr(true) },
+                onClose = { onShowShareInvite(false) }
             )
+        }
+    }
 
-            SocialPage.QR -> QrJoinContent(
+    if (showQr) {
+        ModalBottomSheet(
+            onDismissRequest = { onShowQr(false) },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            QrJoinContent(
                 song = song,
                 inviteUrl = inviteUrl,
                 code = sessionCode,
                 onCopy = { copyToClipboard(context, inviteUrl) },
-                onBack = { pop() }
+                onBack = { onShowQr(false) }
             )
         }
     }
@@ -201,7 +214,7 @@ private fun ShareInviteContent(
     onCopy: () -> Unit,
     onSystemShare: () -> Unit,
     onQr: () -> Unit,
-    onBack: () -> Unit
+    onClose: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -210,17 +223,13 @@ private fun ShareInviteContent(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Text("Invite to listen", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            IconButton(onClick = onClose) {
+                Icon(Icons.Filled.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(
-                "Invite to listen",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 4.dp)
-            )
         }
 
         Spacer(Modifier.height(12.dp))
