@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
@@ -299,18 +301,22 @@ fun ViperNavDisplay(
             val initialIndex = topLevelOrder.indexOf(initialState.key)
             val targetIndex = topLevelOrder.indexOf(targetState.key)
 
-            val direction = if (initialIndex != -1 && targetIndex != -1) {
-                if (targetIndex > initialIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Start
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.End
-                }
+            if (initialIndex != -1 && targetIndex != -1) {
+                // Lateral switch between top-level tabs: a gentle directional slide + crossfade, with
+                // far less travel than a hierarchical push so switching tabs doesn't feel "deep".
+                val goingRight = targetIndex > initialIndex
+                (fadeIn(tween(260)) + slideInHorizontally(tween(260)) { w ->
+                    if (goingRight) w / 6 else -w / 6
+                }) togetherWith (fadeOut(tween(220)) + slideOutHorizontally(tween(220)) { w ->
+                    if (goingRight) -w / 6 else w / 6
+                })
             } else {
-                AnimatedContentTransitionScope.SlideDirection.Start
+                // Hierarchical push (e.g. into a detail screen): full slide in from the Start.
+                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300)) +
+                        fadeIn(tween(300)) togetherWith
+                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300)) +
+                        fadeOut(tween(300))
             }
-
-            slideIntoContainer(direction, tween(300)) + fadeIn(tween(300)) togetherWith
-                    slideOutOfContainer(direction, tween(300)) + fadeOut(tween(300))
         },
         popTransitionSpec = {
             slideIntoContainer(
