@@ -402,24 +402,34 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     }
 
     private fun observeAudioSettings() {
-        // Skip silence -> ExoPlayer's flag, which flows into the audio-processor chain.
+        // Skip silence -> ExoPlayer's flag (forced off in DSP-bypass for a clean path).
         lifecycleScope.launch {
-            settingsRepository.skipSilence.collect { enabled ->
-                player.skipSilenceEnabled = enabled
-            }
+            combine(
+                settingsRepository.skipSilence,
+                settingsRepository.dspBypass,
+            ) { skip, bypass -> skip && !bypass }.collect { player.skipSilenceEnabled = it }
         }
-        // ReplayGain -> re-apply to the current track whenever the toggle or preamp changes (track
-        // changes re-apply via onMediaItemTransition). The first emission applies the initial state.
+        // DSP bypass -> ViPER processor passthrough (no native processing).
+        lifecycleScope.launch {
+            settingsRepository.dspBypass.collect { viperAudioProcessor.bypassed = it }
+        }
+        // ReplayGain -> re-apply to the current track whenever the toggle / preamp / bypass changes
+        // (track changes re-apply via onMediaItemTransition). The first emission applies the initial state.
         lifecycleScope.launch {
             combine(
                 settingsRepository.replayGainEnabled,
                 settingsRepository.replayGainPreampDb,
-            ) { _, _ -> }.collect { applyReplayGain() }
+                settingsRepository.dspBypass,
+            ) { _, _, _ -> }.collect { applyReplayGain() }
         }
     }
 
     /** Sets the player volume from the current track's ReplayGain tags + preamp (peak-limited). */
     private suspend fun applyReplayGain() {
+        if (settingsRepository.dspBypass.first()) {
+            player.volume = 1f // clean path: no ReplayGain scaling
+            return
+        }
         val enabled = settingsRepository.replayGainEnabled.first()
         val preampDb = settingsRepository.replayGainPreampDb.first()
         val extras = player.currentMediaItem?.mediaMetadata?.extras

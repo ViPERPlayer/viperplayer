@@ -39,6 +39,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val SKIP_SILENCE_KEY = booleanPreferencesKey("skip_silence")
         private val REPLAY_GAIN_ENABLED_KEY = booleanPreferencesKey("replay_gain_enabled")
         private val REPLAY_GAIN_PREAMP_DB_KEY = floatPreferencesKey("replay_gain_preamp_db")
+        private val DSP_BYPASS_KEY = booleanPreferencesKey("dsp_bypass")
         private val AUTO_LOAD_MORE_KEY = booleanPreferencesKey("auto_load_more")
 
         // Content
@@ -134,6 +135,16 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setSkipSilence(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SKIP_SILENCE_KEY] = enabled
+        }
+    }
+
+    override val dspBypass: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[DSP_BYPASS_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setDspBypass(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[DSP_BYPASS_KEY] = enabled
         }
     }
 

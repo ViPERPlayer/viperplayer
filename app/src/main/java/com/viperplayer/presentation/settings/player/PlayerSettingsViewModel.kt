@@ -19,7 +19,8 @@ data class PlayerSettingsUiState(
     val skipSilence: Boolean = false,
     val replayGainEnabled: Boolean = true,
     val replayGainPreampDb: Float = 0f,
-    val autoLoadMore: Boolean = false
+    val autoLoadMore: Boolean = false,
+    val dspBypass: Boolean = false
 )
 
 @HiltViewModel
@@ -61,6 +62,11 @@ class PlayerSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(autoLoadMore = enabled) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.dspBypass.collect { enabled ->
+                _uiState.update { it.copy(dspBypass = enabled) }
+            }
+        }
     }
 
     fun setAudioQuality(quality: AudioQuality) {
@@ -97,6 +103,12 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setAutoLoadMore(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoLoadMore(enabled)
+        }
+    }
+
+    fun setDspBypass(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDspBypass(enabled)
         }
     }
 }

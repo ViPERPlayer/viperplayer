@@ -57,6 +57,10 @@ interface SettingsRepository {
     val replayGainPreampDb: Flow<Float>
     suspend fun setReplayGainPreampDb(preampDb: Float)
 
+    /** Bypass all app-side DSP (the ViPER processor + ReplayGain) for a clean/untouched signal path. */
+    val dspBypass: Flow<Boolean>
+    suspend fun setDspBypass(enabled: Boolean)
+
     val autoLoadMore: Flow<Boolean>
     suspend fun setAutoLoadMore(enabled: Boolean)
 

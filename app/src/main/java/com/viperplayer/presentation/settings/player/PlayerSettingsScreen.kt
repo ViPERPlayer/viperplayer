@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipNext
@@ -117,6 +118,16 @@ fun PlayerSettingsScreen(
                     icon = Icons.Default.SkipNext,
                     checked = uiState.skipSilence,
                     onCheckedChange = viewModel::setSkipSilence
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = "Bypass DSP (clean output)",
+                    description = "Skips the ViPER processor and ReplayGain for an untouched signal path. " +
+                        "Note: the system may still resample to the output device's rate.",
+                    icon = Icons.Default.HighQuality,
+                    checked = uiState.dspBypass,
+                    onCheckedChange = viewModel::setDspBypass
                 )
             }
             item {

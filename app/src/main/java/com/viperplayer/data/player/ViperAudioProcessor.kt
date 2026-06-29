@@ -22,6 +22,7 @@ import timber.log.Timber
 import java.nio.ByteBuffer
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.jvm.Volatile
 
 /**
  * ViPER audio processor that processes PCM audio data using native ViPER effects.
@@ -46,6 +47,13 @@ class ViperAudioProcessor @Inject constructor(
 
     // Track previous state to detect changes and only update what's changed
     private var currentState: ViperEffectsState? = null
+
+    /**
+     * When true, audio passes through untouched (no native processing) — backs the "Bypass DSP"
+     * setting. Written from the playback service (main thread), read on the audio thread.
+     */
+    @Volatile
+    var bypassed: Boolean = false
 
     // Cache for loaded IR path to avoid reloading same file
     private var loadedIrPath: String? = null
@@ -75,7 +83,7 @@ class ViperAudioProcessor @Inject constructor(
         outputBuffer.put(inputBuffer)
         outputBuffer.flip()
 
-        if (currentState?.enabled == true) {
+        if (currentState?.enabled == true && !bypassed) {
             nativeDriver.process(
                 outputBuffer,
                 offset,
