@@ -32,7 +32,6 @@ object DatabaseModule {
             "viperplayer_database"
         )
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
-            .fallbackToDestructiveMigration(true) // last-resort for any future unmigrated bump
             .build()
     }
 

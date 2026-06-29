@@ -16,6 +16,7 @@ import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,8 +54,12 @@ class SettingsRepositoryImpl @Inject constructor(
 
     private val dataStore = context.settingsDataStore
 
+    /** map + distinctUntilChanged — DataStore emits the whole snapshot on any edit, so de-dupe each setting. */
+    private fun <T> Flow<Preferences>.mapDistinct(transform: suspend (Preferences) -> T): Flow<T> =
+        map(transform).distinctUntilChanged()
+
     // Appearance
-    override val dynamicThemeMode: Flow<DynamicThemeMode> = dataStore.data.map { preferences ->
+    override val dynamicThemeMode: Flow<DynamicThemeMode> = dataStore.data.mapDistinct { preferences ->
         preferences[DYNAMIC_THEME_MODE_KEY]?.let {
             try {
                 DynamicThemeMode.valueOf(it)
@@ -70,7 +75,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val themeMode: Flow<ThemeMode> = dataStore.data.map { preferences ->
+    override val themeMode: Flow<ThemeMode> = dataStore.data.mapDistinct { preferences ->
         preferences[THEME_MODE_KEY]?.let {
             try {
                 ThemeMode.valueOf(it)
@@ -86,7 +91,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val pureBlack: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val pureBlack: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[PURE_BLACK_KEY] ?: false // Default to disabled
     }
 
@@ -97,7 +102,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     // Player/Audio
-    override val audioQuality: Flow<AudioQuality> = dataStore.data.map { preferences ->
+    override val audioQuality: Flow<AudioQuality> = dataStore.data.mapDistinct { preferences ->
         preferences[AUDIO_QUALITY_KEY]?.let {
             try {
                 AudioQuality.valueOf(it)
@@ -113,7 +118,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val historyDuration: Flow<HistoryDuration> = dataStore.data.map { preferences ->
+    override val historyDuration: Flow<HistoryDuration> = dataStore.data.mapDistinct { preferences ->
         preferences[HISTORY_DURATION_KEY]?.let {
             try {
                 HistoryDuration.valueOf(it)
@@ -129,7 +134,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val skipSilence: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val skipSilence: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[SKIP_SILENCE_KEY] ?: false // Default to disabled
     }
 
@@ -139,7 +144,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val dspBypass: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val dspBypass: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[DSP_BYPASS_KEY] ?: false // Default to disabled
     }
 
@@ -149,7 +154,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val replayGainAlbumMode: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val replayGainAlbumMode: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[REPLAY_GAIN_ALBUM_MODE_KEY] ?: false // Default to track gain
     }
 
@@ -159,7 +164,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val replayGainEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val replayGainEnabled: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[REPLAY_GAIN_ENABLED_KEY] ?: true
     }
 
@@ -169,7 +174,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val replayGainPreampDb: Flow<Float> = dataStore.data.map { preferences ->
+    override val replayGainPreampDb: Flow<Float> = dataStore.data.mapDistinct { preferences ->
         preferences[REPLAY_GAIN_PREAMP_DB_KEY] ?: 0f
     }
 
@@ -179,7 +184,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val autoLoadMore: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val autoLoadMore: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[AUTO_LOAD_MORE_KEY] ?: false // Default to disabled
     }
 
@@ -190,7 +195,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     // Content
-    override val showExplicitContent: Flow<Boolean> = dataStore.data.map { preferences ->
+    override val showExplicitContent: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
         preferences[SHOW_EXPLICIT_CONTENT_KEY] ?: true // Default to showing explicit content
     }
 
@@ -201,7 +206,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     // Storage (settings only - cache operations are in CacheRepository)
-    override val maxSongCacheSize: Flow<Long> = dataStore.data.map { preferences ->
+    override val maxSongCacheSize: Flow<Long> = dataStore.data.mapDistinct { preferences ->
         preferences[MAX_SONG_CACHE_SIZE_KEY] ?: 500L * 1024 * 1024 // Default 500MB
     }
 
@@ -211,7 +216,7 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override val maxImageCacheSize: Flow<Long> = dataStore.data.map { preferences ->
+    override val maxImageCacheSize: Flow<Long> = dataStore.data.mapDistinct { preferences ->
         preferences[MAX_IMAGE_CACHE_SIZE_KEY] ?: 200L * 1024 * 1024 // Default 200MB
     }
 
