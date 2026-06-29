@@ -420,7 +420,8 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 settingsRepository.replayGainEnabled,
                 settingsRepository.replayGainPreampDb,
                 settingsRepository.dspBypass,
-            ) { _, _, _ -> }.collect { applyReplayGain() }
+                settingsRepository.replayGainAlbumMode,
+            ) { _, _, _, _ -> }.collect { applyReplayGain() }
         }
     }
 
@@ -432,9 +433,14 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         }
         val enabled = settingsRepository.replayGainEnabled.first()
         val preampDb = settingsRepository.replayGainPreampDb.first()
+        val albumMode = settingsRepository.replayGainAlbumMode.first()
         val extras = player.currentMediaItem?.mediaMetadata?.extras
-        val replayGainDb = extras?.getFloat("replayGainDb")
-        val peakAmplitude = extras?.getFloat("peakAmplitude")
+        // Album mode prefers album gain/peak when the source provided them (a plugin); otherwise (or for
+        // sources without album gain, e.g. a plugin) it falls back to the per-track values.
+        val albumGainDb = extras?.takeIf { it.containsKey("albumReplayGainDb") }?.getFloat("albumReplayGainDb")
+        val albumPeak = extras?.takeIf { it.containsKey("albumPeakAmplitude") }?.getFloat("albumPeakAmplitude")
+        val replayGainDb = (if (albumMode) albumGainDb else null) ?: extras?.getFloat("replayGainDb")
+        val peakAmplitude = (if (albumMode) albumPeak else null) ?: extras?.getFloat("peakAmplitude")
         val volume = if (enabled && replayGainDb != null) {
             val finalGainDb = replayGainDb + preampDb
             val gain = if (finalGainDb == 0f) 1f else 10f.pow(finalGainDb / 20f)

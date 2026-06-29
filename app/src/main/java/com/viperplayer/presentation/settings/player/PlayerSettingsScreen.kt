@@ -243,6 +243,30 @@ fun PlayerSettingsScreen(
                                     valueRange = -12f..6f,
                                     steps = 179
                                 )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Album mode",
+                                            style = MaterialTheme.typography.titleSmall
+                                        )
+                                        Text(
+                                            text = "Normalize per album instead of per track (where the source provides it)",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = uiState.replayGainAlbumMode,
+                                        onCheckedChange = viewModel::setReplayGainAlbumMode
+                                    )
+                                }
                             }
                         }
                     }

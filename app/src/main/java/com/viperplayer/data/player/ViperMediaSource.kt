@@ -145,6 +145,8 @@ class ViperMediaSource(
                     mediaItem.mediaMetadata.extras?.let { putAll(it) }
                     source.replayGainDb?.let { putFloat("replayGainDb", it) }
                     source.peakAmplitude?.let { putFloat("peakAmplitude", it) }
+                    source.albumReplayGainDb?.let { putFloat("albumReplayGainDb", it) }
+                    source.albumPeakAmplitude?.let { putFloat("albumPeakAmplitude", it) }
                 }
                 val baseBuilder = mediaItem.buildUpon().setMediaMetadata(
                     mediaItem.mediaMetadata.buildUpon().setExtras(extras).build()

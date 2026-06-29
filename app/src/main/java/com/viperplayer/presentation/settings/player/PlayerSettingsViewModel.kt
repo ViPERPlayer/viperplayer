@@ -20,7 +20,8 @@ data class PlayerSettingsUiState(
     val replayGainEnabled: Boolean = true,
     val replayGainPreampDb: Float = 0f,
     val autoLoadMore: Boolean = false,
-    val dspBypass: Boolean = false
+    val dspBypass: Boolean = false,
+    val replayGainAlbumMode: Boolean = false
 )
 
 @HiltViewModel
@@ -67,6 +68,11 @@ class PlayerSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(dspBypass = enabled) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.replayGainAlbumMode.collect { enabled ->
+                _uiState.update { it.copy(replayGainAlbumMode = enabled) }
+            }
+        }
     }
 
     fun setAudioQuality(quality: AudioQuality) {
@@ -109,6 +115,12 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setDspBypass(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDspBypass(enabled)
+        }
+    }
+
+    fun setReplayGainAlbumMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setReplayGainAlbumMode(enabled)
         }
     }
 }

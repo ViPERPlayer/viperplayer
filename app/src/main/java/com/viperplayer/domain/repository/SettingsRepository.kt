@@ -57,6 +57,10 @@ interface SettingsRepository {
     val replayGainPreampDb: Flow<Float>
     suspend fun setReplayGainPreampDb(preampDb: Float)
 
+    /** When ReplayGain is on, prefer album gain over track gain (preserves intra-album loudness). */
+    val replayGainAlbumMode: Flow<Boolean>
+    suspend fun setReplayGainAlbumMode(enabled: Boolean)
+
     /** Bypass all app-side DSP (the ViPER processor + ReplayGain) for a clean/untouched signal path. */
     val dspBypass: Flow<Boolean>
     suspend fun setDspBypass(enabled: Boolean)

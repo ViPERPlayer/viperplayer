@@ -40,6 +40,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val REPLAY_GAIN_ENABLED_KEY = booleanPreferencesKey("replay_gain_enabled")
         private val REPLAY_GAIN_PREAMP_DB_KEY = floatPreferencesKey("replay_gain_preamp_db")
         private val DSP_BYPASS_KEY = booleanPreferencesKey("dsp_bypass")
+        private val REPLAY_GAIN_ALBUM_MODE_KEY = booleanPreferencesKey("replay_gain_album_mode")
         private val AUTO_LOAD_MORE_KEY = booleanPreferencesKey("auto_load_more")
 
         // Content
@@ -145,6 +146,16 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setDspBypass(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[DSP_BYPASS_KEY] = enabled
+        }
+    }
+
+    override val replayGainAlbumMode: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[REPLAY_GAIN_ALBUM_MODE_KEY] ?: false // Default to track gain
+    }
+
+    override suspend fun setReplayGainAlbumMode(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[REPLAY_GAIN_ALBUM_MODE_KEY] = enabled
         }
     }
 
