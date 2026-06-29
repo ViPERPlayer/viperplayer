@@ -158,7 +158,6 @@ fun PlayerScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val duration by viewModel.duration.collectAsStateWithLifecycle()
-    val isLiked by viewModel.isLiked.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val queue by viewModel.queue.collectAsStateWithLifecycle()
 
@@ -345,7 +344,7 @@ fun PlayerScreen(
                 lyrics?.let { lyricsData ->
                     LyricLine(
                         lyrics = lyricsData,
-                        positionMs = currentPosition,
+                        positionMs = { currentPosition },
                         onClick = { showLyrics = true },
                         modifier = Modifier.padding(bottom = 18.dp)
                     )
@@ -393,13 +392,13 @@ fun PlayerScreen(
                             }
                         }
                     }
-                    LikeButton(isLiked = isLiked, onClick = { viewModel.toggleLike() })
+                    ConnectedLikeButton(viewModel = viewModel)
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
 
                 WavySeekBar(
-                    position = currentPosition,
+                    position = { currentPosition },
                     duration = duration,
                     isPlaying = isPlaying,
                     onSeek = { viewModel.seekTo(it) }
@@ -607,6 +606,16 @@ private fun ContextChip(
 }
 
 /**
+ * Reads the like state in its own scope so toggling it recomposes ONLY this button — not the whole
+ * player around it.
+ */
+@Composable
+private fun ConnectedLikeButton(viewModel: PlayerViewModel) {
+    val isLiked by viewModel.isLiked.collectAsStateWithLifecycle()
+    LikeButton(isLiked = isLiked, onClick = viewModel::toggleLike)
+}
+
+/**
  * Like toggle: Favorite glyph, white → primary, with a press-scale (0.82) bounce.
  */
 @Composable
@@ -737,7 +746,7 @@ private fun MorphPlayButton(
  */
 @Composable
 private fun WavySeekBar(
-    position: Long,
+    position: () -> Long,
     duration: Long,
     isPlaying: Boolean,
     onSeek: (Long) -> Unit,
@@ -750,7 +759,7 @@ private fun WavySeekBar(
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     var trackWidthPx by remember { mutableFloatStateOf(1f) }
 
-    val progress = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+    val progress = if (duration > 0) (position().toFloat() / duration).coerceIn(0f, 1f) else 0f
     val fraction = dragFraction ?: progress
 
     val targetAmp = if (isPlaying && dragFraction == null) 1f else 0f
@@ -846,7 +855,7 @@ private fun WavySeekBar(
                 .padding(top = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val shownPosition = if (dragFraction != null) (fraction * duration).toLong() else position
+            val shownPosition = if (dragFraction != null) (fraction * duration).toLong() else position()
             Text(
                 text = formatDuration(shownPosition),
                 color = Color.White.copy(alpha = 0.82f),

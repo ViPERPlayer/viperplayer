@@ -1,6 +1,7 @@
 package com.viperplayer.domain.model
 
 import android.os.Parcelable
+import androidx.compose.runtime.Immutable
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
@@ -18,6 +19,7 @@ enum class AlbumType : Parcelable {
  */
 @Serializable
 @Parcelize
+@Immutable
 data class Album(
     override val id: MediaId,
     val name: String,

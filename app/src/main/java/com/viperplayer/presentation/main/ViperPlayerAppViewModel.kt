@@ -58,6 +58,9 @@ class ViperPlayerAppViewModel @Inject constructor(
                             val result = context.imageLoader.execute(
                                 ImageRequest.Builder(context)
                                     .data(artworkUrl)
+                                    // Downscale before extracting the seed — decoding the full-res
+                                    // bitmap is the slow part; 128px is ample to pick a dominant color.
+                                    .size(128)
                                     .allowHardware(false)
                                     .build()
                             )

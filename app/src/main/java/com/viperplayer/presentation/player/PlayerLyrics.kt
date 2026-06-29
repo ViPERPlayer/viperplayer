@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -47,11 +48,13 @@ import kotlinx.coroutines.isActive
 @Composable
 fun LyricLine(
     lyrics: Lyrics,
-    positionMs: Long,
+    positionMs: () -> Long,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val text = remember(lyrics, positionMs) { currentLyricText(lyrics, positionMs) } ?: return
+    // Derived so a 60fps position tick only recomposes this row when the *line* actually changes.
+    val lyricState = remember(lyrics) { derivedStateOf { currentLyricText(lyrics, positionMs()) } }
+    val text = lyricState.value ?: return
 
     Row(
         modifier = modifier
