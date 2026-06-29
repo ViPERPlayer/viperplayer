@@ -736,6 +736,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         playEventDao.clearAll()
     }
 
+    override suspend fun pruneHistory(cutoffMillis: Long): Unit = withContext(Dispatchers.IO) {
+        playEventDao.pruneOlderThan(cutoffMillis)
+    }
+
     // Playlists
     override fun getPlaylist(mediaId: MediaId): Flow<Playlist?> {
         return combine(

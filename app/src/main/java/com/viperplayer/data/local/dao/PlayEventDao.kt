@@ -135,4 +135,8 @@ interface PlayEventDao {
     /** Delete history at or after [fromTimestamp] (e.g. "clear last week"). */
     @Query("DELETE FROM play_events WHERE timestamp >= :fromTimestamp")
     suspend fun clearSince(fromTimestamp: Long)
+
+    /** Prune history strictly older than [cutoffTimestamp] — enforces the History Duration window. */
+    @Query("DELETE FROM play_events WHERE timestamp < :cutoffTimestamp")
+    suspend fun pruneOlderThan(cutoffTimestamp: Long)
 }

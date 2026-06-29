@@ -13,10 +13,14 @@ import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
+import com.viperplayer.domain.repository.HistoryDuration
+import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import javax.inject.Inject
@@ -29,6 +33,9 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    @Inject
+    lateinit var mediaLibraryRepository: MediaLibraryRepository
+
     override fun onCreate() {
         super.onCreate()
         setupCrashHandler()
@@ -40,6 +47,23 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
         }
 
         initializeTimber()
+        pruneHistory()
+    }
+
+    /** Enforce the History Duration retention window at startup (FOREVER prunes nothing). */
+    private fun pruneHistory() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val retentionDays = when (settingsRepository.historyDuration.first()) {
+                HistoryDuration.DAYS_7 -> 7L
+                HistoryDuration.DAYS_30 -> 30L
+                HistoryDuration.DAYS_90 -> 90L
+                HistoryDuration.DAYS_180 -> 180L
+                HistoryDuration.DAYS_365 -> 365L
+                HistoryDuration.FOREVER -> return@launch
+            }
+            val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60L * 60L * 1000L
+            mediaLibraryRepository.pruneHistory(cutoff)
+        }
     }
 
     @SuppressLint("LogNotTimber")

@@ -73,6 +73,9 @@ interface MediaLibraryRepository {
     /** Delete the entire listening history. */
     suspend fun clearHistory()
 
+    /** Delete play history older than [cutoffMillis] (epoch millis); enforces the retention window. */
+    suspend fun pruneHistory(cutoffMillis: Long)
+
     // Playlists
     fun getPlaylist(mediaId: MediaId): Flow<Playlist?>
     fun getAllLikedPlaylists(): Flow<List<Playlist>>
