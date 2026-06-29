@@ -296,6 +296,13 @@ class PlayerRepositoryImpl @Inject constructor(
                     flowOf<Song?>(null)
                 }
             }
+            // The DB record also re-emits on library-state writes (like / download), but the UI reads
+            // those from their own flows. Ignore library-only changes here so liking the current track
+            // doesn't churn currentSong and recompose everything that renders it.
+            .distinctUntilChanged { old, new ->
+                old?.copy(isLiked = false, isDownloaded = false) ==
+                    new?.copy(isLiked = false, isDownloaded = false)
+            }
             .stateIn(
                 scope = scope,
                 started = SharingStarted.Eagerly,
@@ -478,6 +485,12 @@ class PlayerRepositoryImpl @Inject constructor(
                         }
                     ) { songs: Array<Song?> -> songs.filterNotNull() }
                 }
+            }
+            // Same as currentSong: don't re-emit the queue (which drives the player's artwork pager)
+            // when a track's library state changes — only when the queue's songs/identity change.
+            .distinctUntilChanged { old, new ->
+                old.map { it.copy(isLiked = false, isDownloaded = false) } ==
+                    new.map { it.copy(isLiked = false, isDownloaded = false) }
             }
 
     init {
