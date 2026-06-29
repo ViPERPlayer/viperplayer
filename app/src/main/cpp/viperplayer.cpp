@@ -9,6 +9,13 @@
 #define DEFAULT_SAMPLING_RATE 44100
 static ViPER viperEngine = ViPER(DEFAULT_SAMPLING_RATE);
 
+// Reconfigure the engine for the stream's actual sample rate (rate-dependent DSP coefficients).
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setSamplingRate(JNIEnv *env, jobject thiz, jint samplingRate) {
+    viperEngine.setSamplingRate((uint32_t) samplingRate);
+}
+
 // Master Limiter
 extern "C"
 JNIEXPORT void JNICALL

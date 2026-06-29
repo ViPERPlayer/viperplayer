@@ -15,6 +15,9 @@ class ViperNativeDriver @Inject constructor() {
         System.loadLibrary("viper")
     }
 
+    /** Reconfigure the engine for the stream's sample rate (its DSP coefficients are rate-dependent). */
+    external fun setSamplingRate(samplingRate: Int)
+
     // Master Limiter
     external fun setMasterLimiterOutputGain(gainL: Float, gainR: Float)
     external fun setMasterLimiterThresholdLimit(threshold: Float)

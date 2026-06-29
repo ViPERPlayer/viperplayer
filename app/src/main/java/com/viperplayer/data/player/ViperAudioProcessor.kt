@@ -45,7 +45,9 @@ class ViperAudioProcessor @Inject constructor(
 
     private val processorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // Track previous state to detect changes and only update what's changed
+    // Track previous state to detect changes and only update what's changed. @Volatile because it's
+    // written from a Default-dispatcher coroutine but read on the audio (queueInput) thread.
+    @Volatile
     private var currentState: ViperEffectsState? = null
 
     /**
@@ -54,6 +56,10 @@ class ViperAudioProcessor @Inject constructor(
      */
     @Volatile
     var bypassed: Boolean = false
+
+    /** ViPER processes interleaved stereo; non-stereo formats pass through untouched (set in onConfigure). */
+    @Volatile
+    private var stereo: Boolean = true
 
     // Cache for loaded IR path to avoid reloading same file
     private var loadedIrPath: String? = null
@@ -69,6 +75,11 @@ class ViperAudioProcessor @Inject constructor(
             Timber.d("Unsupported audio format: $inputAudioFormat")
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }
+        // Reconfigure the native engine for the ACTUAL sample rate — its DSP coefficients (EQ centers,
+        // reverb decay, bass crossover, …) are rate-dependent and were previously fixed at 44.1 kHz.
+        nativeDriver.setSamplingRate(inputAudioFormat.sampleRate)
+        // ViPER is a stereo engine; pass other channel counts through untouched rather than mis-framing.
+        stereo = inputAudioFormat.channelCount == 2
         return inputAudioFormat
     }
 
@@ -83,7 +94,7 @@ class ViperAudioProcessor @Inject constructor(
         outputBuffer.put(inputBuffer)
         outputBuffer.flip()
 
-        if (currentState?.enabled == true && !bypassed) {
+        if (currentState?.enabled == true && !bypassed && stereo) {
             nativeDriver.process(
                 outputBuffer,
                 offset,
