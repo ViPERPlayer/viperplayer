@@ -98,6 +98,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     private var isAudioEffectControlSessionOpen = false
 
+    /** Last track we auto-loaded related songs for, so we don't re-fetch on repeated transitions. */
+    private var lastAutoLoadSongId: String? = null
+
     override fun onCreate() {
         dispatcher.onServicePreSuperOnCreate()
         super.onCreate()
@@ -361,6 +364,40 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         // ReplayGain settings change — see observeAudioSettings.)
         if (mediaItem != null) {
             lifecycleScope.launch { applyReplayGain() }
+        }
+
+        // Endless playback: top up the queue with related tracks when we reach the end.
+        maybeAutoLoadMore()
+    }
+
+    /**
+     * Auto Load More: when enabled and the current track is the last in the queue, append related
+     * tracks (de-duped against what's already queued) so playback continues endlessly. Guarded by
+     * [lastAutoLoadSongId] so a single track triggers at most one fetch even if the transition fires
+     * more than once.
+     */
+    private fun maybeAutoLoadMore() {
+        lifecycleScope.launch {
+            if (!settingsRepository.autoLoadMore.first()) return@launch
+            val current = player.currentMediaItem ?: return@launch
+            if (player.currentMediaItemIndex < player.mediaItemCount - 1) return@launch
+            if (lastAutoLoadSongId == current.mediaId) return@launch
+            lastAutoLoadSongId = current.mediaId
+
+            val mediaId = MediaId.fromString(current.mediaId) ?: return@launch
+            val related = pluginDataSource.getRelatedSongs(mediaId).getOrNull()?.items.orEmpty()
+            if (related.isEmpty()) return@launch
+
+            val existing = (0 until player.mediaItemCount)
+                .mapNotNull { player.getMediaItemAt(it).mediaId }
+                .toSet()
+            val toAdd = related
+                .filter { it.id.toString() !in existing }
+                .map { it.toMediaItem() }
+            if (toAdd.isNotEmpty()) {
+                player.addMediaItems(toAdd)
+                Timber.d("Auto Load More: appended ${toAdd.size} related tracks after ${current.mediaId}")
+            }
         }
     }
 
