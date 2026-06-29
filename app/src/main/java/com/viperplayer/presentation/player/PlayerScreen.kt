@@ -431,6 +431,7 @@ fun PlayerScreen(
                                 text = "This phone",
                                 color = Color.White,
                                 fontSize = 15.sp,
+                                lineHeight = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -439,6 +440,7 @@ fun PlayerScreen(
                                 text = "Output device",
                                 color = Color.White.copy(alpha = 0.65f),
                                 fontSize = 12.sp,
+                                lineHeight = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1
                             )
