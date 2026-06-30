@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <map>
+#include <mutex>
 
 // ViPERDDC - "Digital Drive Control" convolution/parametric stage from ViPER4Android.
 //
@@ -46,6 +47,10 @@ private:
     uint32_t samplingRate;
     uint32_t arrSize;       // number of biquad sections per channel
     std::map<uint32_t, std::vector<std::array<float, 5>>> coeffsMap;
+    // Guards coeffsMap + the biquad-history vectors. Process() (audio thread) try-locks and skips on
+    // contention; AddCoeffs/ClearCoeffs/Reset (loader thread) hold it while mutating. Without this,
+    // Process held a pointer into coeffsMap (&it->second) while ClearCoeffs freed it -> use-after-free.
+    mutable std::mutex coeffsMutex;
     // Per-section biquad history, one element per cascade section.
     std::vector<float> x1L;
     std::vector<float> x1R;

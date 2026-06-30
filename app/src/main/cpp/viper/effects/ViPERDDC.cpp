@@ -9,6 +9,11 @@ ViPERDDC::ViPERDDC(uint32_t samplingRate) :
     arrSize(0) {}
 
 void ViPERDDC::Process(float *samples, uint32_t size) {
+    // Non-blocking on the RT audio thread: if a coeff load/clear is mid-flight, skip (passthrough)
+    // rather than block the audio thread or read a half-mutated map/history.
+    std::unique_lock<std::mutex> lock(this->coeffsMutex, std::try_to_lock);
+    if (!lock.owns_lock()) return;
+
     if (!this->setCoeffsOk || this->arrSize == 0) return;
     if (!this->enable) return;
 
@@ -86,6 +91,7 @@ void ViPERDDC::ReleaseResources() {
 }
 
 void ViPERDDC::Reset() {
+    std::lock_guard<std::mutex> lock(this->coeffsMutex);
     if (!this->setCoeffsOk) return;
     if (this->arrSize == 0) return;
 
@@ -99,11 +105,13 @@ void ViPERDDC::Reset() {
 }
 
 void ViPERDDC::ClearCoeffs() {
+    std::lock_guard<std::mutex> lock(this->coeffsMutex);
     ReleaseResources();
 }
 
 void ViPERDDC::AddCoeffs(uint32_t rate, const std::vector<std::array<float, 5>>& coeffs) {
     if (coeffs.empty()) return;
+    std::lock_guard<std::mutex> lock(this->coeffsMutex);
 
     // If this is the first set of coeffs added, set up the buffer size
     if (this->coeffsMap.empty()) {
