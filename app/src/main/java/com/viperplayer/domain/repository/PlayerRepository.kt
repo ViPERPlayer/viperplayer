@@ -44,12 +44,6 @@ interface PlayerRepository {
     val queue: Flow<List<Song>>
 
     /**
-     * Legacy combined player state for backward compatibility.
-     * Combines all separate flows - use individual flows for better performance.
-     */
-    val playerState: StateFlow<PlayerState>
-
-    /**
      * Play a song.
      */
     suspend fun play(song: Song, context: PlaybackContext? = null)

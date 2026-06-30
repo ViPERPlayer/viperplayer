@@ -314,7 +314,7 @@ class PlayerRepositoryImpl @Inject constructor(
             }
             .stateIn(
                 scope = scope,
-                started = SharingStarted.Eagerly,
+                started = SharingStarted.WhileSubscribed(5000L),
                 initialValue = null
             )
 
@@ -394,31 +394,8 @@ class PlayerRepositoryImpl @Inject constructor(
             .distinctUntilChanged()
             .stateIn(
                 scope = scope,
-                started = SharingStarted.Eagerly,
+                started = SharingStarted.WhileSubscribed(5000L),
                 initialValue = 0L
-            )
-
-    // Legacy combined state for backward compatibility
-    // Note: positionMs is set to 0 since position is now polled on-demand via getCurrentPosition()
-    override val playerState: StateFlow<PlayerState> =
-        combine(playbackState, currentSong, duration) { playback, song, dur ->
-            PlayerState(
-                state = playback.state,
-                currentSong = song,
-                positionMs = 0L, // Position is now polled on-demand, not included in flow
-                durationMs = dur,
-                shuffleEnabled = playback.shuffleEnabled,
-                repeatMode = playback.repeatMode,
-                volume = playback.volume,
-                queueSize = playback.queueSize,
-                queuePosition = playback.queuePosition,
-                playbackContext = playback.playbackContext
-            )
-        }
-            .stateIn(
-                scope = scope,
-                started = SharingStarted.Eagerly,
-                initialValue = PlayerState()
             )
 
     override val queue: Flow<List<Song>> =
@@ -515,18 +492,19 @@ class PlayerRepositoryImpl @Inject constructor(
      */
     private fun observeAndPersistPlayerState() {
         // Combine all state that needs to be persisted
+        // Deliberately does NOT collect currentSong — the current media id comes straight from the
+        // controller, so currentSong can stay WhileSubscribed (stop hydrating when no UI is bound).
         combine(
-            currentSong,
             playbackState,
             queue,
             mediaControllerManager.controllerFlow
-        ) { song, playback, queueSongs, controller ->
+        ) { playback, queueSongs, controller ->
             // Get current position and queue position from controller
             val position = controller.currentPosition.coerceAtLeast(0)
             val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
 
             com.viperplayer.data.player.PersistedPlayerState(
-                currentSongMediaId = song?.id?.toString(),
+                currentSongMediaId = extractMediaIdFromController(controller)?.toString(),
                 currentPositionMs = position,
                 queuePosition = queuePosition,
                 shuffleEnabled = playback.shuffleEnabled,
