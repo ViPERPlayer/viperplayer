@@ -177,18 +177,13 @@ class LibraryViewModel @Inject constructor(
                                     .collect { updatedLikedSongsPlaylist ->
                                         // Only update if we're on playlists tab
                                         if (_uiState.value.selectedTab == LibraryTab.PLAYLISTS) {
-                                            // Reload plugin playlists in case they changed
-                                            val pluginResult =
-                                                pluginRepository.getLibraryPlaylists(limit = 50)
-                                            val updatedPluginPlaylists =
-                                                pluginResult.getOrNull()?.items.orEmpty()
-
-                                            // Always show "Liked Songs" at the top if it has any songs
+                                            // Reuse the already-fetched plugin playlists instead of
+                                            // re-hitting the network on every liked-songs change (e.g. a like).
                                             val updatedAllPlaylists =
                                                 if (updatedLikedSongsPlaylist.songCount > 0) {
-                                                    listOf(updatedLikedSongsPlaylist) + updatedPluginPlaylists
+                                                    listOf(updatedLikedSongsPlaylist) + pluginPlaylists
                                                 } else {
-                                                    updatedPluginPlaylists
+                                                    pluginPlaylists
                                                 }
 
                                             _uiState.update {
