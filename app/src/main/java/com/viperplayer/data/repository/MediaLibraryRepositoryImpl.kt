@@ -24,7 +24,10 @@ import com.viperplayer.domain.model.StatPeriod
 import com.viperplayer.domain.model.StatsSummary
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -53,6 +56,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val localMediaDataSource: com.viperplayer.data.source.LocalMediaDataSource
 ) : MediaLibraryRepository {
+
+    // Scope for fire-and-forget background work (e.g. artwork caching) that must not block callers
+    // such as the play() path.
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Helper function to load artist
     private suspend fun loadArtist(artistId: Long): Artist? {
@@ -547,13 +554,16 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
 
-        // Download artwork if song is liked or saved
+        // Cache artwork for liked/saved songs OFF the critical path — saveSong is awaited before
+        // setMediaItem in play(), so downloading + re-encoding here would delay first audio.
         if ((existingSong?.isLiked ?: song.isLiked) || (existingSong?.isSaved ?: false)) {
             song.artworkUrl?.let { artworkUrl ->
                 if (existingSong?.localArtworkPath == null) {
-                    val localPath = artworkDownloader.downloadArtwork(artworkUrl, song.id)
-                    localPath?.let {
-                        songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, it)
+                    ioScope.launch {
+                        val localPath = artworkDownloader.downloadArtwork(artworkUrl, song.id)
+                        localPath?.let {
+                            songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, it)
+                        }
                     }
                 }
             }
