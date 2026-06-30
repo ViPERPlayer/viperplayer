@@ -88,6 +88,20 @@
     <string name="nav_search">Search</string>
     <string name="nav_library">Library</string>
     <string name="nav_viper">ViPER</string>
+    <!-- Player -->
+    <string name="player_no_song">No song playing</string>
+    <string name="player_collapse">Collapse player</string>
+    <string name="player_more_options">More options</string>
+    <string name="player_go_to_album">Go to album</string>
+    <string name="song_details">Song details</string>
+    <string name="action_previous">Previous</string>
+    <string name="action_next">Next</string>
+    <string name="action_queue">Queue</string>
+    <string name="player_repeat_off">Repeat off</string>
+    <string name="player_repeat_one">Repeat one</string>
+    <string name="player_repeat_all">Repeat all</string>
+    <string name="player_output_this_phone">This phone</string>
+    <string name="player_output_device">Output device</string>
 
     <!-- Album types -->
     <string name="album_type_album">Album</string>

@@ -111,9 +111,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.PlaybackContext
@@ -178,7 +180,7 @@ fun PlayerScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "No song playing",
+                text = stringResource(R.string.player_no_song),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -274,7 +276,7 @@ fun PlayerScreen(
                 IconButton(onClick = onCollapse) {
                     Icon(
                         imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "Collapse player",
+                        contentDescription = stringResource(R.string.player_collapse),
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
                     )
@@ -286,7 +288,7 @@ fun PlayerScreen(
                     IconButton(onClick = { showOverflowMenu = true }) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "More options",
+                            contentDescription = stringResource(R.string.player_more_options),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -297,7 +299,7 @@ fun PlayerScreen(
                     ) {
                         song.artists.firstOrNull()?.let { artist ->
                             DropdownMenuItem(
-                                text = { Text("View artist") },
+                                text = { Text(stringResource(R.string.action_view_artist)) },
                                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
                                 onClick = {
                                     showOverflowMenu = false
@@ -307,7 +309,7 @@ fun PlayerScreen(
                         }
                         song.album?.let { album ->
                             DropdownMenuItem(
-                                text = { Text("Go to album") },
+                                text = { Text(stringResource(R.string.player_go_to_album)) },
                                 leadingIcon = { Icon(Icons.Filled.Album, contentDescription = null) },
                                 onClick = {
                                     showOverflowMenu = false
@@ -316,7 +318,7 @@ fun PlayerScreen(
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text("Song details") },
+                            text = { Text(stringResource(R.string.song_details)) },
                             leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
                             onClick = {
                                 showOverflowMenu = false
@@ -411,7 +413,7 @@ fun PlayerScreen(
                     )
                     SkipPill(
                         icon = Icons.Filled.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.action_previous),
                         onClick = { viewModel.skipToPrevious() }
                     )
                     MorphPlayButton(
@@ -420,15 +422,15 @@ fun PlayerScreen(
                     )
                     SkipPill(
                         icon = Icons.Filled.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.action_next),
                         onClick = { viewModel.skipToNext() }
                     )
                     ToggleIconButton(
                         icon = if (playbackState.repeatMode == RepeatMode.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                         contentDescription = when (playbackState.repeatMode) {
-                            RepeatMode.OFF -> "Repeat off"
-                            RepeatMode.ONE -> "Repeat one"
-                            RepeatMode.ALL -> "Repeat all"
+                            RepeatMode.OFF -> stringResource(R.string.player_repeat_off)
+                            RepeatMode.ONE -> stringResource(R.string.player_repeat_one)
+                            RepeatMode.ALL -> stringResource(R.string.player_repeat_all)
                         },
                         active = playbackState.repeatMode != RepeatMode.OFF,
                         onClick = { viewModel.cycleRepeatMode() }
@@ -462,7 +464,7 @@ fun PlayerScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "This phone",
+                                text = stringResource(R.string.player_output_this_phone),
                                 color = Color.White,
                                 fontSize = 15.sp,
                                 lineHeight = 16.sp,
@@ -471,7 +473,7 @@ fun PlayerScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Output device",
+                                text = stringResource(R.string.player_output_device),
                                 color = Color.White.copy(alpha = 0.65f),
                                 fontSize = 12.sp,
                                 lineHeight = 13.sp,
@@ -490,7 +492,7 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = "Queue",
+                            contentDescription = stringResource(R.string.action_queue),
                             tint = Color.White,
                             modifier = Modifier.size(22.dp)
                         )
@@ -894,7 +896,7 @@ fun SongDetailsBottomSheet(
     ) {
         // Header
         Text(
-            text = "Song Details",
+            text = stringResource(R.string.song_details),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
