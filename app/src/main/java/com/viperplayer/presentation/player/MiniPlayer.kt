@@ -13,7 +13,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -141,9 +140,6 @@ fun MiniPlayerContent(
     onMiniPlayerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pureBlack = false
-    val useDarkTheme = isSystemInDarkTheme()
-
     val configuration = LocalConfiguration.current
     val isTabletLandscape = configuration.screenWidthDp >= 600 &&
             configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -176,7 +172,7 @@ fun MiniPlayerContent(
                 .fillMaxHeight()
                 .clip(CircleShape)
                 .background(
-                    color = if (pureBlack && useDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                    color = MaterialTheme.colorScheme.surfaceContainer
                 )
                 .border(
                     width = 1.dp,
