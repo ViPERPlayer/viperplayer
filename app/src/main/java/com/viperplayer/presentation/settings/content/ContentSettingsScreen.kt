@@ -23,8 +23,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 
@@ -40,12 +42,12 @@ fun ContentSettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Content") },
+                title = { Text(stringResource(R.string.settings_content)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -60,7 +62,7 @@ fun ContentSettingsScreen(
             contentPadding = rootPadding.bottom()
         ) {
             item {
-                SettingsCategory("Content Filters")
+                SettingsCategory(stringResource(R.string.content_category_filters))
             }
             item {
                 Card(
@@ -81,13 +83,13 @@ fun ContentSettingsScreen(
                         },
                         headlineContent = {
                             Text(
-                                text = "Show Explicit Content",
+                                text = stringResource(R.string.content_show_explicit),
                                 style = MaterialTheme.typography.titleMedium
                             )
                         },
                         supportingContent = {
                             Text(
-                                text = "Display songs marked as explicit",
+                                text = stringResource(R.string.content_show_explicit_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

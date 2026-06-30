@@ -29,8 +29,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 
@@ -54,12 +56,12 @@ fun SettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -74,36 +76,36 @@ fun SettingsScreen(
             contentPadding = rootPadding.bottom()
         ) {
             item {
-                SettingsCategory("Settings")
+                SettingsCategory(stringResource(R.string.settings))
             }
             item {
                 SettingsSectionItem(
-                    title = "Appearance",
-                    description = "Theme, colors, and display",
+                    title = stringResource(R.string.settings_appearance),
+                    description = stringResource(R.string.settings_appearance_desc),
                     icon = Icons.Default.Palette,
                     onClick = onNavigateToAppearance
                 )
             }
             item {
                 SettingsSectionItem(
-                    title = "Player & Audio",
-                    description = "Audio quality, playback, and normalization",
+                    title = stringResource(R.string.settings_player_audio),
+                    description = stringResource(R.string.settings_player_audio_desc),
                     icon = Icons.AutoMirrored.Default.VolumeUp,
                     onClick = onNavigateToPlayer
                 )
             }
             item {
                 SettingsSectionItem(
-                    title = "Content",
-                    description = "Content filters and preferences",
+                    title = stringResource(R.string.settings_content),
+                    description = stringResource(R.string.settings_content_desc),
                     icon = Icons.Default.MusicNote,
                     onClick = onNavigateToContent
                 )
             }
             item {
                 SettingsSectionItem(
-                    title = "Storage",
-                    description = "Cache and download management",
+                    title = stringResource(R.string.storage_title),
+                    description = stringResource(R.string.settings_storage_desc),
                     icon = Icons.Default.Storage,
                     onClick = onNavigateToStorage
                 )
@@ -111,16 +113,16 @@ fun SettingsScreen(
 
             item {
                 SettingsSectionItem(
-                    title = "Plugins",
-                    description = "Manage music source plugins",
+                    title = stringResource(R.string.settings_plugins),
+                    description = stringResource(R.string.settings_plugins_desc),
                     icon = Icons.Default.Extension,
                     onClick = onNavigateToPlugins
                 )
             }
             item {
                 SettingsSectionItem(
-                    title = "Scan Local Files",
-                    description = "Scan device for local audio files",
+                    title = stringResource(R.string.settings_scan_local),
+                    description = stringResource(R.string.settings_scan_local_desc),
                     icon = Icons.Default.Refresh,
                     onClick = viewModel::scanLocalFiles
                 )
@@ -131,20 +133,20 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsCategory("System")
+                SettingsCategory(stringResource(R.string.settings_category_system))
             }
             item {
                 SettingsSectionItem(
-                    title = "Updater",
-                    description = "Check for app updates",
+                    title = stringResource(R.string.settings_updater),
+                    description = stringResource(R.string.settings_updater_desc),
                     icon = Icons.Default.SystemUpdate,
                     onClick = onNavigateToUpdater
                 )
             }
             item {
                 SettingsSectionItem(
-                    title = "About",
-                    description = "App information and credits",
+                    title = stringResource(R.string.settings_about),
+                    description = stringResource(R.string.settings_about_desc),
                     icon = Icons.Default.Info,
                     onClick = onNavigateToAbout
                 )

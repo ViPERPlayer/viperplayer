@@ -22,8 +22,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 
@@ -39,12 +41,12 @@ fun AboutSettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About") },
+                title = { Text(stringResource(R.string.settings_about)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -59,7 +61,7 @@ fun AboutSettingsScreen(
             contentPadding = rootPadding.bottom()
         ) {
             item {
-                SettingsCategory("App Information")
+                SettingsCategory(stringResource(R.string.about_category_app_info))
             }
             item {
                 Card(
@@ -74,12 +76,12 @@ fun AboutSettingsScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "ViPER Player",
+                            text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineMedium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Version ${uiState.versionName} (${uiState.versionCode})",
+                            text = stringResource(R.string.about_version, uiState.versionName, uiState.versionCode),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -92,7 +94,7 @@ fun AboutSettingsScreen(
             }
 
             item {
-                SettingsCategory("Description")
+                SettingsCategory(stringResource(R.string.about_category_description))
             }
             item {
                 Card(
@@ -107,7 +109,7 @@ fun AboutSettingsScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "A modern music player with plugin support for various music streaming services. Enjoy your music with advanced audio processing and a beautiful Material 3 interface.",
+                            text = stringResource(R.string.about_description_text),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -120,7 +122,7 @@ fun AboutSettingsScreen(
             }
 
             item {
-                SettingsCategory("Credits")
+                SettingsCategory(stringResource(R.string.about_category_credits))
             }
             item {
                 Card(
@@ -135,7 +137,7 @@ fun AboutSettingsScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Built with modern Android technologies including Jetpack Compose, Material 3, and Kotlin Coroutines.",
+                            text = stringResource(R.string.about_credits_text),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

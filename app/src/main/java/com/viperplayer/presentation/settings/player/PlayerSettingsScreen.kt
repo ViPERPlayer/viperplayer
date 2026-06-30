@@ -46,8 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.presentation.common.ViperScaffold
@@ -67,12 +69,12 @@ fun PlayerSettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Player & Audio") },
+                title = { Text(stringResource(R.string.settings_player_audio)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -87,11 +89,11 @@ fun PlayerSettingsScreen(
             contentPadding = rootPadding.bottom()
         ) {
             item {
-                SettingsCategory("Audio Quality")
+                SettingsCategory(stringResource(R.string.player_audio_quality))
             }
             item {
                 SettingsItem(
-                    title = "Audio Quality",
+                    title = stringResource(R.string.player_audio_quality),
                     description = getAudioQualityDescription(uiState.audioQuality),
                     icon = Icons.Default.GraphicEq,
                     onClick = { showAudioQualityDialog = true }
@@ -103,7 +105,7 @@ fun PlayerSettingsScreen(
             }
 
             item {
-                SettingsCategory("Playback")
+                SettingsCategory(stringResource(R.string.player_category_playback))
             }
             item {
                 HistoryDurationSliderItem(
@@ -114,8 +116,8 @@ fun PlayerSettingsScreen(
             }
             item {
                 SettingsSwitchItem(
-                    title = "Skip Silence",
-                    description = "Automatically skip silent parts",
+                    title = stringResource(R.string.player_skip_silence),
+                    description = stringResource(R.string.player_skip_silence_desc),
                     icon = Icons.Default.SkipNext,
                     checked = uiState.skipSilence,
                     onCheckedChange = viewModel::setSkipSilence
@@ -123,9 +125,8 @@ fun PlayerSettingsScreen(
             }
             item {
                 SettingsSwitchItem(
-                    title = "Bypass DSP (clean output)",
-                    description = "Skips the ViPER processor and ReplayGain for an untouched signal path. " +
-                        "Note: the system may still resample to the output device's rate.",
+                    title = stringResource(R.string.player_bypass_dsp),
+                    description = stringResource(R.string.player_bypass_dsp_desc),
                     icon = Icons.Default.HighQuality,
                     checked = uiState.dspBypass,
                     onCheckedChange = viewModel::setDspBypass
@@ -133,8 +134,8 @@ fun PlayerSettingsScreen(
             }
             item {
                 SettingsSwitchItem(
-                    title = "Auto Load More",
-                    description = "Automatically load more songs when queue ends",
+                    title = stringResource(R.string.player_auto_load_more),
+                    description = stringResource(R.string.player_auto_load_more_desc),
                     icon = Icons.Default.Add,
                     checked = uiState.autoLoadMore,
                     onCheckedChange = viewModel::setAutoLoadMore
@@ -146,7 +147,7 @@ fun PlayerSettingsScreen(
             }
 
             item {
-                SettingsCategory("Audio Normalization")
+                SettingsCategory(stringResource(R.string.player_category_normalization))
             }
             item {
                 Card(
@@ -168,13 +169,13 @@ fun PlayerSettingsScreen(
                             },
                             headlineContent = {
                                 Text(
-                                    text = "ReplayGain",
+                                    text = stringResource(R.string.player_replaygain),
                                     style = MaterialTheme.typography.titleMedium
                                 )
                             },
                             supportingContent = {
                                 Text(
-                                    text = "Normalize volume across songs",
+                                    text = stringResource(R.string.player_replaygain_desc),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -205,7 +206,7 @@ fun PlayerSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Preamp",
+                                        text = stringResource(R.string.player_replaygain_preamp),
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                     Row(
@@ -231,7 +232,7 @@ fun PlayerSettingsScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Refresh,
-                                                contentDescription = "Reset to default",
+                                                contentDescription = stringResource(R.string.value_slider_reset_to_default),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -254,11 +255,11 @@ fun PlayerSettingsScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Album mode",
+                                            text = stringResource(R.string.player_replaygain_album_mode),
                                             style = MaterialTheme.typography.titleSmall
                                         )
                                         Text(
-                                            text = "Normalize per album instead of per track (where the source provides it)",
+                                            text = stringResource(R.string.player_replaygain_album_mode_desc),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -430,7 +431,7 @@ private fun HistoryDurationSliderItem(
                 },
                 headlineContent = {
                     Text(
-                        text = "History Duration",
+                        text = stringResource(R.string.player_history_duration),
                         style = MaterialTheme.typography.titleMedium
                     )
                 },
@@ -475,12 +476,12 @@ private fun HistoryDurationSliderItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "7 days",
+                        text = stringResource(R.string.history_7_days),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Forever",
+                        text = stringResource(R.string.history_forever),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -498,7 +499,7 @@ private fun AudioQualityDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Audio Quality") },
+        title = { Text(stringResource(R.string.player_audio_quality)) },
         text = {
             Column {
                 AudioQuality.values().forEach { quality ->
@@ -529,7 +530,7 @@ private fun AudioQualityDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.action_done))
             }
         }
     )

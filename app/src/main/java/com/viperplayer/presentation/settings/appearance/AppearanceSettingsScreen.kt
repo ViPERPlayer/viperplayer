@@ -35,8 +35,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.ViperScaffold
@@ -56,12 +58,12 @@ fun AppearanceSettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Appearance") },
+                title = { Text(stringResource(R.string.settings_appearance)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -76,11 +78,11 @@ fun AppearanceSettingsScreen(
             contentPadding = rootPadding.bottom()
         ) {
             item {
-                SettingsCategory("Theme")
+                SettingsCategory(stringResource(R.string.appearance_category_theme))
             }
             item {
                 SettingsItem(
-                    title = "Dynamic Theme",
+                    title = stringResource(R.string.appearance_dynamic_theme),
                     description = getDynamicThemeDescription(uiState.dynamicThemeMode),
                     icon = Icons.Default.Palette,
                     onClick = { showDynamicThemeDialog = true }
@@ -88,7 +90,7 @@ fun AppearanceSettingsScreen(
             }
             item {
                 SettingsItem(
-                    title = "Theme Type",
+                    title = stringResource(R.string.appearance_theme_type),
                     description = getThemeDescription(uiState.themeMode),
                     icon = Icons.Default.Brightness6,
                     onClick = { showThemeDialog = true }
@@ -113,13 +115,13 @@ fun AppearanceSettingsScreen(
                         },
                         headlineContent = {
                             Text(
-                                text = "Pure Black",
+                                text = stringResource(R.string.appearance_pure_black),
                                 style = MaterialTheme.typography.titleMedium
                             )
                         },
                         supportingContent = {
                             Text(
-                                text = "Use pure black background in dark theme",
+                                text = stringResource(R.string.appearance_pure_black_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -231,7 +233,7 @@ private fun ThemeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Theme Type") },
+        title = { Text(stringResource(R.string.appearance_theme_type)) },
         text = {
             Column {
                 ThemeMode.values().forEach { theme ->
@@ -257,7 +259,7 @@ private fun ThemeDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.action_done))
             }
         }
     )
@@ -279,7 +281,7 @@ private fun DynamicThemeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Dynamic Theme") },
+        title = { Text(stringResource(R.string.appearance_dynamic_theme)) },
         text = {
             Column {
                 DynamicThemeMode.values().forEach { mode ->
@@ -305,7 +307,7 @@ private fun DynamicThemeDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.action_done))
             }
         }
     )

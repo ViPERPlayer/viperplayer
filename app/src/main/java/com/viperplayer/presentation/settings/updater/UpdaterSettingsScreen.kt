@@ -31,8 +31,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 
 @Composable
@@ -51,12 +53,12 @@ fun UpdaterSettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Updater") },
+                title = { Text(stringResource(R.string.settings_updater)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -74,7 +76,7 @@ fun UpdaterSettingsScreen(
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = "Check for updates"
+                                contentDescription = stringResource(R.string.updater_check_for_updates)
                             )
                         }
                     }
@@ -89,7 +91,7 @@ fun UpdaterSettingsScreen(
             contentPadding = contentPadding
         ) {
             item {
-                SettingsCategory("Update Status")
+                SettingsCategory(stringResource(R.string.updater_category_status))
             }
             item {
                 UpdateStatusCard(updateState = uiState.updateState)
@@ -102,7 +104,7 @@ fun UpdaterSettingsScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                         item {
-                            SettingsCategory("Changelog")
+                            SettingsCategory(stringResource(R.string.updater_category_changelog))
                         }
                         item {
                             Card(
@@ -142,14 +144,14 @@ fun UpdaterSettingsScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                                Text("Downloading...")
+                                Text(stringResource(R.string.updater_downloading))
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Download,
                                     contentDescription = null
                                 )
                                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                                Text("Download Update")
+                                Text(stringResource(R.string.updater_download_update))
                             }
                         }
                     }
@@ -212,8 +214,8 @@ private fun UpdateStatusCard(
                     is UpdateState.Checking -> {
                         Quadruple(
                             Icons.Default.Refresh,
-                            "Checking for updates...",
-                            "Please wait",
+                            stringResource(R.string.updater_status_checking),
+                            stringResource(R.string.updater_please_wait),
                             null
                         )
                     }
@@ -221,8 +223,8 @@ private fun UpdateStatusCard(
                     is UpdateState.UpToDate -> {
                         Quadruple(
                             Icons.Default.CheckCircle,
-                            "App is Up-to-Date",
-                            "Current version: ${updateState.currentVersion}",
+                            stringResource(R.string.updater_up_to_date),
+                            stringResource(R.string.updater_current_version, updateState.currentVersion),
                             null
                         )
                     }
@@ -230,8 +232,8 @@ private fun UpdateStatusCard(
                     is UpdateState.UpdateAvailable -> {
                         Quadruple(
                             Icons.Default.Download,
-                            "Update Available",
-                            "Current version: ${updateState.currentVersion}",
+                            stringResource(R.string.updater_update_available),
+                            stringResource(R.string.updater_current_version, updateState.currentVersion),
                             updateState.latestVersion
                         )
                     }
@@ -239,8 +241,8 @@ private fun UpdateStatusCard(
                     is UpdateState.Downloading -> {
                         Quadruple(
                             Icons.Default.Download,
-                            "Downloading Update",
-                            "Current version: ${updateState.currentVersion}",
+                            stringResource(R.string.updater_downloading_update),
+                            stringResource(R.string.updater_current_version, updateState.currentVersion),
                             updateState.latestVersion
                         )
                     }
@@ -248,8 +250,8 @@ private fun UpdateStatusCard(
                     is UpdateState.Error -> {
                         Quadruple(
                             Icons.Default.Refresh,
-                            "Error",
-                            "Current version: ${updateState.currentVersion}",
+                            stringResource(R.string.action_error),
+                            stringResource(R.string.updater_current_version, updateState.currentVersion),
                             null
                         )
                     }
@@ -257,8 +259,8 @@ private fun UpdateStatusCard(
                     is UpdateState.Idle -> {
                         Quadruple(
                             Icons.Default.Refresh,
-                            "Not Checked",
-                            "Current version: Unknown",
+                            stringResource(R.string.updater_not_checked),
+                            stringResource(R.string.updater_current_version_unknown),
                             null
                         )
                     }
@@ -298,7 +300,7 @@ private fun UpdateStatusCard(
                     )
                     if (latestVersion != null) {
                         Text(
-                            text = "Latest version: $latestVersion",
+                            text = stringResource(R.string.updater_latest_version, latestVersion),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )

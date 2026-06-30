@@ -42,8 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 
@@ -66,12 +68,12 @@ fun StorageSettingsScreen(
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Storage") },
+                title = { Text(stringResource(R.string.storage_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 }
@@ -86,11 +88,11 @@ fun StorageSettingsScreen(
             contentPadding = rootPadding.bottom()
         ) {
             item {
-                SettingsCategory("Downloads")
+                SettingsCategory(stringResource(R.string.storage_category_downloads))
             }
             item {
                 SettingsItem(
-                    title = "Downloaded Songs",
+                    title = stringResource(R.string.storage_downloaded_songs),
                     description = formatBytes(uiState.downloadedSongsSize),
                     icon = Icons.Default.Download,
                     onClick = { }
@@ -98,8 +100,8 @@ fun StorageSettingsScreen(
             }
             item {
                 SettingsItem(
-                    title = "Clear All Downloads",
-                    description = "Remove all downloaded songs",
+                    title = stringResource(R.string.storage_clear_all_downloads),
+                    description = stringResource(R.string.storage_clear_all_downloads_desc),
                     icon = Icons.Default.Delete,
                     onClick = { showClearDownloadsDialog = true }
                 )
@@ -110,11 +112,11 @@ fun StorageSettingsScreen(
             }
 
             item {
-                SettingsCategory("Song Cache")
+                SettingsCategory(stringResource(R.string.storage_category_song_cache))
             }
             item {
                 CacheSizeSliderItem(
-                    title = "Max Song Cache Size",
+                    title = stringResource(R.string.storage_max_song_cache_size),
                     currentSize = uiState.maxSongCacheSize,
                     minSize = 50L * 1024 * 1024, // 50 MB
                     maxSize = 5000L * 1024 * 1024, // 5 GB
@@ -124,7 +126,7 @@ fun StorageSettingsScreen(
             }
             item {
                 SettingsItem(
-                    title = "Clear Song Cache",
+                    title = stringResource(R.string.storage_clear_song_cache),
                     description = formatBytes(uiState.songCacheSize),
                     icon = Icons.Default.Delete,
                     onClick = { showClearSongCacheDialog = true }
@@ -136,11 +138,11 @@ fun StorageSettingsScreen(
             }
 
             item {
-                SettingsCategory("Image Cache")
+                SettingsCategory(stringResource(R.string.storage_category_image_cache))
             }
             item {
                 CacheSizeSliderItem(
-                    title = "Max Image Cache Size",
+                    title = stringResource(R.string.storage_max_image_cache_size),
                     currentSize = uiState.maxImageCacheSize,
                     minSize = 50L * 1024 * 1024, // 50 MB
                     maxSize = 2000L * 1024 * 1024, // 2 GB
@@ -150,7 +152,7 @@ fun StorageSettingsScreen(
             }
             item {
                 SettingsItem(
-                    title = "Clear Image Cache",
+                    title = stringResource(R.string.storage_clear_image_cache),
                     description = formatBytes(uiState.imageCacheSize),
                     icon = Icons.Default.Delete,
                     onClick = { showClearImageCacheDialog = true }
@@ -162,8 +164,8 @@ fun StorageSettingsScreen(
     if (showClearDownloadsDialog) {
         AlertDialog(
             onDismissRequest = { showClearDownloadsDialog = false },
-            title = { Text("Clear All Downloads") },
-            text = { Text("Are you sure you want to delete all downloaded songs? This cannot be undone.") },
+            title = { Text(stringResource(R.string.storage_clear_all_downloads)) },
+            text = { Text(stringResource(R.string.storage_clear_downloads_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -175,13 +177,13 @@ fun StorageSettingsScreen(
                     if (uiState.isClearing) {
                         LoadingIndicator(modifier = Modifier.size(16.dp))
                     } else {
-                        Text("Clear")
+                        Text(stringResource(R.string.action_clear))
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDownloadsDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -190,8 +192,8 @@ fun StorageSettingsScreen(
     if (showClearSongCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearSongCacheDialog = false },
-            title = { Text("Clear Song Cache") },
-            text = { Text("Are you sure you want to clear the song cache? This will remove temporary audio files.") },
+            title = { Text(stringResource(R.string.storage_clear_song_cache)) },
+            text = { Text(stringResource(R.string.storage_clear_song_cache_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -203,13 +205,13 @@ fun StorageSettingsScreen(
                     if (uiState.isClearing) {
                         LoadingIndicator(modifier = Modifier.size(16.dp))
                     } else {
-                        Text("Clear")
+                        Text(stringResource(R.string.action_clear))
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearSongCacheDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -218,8 +220,8 @@ fun StorageSettingsScreen(
     if (showClearImageCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearImageCacheDialog = false },
-            title = { Text("Clear Image Cache") },
-            text = { Text("Are you sure you want to clear the image cache? This will remove cached artwork.") },
+            title = { Text(stringResource(R.string.storage_clear_image_cache)) },
+            text = { Text(stringResource(R.string.storage_clear_image_cache_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -231,13 +233,13 @@ fun StorageSettingsScreen(
                     if (uiState.isClearing) {
                         LoadingIndicator(modifier = Modifier.size(16.dp))
                     } else {
-                        Text("Clear")
+                        Text(stringResource(R.string.action_clear))
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearImageCacheDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
