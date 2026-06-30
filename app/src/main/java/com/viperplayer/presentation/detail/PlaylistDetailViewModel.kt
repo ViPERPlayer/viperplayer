@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * UI state for Playlist Detail screen.
@@ -165,7 +166,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                     }
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "PlaylistDetail background operation failed")
             }
         }
     }
@@ -181,7 +182,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                     playerRepository.playAll(songs, 0)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "PlaylistDetail background operation failed")
             }
         }
     }
@@ -199,7 +200,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                     playerRepository.playAll(songs, 0)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "PlaylistDetail background operation failed")
             }
         }
     }
@@ -211,7 +212,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                     playerRepository.playNext(song)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "PlaylistDetail background operation failed")
             }
         }
     }
@@ -223,7 +224,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                     playerRepository.addToQueue(song)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "PlaylistDetail background operation failed")
             }
         }
     }

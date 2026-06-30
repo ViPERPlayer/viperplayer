@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * UI state for Artist Detail screen.
@@ -149,7 +150,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
                     playerRepository.play(song, context)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "ArtistDetail background operation failed")
             }
         }
     }
@@ -165,7 +166,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
                     playerRepository.playAll(songs, 0)
                 }
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "ArtistDetail background operation failed")
             }
         }
     }
@@ -175,7 +176,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
             try {
                 playerRepository.playNext(song)
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "ArtistDetail background operation failed")
             }
         }
     }
@@ -185,7 +186,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
             try {
                 playerRepository.addToQueue(song)
             } catch (e: Exception) {
-                // Handle error
+                Timber.w(e, "ArtistDetail background operation failed")
             }
         }
     }

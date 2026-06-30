@@ -221,7 +221,7 @@ class HomeViewModel @Inject constructor(
                     playerRepository.play(song, context)
                 }
             } catch (e: Exception) {
-                // Handle error silently
+                Timber.w(e, "HomeViewModel background operation failed")
             }
         }
     }
@@ -289,7 +289,7 @@ class HomeViewModel @Inject constructor(
                     playerRepository.play(song, context)
                 }
             } catch (e: Exception) {
-                // Handle error silently
+                Timber.w(e, "HomeViewModel background operation failed")
             }
         }
     }
