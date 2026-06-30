@@ -8,6 +8,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,25 +40,40 @@ class MediaControllerManager @Inject constructor(
                 ComponentName(context, PlaybackService::class.java)
             )
 
-            val listener = object : MediaController.Listener {
-                override fun onDisconnected(controller: MediaController) {
-                    Timber.d("onDisconnected() called with: controller = $controller")
-                    close() // recreate only on crash
+            var current: MediaController? = null
+
+            // Rebuild on disconnect (e.g. a service crash) instead of close()ing — a completed
+            // callbackFlow + stateIn(Eagerly) would cache the RELEASED controller forever, so every
+            // transport command would silently hit a dead controller until the app was restarted.
+            fun connect() {
+                launch {
+                    try {
+                        val listener = object : MediaController.Listener {
+                            override fun onDisconnected(controller: MediaController) {
+                                Timber.d("MediaController disconnected — reconnecting")
+                                controller.release()
+                                connect()
+                            }
+                        }
+                        val controller = MediaController.Builder(context, token)
+                            .setListener(listener)
+                            .buildAsync()
+                            .await()
+                        current = controller
+                        Timber.d("Connected to MediaController: $controller")
+                        trySend(controller)
+                    } catch (e: Exception) {
+                        Timber.w(e, "MediaController connect failed; retrying in 1s")
+                        delay(1000)
+                        connect()
+                    }
                 }
             }
 
-            val controller =
-                MediaController.Builder(context, token)
-                    .setListener(listener)
-                    .buildAsync()
-                    .await()
-
-            Timber.d("Connected to MediaController: $controller")
-
-            send(controller)
+            connect()
 
             awaitClose {
-                controller.release()
+                current?.release()
             }
         }.stateIn(
             scope,
