@@ -57,22 +57,12 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.PlayingIndicator
+import com.viperplayer.presentation.ktx.formatDuration
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
-
-/**
- * Formats milliseconds to MM:SS format.
- */
-private fun formatDuration(millis: Long?): String {
-    if (millis == null || millis <= 0) return "--:--"
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(millis)
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60
-    return "%02d:%02d".format(minutes, seconds)
-}
 
 /**
  * Prebuilt leading content for artwork with play indicator overlay.
@@ -187,7 +177,7 @@ fun ListItemTrailingWithDuration(
     ) {
         if (durationMs != null) {
             Text(
-                text = formatDuration(durationMs),
+                text = formatDuration(durationMs, padMinutes = true),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp

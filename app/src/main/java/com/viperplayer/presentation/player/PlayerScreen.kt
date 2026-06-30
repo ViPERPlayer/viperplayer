@@ -121,6 +121,7 @@ import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.ktx.formatDuration
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.delay
@@ -128,16 +129,6 @@ import kotlinx.coroutines.isActive
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
 import kotlin.math.sin
-
-/**
- * Formats milliseconds to MM:SS format.
- */
-private fun formatDuration(millis: Long): String {
-    val safe = millis.coerceAtLeast(0)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(safe)
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(safe) % 60
-    return "%d:%02d".format(minutes, seconds)
-}
 
 /**
  * Full-screen "Now Playing" player — Material 3 Expressive, direction B.
@@ -857,13 +848,13 @@ private fun WavySeekBar(
         ) {
             val shownPosition = if (dragFraction != null) (fraction * duration).toLong() else position()
             Text(
-                text = formatDuration(shownPosition),
+                text = formatDuration(shownPosition, placeholder = null),
                 color = Color.White.copy(alpha = 0.82f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = formatDuration(duration),
+                text = formatDuration(duration, placeholder = null),
                 color = Color.White.copy(alpha = 0.82f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
