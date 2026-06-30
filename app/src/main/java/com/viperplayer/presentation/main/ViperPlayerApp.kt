@@ -259,11 +259,11 @@ fun ViperPlayerApp(
                     PlayerScreen(
                         onNavigateToArtist = { artist ->
                             showPlayerBottomSheet = false
-                            navigator.navigate(ArtistDetail(artist))
+                            navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                         },
                         onNavigateToAlbum = { album ->
                             showPlayerBottomSheet = false
-                            navigator.navigate(AlbumDetail(album))
+                            navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                         },
                         onCollapse = { showPlayerBottomSheet = false }
                     )

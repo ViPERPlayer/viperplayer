@@ -52,10 +52,17 @@ class ArtistDetailViewModel @AssistedInject constructor(
         fun create(artistDetail: ArtistDetail): ArtistDetailViewModel
     }
 
-    private val artistId = artistDetail.initialArtist.id
+    private val artistId = artistDetail.artistId
+
+    // Minimal placeholder shown while the full artist is (re)fetched by id.
+    private val placeholderArtist = Artist(
+        id = artistDetail.artistId,
+        name = artistDetail.initialName,
+        imageUrl = artistDetail.initialImageUrl,
+    )
 
     private val _uiState =
-        MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading(artistDetail.initialArtist))
+        MutableStateFlow<ArtistDetailUiState>(ArtistDetailUiState.Loading(placeholderArtist))
     val uiState = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -77,7 +84,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
             _uiState.update {
                 val initialArtist = when (it) {
                     is ArtistDetailUiState.Success -> it.artist
-                    else -> artistDetail.initialArtist
+                    else -> placeholderArtist
                 }
 
                 ArtistDetailUiState.Loading(initialArtist)

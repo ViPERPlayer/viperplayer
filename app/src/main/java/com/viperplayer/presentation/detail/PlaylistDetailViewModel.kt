@@ -51,10 +51,17 @@ class PlaylistDetailViewModel @AssistedInject constructor(
         fun create(playlistDetail: PlaylistDetail): PlaylistDetailViewModel
     }
 
-    private val playlistId = playlistDetail.initialPlaylist.id
+    private val playlistId = playlistDetail.playlistId
+
+    // Minimal placeholder shown while the full playlist is (re)fetched by id.
+    private val placeholderPlaylist = Playlist(
+        id = playlistDetail.playlistId,
+        name = playlistDetail.initialName,
+        artworkUrl = playlistDetail.initialArtworkUrl,
+    )
 
     private val _uiState =
-        MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading(playlistDetail.initialPlaylist))
+        MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading(placeholderPlaylist))
     val uiState = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -85,7 +92,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
             _uiState.update {
                 val initialPlaylist = when (it) {
                     is PlaylistDetailUiState.Success -> it.playlist
-                    else -> playlistDetail.initialPlaylist
+                    else -> placeholderPlaylist
                 }
 
                 PlaylistDetailUiState.Loading(initialPlaylist)

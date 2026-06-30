@@ -47,10 +47,17 @@ class AlbumDetailViewModel @AssistedInject constructor(
         fun create(albumDetail: AlbumDetail): AlbumDetailViewModel
     }
 
-    private val albumId = albumDetail.initialAlbum.id
+    private val albumId = albumDetail.albumId
+
+    // Minimal placeholder shown while the full album is (re)fetched by id.
+    private val placeholderAlbum = Album(
+        id = albumDetail.albumId,
+        name = albumDetail.initialName,
+        artworkUrl = albumDetail.initialArtworkUrl,
+    )
 
     private val _uiState =
-        MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading(albumDetail.initialAlbum))
+        MutableStateFlow<AlbumDetailUiState>(AlbumDetailUiState.Loading(placeholderAlbum))
     val uiState = _uiState.asStateFlow()
 
     // Expose current song and playing state from player repository
@@ -72,7 +79,7 @@ class AlbumDetailViewModel @AssistedInject constructor(
             _uiState.update {
                 val initialAlbum = when (it) {
                     is AlbumDetailUiState.Success -> it.album
-                    else -> albumDetail.initialAlbum
+                    else -> placeholderAlbum
                 }
 
                 AlbumDetailUiState.Loading(initialAlbum)

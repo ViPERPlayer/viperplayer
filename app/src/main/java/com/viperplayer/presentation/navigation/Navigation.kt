@@ -14,9 +14,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import com.viperplayer.domain.model.Album
-import com.viperplayer.domain.model.Artist
-import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.analytics.AnalyticsScreen
 import com.viperplayer.presentation.detail.AlbumDetailScreen
 import com.viperplayer.presentation.detail.AlbumDetailViewModel
@@ -86,17 +84,23 @@ object Analytics : NavKey
 
 @Serializable
 data class AlbumDetail(
-    val initialAlbum: Album
+    val albumId: MediaId,
+    val initialName: String = "",
+    val initialArtworkUrl: String? = null,
 ) : NavKey
 
 @Serializable
 data class ArtistDetail(
-    val initialArtist: Artist
+    val artistId: MediaId,
+    val initialName: String = "",
+    val initialImageUrl: String? = null,
 ) : NavKey
 
 @Serializable
 data class PlaylistDetail(
-    val initialPlaylist: Playlist
+    val playlistId: MediaId,
+    val initialName: String = "",
+    val initialArtworkUrl: String? = null,
 ) : NavKey
 
 @Composable
@@ -111,13 +115,13 @@ fun ViperNavDisplay(
             HomeScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { album ->
-                    navigator.navigate(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                 },
                 onNavigateToArtist = { artist ->
-                    navigator.navigate(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navigator.navigate(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
                 onNavigateToSettings = { navigator.navigate(Settings) },
                 onNavigateToHistory = { navigator.navigate(History) },
@@ -129,13 +133,13 @@ fun ViperNavDisplay(
             SearchScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { album ->
-                    navigator.navigate(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                 },
                 onNavigateToArtist = { artist ->
-                    navigator.navigate(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navigator.navigate(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 }
             )
         }
@@ -144,13 +148,13 @@ fun ViperNavDisplay(
             LibraryScreen(
                 rootPadding = rootPadding,
                 onNavigateToAlbum = { album ->
-                    navigator.navigate(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                 },
                 onNavigateToArtist = { artist ->
-                    navigator.navigate(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navigator.navigate(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 }
             )
         }
@@ -246,7 +250,7 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onNavigateToArtist = { artist ->
-                    navigator.navigate(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                 },
                 viewModel = viewModel
             )
@@ -260,13 +264,13 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onNavigateToAlbum = { album ->
-                    navigator.navigate(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                 },
                 onNavigateToPlaylist = { playlist ->
-                    navigator.navigate(PlaylistDetail(playlist))
+                    navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
                 onNavigateToArtist = { artist ->
-                    navigator.navigate(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                 },
                 viewModel = viewModel
             )
@@ -280,10 +284,10 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onNavigateToArtist = { artist ->
-                    navigator.navigate(ArtistDetail(artist))
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
                 },
                 onNavigateToAlbum = { album ->
-                    navigator.navigate(AlbumDetail(album))
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                 },
                 viewModel = viewModel
             )
