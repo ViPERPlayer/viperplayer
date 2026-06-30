@@ -24,7 +24,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import com.viperplayer.presentation.common.revealOnAppear
@@ -493,7 +493,10 @@ private fun LazyListScope.homeSection(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            gridItems(section.items) { item ->
+                            gridItemsIndexed(
+                                section.items,
+                                key = { index, item -> "${item.id}-$index" },
+                            ) { _, item ->
                                 val active = isCurrent(item, currentSongId)
                                 CompactItemTile(
                                     item = item,
