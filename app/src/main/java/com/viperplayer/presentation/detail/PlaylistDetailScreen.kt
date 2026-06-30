@@ -50,7 +50,8 @@ import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
-import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
+import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
+import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
@@ -102,7 +103,7 @@ private fun PlaylistDetailScreenContent(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
 ) {
-    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
+    val optionsController = rememberMediaItemOptionsController()
 
     val playlist = when (uiState) {
         is PlaylistDetailUiState.Success -> uiState.playlist
@@ -209,13 +210,13 @@ private fun PlaylistDetailScreenContent(
                                 trailingContent = {
                                     ListItemTrailingWithDuration(
                                         durationMs = song.durationMs,
-                                        onMoreClick = { selectedMediaItem = song }
+                                        onMoreClick = { optionsController.show(song) }
                                     )
                                 },
                                 onClick = if (song.isPlayable) {
                                     { onPlaySong(song) }
                                 } else null,
-                                onLongClick = { selectedMediaItem = song },
+                                onLongClick = { optionsController.show(song) },
                                 onPlayNext = if (song.isPlayable) {
                                     { onPlayNext(song) }
                                 } else null,
@@ -240,45 +241,15 @@ private fun PlaylistDetailScreenContent(
         }
 
         // Media item options bottom sheet
-        selectedMediaItem?.let { item ->
-            ModalBottomSheet(
-                onDismissRequest = { selectedMediaItem = null },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                MediaItemOptionsBottomSheet(
-                    item = item,
-                    onDismiss = { selectedMediaItem = null },
-                    onPlay = {
-                        when (item) {
-                            is Song -> onPlaySong(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onPlayNext = {
-                        if (item is Song) onPlayNext(item)
-                        selectedMediaItem = null
-                    },
-                    onAddToQueue = {
-                        if (item is Song) onAddToQueue(item)
-                        selectedMediaItem = null
-                    },
-                    onLike = {
-                        if (item is Song) onToggleLike(item)
-                        selectedMediaItem = null
-                    },
-                    onViewArtist = { artist ->
-                        onNavigateToArtist(artist)
-                        selectedMediaItem = null
-                    },
-                    onViewAlbum = { album ->
-                        onNavigateToAlbum(album)
-                        selectedMediaItem = null
-                    }
-                )
-            }
-        }
+        MediaItemOptionsSheetHost(
+            controller = optionsController,
+            onPlay = { if (it is Song) onPlaySong(it) },
+            onPlayNext = { if (it is Song) onPlayNext(it) },
+            onAddToQueue = { if (it is Song) onAddToQueue(it) },
+            onLike = { if (it is Song) onToggleLike(it) },
+            onViewArtist = onNavigateToArtist,
+            onViewAlbum = onNavigateToAlbum,
+        )
     }
 }
 

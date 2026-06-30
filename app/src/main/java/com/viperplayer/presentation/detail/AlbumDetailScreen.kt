@@ -54,7 +54,8 @@ import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ListItem
-import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
+import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
+import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
@@ -125,7 +126,7 @@ private fun AlbumDetailScreenContent(
     onAddToQueue: (Song) -> Unit,
     onToggleLike: (Song) -> Unit,
 ) {
-    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
+    val optionsController = rememberMediaItemOptionsController()
 
     val album = when (uiState) {
         is AlbumDetailUiState.Success -> uiState.album
@@ -264,8 +265,8 @@ private fun AlbumDetailScreenContent(
                                             isActive = currentSong?.id == song.id,
                                             isPlaying = currentSong?.id == song.id && isPlaying,
                                             onClick = { onPlaySong(song) },
-                                            onMoreClick = { selectedMediaItem = song },
-                                            onLongClick = { selectedMediaItem = song },
+                                            onMoreClick = { optionsController.show(song) },
+                                            onLongClick = { optionsController.show(song) },
                                             onPlayNext = { onPlayNext(song) },
                                             onAddToQueue = { onAddToQueue(song) },
                                             modifier = Modifier.fillMaxWidth()
@@ -288,8 +289,8 @@ private fun AlbumDetailScreenContent(
                                     isActive = currentSong?.id == song.id,
                                     isPlaying = currentSong?.id == song.id && isPlaying,
                                     onClick = { onPlaySong(song) },
-                                    onMoreClick = { selectedMediaItem = song },
-                                    onLongClick = { selectedMediaItem = song },
+                                    onMoreClick = { optionsController.show(song) },
+                                    onLongClick = { optionsController.show(song) },
                                     onPlayNext = { onPlayNext(song) },
                                     onAddToQueue = { onAddToQueue(song) },
                                     modifier = Modifier.fillMaxWidth()
@@ -303,45 +304,14 @@ private fun AlbumDetailScreenContent(
     }
 
     // Media item options bottom sheet
-    selectedMediaItem?.let { item ->
-        ModalBottomSheet(
-            onDismissRequest = { selectedMediaItem = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            MediaItemOptionsBottomSheet(
-                item = item,
-                onDismiss = { selectedMediaItem = null },
-                onPlay = {
-                    when (item) {
-                        is Song -> onPlaySong(item)
-                        else -> {}
-                    }
-                    selectedMediaItem = null
-                },
-                onPlayNext = {
-                    if (item is Song) onPlayNext(item)
-                    selectedMediaItem = null
-                },
-                onAddToQueue = {
-                    if (item is Song) onAddToQueue(item)
-                    selectedMediaItem = null
-                },
-                onLike = {
-                    if (item is Song) onToggleLike(item)
-                    selectedMediaItem = null
-                },
-                onViewArtist = { artist ->
-                    onNavigateToArtist(artist)
-                    selectedMediaItem = null
-                },
-                onViewAlbum = { album ->
-                    // Already on album detail screen
-                    selectedMediaItem = null
-                }
-            )
-        }
-    }
+    MediaItemOptionsSheetHost(
+        controller = optionsController,
+        onPlay = { if (it is Song) onPlaySong(it) },
+        onPlayNext = { if (it is Song) onPlayNext(it) },
+        onAddToQueue = { if (it is Song) onAddToQueue(it) },
+        onLike = { if (it is Song) onToggleLike(it) },
+        onViewArtist = onNavigateToArtist,
+    )
 }
 
 /**

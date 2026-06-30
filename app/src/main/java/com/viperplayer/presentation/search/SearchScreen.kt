@@ -71,7 +71,8 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.presentation.common.ListItem
-import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
+import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
+import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.search.model.SearchItem
@@ -93,8 +94,21 @@ fun SearchScreen(
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
 
-    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
+    val optionsController = rememberMediaItemOptionsController()
     val scope = rememberCoroutineScope()
+
+    // Resolve a SearchItem to its domain media (suspending) and open the shared options sheet.
+    val openOptions: (SearchItem) -> Unit = { searchItem ->
+        scope.launch {
+            val media = when (searchItem.type) {
+                SearchItem.Type.SONG -> searchItem.song ?: viewModel.getSong(searchItem.id)
+                SearchItem.Type.ALBUM -> viewModel.getAlbum(searchItem.id)
+                SearchItem.Type.ARTIST -> viewModel.getArtist(searchItem.id)
+                SearchItem.Type.PLAYLIST -> viewModel.getPlaylist(searchItem.id)
+            }
+            media?.let { optionsController.show(it) }
+        }
+    }
 
     ViperScaffold(
         modifier = Modifier.fillMaxSize(),
@@ -287,48 +301,8 @@ fun SearchScreen(
                                     }
                                 }
                             },
-                            onMoreClick = {
-                                scope.launch {
-                                    selectedMediaItem = when (item.type) {
-                                        SearchItem.Type.SONG -> {
-                                            item.song ?: viewModel.getSong(item.id)
-                                        }
-
-                                        SearchItem.Type.ALBUM -> {
-                                            viewModel.getAlbum(item.id)
-                                        }
-
-                                        SearchItem.Type.ARTIST -> {
-                                            viewModel.getArtist(item.id)
-                                        }
-
-                                        SearchItem.Type.PLAYLIST -> {
-                                            viewModel.getPlaylist(item.id)
-                                        }
-                                    }
-                                }
-                            },
-                            onLongClick = {
-                                scope.launch {
-                                    selectedMediaItem = when (item.type) {
-                                        SearchItem.Type.SONG -> {
-                                            item.song ?: viewModel.getSong(item.id)
-                                        }
-
-                                        SearchItem.Type.ALBUM -> {
-                                            viewModel.getAlbum(item.id)
-                                        }
-
-                                        SearchItem.Type.ARTIST -> {
-                                            viewModel.getArtist(item.id)
-                                        }
-
-                                        SearchItem.Type.PLAYLIST -> {
-                                            viewModel.getPlaylist(item.id)
-                                        }
-                                    }
-                                }
-                            },
+                            onMoreClick = { openOptions(item) },
+                            onLongClick = { openOptions(item) },
                             onPlayNext = if (item.type == SearchItem.Type.SONG) {
                                 {
                                     scope.launch {
@@ -467,48 +441,8 @@ fun SearchScreen(
                                             }
                                         }
                                     },
-                                    onMoreClick = {
-                                        scope.launch {
-                                            selectedMediaItem = when (item.type) {
-                                                SearchItem.Type.SONG -> {
-                                                    item.song ?: viewModel.getSong(item.id)
-                                                }
-
-                                                SearchItem.Type.ALBUM -> {
-                                                    viewModel.getAlbum(item.id)
-                                                }
-
-                                                SearchItem.Type.ARTIST -> {
-                                                    viewModel.getArtist(item.id)
-                                                }
-
-                                                SearchItem.Type.PLAYLIST -> {
-                                                    viewModel.getPlaylist(item.id)
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onLongClick = {
-                                        scope.launch {
-                                            selectedMediaItem = when (item.type) {
-                                                SearchItem.Type.SONG -> {
-                                                    item.song ?: viewModel.getSong(item.id)
-                                                }
-
-                                                SearchItem.Type.ALBUM -> {
-                                                    viewModel.getAlbum(item.id)
-                                                }
-
-                                                SearchItem.Type.ARTIST -> {
-                                                    viewModel.getArtist(item.id)
-                                                }
-
-                                                SearchItem.Type.PLAYLIST -> {
-                                                    viewModel.getPlaylist(item.id)
-                                                }
-                                            }
-                                        }
-                                    },
+                                    onMoreClick = { openOptions(item) },
+                                    onLongClick = { openOptions(item) },
                                     onPlayNext = if (item.type == SearchItem.Type.SONG) {
                                         {
                                             scope.launch {
@@ -571,78 +505,15 @@ fun SearchScreen(
         }
 
         // Media item options bottom sheet
-        selectedMediaItem?.let { item ->
-            ModalBottomSheet(
-                onDismissRequest = { selectedMediaItem = null },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                MediaItemOptionsBottomSheet(
-                    item = item,
-                    onDismiss = { selectedMediaItem = null },
-                    onPlay = {
-                        scope.launch {
-                            when (item) {
-                                is Song -> viewModel.playSong(item.id)
-                                is Album -> {
-                                    // TODO: Implement play album
-                                }
-
-                                is Playlist -> {
-                                    // TODO: Implement play playlist
-                                }
-
-                                else -> {}
-                            }
-                            selectedMediaItem = null
-                        }
-                    },
-                    onPlayNext = {
-                        scope.launch {
-                            when (item) {
-                                is Song -> viewModel.playNext(item)
-                                else -> {}
-                            }
-                            selectedMediaItem = null
-                        }
-                    },
-                    onAddToQueue = {
-                        scope.launch {
-                            when (item) {
-                                is Song -> viewModel.addToQueue(item)
-                                is Album -> {
-                                    // TODO: Implement add album to queue
-                                }
-
-                                is Playlist -> {
-                                    // TODO: Implement add playlist to queue
-                                }
-
-                                else -> {}
-                            }
-                            selectedMediaItem = null
-                        }
-                    },
-                    onLike = {
-                        scope.launch {
-                            when (item) {
-                                is Song -> viewModel.toggleLike(item)
-                                else -> {}
-                            }
-                            selectedMediaItem = null
-                        }
-                    },
-                    onViewArtist = { artist ->
-                        onNavigateToArtist(artist)
-                        selectedMediaItem = null
-                    },
-                    onViewAlbum = { album ->
-                        onNavigateToAlbum(album)
-                        selectedMediaItem = null
-                    }
-                )
-            }
-        }
+        MediaItemOptionsSheetHost(
+            controller = optionsController,
+            onPlay = { scope.launch { if (it is Song) viewModel.playSong(it.id) } },
+            onPlayNext = { scope.launch { if (it is Song) viewModel.playNext(it) } },
+            onAddToQueue = { scope.launch { if (it is Song) viewModel.addToQueue(it) } },
+            onLike = { scope.launch { if (it is Song) viewModel.toggleLike(it) } },
+            onViewArtist = onNavigateToArtist,
+            onViewAlbum = onNavigateToAlbum,
+        )
     }
 }
 

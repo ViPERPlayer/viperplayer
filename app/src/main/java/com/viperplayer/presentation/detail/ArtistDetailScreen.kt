@@ -56,7 +56,8 @@ import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
-import com.viperplayer.presentation.common.MediaItemOptionsBottomSheet
+import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
+import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
@@ -107,7 +108,7 @@ private fun ArtistDetailScreenContent(
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
 ) {
-    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
+    val optionsController = rememberMediaItemOptionsController()
 
     val artist = when (uiState) {
         is ArtistDetailUiState.Success -> uiState.artist
@@ -211,11 +212,11 @@ private fun ArtistDetailScreenContent(
                                 trailingContent = {
                                     ListItemTrailingWithDuration(
                                         durationMs = song.durationMs,
-                                        onMoreClick = { selectedMediaItem = song }
+                                        onMoreClick = { optionsController.show(song) }
                                     )
                                 },
                                 onClick = { onPlaySong(song) },
-                                onLongClick = { selectedMediaItem = song },
+                                onLongClick = { optionsController.show(song) },
                                 onPlayNext = { onPlayNext(song) },
                                 onAddToQueue = { onAddToQueue(song) },
                                 modifier = Modifier
@@ -373,45 +374,13 @@ private fun ArtistDetailScreenContent(
         }
 
         // Media item options bottom sheet
-        selectedMediaItem?.let { item ->
-            ModalBottomSheet(
-                onDismissRequest = { selectedMediaItem = null },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                MediaItemOptionsBottomSheet(
-                    item = item,
-                    onDismiss = { selectedMediaItem = null },
-                    onPlay = {
-                        when (item) {
-                            is Song -> onPlaySong(item)
-                            else -> {}
-                        }
-                        selectedMediaItem = null
-                    },
-                    onPlayNext = {
-                        if (item is Song) onPlayNext(item)
-                        selectedMediaItem = null
-                    },
-                    onAddToQueue = {
-                        if (item is Song) onAddToQueue(item)
-                        selectedMediaItem = null
-                    },
-                    onLike = {
-                        // TODO: Implement toggle like
-                        selectedMediaItem = null
-                    },
-                    onViewArtist = { artist ->
-                        // Already on artist detail screen
-                        selectedMediaItem = null
-                    },
-                    onViewAlbum = { album ->
-                        onNavigateToAlbum(album)
-                        selectedMediaItem = null
-                    }
-                )
-            }
-        }
+        MediaItemOptionsSheetHost(
+            controller = optionsController,
+            onPlay = { if (it is Song) onPlaySong(it) },
+            onPlayNext = { if (it is Song) onPlayNext(it) },
+            onAddToQueue = { if (it is Song) onAddToQueue(it) },
+            onViewAlbum = onNavigateToAlbum,
+        )
     }
 }
 
