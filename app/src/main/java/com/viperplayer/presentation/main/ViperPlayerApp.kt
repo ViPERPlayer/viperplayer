@@ -3,6 +3,8 @@ package com.viperplayer.presentation.main
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.res.stringResource
+import com.viperplayer.R
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -99,10 +101,10 @@ fun ViperPlayerApp(
             var showPlayerBottomSheet by remember { mutableStateOf(false) }
 
             val bottomNavItems = listOf(
-                BottomNavItem(Home, "Home", Icons.Rounded.Home),
-                BottomNavItem(Search, "Search", Icons.Rounded.Search),
-                BottomNavItem(Library, "Library", Icons.Rounded.LibraryMusic),
-                BottomNavItem(Viper, "ViPER", Icons.Rounded.Equalizer)
+                BottomNavItem(Home, stringResource(R.string.nav_home), Icons.Rounded.Home),
+                BottomNavItem(Search, stringResource(R.string.nav_search), Icons.Rounded.Search),
+                BottomNavItem(Library, stringResource(R.string.nav_library), Icons.Rounded.LibraryMusic),
+                BottomNavItem(Viper, stringResource(R.string.nav_viper), Icons.Rounded.Equalizer)
             )
 
             val currentRoute =

@@ -79,6 +79,15 @@
     <string name="action_like">Like</string>
     <string name="action_more">More</string>
     <string name="cd_artwork">Artwork</string>
+    <!-- Home + navigation -->
+    <string name="home_browse">Browse</string>
+    <string name="home_quick_picks">Quick Picks</string>
+    <string name="home_no_plugins_connected">No plugins connected</string>
+    <string name="home_no_plugins_hint">Go to Plugins tab to connect a music source</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_viper">ViPER</string>
 
     <!-- Album types -->
     <string name="album_type_album">Album</string>

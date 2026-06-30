@@ -277,13 +277,13 @@ private fun HomeScreenContent(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
-                                            text = "No plugins connected",
+                                            text = stringResource(R.string.home_no_plugins_connected),
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "Go to Plugins tab to connect a music source",
+                                            text = stringResource(R.string.home_no_plugins_hint),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -296,7 +296,7 @@ private fun HomeScreenContent(
                         if (uiState.categories.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Browse",
+                                    text = stringResource(R.string.home_browse),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -325,7 +325,7 @@ private fun HomeScreenContent(
                                 item {
                                     Spacer(modifier = Modifier.height(24.dp))
                                     Text(
-                                        text = "Quick Picks",
+                                        text = stringResource(R.string.home_quick_picks),
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(
