@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.toArtist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PlaybackContext
@@ -437,7 +438,7 @@ class SearchViewModel @Inject constructor(
     suspend fun getArtist(mediaId: MediaId): Artist? {
         val artist = pluginRepository.getArtist(mediaId).getOrNull()
         artist?.let { mediaLibraryRepository.saveArtist(it) }
-        return artist
+        return artist?.toArtist()
     }
 
     suspend fun getPlaylist(mediaId: MediaId): Playlist? {

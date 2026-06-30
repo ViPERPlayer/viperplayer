@@ -15,6 +15,8 @@ import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
+import com.viperplayer.domain.model.toArtist
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
@@ -205,8 +207,8 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
     }
 
-    override suspend fun saveArtist(artist: Artist): Unit = withContext(Dispatchers.IO) {
-        upsertArtist(artist)
+    override suspend fun saveArtist(artist: ArtistDetail): Unit = withContext(Dispatchers.IO) {
+        upsertArtist(artist.toArtist())
 
         // Save topSongs and albums from artist
         artist.topSongs.forEach { song ->

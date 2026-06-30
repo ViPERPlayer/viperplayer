@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
@@ -389,7 +390,7 @@ private fun ArtistDetailScreenContent(
 @Preview(showBackground = true)
 @Composable
 private fun ArtistDetailScreenPreview() {
-    val artist = Artist(
+    val artist = ArtistDetail(
         id = MediaId("plugin", "artist1"),
         name = "Pink Floyd",
         imageUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",

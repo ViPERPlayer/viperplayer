@@ -2,13 +2,13 @@ package com.viperplayer.presentation.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
-import com.viperplayer.presentation.navigation.ArtistDetail
+import com.viperplayer.presentation.navigation.ArtistDetail as ArtistDetailRoute
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -28,9 +28,9 @@ import timber.log.Timber
  * UI state for Artist Detail screen.
  */
 sealed class ArtistDetailUiState {
-    data class Loading(val initialArtist: Artist) : ArtistDetailUiState()
+    data class Loading(val initialArtist: ArtistDetail) : ArtistDetailUiState()
     data class Success(
-        val artist: Artist
+        val artist: ArtistDetail
     ) : ArtistDetailUiState()
 
     data class Error(val message: String) : ArtistDetailUiState()
@@ -41,7 +41,7 @@ sealed class ArtistDetailUiState {
  */
 @HiltViewModel(assistedFactory = ArtistDetailViewModel.Factory::class)
 class ArtistDetailViewModel @AssistedInject constructor(
-    @Assisted private val artistDetail: ArtistDetail,
+    @Assisted private val artistDetail: ArtistDetailRoute,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository
@@ -49,13 +49,13 @@ class ArtistDetailViewModel @AssistedInject constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(artistDetail: ArtistDetail): ArtistDetailViewModel
+        fun create(artistDetail: ArtistDetailRoute): ArtistDetailViewModel
     }
 
     private val artistId = artistDetail.artistId
 
     // Minimal placeholder shown while the full artist is (re)fetched by id.
-    private val placeholderArtist = Artist(
+    private val placeholderArtist = ArtistDetail(
         id = artistDetail.artistId,
         name = artistDetail.initialName,
         imageUrl = artistDetail.initialImageUrl,
@@ -122,7 +122,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
      * didn't inline them (it's optional in the plugin API). Both are fetched concurrently and only
      * when their inline list is empty; failures or unsupported endpoints simply leave them empty.
      */
-    private suspend fun enrichArtistContent(artist: Artist): Artist = coroutineScope {
+    private suspend fun enrichArtistContent(artist: ArtistDetail): ArtistDetail = coroutineScope {
         val songsDeferred = if (artist.topSongs.isEmpty()) {
             async { pluginRepository.getArtistSongs(artist.id).getOrNull()?.items.orEmpty() }
         } else null

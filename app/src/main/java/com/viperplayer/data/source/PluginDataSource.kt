@@ -8,11 +8,14 @@ import android.content.ServiceConnection
 import android.content.ComponentName
 import android.os.IBinder
 import com.viperplayer.data.mapper.PluginMapper.toDomain
+import com.viperplayer.data.mapper.PluginMapper.toDomainDetail
+import com.viperplayer.data.mapper.PluginMapper.toDomainRef
 import com.viperplayer.data.mapper.PluginMapper.toMediaType
 import com.viperplayer.data.plugin.ConnectedPlugin
 import com.viperplayer.data.preferences.PluginPreferences
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.Lyrics
@@ -353,7 +356,7 @@ class PluginDataSource @Inject constructor(
 
     suspend fun getLibraryArtists(pluginId: String, cursor: String?, limit: Int): Result<PagedResult<Artist>> =
         runCatching {
-            source(pluginId).getLibraryArtists(PageRequest(cursor, limit)).toDomain { it.toDomain(pluginId) }
+            source(pluginId).getLibraryArtists(PageRequest(cursor, limit)).toDomain { it.toDomainRef(pluginId) }
         }.onFailure { Timber.e(it, "library artists failed for $pluginId") }
 
     suspend fun getLibraryPlaylists(pluginId: String, cursor: String?, limit: Int): Result<PagedResult<Playlist>> =
@@ -369,8 +372,8 @@ class PluginDataSource @Inject constructor(
         source(id.pluginId).getAlbum(id.sourceId).toDomain(id.pluginId)
     }.onFailure { Timber.e(it, "getAlbum failed for $id") }
 
-    suspend fun getArtist(id: MediaId): Result<Artist> = runCatching {
-        source(id.pluginId).getArtist(id.sourceId).toDomain(id.pluginId)
+    suspend fun getArtist(id: MediaId): Result<ArtistDetail> = runCatching {
+        source(id.pluginId).getArtist(id.sourceId).toDomainDetail(id.pluginId)
     }.onFailure { Timber.e(it, "getArtist failed for $id") }
 
     suspend fun getPlaylist(id: MediaId): Result<Playlist> = runCatching {

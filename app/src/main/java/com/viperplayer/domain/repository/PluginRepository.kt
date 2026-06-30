@@ -2,6 +2,7 @@ package com.viperplayer.domain.repository
 
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
@@ -144,7 +145,7 @@ interface PluginRepository {
     /**
      * Get artist details.
      */
-    suspend fun getArtist(mediaId: MediaId): Result<Artist>
+    suspend fun getArtist(mediaId: MediaId): Result<ArtistDetail>
 
     /**
      * Get playlist details with tracks.

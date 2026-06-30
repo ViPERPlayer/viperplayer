@@ -2,6 +2,7 @@ package com.viperplayer.domain.repository
 
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
@@ -21,7 +22,7 @@ interface MediaLibraryRepository {
     fun getArtist(mediaId: MediaId): Flow<Artist?>
     fun getAllLikedArtists(): Flow<List<Artist>>
     fun getAllSavedArtists(): Flow<List<Artist>>
-    suspend fun saveArtist(artist: Artist)
+    suspend fun saveArtist(artist: ArtistDetail)
     suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean)
     suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean)
 

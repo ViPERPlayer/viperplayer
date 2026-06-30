@@ -17,14 +17,12 @@ import com.viperplayer.domain.model.Song
 object EntityMapper {
 
     // Artist mappings
-    // Note: topSongs and albums are only available from plugin API, not stored in database
+    // Artist is a lightweight ref (id/name/image); heavy fields live on ArtistDetail (plugin API only).
     fun ArtistEntity.toDomain(): Artist {
         return Artist(
             id = MediaId(pluginId, sourceId),
             name = name,
-            imageUrl = imageUrl,
-            topSongs = emptyList(), // Not stored in database, only from plugin API
-            albums = emptyList() // Not stored in database, only from plugin API
+            imageUrl = imageUrl
         )
     }
 

@@ -3,6 +3,7 @@ package com.viperplayer.data.mapper
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CategoryContentType
 import com.viperplayer.domain.model.BannerSection
@@ -78,7 +79,7 @@ object PluginMapper {
     fun SdkSong.toDomain(pluginId: String): Song = Song(
         id = MediaId(pluginId, id),
         title = title,
-        artists = artists.map { it.toDomain(pluginId) },
+        artists = artists.map { it.toDomainRef(pluginId) },
         album = album?.toDomain(pluginId),
         durationMs = durationMs,
         artworkUrl = artwork.bestUrl(),
@@ -95,7 +96,7 @@ object PluginMapper {
     fun SdkVideo.toDomain(pluginId: String): Song = Song(
         id = MediaId(pluginId, id),
         title = title,
-        artists = artists.map { it.toDomain(pluginId) },
+        artists = artists.map { it.toDomainRef(pluginId) },
         album = album?.toDomain(pluginId),
         durationMs = durationMs,
         artworkUrl = artwork.bestUrl(),
@@ -119,7 +120,7 @@ object PluginMapper {
     fun SdkAlbum.toDomain(pluginId: String): Album = Album(
         id = MediaId(pluginId, id),
         name = name,
-        artists = artists.map { it.toDomain(pluginId) },
+        artists = artists.map { it.toDomainRef(pluginId) },
         artworkUrl = artwork.bestUrl(),
         releaseYear = releaseYear,
         trackCount = trackCount ?: 0,
@@ -127,7 +128,13 @@ object PluginMapper {
         songs = songs.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomainSong(pluginId) },
     )
 
-    fun SdkArtist.toDomain(pluginId: String): Artist = Artist(
+    fun SdkArtist.toDomainRef(pluginId: String): Artist = Artist(
+        id = MediaId(pluginId, id),
+        name = name,
+        imageUrl = artwork.bestUrl(),
+    )
+
+    fun SdkArtist.toDomainDetail(pluginId: String): ArtistDetail = ArtistDetail(
         id = MediaId(pluginId, id),
         name = name,
         imageUrl = artwork.bestUrl(),
@@ -136,7 +143,7 @@ object PluginMapper {
         playlists = playlists.map { it.toDomain(pluginId) },
         featuring = emptyList(),
         appearsOn = emptyList(),
-        similarArtists = similarArtists.map { it.toDomain(pluginId) },
+        similarArtists = similarArtists.map { it.toDomainRef(pluginId) },
     )
 
     fun SdkPlaylist.toDomain(pluginId: String): Playlist = Playlist(
@@ -161,7 +168,7 @@ object PluginMapper {
         is SdkSong -> toDomain(pluginId)
         is SdkVideo -> toDomain(pluginId)
         is SdkAlbum -> toDomain(pluginId)
-        is SdkArtist -> toDomain(pluginId)
+        is SdkArtist -> toDomainRef(pluginId)
         is SdkPlaylist -> toDomain(pluginId)
         is UnknownMediaItem -> null // a media kind this host doesn't understand; skip it
         is UnknownPlayableItem -> null // an unknown playable kind; skip it

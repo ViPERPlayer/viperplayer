@@ -4,6 +4,7 @@ import android.util.Base64
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
@@ -297,7 +298,7 @@ class PluginRepositoryImpl @Inject constructor(
         return dataSource.getAlbum(mediaId).map { it.copy(songs = it.songs?.songsWithoutExplicit(hide)) }
     }
 
-    override suspend fun getArtist(mediaId: MediaId): Result<Artist> {
+    override suspend fun getArtist(mediaId: MediaId): Result<ArtistDetail> {
         val hide = hideExplicit()
         return dataSource.getArtist(mediaId).map { it.copy(topSongs = it.topSongs.songsWithoutExplicit(hide)) }
     }
