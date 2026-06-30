@@ -151,6 +151,7 @@ class PlayerRepositoryImpl @Inject constructor(
 
     override suspend fun play(song: Song, context: PlaybackContext?) {
         queueBuildJob?.cancel()
+        resetAutoplay()
         _playbackContext.value = context
 
         // Save song with full metadata (album, artists, etc.)
@@ -167,6 +168,7 @@ class PlayerRepositoryImpl @Inject constructor(
         if (songs.isEmpty()) return
 
         queueBuildJob?.cancel()
+        resetAutoplay()
         _playbackContext.value = context
 
         val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
@@ -245,6 +247,13 @@ class PlayerRepositoryImpl @Inject constructor(
             fresh.forEach { runCatching { mediaLibraryRepository.saveSong(it) } }
             fresh.toMediaItems().forEach { controller.addMediaItem(it) }
         }
+    }
+
+    /** A new queue or stop invalidates the radio: cancel any in-flight related-songs fetch and clear
+     *  the seed history so it can't append into the replaced queue or grow unbounded for the session. */
+    private fun resetAutoplay() {
+        autoplayJob?.cancel()
+        autoplaySeeds.clear()
     }
 
 
@@ -555,6 +564,7 @@ class PlayerRepositoryImpl @Inject constructor(
         val controller = mediaControllerManager.controllerFlow.first()
         controller.stop()
         controller.clearMediaItems()
+        resetAutoplay()
     }
 
     override suspend fun skipToNext() {
