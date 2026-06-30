@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -193,7 +194,7 @@ private fun PlaylistDetailScreenContent(
                             }
                         }
                     } else {
-                        items(uiState.songs) { song ->
+                        itemsIndexed(uiState.songs, key = { index, song -> "${song.id}-$index" }) { _, song ->
                             ListItem(
                                 title = song.title,
                                 badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),

@@ -130,7 +130,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                itemsIndexed(uiState.songs) { index, song ->
+                                itemsIndexed(uiState.songs, key = { index, song -> "${song.id}-$index" }) { index, song ->
                                     ListItem(
                                         type = SearchItem.Type.SONG,
                                         title = song.title,
@@ -174,7 +174,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                itemsIndexed(uiState.albums) { index, album ->
+                                itemsIndexed(uiState.albums, key = { index, album -> "${album.id}-$index" }) { index, album ->
                                     ListItem(
                                         type = SearchItem.Type.ALBUM,
                                         title = album.name,
@@ -204,7 +204,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                itemsIndexed(uiState.artists) { index, artist ->
+                                itemsIndexed(uiState.artists, key = { index, artist -> "${artist.id}-$index" }) { index, artist ->
                                     ListItem(
                                         type = SearchItem.Type.ARTIST,
                                         title = artist.name,
@@ -233,7 +233,7 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
-                                itemsIndexed(uiState.playlists) { index, playlist ->
+                                itemsIndexed(uiState.playlists, key = { index, playlist -> "${playlist.id}-$index" }) { index, playlist ->
                                     ListItem(
                                         type = SearchItem.Type.PLAYLIST,
                                         title = playlist.name,

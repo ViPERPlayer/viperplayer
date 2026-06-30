@@ -401,6 +401,7 @@ fun SearchScreen(
                         ) {
                             itemsIndexed(
                                 items = state.items,
+                                key = { index, item -> "${item.id}-$index" },
                             ) { index, item ->
                                 ListItem(
                                     type = item.type,

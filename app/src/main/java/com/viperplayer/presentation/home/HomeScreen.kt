@@ -308,7 +308,7 @@ private fun HomeScreenContent(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    itemsIndexed(uiState.categories) { index, category ->
+                                    itemsIndexed(uiState.categories, key = { index, category -> "${category.id}-$index" }) { index, category ->
                                         CategoryCard(
                                             category = category,
                                             modifier = Modifier.revealOnAppear(index),
@@ -339,7 +339,7 @@ private fun HomeScreenContent(
                                         contentPadding = PaddingValues(horizontal = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        itemsIndexed(quickPicks) { index, item ->
+                                        itemsIndexed(quickPicks, key = { index, item -> "${item.id}-$index" }) { index, item ->
                                             val active = isCurrent(item, currentSongId)
                                             MediaItemCard(
                                                 item = item,
@@ -443,7 +443,7 @@ private fun LazyListScope.homeSection(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(section.filters) { filter ->
+                        items(section.filters, key = { it.key }) { filter ->
                             FilterChip(
                                 selected = filter.selected,
                                 onClick = { onFilterSelected(section, filter.key) },
@@ -510,7 +510,7 @@ private fun LazyListScope.homeSection(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            itemsIndexed(section.items) { index, item ->
+                            itemsIndexed(section.items, key = { index, item -> "${item.id}-$index" }) { index, item ->
                                 val active = isCurrent(item, currentSongId)
                                 MediaItemCard(
                                     item = item,
@@ -530,7 +530,7 @@ private fun LazyListScope.homeSection(
         is GridSection -> {
             sectionHeader(section.title, section.subtitle)
             val columns = section.columns.coerceAtLeast(1)
-            itemsIndexed(section.items.chunked(columns)) { index, rowItems ->
+            itemsIndexed(section.items.chunked(columns), key = { index, _ -> "${section.id}-row-$index" }) { index, rowItems ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -558,7 +558,7 @@ private fun LazyListScope.homeSection(
 
         is ListSection -> {
             sectionHeader(section.title, section.subtitle)
-            itemsIndexed(section.items) { index, item ->
+            itemsIndexed(section.items, key = { index, item -> "${section.id}-${item.id}-$index" }) { index, item ->
                 val active = isCurrent(item, currentSongId)
                 Box(modifier = Modifier.revealOnAppear(index)) {
                     TrackRow(
