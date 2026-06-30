@@ -1,6 +1,8 @@
 package com.viperplayer.presentation.common
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.viperplayer.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -335,51 +337,51 @@ private fun SongActions(
 ) {
     ActionItem(
         icon = Icons.Filled.Radio,
-        label = "Start radio",
+        label = stringResource(R.string.action_start_radio),
         onClick = onStartRadio
     )
     ActionItem(
         icon = Icons.Filled.PlayArrow,
-        label = "Play next",
+        label = stringResource(R.string.action_play_next),
         onClick = onPlayNext
     )
     ActionItem(
         icon = Icons.Filled.Add,
-        label = "Add to queue",
+        label = stringResource(R.string.action_add_to_queue),
         onClick = onAddToQueue
     )
     ActionItem(
         icon = Icons.AutoMirrored.Filled.PlaylistAdd,
-        label = "Add to playlist",
+        label = stringResource(R.string.action_add_to_playlist),
         onClick = onAddToPlaylist
     )
     ActionItem(
         icon = Icons.Filled.Share,
-        label = "Share",
+        label = stringResource(R.string.action_share),
         onClick = onShare
     )
     ActionItem(
         icon = Icons.Filled.Download,
-        label = "Download",
+        label = stringResource(R.string.action_download),
         onClick = onDownload
     )
     onViewArtist?.let {
         ActionItem(
             icon = Icons.Filled.Person,
-            label = "View artist",
+            label = stringResource(R.string.action_view_artist),
             onClick = it
         )
     }
     onViewAlbum?.let {
         ActionItem(
             icon = Icons.Filled.Album,
-            label = "View album",
+            label = stringResource(R.string.action_view_album),
             onClick = it
         )
     }
     ActionItem(
         icon = Icons.Filled.Info,
-        label = "Details",
+        label = stringResource(R.string.action_details),
         onClick = onViewDetails
     )
 }
@@ -398,44 +400,44 @@ private fun AlbumActions(
 ) {
     ActionItem(
         icon = Icons.Filled.PlayArrow,
-        label = "Play",
+        label = stringResource(R.string.action_play),
         onClick = onPlay
     )
     ActionItem(
         icon = Icons.Filled.Shuffle,
-        label = "Shuffle",
+        label = stringResource(R.string.action_shuffle),
         onClick = onShuffle
     )
     ActionItem(
         icon = Icons.Filled.Radio,
-        label = "Start radio",
+        label = stringResource(R.string.action_start_radio),
         onClick = onStartRadio
     )
     ActionItem(
         icon = Icons.Filled.Add,
-        label = "Add to queue",
+        label = stringResource(R.string.action_add_to_queue),
         onClick = onAddToQueue
     )
     ActionItem(
         icon = Icons.AutoMirrored.Filled.PlaylistAdd,
-        label = "Add to playlist",
+        label = stringResource(R.string.action_add_to_playlist),
         onClick = onAddToPlaylist
     )
     ActionItem(
         icon = Icons.Filled.Share,
-        label = "Share",
+        label = stringResource(R.string.action_share),
         onClick = onShare
     )
     onViewArtist?.let {
         ActionItem(
             icon = Icons.Filled.Person,
-            label = "View artist",
+            label = stringResource(R.string.action_view_artist),
             onClick = it
         )
     }
     ActionItem(
         icon = Icons.Filled.Info,
-        label = "Details",
+        label = stringResource(R.string.action_details),
         onClick = onViewDetails
     )
 }
@@ -449,17 +451,17 @@ private fun ArtistActions(
 ) {
     ActionItem(
         icon = Icons.Filled.Radio,
-        label = "Start radio",
+        label = stringResource(R.string.action_start_radio),
         onClick = onStartRadio
     )
     ActionItem(
         icon = Icons.Filled.Share,
-        label = "Share",
+        label = stringResource(R.string.action_share),
         onClick = onShare
     )
     ActionItem(
         icon = Icons.Filled.Info,
-        label = "Details",
+        label = stringResource(R.string.action_details),
         onClick = onViewDetails
     )
 }
@@ -478,42 +480,42 @@ private fun PlaylistActions(
 ) {
     ActionItem(
         icon = Icons.Filled.PlayArrow,
-        label = "Play",
+        label = stringResource(R.string.action_play),
         onClick = onPlay
     )
     ActionItem(
         icon = Icons.Filled.Shuffle,
-        label = "Shuffle",
+        label = stringResource(R.string.action_shuffle),
         onClick = onShuffle
     )
     ActionItem(
         icon = Icons.Filled.Radio,
-        label = "Start radio",
+        label = stringResource(R.string.action_start_radio),
         onClick = onStartRadio
     )
     ActionItem(
         icon = Icons.Filled.FavoriteBorder,
-        label = "Like",
+        label = stringResource(R.string.action_like),
         onClick = onLike
     )
     ActionItem(
         icon = Icons.Filled.PlayArrow,
-        label = "Play next",
+        label = stringResource(R.string.action_play_next),
         onClick = onPlayNext
     )
     ActionItem(
         icon = Icons.Filled.Add,
-        label = "Add to queue",
+        label = stringResource(R.string.action_add_to_queue),
         onClick = onAddToQueue
     )
     ActionItem(
         icon = Icons.AutoMirrored.Filled.PlaylistAdd,
-        label = "Add to playlist",
+        label = stringResource(R.string.action_add_to_playlist),
         onClick = onAddToPlaylist
     )
     ActionItem(
         icon = Icons.Filled.Share,
-        label = "Share",
+        label = stringResource(R.string.action_share),
         onClick = onShare
     )
 }

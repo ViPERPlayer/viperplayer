@@ -1,6 +1,8 @@
 package com.viperplayer.presentation.common
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.res.stringResource
+import com.viperplayer.R
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -81,7 +83,7 @@ fun ListItemLeadingArtwork(
     ) {
         AsyncImage(
             model = artworkUrl,
-            contentDescription = "Artwork",
+            contentDescription = stringResource(R.string.cd_artwork),
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
@@ -113,7 +115,7 @@ fun PlayingArtworkOverlay(isActive: Boolean, isPlaying: Boolean, modifier: Modif
         } else {
             Icon(
                 Icons.Rounded.PlayArrow,
-                contentDescription = "Play",
+                contentDescription = stringResource(R.string.action_play),
                 tint = Color.White,
             )
         }
@@ -145,7 +147,7 @@ fun ListItemLeadingTrackNumber(
             } else {
                 Icon(
                     Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
+                    contentDescription = stringResource(R.string.action_play),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp)
                 )
@@ -189,7 +191,7 @@ fun ListItemTrailingWithDuration(
         ) {
             Icon(
                 Icons.Rounded.MoreVert,
-                contentDescription = "More"
+                contentDescription = stringResource(R.string.action_more)
             )
         }
     }
@@ -213,7 +215,7 @@ fun ListItem(
     leadingContent: @Composable () -> Unit,
     trailingContent: @Composable () -> Unit = {
         IconButton(onClick = {}) {
-            Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
         }
     },
     onClick: (() -> Unit)? = null,
@@ -290,7 +292,7 @@ fun ListItem(
                 ) {
                     Icon(
                         Icons.Rounded.QueuePlayNext,
-                        contentDescription = "Play next",
+                        contentDescription = stringResource(R.string.action_play_next),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -311,7 +313,7 @@ fun ListItem(
                 ) {
                     Icon(
                         Icons.Rounded.AddToQueue,
-                        contentDescription = "Add to Queue",
+                        contentDescription = stringResource(R.string.action_add_to_queue),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -416,7 +418,7 @@ fun ListItem(
         },
         trailingContent = {
             IconButton(onClick = onMoreClick) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+                Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
             }
         },
         onClick = onClick,
