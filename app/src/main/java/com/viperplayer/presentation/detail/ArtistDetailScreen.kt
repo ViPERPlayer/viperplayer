@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.ui.res.stringResource
+import com.viperplayer.R
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -123,7 +125,7 @@ private fun ArtistDetailScreenContent(
         onNavigateBack = onNavigateBack,
         actions = {
             IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }
         },
     ) { contentPadding ->
@@ -158,7 +160,7 @@ private fun ArtistDetailScreenContent(
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(onClick = onRefresh) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -183,7 +185,7 @@ private fun ArtistDetailScreenContent(
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Play All")
+                            Text(stringResource(R.string.action_play_all))
                         }
                     }
 

@@ -17,6 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.viperplayer.R
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -119,7 +122,7 @@ private fun PlaylistDetailScreenContent(
         onNavigateBack = onNavigateBack,
         actions = {
             IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }
         },
     ) { contentPadding ->
@@ -154,7 +157,7 @@ private fun PlaylistDetailScreenContent(
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(onClick = onRefresh) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -304,7 +307,7 @@ private fun PlaylistMetadataHeader(
                 )
             }
             Text(
-                text = "$songCount ${if (songCount == 1) "song" else "songs"}",
+                text = pluralStringResource(R.plurals.song_count, songCount, songCount),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -322,7 +325,7 @@ private fun PlaylistMetadataHeader(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Play")
+                Text(stringResource(R.string.action_play))
             }
             OutlinedButton(
                 onClick = onShuffle,
@@ -331,7 +334,7 @@ private fun PlaylistMetadataHeader(
             ) {
                 Icon(Icons.Default.Shuffle, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Shuffle")
+                Text(stringResource(R.string.action_shuffle))
             }
         }
     }

@@ -66,6 +66,7 @@
     <string name="action_play">Play</string>
     <string name="action_shuffle">Shuffle</string>
     <string name="action_error">Error</string>
+    <string name="action_refresh">Refresh</string>
 
     <!-- Album types -->
     <string name="album_type_album">Album</string>
@@ -137,6 +138,10 @@
     <plurals name="play_count">
         <item quantity="one">%d play</item>
         <item quantity="other">%d plays</item>
+    </plurals>
+    <plurals name="song_count">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
     </plurals>
     <string name="settings">Settings</string>
 </resources>
