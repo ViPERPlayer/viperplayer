@@ -3,7 +3,7 @@ package com.viperplayer.presentation.search.model
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 
-class SearchItem(
+data class SearchItem(
     val id: MediaId,
     val type: Type,
     val artworkUrl: String?,

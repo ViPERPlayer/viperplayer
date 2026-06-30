@@ -89,6 +89,7 @@ fun SearchScreen(
     val searchSuggestionsState by viewModel.searchSuggestionsState.collectAsStateWithLifecycle()
     val searchResultsState by viewModel.searchResultsState.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
 
@@ -253,7 +254,7 @@ fun SearchScreen(
                             badges = item.badges,
                             subtitle = item.subtitle,
                             artworkUrl = item.artworkUrl,
-                            isActive = item.isActive,
+                            isActive = item.type == SearchItem.Type.SONG && item.id == currentSong?.id,
                             isPlaying = isPlaying,
                             onClick = {
                                 when (item.type) {
@@ -433,7 +434,7 @@ fun SearchScreen(
                                     badges = item.badges,
                                     subtitle = item.subtitle,
                                     artworkUrl = item.artworkUrl,
-                                    isActive = item.isActive,
+                                    isActive = item.type == SearchItem.Type.SONG && item.id == currentSong?.id,
                                     isPlaying = isPlaying,
                                     onClick = {
                                         when (item.type) {

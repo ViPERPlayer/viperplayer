@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.debounce
@@ -79,66 +78,12 @@ class SearchViewModel @Inject constructor(
         )
 
     private val _searchSuggestionsState = MutableStateFlow(SearchSuggestionsState())
-    val searchSuggestionsState: StateFlow<SearchSuggestionsState> = _searchSuggestionsState
-        .combine(currentSong) { state, current ->
-            // Update isActive for songs when current song changes
-            val updatedItems = state.items.map { item ->
-                if (item.type == SearchItem.Type.SONG) {
-                    SearchItem(
-                        id = item.id,
-                        type = item.type,
-                        artworkUrl = item.artworkUrl,
-                        title = item.title,
-                        subtitle = item.subtitle,
-                        isActive = current?.id == item.id,
-                        badges = item.badges,
-                        song = item.song // Preserve the song object
-                    )
-                } else {
-                    item
-                }
-            }
-            state.copy(items = updatedItems)
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = SearchSuggestionsState()
-        )
+    // isActive is derived per-item in the UI from currentSong, so the list is NOT rebuilt (every item
+    // re-allocated) on every track change.
+    val searchSuggestionsState: StateFlow<SearchSuggestionsState> = _searchSuggestionsState.asStateFlow()
 
     private val _searchResultsState = MutableStateFlow<SearchResultsState>(SearchResultsState.Idle)
-    val searchResultsState: StateFlow<SearchResultsState> = _searchResultsState
-        .combine(currentSong) { state, current ->
-            // Update isActive for songs when current song changes
-            when (state) {
-                is SearchResultsState.Results -> {
-                    val updatedItems = state.items.map { item ->
-                        if (item.type == SearchItem.Type.SONG) {
-                            SearchItem(
-                                id = item.id,
-                                type = item.type,
-                                artworkUrl = item.artworkUrl,
-                                title = item.title,
-                                subtitle = item.subtitle,
-                                isActive = current?.id == item.id,
-                                badges = item.badges,
-                                song = item.song // Preserve the song object
-                            )
-                        } else {
-                            item
-                        }
-                    }
-                    SearchResultsState.Results(updatedItems)
-                }
-
-                else -> state
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = SearchResultsState.Idle
-        )
+    val searchResultsState: StateFlow<SearchResultsState> = _searchResultsState.asStateFlow()
 
     private val _query = MutableStateFlow("")
 
