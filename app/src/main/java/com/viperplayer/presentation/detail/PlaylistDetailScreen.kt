@@ -190,7 +190,7 @@ private fun PlaylistDetailScreenContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No songs in this playlist",
+                                    text = stringResource(R.string.playlist_no_songs),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

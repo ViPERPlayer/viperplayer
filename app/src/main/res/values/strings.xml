@@ -102,6 +102,26 @@
     <string name="player_repeat_all">Repeat all</string>
     <string name="player_output_this_phone">This phone</string>
     <string name="player_output_device">Output device</string>
+    <!-- Song details sheet -->
+    <string name="song_detail_audio_format">Audio Format</string>
+    <string name="song_detail_sample_rate">Sample Rate</string>
+    <string name="song_detail_bit_depth">Bit Depth</string>
+    <string name="song_detail_bitrate">Bitrate</string>
+    <string name="song_detail_channels">Channels</string>
+    <string name="channels_mono">Mono</string>
+    <string name="channels_stereo">Stereo</string>
+    <string name="song_detail_channel_count">%1$d channels</string>
+    <string name="song_detail_audio_normalization">Audio Normalization</string>
+    <string name="song_detail_replaygain">ReplayGain</string>
+    <string name="song_detail_peak_amplitude">Peak Amplitude</string>
+    <string name="song_detail_track_information">Track Information</string>
+    <string name="song_detail_duration">Duration</string>
+    <string name="song_detail_track_number">Track Number</string>
+    <string name="song_detail_disc_number">Disc Number</string>
+    <string name="song_detail_album">Album</string>
+    <!-- Misc empty / error states -->
+    <string name="playlist_no_songs">No songs in this playlist</string>
+    <string name="home_genres_load_error">Couldn\'t load — tap a genre to retry.</string>
 
     <!-- Album types -->
     <string name="album_type_album">Album</string>

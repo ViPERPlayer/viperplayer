@@ -909,34 +909,34 @@ fun SongDetailsBottomSheet(
                     audioFormat!!.bitrate != null || audioFormat!!.channelCount != null)
         ) {
             DetailSection(
-                title = "Audio Format",
+                title = stringResource(R.string.song_detail_audio_format),
                 icon = Icons.Filled.MusicNote
             ) {
                 audioFormat!!.sampleRate?.let { sampleRate ->
                     DetailRow(
-                        label = "Sample Rate",
+                        label = stringResource(R.string.song_detail_sample_rate),
                         value = "${sampleRate / 1000} kHz"
                     )
                 }
                 audioFormat!!.bitDepth?.let { bitDepth ->
                     DetailRow(
-                        label = "Bit Depth",
+                        label = stringResource(R.string.song_detail_bit_depth),
                         value = "$bitDepth bit"
                     )
                 }
                 audioFormat!!.bitrate?.let { bitrate ->
                     DetailRow(
-                        label = "Bitrate",
+                        label = stringResource(R.string.song_detail_bitrate),
                         value = "$bitrate kbps"
                     )
                 }
                 audioFormat!!.channelCount?.let { channels ->
                     DetailRow(
-                        label = "Channels",
+                        label = stringResource(R.string.song_detail_channels),
                         value = when (channels) {
-                            1 -> "Mono"
-                            2 -> "Stereo"
-                            else -> "$channels channels"
+                            1 -> stringResource(R.string.channels_mono)
+                            2 -> stringResource(R.string.channels_stereo)
+                            else -> stringResource(R.string.song_detail_channel_count, channels)
                         }
                     )
                 }
@@ -946,18 +946,18 @@ fun SongDetailsBottomSheet(
         // ReplayGain details
         if (song.replayGainDb != null || song.peakAmplitude != null) {
             DetailSection(
-                title = "Audio Normalization",
+                title = stringResource(R.string.song_detail_audio_normalization),
                 icon = Icons.Filled.GraphicEq
             ) {
                 song.replayGainDb?.let { replayGain ->
                     DetailRow(
-                        label = "ReplayGain",
+                        label = stringResource(R.string.song_detail_replaygain),
                         value = String.format("%.2f dB", replayGain)
                     )
                 }
                 song.peakAmplitude?.let { peak ->
                     DetailRow(
-                        label = "Peak Amplitude",
+                        label = stringResource(R.string.song_detail_peak_amplitude),
                         value = String.format("%.4f", peak)
                     )
                 }
@@ -966,32 +966,32 @@ fun SongDetailsBottomSheet(
 
         // Track info
         DetailSection(
-            title = "Track Information",
+            title = stringResource(R.string.song_detail_track_information),
             icon = Icons.Filled.Info
         ) {
             song.durationMs?.let { duration ->
                 val minutes = TimeUnit.MILLISECONDS.toMinutes(duration)
                 val seconds = TimeUnit.MILLISECONDS.toSeconds(duration) % 60
                 DetailRow(
-                    label = "Duration",
+                    label = stringResource(R.string.song_detail_duration),
                     value = "${minutes}m ${seconds}s"
                 )
             }
             song.trackNumber?.let { track ->
                 DetailRow(
-                    label = "Track Number",
+                    label = stringResource(R.string.song_detail_track_number),
                     value = track.toString()
                 )
             }
             song.discNumber?.let { disc ->
                 DetailRow(
-                    label = "Disc Number",
+                    label = stringResource(R.string.song_detail_disc_number),
                     value = disc.toString()
                 )
             }
             song.album?.let { album ->
                 DetailRow(
-                    label = "Album",
+                    label = stringResource(R.string.song_detail_album),
                     value = album.name
                 )
             }

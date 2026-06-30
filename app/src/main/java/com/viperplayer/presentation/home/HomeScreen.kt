@@ -474,7 +474,7 @@ private fun LazyListScope.homeSection(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Couldn't load — tap a genre to retry.",
+                            text = stringResource(R.string.home_genres_load_error),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
