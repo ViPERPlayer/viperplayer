@@ -96,6 +96,12 @@ android {
     }
 }
 
+// Export the Room schema (schemas land in app/schemas/) so migrations can be tracked and tested;
+// pairs with having dropped fallbackToDestructiveMigration.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 // Dagger/Hilt (>= 2.57) unshades kotlin-metadata-jvm, so its Java annotation processor reads class
 // metadata via whatever version is on the classpath. Force it to match the Kotlin version, otherwise
 // Hilt's aggregating Java compile can't parse metadata newer than the version Dagger ships with

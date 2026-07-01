@@ -50,7 +50,7 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         PlayEventEntity::class
     ],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(AlbumTypeConverter::class, DynamicSystemDeviceTypeConverter::class)
 abstract class ViperPlayerDatabase : RoomDatabase() {
