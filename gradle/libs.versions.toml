@@ -25,6 +25,7 @@ ktor = "3.5.0"
 room = "2.8.4"
 xdl = "2.4.0"
 zxing = "3.5.3"
+camerax = "1.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -94,6 +95,10 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 # xDL
 xdl = { module = "io.github.hexhacking:xdl", version.ref = "xdl" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

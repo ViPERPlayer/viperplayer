@@ -18,6 +18,10 @@
     <!-- Updates and crash reporting -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"
         android:minSdkVersion="33" />
+
+    <!-- Scan a Jam invite QR to join a listen-together session -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     
     <!-- Query installed plugin modules -->
     <queries>

@@ -401,4 +401,43 @@
     <string name="effect_no_files_loaded">No files loaded</string>
     <string name="action_delete">Delete</string>
     <string name="action_add_new">Add new</string>
+
+    <!-- Player overflow menu -->
+    <string name="action_song_radio">Song radio</string>
+    <string name="action_add_to_library">Add to library</string>
+    <string name="action_sleep_timer">Sleep timer</string>
+    <string name="toast_added_to_library">Added to library</string>
+    <string name="toast_coming_soon">Coming soon</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer_off">Off</string>
+    <string name="sleep_timer_minutes">%1$d minutes</string>
+
+    <!-- Song info -->
+    <string name="song_info_title">Song info</string>
+    <string name="song_info_artist_role">Artist</string>
+    <string name="song_info_album_role">Album</string>
+    <string name="song_info_source_plugin">Source plugin</string>
+    <string name="song_info_format">Format</string>
+    <string name="song_info_depth">Depth</string>
+    <string name="song_info_codec">Codec</string>
+    <string name="song_info_lossless">Lossless</string>
+    <string name="song_info_lossy">Lossy</string>
+    <string name="song_info_normalization">Normalization</string>
+    <string name="song_info_replaygain_track">ReplayGain (track)</string>
+    <string name="song_info_track">Track</string>
+    <string name="song_info_number_of">%1$d of %2$d</string>
+    <string name="song_info_unit_khz">kHz</string>
+    <string name="song_info_unit_bit">bit</string>
+    <string name="song_info_unit_kbps">kbps</string>
+    <string name="song_info_unit_ch">ch</string>
+
+    <!-- Join a session -->
+    <string name="join_session_title">Join a session</string>
+    <string name="join_session_subtitle">Scan a friend\'s Jam QR code</string>
+    <string name="join_session_flashlight">Tap for flashlight</string>
+    <string name="join_session_or_enter_code">Or enter a code</string>
+    <string name="join_session_paste">Paste invite link</string>
+    <string name="join_session_join">Join session</string>
+    <string name="join_session_joined">Joined session</string>
 </resources>

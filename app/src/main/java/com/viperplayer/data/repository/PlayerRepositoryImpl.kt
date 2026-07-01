@@ -668,13 +668,31 @@ class PlayerRepositoryImpl @Inject constructor(
         }
         val bitrate = format.bitrate.takeIf { it > 0 }?.let { it / 1000 } // Convert to kbps
         val channelCount = format.channelCount.takeIf { it > 0 }
+        val (codec, lossless) = codecInfo(format.sampleMimeType)
 
         return AudioFormat(
             sampleRate = sampleRate,
             bitDepth = bitDepth,
             bitrate = bitrate,
-            channelCount = channelCount
+            channelCount = channelCount,
+            codec = codec,
+            lossless = lossless,
         )
+    }
+
+    /** Map an ExoPlayer sample MIME type to a friendly codec name + whether it's lossless. */
+    private fun codecInfo(mime: String?): Pair<String?, Boolean?> = when (mime?.lowercase()) {
+        "audio/flac" -> "FLAC" to true
+        "audio/alac", "audio/x-alac" -> "ALAC" to true
+        "audio/raw", "audio/wav", "audio/x-wav" -> "PCM" to true
+        "audio/mpeg", "audio/mpeg-l1", "audio/mpeg-l2" -> "MP3" to false
+        "audio/mp4a-latm", "audio/aac" -> "AAC" to false
+        "audio/opus" -> "Opus" to false
+        "audio/vorbis" -> "Vorbis" to false
+        "audio/ac3" -> "AC-3" to false
+        "audio/eac3", "audio/eac3-joc" -> "E-AC-3" to false
+        null -> null to null
+        else -> mime.substringAfter('/').uppercase() to null
     }
 
     private fun Int.toRepeatMode(): RepeatMode = PlayerStateMapper.run {

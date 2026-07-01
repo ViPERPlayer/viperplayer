@@ -147,6 +147,10 @@ data class AudioFormat(
     val sampleRate: Int?,
     val bitDepth: Int?,
     val bitrate: Int?,
-    val channelCount: Int?
+    val channelCount: Int?,
+    /** Friendly codec/container name (e.g. "FLAC", "MP3", "AAC"), derived from the sample MIME type. */
+    val codec: String? = null,
+    /** True for lossless codecs (FLAC/ALAC/WAV…), false for lossy, null if unknown. */
+    val lossless: Boolean? = null,
 )
 

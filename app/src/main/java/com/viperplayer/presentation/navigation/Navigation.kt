@@ -22,8 +22,11 @@ import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.ArtistDetailViewModel
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailViewModel
+import com.viperplayer.presentation.detail.SongInfoScreen
+import com.viperplayer.presentation.detail.SongInfoViewModel
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
+import com.viperplayer.presentation.social.JoinSessionScreen
 import com.viperplayer.presentation.library.LibraryScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
@@ -102,6 +105,17 @@ data class PlaylistDetail(
     val initialName: String = "",
     val initialArtworkUrl: String? = null,
 ) : NavKey
+
+@Serializable
+data class SongInfo(
+    val mediaId: MediaId,
+    val initialTitle: String = "",
+    val initialArtist: String = "",
+    val initialArtworkUrl: String? = null,
+) : NavKey
+
+@Serializable
+object JoinSession : NavKey
 
 @Composable
 fun ViperNavDisplay(
@@ -290,6 +304,30 @@ fun ViperNavDisplay(
                     navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
                 },
                 viewModel = viewModel
+            )
+        }
+
+        entry<SongInfo> { key ->
+            val viewModel = hiltViewModel<SongInfoViewModel, SongInfoViewModel.Factory>(
+                creationCallback = { factory -> factory.create(key) }
+            )
+            SongInfoScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToArtist = { artist ->
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
+                },
+                onNavigateToAlbum = { album ->
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
+                },
+                viewModel = viewModel
+            )
+        }
+
+        entry<JoinSession> {
+            JoinSessionScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
             )
         }
     }

@@ -140,27 +140,13 @@ private fun PlaylistDetailScreenContent(
             }
 
             is PlaylistDetailUiState.Error -> {
-                Box(
+                com.viperplayer.presentation.common.ErrorState(
+                    message = uiState.message,
+                    onRetry = onRefresh,
                     modifier = Modifier
-                        .fillMaxSize()
                         .padding(contentPadding)
                         .padding(rootPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = uiState.message,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Button(onClick = onRefresh) {
-                            Text(stringResource(R.string.action_retry))
-                        }
-                    }
-                }
+                )
             }
 
             is PlaylistDetailUiState.Success -> {

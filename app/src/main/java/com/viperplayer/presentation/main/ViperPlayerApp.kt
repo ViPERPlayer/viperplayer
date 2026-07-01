@@ -40,6 +40,8 @@ import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.determineLayoutVisibility
 import com.viperplayer.presentation.navigation.AlbumDetail
 import com.viperplayer.presentation.navigation.ArtistDetail
+import com.viperplayer.presentation.navigation.JoinSession
+import com.viperplayer.presentation.navigation.SongInfo
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
 import com.viperplayer.presentation.navigation.Navigator
@@ -266,6 +268,21 @@ fun ViperPlayerApp(
                         onNavigateToAlbum = { album ->
                             showPlayerBottomSheet = false
                             navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
+                        },
+                        onNavigateToSongInfo = { song ->
+                            showPlayerBottomSheet = false
+                            navigator.navigate(
+                                SongInfo(
+                                    mediaId = song.id,
+                                    initialTitle = song.title,
+                                    initialArtist = song.artistNames.orEmpty(),
+                                    initialArtworkUrl = song.artworkUrl,
+                                )
+                            )
+                        },
+                        onNavigateToJoinSession = {
+                            showPlayerBottomSheet = false
+                            navigator.navigate(JoinSession)
                         },
                         onCollapse = { showPlayerBottomSheet = false }
                     )

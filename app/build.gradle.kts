@@ -183,6 +183,12 @@ dependencies {
 
     // xDL
     implementation(libs.xdl)
+
+    // CameraX — QR scanner for "Join a session" (decoded with the existing zxing.core)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
     
     // Testing
     testImplementation(libs.junit)

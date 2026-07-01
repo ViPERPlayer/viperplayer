@@ -144,27 +144,13 @@ private fun ArtistDetailScreenContent(
             }
 
             is ArtistDetailUiState.Error -> {
-                Box(
+                com.viperplayer.presentation.common.ErrorState(
+                    message = state.message,
+                    onRetry = onRefresh,
                     modifier = Modifier
-                        .fillMaxSize()
                         .padding(contentPadding)
                         .padding(rootPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = state.message,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Button(onClick = onRefresh) {
-                            Text(stringResource(R.string.action_retry))
-                        }
-                    }
-                }
+                )
             }
 
             is ArtistDetailUiState.Success -> {

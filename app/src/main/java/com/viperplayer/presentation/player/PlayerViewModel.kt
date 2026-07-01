@@ -27,7 +27,8 @@ import javax.inject.Inject
 class PlayerViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val pluginRepository: PluginRepository
+    private val pluginRepository: PluginRepository,
+    private val sleepTimerManager: com.viperplayer.data.player.SleepTimerManager,
 ) : ViewModel() {
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
@@ -204,5 +205,32 @@ class PlayerViewModel @Inject constructor(
     suspend fun getAudioFormat(): com.viperplayer.domain.repository.AudioFormat? {
         return playerRepository.getAudioFormat()
     }
+
+    // --- Overflow-menu actions ---
+
+    /** Currently-armed sleep timer duration in minutes, or null when off. */
+    val sleepTimerMinutes: StateFlow<Int?> = sleepTimerManager.activeMinutes
+
+    /** "Song radio": seed a queue of related songs from the current track and play it. */
+    fun startSongRadio() {
+        viewModelScope.launch {
+            val song = currentSong.value ?: return@launch
+            val related = pluginRepository.getRelatedSongs(song.id).getOrNull()?.items.orEmpty()
+            val queue = listOf(song) + related.filter { it.id != song.id }
+            playerRepository.playAll(queue, startIndex = 0)
+        }
+    }
+
+    /** "Add to library": persist the current song and mark it saved. */
+    fun addCurrentSongToLibrary() {
+        viewModelScope.launch {
+            val song = currentSong.value ?: return@launch
+            mediaLibraryRepository.saveSong(song)
+            mediaLibraryRepository.setSongSaved(song.id, true)
+        }
+    }
+
+    /** Arm (or, with a non-positive value, cancel) the sleep timer. */
+    fun setSleepTimer(minutes: Int) = sleepTimerManager.schedule(minutes)
 }
 

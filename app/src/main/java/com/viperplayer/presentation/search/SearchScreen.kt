@@ -480,26 +480,11 @@ fun SearchScreen(
                     }
 
                     is SearchResultsState.Error -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(rootPadding.bottom()),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = stringResource(R.string.action_error),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = state.message,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        com.viperplayer.presentation.common.ErrorState(
+                            title = stringResource(R.string.action_error),
+                            message = state.message,
+                            modifier = Modifier.padding(rootPadding.bottom()),
+                        )
                     }
                 }
             }

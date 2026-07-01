@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -85,6 +86,7 @@ fun PlayerSocialSheets(
     onShowListenTogether: (Boolean) -> Unit,
     onShowShareInvite: (Boolean) -> Unit,
     onShowQr: (Boolean) -> Unit,
+    onJoinSession: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val sessionCode = rememberSaveable { generateSessionCode() }
@@ -104,7 +106,8 @@ fun PlayerSocialSheets(
             ListenTogetherContent(
                 song = song,
                 onShareInvite = { onShowShareInvite(true) },
-                onQr = { onShowQr(true) }
+                onQr = { onShowQr(true) },
+                onJoinSession = onJoinSession
             )
         }
     }
@@ -147,7 +150,8 @@ fun PlayerSocialSheets(
 private fun ListenTogetherContent(
     song: Song,
     onShareInvite: () -> Unit,
-    onQr: () -> Unit
+    onQr: () -> Unit,
+    onJoinSession: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -182,6 +186,25 @@ private fun ListenTogetherContent(
                 onClick = onShareInvite
             )
             TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = stringResource(R.string.social_show_qr), onClick = onQr)
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(100))
+                .clickable(onClick = onJoinSession)
+                .padding(vertical = 11.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Text(
+                stringResource(R.string.join_session_title),
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 8.dp),
+            )
         }
 
         Spacer(Modifier.height(20.dp))

@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.player
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
@@ -46,8 +47,10 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Favorite
@@ -55,6 +58,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -63,13 +67,18 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -144,6 +153,8 @@ import kotlin.math.sin
 fun PlayerScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToSongInfo: (Song) -> Unit = {},
+    onNavigateToJoinSession: () -> Unit = {},
     onCollapse: () -> Unit = {},
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
     viewModel: PlayerViewModel = hiltViewModel(),
@@ -174,6 +185,9 @@ fun PlayerScreen(
     var showShareInvite by remember { mutableStateOf(false) }
     var showQr by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
 
     val song = currentSong
     if (song == null) {
@@ -299,7 +313,8 @@ fun PlayerScreen(
                     }
                     DropdownMenu(
                         expanded = showOverflowMenu,
-                        onDismissRequest = { showOverflowMenu = false }
+                        onDismissRequest = { showOverflowMenu = false },
+                        shape = RoundedCornerShape(22.dp),
                     ) {
                         song.artists.firstOrNull()?.let { artist ->
                             DropdownMenuItem(
@@ -322,11 +337,54 @@ fun PlayerScreen(
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.song_details)) },
+                            text = { Text(stringResource(R.string.song_info_title)) },
                             leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
                             onClick = {
                                 showOverflowMenu = false
-                                showDetailsBottomSheet = true
+                                onNavigateToSongInfo(song)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_song_radio)) },
+                            leadingIcon = { Icon(Icons.Filled.Sensors, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                viewModel.startSongRadio()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_add_to_library)) },
+                            leadingIcon = { Icon(Icons.Filled.LibraryAdd, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                viewModel.addCurrentSongToLibrary()
+                                Toast.makeText(context, context.getString(R.string.toast_added_to_library), Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_add_to_playlist)) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                // No add-to-existing-playlist backend yet — mocked, prepared for wiring.
+                                Toast.makeText(context, context.getString(R.string.toast_coming_soon), Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_sleep_timer)) },
+                            leadingIcon = { Icon(Icons.Filled.Bedtime, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                showSleepTimerDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_share)) },
+                            leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                shareSong(context, song)
                             }
                         )
                     }
@@ -557,8 +615,23 @@ fun PlayerScreen(
         showQr = showQr,
         onShowListenTogether = { showListenTogether = it },
         onShowShareInvite = { showShareInvite = it },
-        onShowQr = { showQr = it }
+        onShowQr = { showQr = it },
+        onJoinSession = {
+            showListenTogether = false
+            onNavigateToJoinSession()
+        },
     )
+
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            activeMinutes = sleepTimerMinutes,
+            onSelect = {
+                viewModel.setSleepTimer(it)
+                showSleepTimerDialog = false
+            },
+            onDismiss = { showSleepTimerDialog = false },
+        )
+    }
 }
 
 /**
@@ -1077,4 +1150,59 @@ private fun DetailRow(
             color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+/** Sleep-timer picker: choose a duration after which playback pauses (or turn it off). */
+@Composable
+private fun SleepTimerDialog(
+    activeMinutes: Int?,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(0, 15, 30, 45, 60)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.action_sleep_timer)) },
+        text = {
+            Column {
+                options.forEach { minutes ->
+                    val label = if (minutes == 0) {
+                        stringResource(R.string.sleep_timer_off)
+                    } else {
+                        stringResource(R.string.sleep_timer_minutes, minutes)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(minutes) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = (activeMinutes ?: 0) == minutes,
+                            onClick = { onSelect(minutes) },
+                        )
+                        Text(label, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
+        },
+    )
+}
+
+/** Fire the Android system share sheet for a track. */
+private fun shareSong(context: android.content.Context, song: Song) {
+    val text = buildString {
+        append(song.title)
+        song.artistNames?.let { append(" — $it") }
+    }
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.action_share)))
 }

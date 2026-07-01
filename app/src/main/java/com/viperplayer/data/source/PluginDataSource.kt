@@ -49,6 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -302,29 +303,41 @@ class PluginDataSource @Inject constructor(
 
     // ---- operations ----
 
-    private fun plugin(pluginId: String): ConnectedPlugin =
-        _connectedPlugins.value[pluginId]
-            ?: throw PluginException(PluginErrorCode.INTERNAL, "Plugin not connected: $pluginId")
-
-    private fun source(pluginId: String): SourceClient =
-        plugin(pluginId).client.source
-            ?: throw PluginException(PluginErrorCode.UNSUPPORTED, "Plugin is not a source: $pluginId")
-
     /**
-     * Like [source], but waits (briefly) for the plugin to finish connecting instead of failing
-     * immediately. On app start the player can try to prepare a restored track before plugin
-     * discovery/handshake has completed (a ~250ms race); without this the track errored instantly and
-     * stayed errored ("pauses immediately on play"). Connection normally lands well within the window.
+     * Resolve a connected plugin, WAITING briefly for it to (re)connect rather than failing
+     * instantly. On resume from background the plugin service unbinds, so a screen that re-fetches
+     * before the handshake lands would otherwise hit "Plugin not connected". We only wait when it's
+     * worth it — a plugin the user disabled, or one that's been uninstalled, fails fast with a
+     * distinct reason so the UI can say something useful instead of spinning.
      */
-    private suspend fun awaitSource(pluginId: String, timeoutMs: Long = 8_000): SourceClient {
-        val connected = _connectedPlugins.value[pluginId]
-            ?: withTimeoutOrNull(timeoutMs) {
-                _connectedPlugins.mapNotNull { it[pluginId] }.first()
+    private suspend fun awaitPlugin(pluginId: String, timeoutMs: Long = CONNECT_WAIT_MS): ConnectedPlugin {
+        _connectedPlugins.value[pluginId]?.let { return it }
+
+        // Prefer the plugin's human name for any error shown to the user; fall back to the id.
+        val name = _discoveredPlugins.value[pluginId]?.name ?: pluginId
+
+        // Turned off by the user — nothing will connect it, so don't wait.
+        if (pluginPreferences.isDisabledSync(pluginId)) {
+            throw PluginException(PluginErrorCode.UNSUPPORTED, "$name is turned off")
+        }
+        // Not discovered — most likely uninstalled. Give discovery a brief chance first (a
+        // package-added broadcast may still be in flight) before declaring it gone.
+        if (pluginId !in _discoveredPlugins.value) {
+            val appeared = withTimeoutOrNull(DISCOVERY_WAIT_MS) {
+                _discoveredPlugins.map { pluginId in it }.first { it }
             }
-            ?: throw PluginException(PluginErrorCode.INTERNAL, "Plugin not connected: $pluginId")
-        return connected.client.source
-            ?: throw PluginException(PluginErrorCode.UNSUPPORTED, "Plugin is not a source: $pluginId")
+            if (appeared != true) {
+                throw PluginException(PluginErrorCode.NOT_FOUND, "$name is no longer installed")
+            }
+        }
+        // Discovered and enabled — wait for the connection / handshake to complete.
+        return withTimeoutOrNull(timeoutMs) { _connectedPlugins.mapNotNull { it[pluginId] }.first() }
+            ?: throw PluginException(PluginErrorCode.INTERNAL, "Couldn't connect to $name")
     }
+
+    private suspend fun source(pluginId: String): SourceClient =
+        awaitPlugin(pluginId).client.source
+            ?: throw PluginException(PluginErrorCode.UNSUPPORTED, "Plugin is not a source: $pluginId")
 
     suspend fun search(
         pluginId: String,
@@ -406,7 +419,7 @@ class PluginDataSource @Inject constructor(
         durationMs: Long?
     ): Result<Lyrics?> = runCatching {
         // Lyrics is an optional capability — client.lyrics is null when the plugin doesn't advertise it.
-        plugin(id.pluginId).client.lyrics?.getLyrics(
+        awaitPlugin(id.pluginId).client.lyrics?.getLyrics(
             LyricsRequest(
                 songId = id.sourceId,
                 title = title,
@@ -455,7 +468,7 @@ class PluginDataSource @Inject constructor(
     suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
         val maxBitrateKbps = maxBitrateKbpsFor(settingsRepository.audioQuality.first())
-        awaitSource(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
+        source(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
     }.onFailure { Timber.e(it, "getStream failed for $mediaId") }
 
     /** Map the user's audio-quality setting to a max bitrate (kbps) the plugin caps to; null = highest. */
@@ -474,5 +487,12 @@ class PluginDataSource @Inject constructor(
         override fun onError(pluginId: String, code: Int, message: String?) {
             Timber.e("Plugin $pluginId error: code=$code, message=$message")
         }
+    }
+
+    private companion object {
+        /** How long a plugin operation waits for a discovered, enabled plugin to (re)connect. */
+        const val CONNECT_WAIT_MS = 8_000L
+        /** Grace window for a just-installed plugin to show up in discovery before we call it uninstalled. */
+        const val DISCOVERY_WAIT_MS = 2_000L
     }
 }
