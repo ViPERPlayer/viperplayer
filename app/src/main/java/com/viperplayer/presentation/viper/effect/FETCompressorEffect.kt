@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viperplayer.R
@@ -60,12 +61,12 @@ fun FETCompressorEffect(
 ) {
     Effect(
         icon = painterResource(R.drawable.ic_master_limiter),
-        title = "FET compressor",
+        title = stringResource(R.string.fet_compressor),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
         ValueSlider(
-            title = "Threshold",
+            title = stringResource(R.string.effect_threshold),
             summaryUnit = "%",
             value = state.threshold,
             onValueChange = onThresholdChange,
@@ -73,7 +74,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Ratio",
+            title = stringResource(R.string.effect_ratio),
             summaryUnit = "%",
             value = state.ratio,
             onValueChange = onRatioChange,
@@ -81,7 +82,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Knee width",
+            title = stringResource(R.string.fet_knee_width),
             summaryUnit = "%",
             value = state.knee,
             onValueChange = onKneeChange,
@@ -89,12 +90,12 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         FetToggleRow(
-            title = "Auto knee",
+            title = stringResource(R.string.fet_auto_knee),
             checked = state.autoKnee,
             onCheckedChange = onAutoKneeChange
         )
         ValueSlider(
-            title = "Makeup gain",
+            title = stringResource(R.string.effect_makeup_gain),
             summaryUnit = "%",
             value = state.gain,
             onValueChange = onGainChange,
@@ -102,12 +103,12 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         FetToggleRow(
-            title = "Auto gain",
+            title = stringResource(R.string.fet_auto_gain),
             checked = state.autoGain,
             onCheckedChange = onAutoGainChange
         )
         ValueSlider(
-            title = "Attack",
+            title = stringResource(R.string.effect_attack),
             summaryUnit = "%",
             value = state.attack,
             onValueChange = onAttackChange,
@@ -115,12 +116,12 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         FetToggleRow(
-            title = "Auto attack",
+            title = stringResource(R.string.fet_auto_attack),
             checked = state.autoAttack,
             onCheckedChange = onAutoAttackChange
         )
         ValueSlider(
-            title = "Release",
+            title = stringResource(R.string.effect_release),
             summaryUnit = "%",
             value = state.release,
             onValueChange = onReleaseChange,
@@ -128,12 +129,12 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         FetToggleRow(
-            title = "Auto release",
+            title = stringResource(R.string.fet_auto_release),
             checked = state.autoRelease,
             onCheckedChange = onAutoReleaseChange
         )
         ValueSlider(
-            title = "Knee multiplier",
+            title = stringResource(R.string.fet_knee_multiplier),
             summaryUnit = "%",
             value = state.kneeMulti,
             onValueChange = onKneeMultiChange,
@@ -141,7 +142,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Max attack",
+            title = stringResource(R.string.fet_max_attack),
             summaryUnit = "%",
             value = state.maxAttack,
             onValueChange = onMaxAttackChange,
@@ -149,7 +150,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Max release",
+            title = stringResource(R.string.fet_max_release),
             summaryUnit = "%",
             value = state.maxRelease,
             onValueChange = onMaxReleaseChange,
@@ -157,7 +158,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Crest factor",
+            title = stringResource(R.string.fet_crest_factor),
             summaryUnit = "%",
             value = state.crest,
             onValueChange = onCrestChange,
@@ -165,7 +166,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Adapt",
+            title = stringResource(R.string.fet_adapt),
             summaryUnit = "%",
             value = state.adapt,
             onValueChange = onAdaptChange,
@@ -173,7 +174,7 @@ fun FETCompressorEffect(
             valueRange = 0..100
         )
         FetToggleRow(
-            title = "No clip",
+            title = stringResource(R.string.fet_no_clip),
             checked = state.noClip,
             onCheckedChange = onNoClipChange
         )

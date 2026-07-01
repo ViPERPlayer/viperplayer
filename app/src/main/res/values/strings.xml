@@ -337,4 +337,23 @@
     <string name="social_play_on_device">Play on device</string>
     <string name="social_invite_to_listen">Invite to listen</string>
     <string name="action_copy">Copy</string>
+
+    <!-- ViPER effect: FET compressor (effect_* are generic labels reused by other effects) -->
+    <string name="fet_compressor">FET compressor</string>
+    <string name="effect_threshold">Threshold</string>
+    <string name="effect_ratio">Ratio</string>
+    <string name="fet_knee_width">Knee width</string>
+    <string name="fet_auto_knee">Auto knee</string>
+    <string name="effect_makeup_gain">Makeup gain</string>
+    <string name="fet_auto_gain">Auto gain</string>
+    <string name="effect_attack">Attack</string>
+    <string name="fet_auto_attack">Auto attack</string>
+    <string name="effect_release">Release</string>
+    <string name="fet_auto_release">Auto release</string>
+    <string name="fet_knee_multiplier">Knee multiplier</string>
+    <string name="fet_max_attack">Max attack</string>
+    <string name="fet_max_release">Max release</string>
+    <string name="fet_crest_factor">Crest factor</string>
+    <string name="fet_adapt">Adapt</string>
+    <string name="fet_no_clip">No clip</string>
 </resources>
