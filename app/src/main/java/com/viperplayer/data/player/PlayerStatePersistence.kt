@@ -67,23 +67,24 @@ class PlayerStatePersistence @Inject constructor(
      * Queue is saved to Room (songs must already exist in SongEntity), simple settings to DataStore.
      * Only MediaIds are saved - full song data is loaded from database on restoration.
      */
-    suspend fun saveState(state: PersistedPlayerState, queue: List<Song>) =
+    suspend fun saveState(state: PersistedPlayerState, queue: List<MediaId>) =
         withContext(Dispatchers.IO) {
             try {
                 // Clear existing queue
                 crossRefDao.clearQueue()
 
                 // Save queue to Room - songs should already be saved via MediaLibraryRepository.saveSong()
-                // when they were played or added to queue
+                // when they were played or added to queue. We persist only the ordered ids (straight from
+                // the controller), never hydrated Songs.
                 if (queue.isNotEmpty()) {
-                    val queueCrossRefs = queue.mapIndexedNotNull { index, song ->
+                    val queueCrossRefs = queue.mapIndexedNotNull { index, mediaId ->
                         try {
                             // Get song entity (should already exist from play/addToQueue)
                             val songEntity =
-                                songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+                                songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)
 
                             if (songEntity == null) {
-                                Timber.w("Song not found in database when saving queue: ${song.title}. It should have been saved when played/added to queue.")
+                                Timber.w("Song not found in database when saving queue: $mediaId. It should have been saved when played/added to queue.")
                                 return@mapIndexedNotNull null
                             }
 
@@ -92,7 +93,7 @@ class PlayerStatePersistence @Inject constructor(
                                 position = index
                             )
                         } catch (e: Exception) {
-                            Timber.e(e, "Failed to create queue cross-ref for song: ${song.title}")
+                            Timber.e(e, "Failed to create queue cross-ref for song: $mediaId")
                             null
                         }
                     }

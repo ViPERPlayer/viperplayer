@@ -334,6 +334,21 @@ class PlayerRepositoryImpl @Inject constructor(
     }
 
     /**
+     * Extracts the ordered queue MediaIds straight from the controller's timeline, without hydrating
+     * them to full Songs — so the persistence collector no longer needs the heavy WhileSubscribed
+     * queue flow, letting that flow stop when no UI is bound.
+     */
+    private fun extractQueueMediaIds(player: Player): List<MediaId> {
+        return (0 until player.mediaItemCount).mapNotNull { i ->
+            try {
+                MediaId.fromString(player.getMediaItemAt(i).mediaId)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    /**
      * Extracts audio Format information from ExoPlayer's current tracks.
      * This provides the actual playback format (sample rate, bitrate, channels, etc.)
      */
@@ -491,14 +506,15 @@ class PlayerRepositoryImpl @Inject constructor(
      * Observes player state changes and persists them.
      */
     private fun observeAndPersistPlayerState() {
-        // Combine all state that needs to be persisted
-        // Deliberately does NOT collect currentSong — the current media id comes straight from the
-        // controller, so currentSong can stay WhileSubscribed (stop hydrating when no UI is bound).
+        // Combine all state that needs to be persisted.
+        // Deliberately collects NEITHER currentSong NOR the queue flow — both the current media id and
+        // the ordered queue ids come straight from the controller, so those heavy WhileSubscribed flows
+        // stop hydrating when no UI is bound. (playbackState fires on add/remove/skip and on a reorder
+        // that moves the current item; a pure non-current reorder persists on the next playback event.)
         combine(
             playbackState,
-            queue,
             mediaControllerManager.controllerFlow
-        ) { playback, queueSongs, controller ->
+        ) { playback, controller ->
             // Get current position and queue position from controller
             val position = controller.currentPosition.coerceAtLeast(0)
             val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
@@ -509,13 +525,12 @@ class PlayerRepositoryImpl @Inject constructor(
                 queuePosition = queuePosition,
                 shuffleEnabled = playback.shuffleEnabled,
                 repeatMode = playback.repeatMode.name,
-            ) to queueSongs // Return state and queue together
+            ) to extractQueueMediaIds(controller) // state + ordered queue ids (no hydration)
         }
             .debounce(2000) // Save at most every 2 seconds to avoid excessive writes
-            .onEach { (state, queueSongs) ->
-                // saveState will save queue to Room and settings to DataStore
-                // Songs should already be saved to database when played/added to queue
-                playerStatePersistence.saveState(state, queueSongs)
+            .onEach { (state, queueMediaIds) ->
+                // saveState writes the queue order (ids) to Room and settings to DataStore
+                playerStatePersistence.saveState(state, queueMediaIds)
             }
             .launchIn(scope)
     }
