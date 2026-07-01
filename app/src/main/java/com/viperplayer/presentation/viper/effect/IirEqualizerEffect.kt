@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,7 +51,7 @@ fun IirEqualizerEffect(
 ) {
     Effect(
         icon = painterResource(R.drawable.ic_spectrum), // Used ic_spectrum as fallback
-        title = "IIR Equalizer", // Using string literal as I can't check strings.xml easily right now, TODO
+        title = stringResource(R.string.iir_equalizer),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
@@ -61,7 +62,7 @@ fun IirEqualizerEffect(
                 .padding(horizontal = 16.dp)
         ) {
             Text(
-                text = "Band Count",
+                text = stringResource(R.string.iir_band_count),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -76,7 +77,7 @@ fun IirEqualizerEffect(
                         onClick = { onBandCountChange(count) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = bands.size)
                     ) {
-                        Text("$count Bands")
+                        Text(stringResource(R.string.iir_bands_count, count))
                     }
                 }
             }
@@ -98,7 +99,7 @@ fun IirEqualizerEffect(
                 readOnly = true,
                 value = state.preset,
                 onValueChange = {},
-                label = { Text("Preset") },
+                label = { Text(stringResource(R.string.effect_preset)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )

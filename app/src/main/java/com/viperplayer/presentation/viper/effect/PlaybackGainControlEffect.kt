@@ -2,6 +2,7 @@ package com.viperplayer.presentation.viper.effect
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
 import com.viperplayer.domain.model.PlaybackGainState
 import com.viperplayer.presentation.viper.component.Effect
@@ -20,17 +21,17 @@ fun PlaybackGainControlEffect(
 ) {
     Effect(
         icon = painterResource(R.drawable.ic_playback_gain),
-        title = "Playback gain control",
+        title = stringResource(R.string.playback_gain_control),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
         // Strength: 1 to 3
         ValueSlider(
-            title = "Strength",
+            title = stringResource(R.string.pgc_strength),
             summary = when (state.strength) {
-                1 -> "Slight"
-                2 -> "Moderate"
-                3 -> "Strong"
+                1 -> stringResource(R.string.pgc_strength_slight)
+                2 -> stringResource(R.string.pgc_strength_moderate)
+                3 -> stringResource(R.string.pgc_strength_strong)
                 else -> state.strength.toString()
             },
             value = state.strength,
@@ -42,7 +43,7 @@ fun PlaybackGainControlEffect(
         // Maximum gain: 1 to 10 + infinite
         // Logic: 11 represents Infinite
         ValueSlider(
-            title = "Maximum gain",
+            title = stringResource(R.string.pgc_maximum_gain),
             summary = if (state.maxGain > 10) "\u221E" else "${state.maxGain}x",
             value = state.maxGain,
             onValueChange = onMaxGainChange,
@@ -59,7 +60,7 @@ fun PlaybackGainControlEffect(
                 .takeIf { it >= 0 } ?: 5
 
         ValueSlider(
-            title = "Output threshold",
+            title = stringResource(R.string.pgc_output_threshold),
             summary = "${state.outputThreshold} dB",
             value = currentIndex + 1, // 1-based index for slider
             onValueChange = { index ->

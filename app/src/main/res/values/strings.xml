@@ -356,4 +356,32 @@
     <string name="fet_crest_factor">Crest factor</string>
     <string name="fet_adapt">Adapt</string>
     <string name="fet_no_clip">No clip</string>
+
+    <!-- ViPER effect: Reverberation -->
+    <string name="reverberation">Reverberation</string>
+    <string name="reverb_room_size">Room size</string>
+    <string name="reverb_width">Width</string>
+    <string name="reverb_damping">Damping</string>
+    <string name="reverb_wet">Wet</string>
+    <string name="reverb_dry">Dry</string>
+
+    <!-- ViPER effect: Playback gain control -->
+    <string name="playback_gain_control">Playback gain control</string>
+    <string name="pgc_strength">Strength</string>
+    <string name="pgc_strength_slight">Slight</string>
+    <string name="pgc_strength_moderate">Moderate</string>
+    <string name="pgc_strength_strong">Strong</string>
+    <string name="pgc_maximum_gain">Maximum gain</string>
+    <string name="pgc_output_threshold">Output threshold</string>
+
+    <!-- ViPER effect: IIR equalizer -->
+    <string name="iir_equalizer">IIR Equalizer</string>
+    <string name="iir_band_count">Band Count</string>
+    <string name="iir_bands_count">%1$d Bands</string>
+    <string name="effect_preset">Preset</string>
+
+    <!-- ViPER effect: Headphone surround+ -->
+    <string name="headphone_surround_plus">Headphone surround+</string>
+    <string name="effect_level">Level</string>
+    <string name="hsp_level_value">Level %1$d</string>
 </resources>

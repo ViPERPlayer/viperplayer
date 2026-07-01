@@ -2,6 +2,7 @@ package com.viperplayer.presentation.viper.effect
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
 import com.viperplayer.domain.model.HeadphoneSurroundState
 import com.viperplayer.presentation.viper.component.Effect
@@ -26,8 +27,8 @@ fun HeadphoneSurroundPlusEffect(
         onCheckedChange = onEnabledChange
     ) {
         ValueSlider(
-            title = "Level",
-            summary = "Level ${state.level + 1}",
+            title = stringResource(R.string.effect_level),
+            summary = stringResource(R.string.hsp_level_value, state.level + 1),
             value = state.level,
             onValueChange = onLevelChange,
             onValueReset = onLevelReset,

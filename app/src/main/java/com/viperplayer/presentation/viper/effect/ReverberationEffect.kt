@@ -2,6 +2,7 @@ package com.viperplayer.presentation.viper.effect
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
 import com.viperplayer.domain.model.ReverberationState
 import com.viperplayer.presentation.viper.component.Effect
@@ -28,12 +29,12 @@ fun ReverberationEffect(
 ) {
     Effect(
         icon = painterResource(R.drawable.ic_field_surround),
-        title = "Reverberation",
+        title = stringResource(R.string.reverberation),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
         ValueSlider(
-            title = "Room size",
+            title = stringResource(R.string.reverb_room_size),
             summaryUnit = "%",
             value = state.roomSize,
             onValueChange = onRoomSizeChange,
@@ -41,7 +42,7 @@ fun ReverberationEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Width",
+            title = stringResource(R.string.reverb_width),
             summaryUnit = "%",
             value = state.width,
             onValueChange = onWidthChange,
@@ -49,7 +50,7 @@ fun ReverberationEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Damping",
+            title = stringResource(R.string.reverb_damping),
             summaryUnit = "%",
             value = state.damp,
             onValueChange = onDampChange,
@@ -57,7 +58,7 @@ fun ReverberationEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Wet",
+            title = stringResource(R.string.reverb_wet),
             summaryUnit = "%",
             value = state.wet,
             onValueChange = onWetChange,
@@ -65,7 +66,7 @@ fun ReverberationEffect(
             valueRange = 0..100
         )
         ValueSlider(
-            title = "Dry",
+            title = stringResource(R.string.reverb_dry),
             summaryUnit = "%",
             value = state.dry,
             onValueChange = onDryChange,
