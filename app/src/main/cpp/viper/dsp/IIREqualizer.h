@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <mutex>
 
 namespace viper {
 namespace dsp {
@@ -64,6 +65,9 @@ namespace dsp {
         std::vector<double> mBandGains;
         std::vector<Biquad> mFiltersLeft;
         std::vector<Biquad> mFiltersRight;
+        // Guards the band vectors: process() (audio thread) try-locks and skips on contention;
+        // configure() (loader thread, on band-count change) holds it while it reallocates them.
+        mutable std::mutex mMutex;
         
         // Helper to setup bands based on count
         void setupBands();

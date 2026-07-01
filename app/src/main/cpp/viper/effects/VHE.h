@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <mutex>
 #include "../dsp/PartitionedConvolver.h"
 #include "../utils/CircularBuffer.h"
 
@@ -86,4 +87,8 @@ private:
     std::vector<float> scratchOutL;        // kBlockSize
     std::vector<float> scratchOutR;        // kBlockSize
     std::vector<float> scratchOut;         // kBlockSize * 2
+
+    // Guards the convolvers/buffers: Process() (audio thread) try-locks and skips on contention;
+    // Reset() (loader thread, on level/rate change) holds it while it reloads the kernels.
+    mutable std::mutex mMutex;
 };

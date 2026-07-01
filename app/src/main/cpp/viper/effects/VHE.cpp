@@ -54,6 +54,10 @@ void VHE::Process(float *samples, uint32_t size) {
         return;
     }
 
+    // Non-blocking on the audio thread: skip if Reset() is reloading kernels (level/rate change).
+    std::unique_lock<std::mutex> lock(mMutex, std::try_to_lock);
+    if (!lock.owns_lock()) return;
+
     // Queue the incoming interleaved stereo frames.
     inputBuffer.Push(samples, size);
 
@@ -91,6 +95,7 @@ void VHE::Process(float *samples, uint32_t size) {
 }
 
 void VHE::Reset() {
+    std::lock_guard<std::mutex> lock(mMutex);
     // Mirrors VHE::Reset: reset the queues, unload the convolvers, then reload
     // the kernels for the current (effectLevel, samplingRate) pair.
     inputBuffer.Reset();

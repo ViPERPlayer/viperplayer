@@ -44,6 +44,7 @@ namespace dsp {
     IIREqualizer::~IIREqualizer() = default;
 
     void IIREqualizer::configure(int sampleRate, BandCount bandCount) {
+        std::lock_guard<std::mutex> lock(mMutex);
         mSampleRate = sampleRate;
         mBandCountType = bandCount;
         setupBands();
@@ -129,6 +130,10 @@ namespace dsp {
 
     void IIREqualizer::process(float* samples, int numSamples, int channelCount) {
         if (!mEnabled) return;
+
+        // Non-blocking on the audio thread: skip (passthrough) if configure() is reallocating bands.
+        std::unique_lock<std::mutex> lock(mMutex, std::try_to_lock);
+        if (!lock.owns_lock()) return;
 
         if (channelCount == 1) {
             for (int i = 0; i < numSamples; ++i) {
