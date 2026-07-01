@@ -408,6 +408,8 @@
     <string name="action_sleep_timer">Sleep timer</string>
     <string name="toast_added_to_library">Added to library</string>
     <string name="toast_coming_soon">Coming soon</string>
+    <string name="toast_added_to_queue">Added to queue</string>
+    <string name="toast_playing_next">Playing next</string>
 
     <!-- Sleep timer -->
     <string name="sleep_timer_off">Off</string>

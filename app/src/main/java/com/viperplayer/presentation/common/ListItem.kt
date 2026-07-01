@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.common
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
@@ -50,6 +51,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -238,6 +240,9 @@ fun ListItem(
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val addedToQueueMessage = stringResource(R.string.toast_added_to_queue)
+    val playingNextMessage = stringResource(R.string.toast_playing_next)
 
     // Max drag distance: capped, consistent
     val maxOffset = with(density) { 112.dp.toPx() }
@@ -270,8 +275,14 @@ fun ListItem(
                 onDragStopped = { velocity ->
                     scope.launch {
                         when {
-                            offset.value < -threshold -> onPlayNext?.invoke()
-                            offset.value > threshold -> onAddToQueue?.invoke()
+                            offset.value < -threshold -> onPlayNext?.let {
+                                it()
+                                Toast.makeText(context, playingNextMessage, Toast.LENGTH_SHORT).show()
+                            }
+                            offset.value > threshold -> onAddToQueue?.let {
+                                it()
+                                Toast.makeText(context, addedToQueueMessage, Toast.LENGTH_SHORT).show()
+                            }
                         }
                         offset.animateTo(0f)
                     }
