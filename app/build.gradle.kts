@@ -47,8 +47,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            // Sign only when the release keystore env vars are configured (see the "release"
+            // signingConfig); otherwise produce an unsigned release APK so R8/minify can be built and
+            // verified locally / in CI without the private keystore.
+            signingConfigs.getByName("release").takeIf { it.storeFile != null }?.let {
+                signingConfig = it
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
