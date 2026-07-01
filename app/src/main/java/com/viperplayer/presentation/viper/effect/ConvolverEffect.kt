@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,7 +68,7 @@ fun ConvolverEffect(
 
     Effect(
         icon = painterResource(R.drawable.ic_convolver),
-        title = "Convolver",
+        title = stringResource(R.string.convolver),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
@@ -80,7 +81,7 @@ fun ConvolverEffect(
                     .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Impulse Response",
+                    text = stringResource(R.string.convolver_impulse_response),
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 18.sp,
                 )
@@ -88,7 +89,7 @@ fun ConvolverEffect(
                     text = if (state.impulseResponse != null) {
                         // Simplify display if it's a path
                         File(state.impulseResponse).name
-                    } else "Not set",
+                    } else stringResource(R.string.effect_not_set),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp
                 )
@@ -96,7 +97,7 @@ fun ConvolverEffect(
 
             // Cross Channel Slider
             ValueSlider(
-                title = "Cross Channel",
+                title = stringResource(R.string.convolver_cross_channel),
                 summary = state.crossChannel.toString(),
                 summaryUnit = "%",
                 value = state.crossChannel,
@@ -118,7 +119,7 @@ fun ConvolverEffect(
                     .fillMaxHeight(0.8f)
             ) {
                 Text(
-                    text = "Select Kernel File",
+                    text = stringResource(R.string.convolver_select_kernel),
                     modifier = Modifier.padding(24.dp),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
@@ -132,7 +133,7 @@ fun ConvolverEffect(
                 ) {
                     if (kernelFiles.isEmpty()) {
                         Text(
-                            text = "No files loaded",
+                            text = stringResource(R.string.effect_no_files_loaded),
                             modifier = Modifier
                                 .padding(horizontal = 24.dp, vertical = 16.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -173,7 +174,7 @@ fun ConvolverEffect(
                                 IconButton(onClick = { onDeleteImpulse(file.name) }) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
+                                        contentDescription = stringResource(R.string.action_delete),
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }
@@ -198,11 +199,11 @@ fun ConvolverEffect(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.size(8.dp))
-                        Text("Add new")
+                        Text(stringResource(R.string.action_add_new))
                     }
 
                     Button(onClick = { showDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.action_close))
                     }
                 }
             }

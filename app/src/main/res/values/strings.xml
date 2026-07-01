@@ -384,4 +384,21 @@
     <string name="headphone_surround_plus">Headphone surround+</string>
     <string name="effect_level">Level</string>
     <string name="hsp_level_value">Level %1$d</string>
+
+    <!-- ViPER effect: Convolver + ViPER-DDC (file pickers); action_* / effect_* reused across both -->
+    <string name="convolver">Convolver</string>
+    <string name="convolver_impulse_response">Impulse Response</string>
+    <string name="convolver_cross_channel">Cross Channel</string>
+    <string name="convolver_select_kernel">Select Kernel File</string>
+    <string name="viper_ddc">ViPER-DDC</string>
+    <string name="ddc_headset_correction">Headset correction</string>
+    <string name="ddc_select_file">Select DDC File</string>
+    <string name="ddc_plot_magnitude">Magnitude</string>
+    <string name="ddc_plot_phase">Phase</string>
+    <string name="ddc_plot_group_delay">Group Delay</string>
+    <string name="ddc_rates_bands">Supported rates: %1$s\nBands: %2$d</string>
+    <string name="effect_not_set">Not set</string>
+    <string name="effect_no_files_loaded">No files loaded</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add_new">Add new</string>
 </resources>

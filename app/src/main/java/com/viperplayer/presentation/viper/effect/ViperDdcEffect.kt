@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,7 +73,7 @@ fun ViperDdcEffect(
 
     Effect(
         icon = painterResource(R.drawable.ic_ddc),
-        title = "ViPER-DDC",
+        title = stringResource(R.string.viper_ddc),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
@@ -83,13 +84,13 @@ fun ViperDdcEffect(
                 .padding(horizontal = 24.dp, vertical = 8.dp)
         ) {
             Text(
-                text = "Headset correction",
+                text = stringResource(R.string.ddc_headset_correction),
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp,
                 letterSpacing = 0.5.sp
             )
             Text(
-                text = state.selectedDdcFile ?: "Not set",
+                text = state.selectedDdcFile ?: stringResource(R.string.effect_not_set),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 letterSpacing = 0.25.sp
@@ -112,7 +113,7 @@ fun ViperDdcEffect(
                         FilterChip(
                             selected = selected,
                             onClick = { plotType = type },
-                            label = { Text(type.label) }
+                            label = { Text(stringResource(type.labelRes)) }
                         )
                     }
                 }
@@ -160,7 +161,7 @@ fun ViperDdcEffect(
                         val bandCount = state.coeffs.values.firstOrNull()?.size?.div(5) ?: 0
 
                         Text(
-                            text = "Supported rates: $rates\nBands: $bandCount",
+                            text = stringResource(R.string.ddc_rates_bands, rates, bandCount),
                             modifier = Modifier.padding(top = 8.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -183,7 +184,7 @@ fun ViperDdcEffect(
                     .fillMaxHeight(0.8f) // Limit height
             ) {
                 Text(
-                    text = "Select DDC File",
+                    text = stringResource(R.string.ddc_select_file),
                     modifier = Modifier.padding(24.dp),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
@@ -197,7 +198,7 @@ fun ViperDdcEffect(
                 ) {
                     if (ddcFiles.isEmpty()) {
                         Text(
-                            text = "No files loaded",
+                            text = stringResource(R.string.effect_no_files_loaded),
                             modifier = Modifier
                                 .padding(horizontal = 24.dp, vertical = 16.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -238,7 +239,7 @@ fun ViperDdcEffect(
                                 IconButton(onClick = { onFileDelete(file.name) }) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
+                                        contentDescription = stringResource(R.string.action_delete),
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }
@@ -263,11 +264,11 @@ fun ViperDdcEffect(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.size(8.dp))
-                        Text("Add new")
+                        Text(stringResource(R.string.action_add_new))
                     }
 
                     Button(onClick = { showDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.action_close))
                     }
                 }
             }
@@ -275,10 +276,10 @@ fun ViperDdcEffect(
     }
 }
 
-enum class PlotType(val label: String) {
-    MAGNITUDE("Magnitude"),
-    PHASE("Phase"),
-    GROUP_DELAY("Group Delay")
+enum class PlotType(val labelRes: Int) {
+    MAGNITUDE(R.string.ddc_plot_magnitude),
+    PHASE(R.string.ddc_plot_phase),
+    GROUP_DELAY(R.string.ddc_plot_group_delay)
 }
 
 data class DdcResponseData(
