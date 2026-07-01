@@ -154,11 +154,15 @@ fun PlayerScreen(
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val queue by viewModel.queue.collectAsStateWithLifecycle()
 
-    // Poll position
+    // Poll position. Reset to 0 only when the song actually changes; while on the same song, ignore
+    // transient 0 readings (the media controller briefly reports 0 as it re-syncs when the app returns
+    // to the foreground) so the position doesn't visibly jump back to 0:00.
     var currentPosition by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(currentSong?.id) {
+        currentPosition = 0L
         while (isActive) {
-            currentPosition = viewModel.getCurrentPosition()
+            val p = viewModel.getCurrentPosition()
+            if (p > 0L) currentPosition = p
             delay(16) // ~60fps updates
         }
     }

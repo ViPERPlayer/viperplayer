@@ -237,7 +237,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         val dataSourceFactory = createExoPlayerDataSourceFactory()
         val base = DefaultMediaSourceFactory(dataSourceFactory)
         val dash = DashMediaSource.Factory(dataSourceFactory)
-        return ViperMediaSource.Factory(this, pluginDataSource, base, dash)
+        return ViperMediaSource.Factory(this, pluginDataSource, base, dash, dataSourceFactory)
     }
 
     private fun createExoPlayerDataSourceFactory(): DataSource.Factory {

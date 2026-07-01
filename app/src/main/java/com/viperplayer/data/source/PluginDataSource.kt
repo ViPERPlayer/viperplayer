@@ -46,8 +46,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -308,6 +310,22 @@ class PluginDataSource @Inject constructor(
         plugin(pluginId).client.source
             ?: throw PluginException(PluginErrorCode.UNSUPPORTED, "Plugin is not a source: $pluginId")
 
+    /**
+     * Like [source], but waits (briefly) for the plugin to finish connecting instead of failing
+     * immediately. On app start the player can try to prepare a restored track before plugin
+     * discovery/handshake has completed (a ~250ms race); without this the track errored instantly and
+     * stayed errored ("pauses immediately on play"). Connection normally lands well within the window.
+     */
+    private suspend fun awaitSource(pluginId: String, timeoutMs: Long = 8_000): SourceClient {
+        val connected = _connectedPlugins.value[pluginId]
+            ?: withTimeoutOrNull(timeoutMs) {
+                _connectedPlugins.mapNotNull { it[pluginId] }.first()
+            }
+            ?: throw PluginException(PluginErrorCode.INTERNAL, "Plugin not connected: $pluginId")
+        return connected.client.source
+            ?: throw PluginException(PluginErrorCode.UNSUPPORTED, "Plugin is not a source: $pluginId")
+    }
+
     suspend fun search(
         pluginId: String,
         query: String,
@@ -437,7 +455,7 @@ class PluginDataSource @Inject constructor(
     suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
         val maxBitrateKbps = maxBitrateKbpsFor(settingsRepository.audioQuality.first())
-        source(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
+        awaitSource(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
     }.onFailure { Timber.e(it, "getStream failed for $mediaId") }
 
     /** Map the user's audio-quality setting to a max bitrate (kbps) the plugin caps to; null = highest. */

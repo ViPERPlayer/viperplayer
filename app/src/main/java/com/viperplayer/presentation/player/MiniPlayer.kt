@@ -83,11 +83,14 @@ fun MiniPlayer(
     val duration by viewModel.duration.collectAsStateWithLifecycle()
     val isLiked by viewModel.isLiked.collectAsStateWithLifecycle()
 
-    // Poll position
+    // Poll position. Reset to 0 only on song change; ignore transient 0 readings while on the same
+    // song (the controller briefly reports 0 as it re-syncs on foreground) to avoid a jump to 0:00.
     var position by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(currentSong?.id) {
+        position = 0L
         while (isActive) {
-            position = viewModel.getCurrentPosition()
+            val p = viewModel.getCurrentPosition()
+            if (p > 0L) position = p
             delay(16) // ~60fps updates
         }
     }
