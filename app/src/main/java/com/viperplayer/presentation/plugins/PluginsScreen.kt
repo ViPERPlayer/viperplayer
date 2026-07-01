@@ -55,7 +55,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.viperplayer.R
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.domain.model.Plugin
@@ -80,12 +82,12 @@ fun PluginsScreen(
             .fillMaxSize()
     ) {
         TopAppBar(
-            title = { Text("Plugins") },
+            title = { Text(stringResource(R.string.settings_plugins)) },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = stringResource(R.string.action_back)
                     )
                 }
             }
@@ -134,13 +136,13 @@ fun PluginsScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "No plugins found",
+                            text = stringResource(R.string.plugins_none_found),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Install a music plugin to add music sources",
+                            text = stringResource(R.string.plugins_none_found_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -160,7 +162,7 @@ fun PluginsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Download Plugins")
+                            Text(stringResource(R.string.plugins_download))
                         }
                     }
                 }
@@ -243,19 +245,19 @@ fun PluginsScreen(
                 Column {
                     if (!plugin.author.isNullOrBlank()) {
                         Text(
-                            text = "Author: ${plugin.author}",
+                            text = stringResource(R.string.plugins_author, plugin.author.orEmpty()),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     Text(
-                        text = "Version: ${plugin.version}",
+                        text = stringResource(R.string.plugins_version, plugin.version),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     plugin.apiVersion?.let { apiVersion ->
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "API Version: $apiVersion",
+                            text = stringResource(R.string.plugins_api_version, apiVersion),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -265,7 +267,7 @@ fun PluginsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Package: ${plugin.id}",
+                        text = stringResource(R.string.plugins_package, plugin.id),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -273,7 +275,7 @@ fun PluginsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showInfoDialog = null }) {
-                    Text("Close")
+                    Text(stringResource(R.string.action_close))
                 }
             }
         )
@@ -341,7 +343,7 @@ fun PluginCard(
                 if (!plugin.author.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "by ${plugin.author}",
+                        text = stringResource(R.string.plugins_by, plugin.author.orEmpty()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -361,7 +363,7 @@ fun PluginCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     plugin.apiVersion?.let { apiVersion ->
                         Text(
-                            text = "API v$apiVersion",
+                            text = stringResource(R.string.plugins_api_short, apiVersion),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -374,7 +376,7 @@ fun PluginCard(
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Text(
-                                text = "Connected",
+                                text = stringResource(R.string.status_connected),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -390,13 +392,13 @@ fun PluginCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         if (connected.capabilities.canSearch) {
-                            CapabilityChip("Search")
+                            CapabilityChip(stringResource(R.string.plugins_capability_search))
                         }
                         if (connected.capabilities.hasLibrary) {
-                            CapabilityChip("Library")
+                            CapabilityChip(stringResource(R.string.plugins_capability_library))
                         }
                         if (connected.capabilities.hasPlaylists) {
-                            CapabilityChip("Playlists")
+                            CapabilityChip(stringResource(R.string.plugins_capability_playlists))
                         }
                     }
                 }
@@ -412,7 +414,7 @@ fun PluginCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Plugin Settings",
+                        contentDescription = stringResource(R.string.plugins_settings_cd),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -438,7 +440,7 @@ fun PluginCard(
                     onDismissRequest = onDismissMenu
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Show info") },
+                        text = { Text(stringResource(R.string.plugins_show_info)) },
                         onClick = onShowInfo,
                         leadingIcon = {
                             Icon(
@@ -448,7 +450,7 @@ fun PluginCard(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Uninstall") },
+                        text = { Text(stringResource(R.string.plugins_uninstall)) },
                         onClick = onUninstall,
                         leadingIcon = {
                             Icon(

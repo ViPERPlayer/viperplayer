@@ -57,7 +57,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.viperplayer.R
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
@@ -158,7 +160,7 @@ private fun ListenTogetherContent(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
-            Text("Listen together", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.social_listen_together), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
 
         Spacer(Modifier.height(16.dp))
@@ -166,7 +168,7 @@ private fun ListenTogetherContent(
 
         Spacer(Modifier.height(8.dp))
         Text(
-            "Share what you're listening to so friends can follow along.",
+            stringResource(R.string.social_share_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -174,12 +176,12 @@ private fun ListenTogetherContent(
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FilledPillButton(
-                text = "Share invite",
+                text = stringResource(R.string.social_share_invite),
                 icon = Icons.Filled.IosShare,
                 modifier = Modifier.weight(1f),
                 onClick = onShareInvite
             )
-            TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = "Show QR code", onClick = onQr)
+            TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = stringResource(R.string.social_show_qr), onClick = onQr)
         }
 
         Spacer(Modifier.height(20.dp))
@@ -188,18 +190,18 @@ private fun ListenTogetherContent(
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Icon(Icons.Filled.Cast, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Play on device", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.social_play_on_device), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(Modifier.height(4.dp))
         DeviceRow(
             icon = Icons.Filled.Smartphone,
-            name = "This phone",
-            subtitle = "Connected",
+            name = stringResource(R.string.player_output_this_phone),
+            subtitle = stringResource(R.string.status_connected),
             selected = true
         )
         Text(
-            "No other devices found nearby.",
+            stringResource(R.string.social_no_devices),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
@@ -226,9 +228,9 @@ private fun ShareInviteContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Invite to listen", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.social_invite_to_listen), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             IconButton(onClick = onClose) {
-                Icon(Icons.Filled.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -236,7 +238,7 @@ private fun ShareInviteContent(
         HostCard(song = song)
 
         Spacer(Modifier.height(20.dp))
-        SectionLabel("Invite link")
+        SectionLabel(stringResource(R.string.social_invite_link))
         Spacer(Modifier.height(8.dp))
         Row(
             modifier = Modifier
@@ -268,26 +270,26 @@ private fun ShareInviteContent(
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(18.dp)
                 )
-                Text("Copy", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(stringResource(R.string.action_copy), color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             }
         }
 
         Spacer(Modifier.height(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FilledPillButton(
-                text = "Share via…",
+                text = stringResource(R.string.social_share_via),
                 icon = Icons.Filled.IosShare,
                 modifier = Modifier.weight(1f),
                 onClick = onSystemShare
             )
-            TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = "Show QR code", onClick = onQr)
+            TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = stringResource(R.string.social_show_qr), onClick = onQr)
         }
 
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             Text(
-                "Anyone with the link can join the session and add songs to the queue.",
+                stringResource(R.string.social_link_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -315,10 +317,10 @@ private fun QrJoinContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
             }
             Text(
-                "Scan to join",
+                stringResource(R.string.social_scan_to_join),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
@@ -329,7 +331,7 @@ private fun QrJoinContent(
 
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "You're hosting · ${song.title}",
+            text = stringResource(R.string.social_hosting, song.title),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -554,8 +556,8 @@ private fun generateSessionCode(): String {
 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-    clipboard?.setPrimaryClip(ClipData.newPlainText("Invite link", text))
-    Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+    clipboard?.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.social_invite_link), text))
+    Toast.makeText(context, context.getString(R.string.social_link_copied), Toast.LENGTH_SHORT).show()
 }
 
 private fun systemShare(context: Context, text: String) {
@@ -563,5 +565,5 @@ private fun systemShare(context: Context, text: String) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "Share invite"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.social_share_invite)))
 }

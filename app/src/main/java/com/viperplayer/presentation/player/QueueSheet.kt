@@ -43,7 +43,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.viperplayer.R
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -108,12 +111,12 @@ fun QueueSheet(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Queue",
+                text = stringResource(R.string.action_queue),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "${localQueue.size} ${if (localQueue.size == 1) "song" else "songs"}",
+                text = pluralStringResource(R.plurals.song_count, localQueue.size, localQueue.size),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -127,7 +130,7 @@ fun QueueSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Queue is empty",
+                    text = stringResource(R.string.queue_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -208,7 +211,7 @@ fun QueueSheet(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "Save as playlist",
+                    text = stringResource(R.string.queue_save_as_playlist),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 8.dp)
@@ -221,13 +224,13 @@ fun QueueSheet(
         var name by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showSaveDialog = false },
-            title = { Text("Save as playlist") },
+            title = { Text(stringResource(R.string.queue_save_as_playlist)) },
             text = {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    label = { Text("Playlist name") }
+                    label = { Text(stringResource(R.string.queue_playlist_name)) }
                 )
             },
             confirmButton = {
@@ -237,10 +240,10 @@ fun QueueSheet(
                         viewModel.saveQueueAsPlaylist(name)
                         showSaveDialog = false
                     }
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showSaveDialog = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -308,7 +311,7 @@ private fun QueueRow(
         if (isCurrent && isPlaying) {
             Icon(
                 imageVector = Icons.Filled.GraphicEq,
-                contentDescription = "Now playing",
+                contentDescription = stringResource(R.string.queue_now_playing),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
@@ -316,14 +319,14 @@ private fun QueueRow(
         IconButton(onClick = onRemove) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Remove from queue",
+                contentDescription = stringResource(R.string.queue_remove),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         }
         Icon(
             imageVector = Icons.Filled.DragHandle,
-            contentDescription = "Drag to reorder",
+            contentDescription = stringResource(R.string.queue_drag_reorder),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = dragHandleModifier
                 .size(40.dp)

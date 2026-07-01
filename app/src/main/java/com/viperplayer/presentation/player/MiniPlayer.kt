@@ -56,7 +56,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.viperplayer.R
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -223,7 +225,7 @@ fun MiniPlayerContent(
                         if (thumbnailUrl != null) {
                             AsyncImage(
                                 model = thumbnailUrl,
-                                contentDescription = "Artwork",
+                                contentDescription = stringResource(R.string.cd_artwork),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -248,7 +250,7 @@ fun MiniPlayerContent(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play",
+                            contentDescription = stringResource(R.string.action_play),
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -262,7 +264,7 @@ fun MiniPlayerContent(
                 verticalArrangement = Arrangement.Center
             ) {
                 AnimatedContent(
-                    targetState = song?.title ?: "Unknown",
+                    targetState = song?.title ?: stringResource(R.string.unknown_title),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "song_title"
                 ) { targetState ->
@@ -323,7 +325,7 @@ fun MiniPlayerContent(
                 ) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = if (isLiked) "Unlike" else "Like",
+                        contentDescription = if (isLiked) stringResource(R.string.action_unlike) else stringResource(R.string.action_like),
                         tint = if (isLiked)
                             MaterialTheme.colorScheme.error
                         else
