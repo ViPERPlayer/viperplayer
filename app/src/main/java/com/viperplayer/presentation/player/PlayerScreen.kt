@@ -187,6 +187,8 @@ fun PlayerScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
+    val comingSoonMessage = stringResource(R.string.toast_coming_soon)
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
 
     val song = currentSong
@@ -358,7 +360,7 @@ fun PlayerScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 viewModel.addCurrentSongToLibrary()
-                                Toast.makeText(context, context.getString(R.string.toast_added_to_library), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, addedToLibraryMessage, Toast.LENGTH_SHORT).show()
                             }
                         )
                         DropdownMenuItem(
@@ -367,7 +369,7 @@ fun PlayerScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 // No add-to-existing-playlist backend yet — mocked, prepared for wiring.
-                                Toast.makeText(context, context.getString(R.string.toast_coming_soon), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
                             }
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

@@ -57,6 +57,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -92,6 +93,7 @@ fun JoinSessionScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val joinedMessage = stringResource(R.string.join_session_joined)
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -108,7 +110,7 @@ fun JoinSessionScreen(
     // On a successful join, confirm and leave the screen (the session now lives in the repository).
     androidx.compose.runtime.LaunchedEffect(state.joined) {
         if (state.joined != null) {
-            Toast.makeText(context, context.getString(R.string.join_session_joined), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, joinedMessage, Toast.LENGTH_SHORT).show()
             onNavigateBack()
         }
     }

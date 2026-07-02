@@ -5,6 +5,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -104,7 +105,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                 LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
             } catch (e: Exception) {
                 Timber.e(e, "Error in onGetChildren for parentId: $parentId")
-                LibraryResult.ofError(LibraryResult.RESULT_ERROR_UNKNOWN)
+                LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
             }
         }
     }
@@ -132,9 +133,9 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                 }
 
                 // Fallback or other types if needed (usually onGetItem used for playable items)
-                LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             } catch (e: Exception) {
-                LibraryResult.ofError(LibraryResult.RESULT_ERROR_UNKNOWN)
+                LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
             }
         }
     }
@@ -197,7 +198,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error in onGetSearchResult for query: $query")
-                LibraryResult.ofError(LibraryResult.RESULT_ERROR_UNKNOWN)
+                LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
             }
         }
     }
