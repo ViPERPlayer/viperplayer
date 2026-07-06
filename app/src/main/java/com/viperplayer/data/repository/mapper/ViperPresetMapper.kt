@@ -20,6 +20,7 @@ import com.viperplayer.domain.model.TubeSimulatorState
 import com.viperplayer.domain.model.ViperBassState
 import com.viperplayer.domain.model.ViperClarityState
 import com.viperplayer.domain.model.ViperConvolverState
+import com.viperplayer.domain.model.ViperDdcState
 import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.model.ViperPreset
 
@@ -89,7 +90,7 @@ object ViperPresetMapper {
                 speakerOptimization = SpeakerOptimizationState(
                     enabled = preset.speakerOptimizationEnabled,
                 ),
-                viperDdc = com.viperplayer.domain.model.ViperDdcState(
+                viperDdc = ViperDdcState(
                     enabled = preset.viperDdcEnabled,
                     selectedDdcFile = preset.viperDdcSelectedFile,
                     coeffs = coeffsMap.ifEmpty { null }

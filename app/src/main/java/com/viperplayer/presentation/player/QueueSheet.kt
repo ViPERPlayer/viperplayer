@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.viperplayer.R
 import androidx.compose.ui.unit.sp
@@ -255,7 +256,7 @@ private fun QueueRow(
     isCurrent: Boolean,
     isPlaying: Boolean,
     isDragging: Boolean,
-    rowHeight: androidx.compose.ui.unit.Dp,
+    rowHeight: Dp,
     onPlay: () -> Unit,
     onRemove: () -> Unit,
     dragHandleModifier: Modifier,

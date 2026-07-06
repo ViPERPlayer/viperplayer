@@ -3,6 +3,7 @@ package com.viperplayer.data.source
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.net.toUri
 import com.viperplayer.domain.model.Album
@@ -103,7 +104,7 @@ class LocalMediaDataSource @Inject constructor(
         songs
     }
 
-    private fun getAlbumArtUri(albumId: Long): android.net.Uri {
+    private fun getAlbumArtUri(albumId: Long): Uri {
         val sArtworkUri = "content://media/external/audio/albumart".toUri()
         return ContentUris.withAppendedId(sArtworkUri, albumId)
     }

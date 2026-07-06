@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.player
 
+import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -115,6 +117,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -186,7 +189,7 @@ fun PlayerScreen(
     var showQr by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
     val comingSoonMessage = stringResource(R.string.toast_coming_soon)
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
@@ -1197,14 +1200,14 @@ private fun SleepTimerDialog(
 }
 
 /** Fire the Android system share sheet for a track. */
-private fun shareSong(context: android.content.Context, song: Song) {
+private fun shareSong(context: Context, song: Song) {
     val text = buildString {
         append(song.title)
         song.artistNames?.let { append(" — $it") }
     }
-    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+    val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(android.content.Intent.EXTRA_TEXT, text)
+        putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.action_share)))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.action_share)))
 }

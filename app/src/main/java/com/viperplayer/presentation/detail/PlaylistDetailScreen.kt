@@ -51,6 +51,7 @@ import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
+import com.viperplayer.presentation.common.ErrorState
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
@@ -140,7 +141,7 @@ private fun PlaylistDetailScreenContent(
             }
 
             is PlaylistDetailUiState.Error -> {
-                com.viperplayer.presentation.common.ErrorState(
+                ErrorState(
                     message = uiState.message,
                     onRetry = onRefresh,
                     modifier = Modifier

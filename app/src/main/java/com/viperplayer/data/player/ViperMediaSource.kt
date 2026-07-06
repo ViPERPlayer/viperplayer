@@ -46,6 +46,7 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 
 /**
  * A [MediaSource] that lazily resolves the real stream for a plugin-backed [MediaItem] (URL, DASH,
@@ -285,7 +286,7 @@ class ViperMediaSource(
     }
 
     /** Map a plugin [com.viperplayer.plugin.model.DrmConfig] scheme name to its content-protection UUID. */
-    private fun drmSchemeUuid(scheme: String): java.util.UUID = when (scheme.lowercase()) {
+    private fun drmSchemeUuid(scheme: String): UUID = when (scheme.lowercase()) {
         "widevine" -> C.WIDEVINE_UUID
         "playready" -> C.PLAYREADY_UUID
         "clearkey" -> C.CLEARKEY_UUID

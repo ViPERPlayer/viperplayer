@@ -70,6 +70,7 @@ import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SearchFilter
+import com.viperplayer.presentation.common.ErrorState
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
@@ -480,7 +481,7 @@ fun SearchScreen(
                     }
 
                     is SearchResultsState.Error -> {
-                        com.viperplayer.presentation.common.ErrorState(
+                        ErrorState(
                             title = stringResource(R.string.action_error),
                             message = state.message,
                             modifier = Modifier.padding(rootPadding.bottom()),

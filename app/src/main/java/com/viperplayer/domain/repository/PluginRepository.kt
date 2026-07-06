@@ -4,6 +4,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
@@ -71,7 +72,7 @@ interface PluginRepository {
      * Get home content from all connected plugins.
      * Returns a list of pairs: (PluginName, HomeContent)
      */
-    suspend fun getHomeContent(): Result<List<Pair<String, com.viperplayer.domain.model.HomeContent>>>
+    suspend fun getHomeContent(): Result<List<Pair<String, HomeContent>>>
 
     /**
      * Get browse categories from all plugins.

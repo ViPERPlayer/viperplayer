@@ -2,6 +2,7 @@ package com.viperplayer.domain.repository
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -145,7 +146,7 @@ class ViperAssetRepository @Inject constructor(
                 context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         val index =
-                            cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                         if (index >= 0) {
                             result = cursor.getString(index)
                         }

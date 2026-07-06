@@ -3,6 +3,7 @@ package com.viperplayer.presentation.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.toArtist
 import com.viperplayer.domain.model.MediaId
@@ -246,7 +247,7 @@ class SearchViewModel @Inject constructor(
                     subtitle = subtitle,
                     isActive = false,
                     badges = buildList {
-                        if (it.type == com.viperplayer.domain.model.AlbumType.COMPILATION) {
+                        if (it.type == AlbumType.COMPILATION) {
                             add(ItemBadge.EXPLICIT)
                         }
                     }

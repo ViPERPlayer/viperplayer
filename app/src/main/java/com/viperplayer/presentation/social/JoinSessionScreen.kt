@@ -1,10 +1,14 @@
 package com.viperplayer.presentation.social
 
 import android.Manifest
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.LinearEasing
@@ -19,6 +23,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,10 +46,13 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FlashlightOff
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.Login
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +65,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
@@ -64,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +97,7 @@ import com.viperplayer.R
  */
 @Composable
 fun JoinSessionScreen(
-    rootPadding: androidx.compose.foundation.layout.PaddingValues,
+    rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     viewModel: JoinSessionViewModel = hiltViewModel(),
 ) {
@@ -103,18 +113,18 @@ fun JoinSessionScreen(
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         hasCameraPermission = it
     }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     // On a successful join, confirm and leave the screen (the session now lives in the repository).
-    androidx.compose.runtime.LaunchedEffect(state.joined) {
+    LaunchedEffect(state.joined) {
         if (state.joined != null) {
             Toast.makeText(context, joinedMessage, Toast.LENGTH_SHORT).show()
             onNavigateBack()
         }
     }
-    androidx.compose.runtime.LaunchedEffect(state.error) {
+    LaunchedEffect(state.error) {
         state.error?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
     }
 
@@ -145,7 +155,7 @@ fun JoinSessionScreen(
         ) {
             // Close + title
             Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                androidx.compose.material3.IconButton(
+                IconButton(
                     onClick = onNavigateBack,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp),
                 ) {
@@ -238,7 +248,7 @@ private fun Viewfinder(modifier: Modifier = Modifier) {
         corner(Alignment.BottomStart, topEdge = false, leftEdge = true)
         corner(Alignment.BottomEnd, topEdge = false, leftEdge = false)
         // Animated scan line — offset down within the 232dp viewfinder by the animated fraction.
-        val viewfinderPx = with(androidx.compose.ui.platform.LocalDensity.current) { VIEWFINDER.toPx() }
+        val viewfinderPx = with(LocalDensity.current) { VIEWFINDER.toPx() }
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -258,7 +268,7 @@ private fun ManualEntry(
     code: String,
     codeLength: Int,
     joining: Boolean,
-    bottomPadding: androidx.compose.ui.unit.Dp,
+    bottomPadding: Dp,
     onCodeChange: (String) -> Unit,
     onPaste: (String) -> Unit,
     onJoin: () -> Unit,
@@ -277,7 +287,7 @@ private fun ManualEntry(
     ) {
         // "OR ENTER A CODE" divider.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+            HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
             Text(
                 stringResourceSafe(R.string.join_session_or_enter_code),
                 fontSize = 12.sp,
@@ -285,7 +295,7 @@ private fun ManualEntry(
                 letterSpacing = 1.5.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+            HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
         }
 
         Spacer(Modifier.height(18.dp))
@@ -325,7 +335,7 @@ private fun ManualEntry(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .clickable {
-                    val clip = (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager)
+                    val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)
                     val pasted = clip?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
                     if (!pasted.isNullOrBlank()) onPaste(pasted)
                 }
@@ -395,14 +405,14 @@ private fun CameraScanner(
     val lifecycleOwner = LocalLifecycleOwner.current
     val controller = remember { LifecycleCameraController(context) }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         controller.setImageAnalysisAnalyzer(
             ContextCompat.getMainExecutor(context),
             QrCodeAnalyzer(onScanned),
         )
         controller.bindToLifecycle(lifecycleOwner)
     }
-    androidx.compose.runtime.LaunchedEffect(torchOn) {
+    LaunchedEffect(torchOn) {
         runCatching { controller.enableTorch(torchOn) }
     }
 
@@ -420,7 +430,7 @@ private fun CameraScanner(
 /** CameraX [androidx.camera.core.ImageAnalysis.Analyzer] that decodes a QR from the Y (luma) plane. */
 private class QrCodeAnalyzer(
     private val onResult: (String) -> Unit,
-) : androidx.camera.core.ImageAnalysis.Analyzer {
+) : ImageAnalysis.Analyzer {
     private val reader = MultiFormatReader().apply {
         setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE)))
     }
@@ -428,7 +438,7 @@ private class QrCodeAnalyzer(
     @Volatile
     private var done = false
 
-    override fun analyze(image: androidx.camera.core.ImageProxy) {
+    override fun analyze(image: ImageProxy) {
         if (done) {
             image.close()
             return
@@ -469,4 +479,4 @@ private class QrCodeAnalyzer(
 
 // Small indirection so a missing string key surfaces at compile time rather than a runtime crash.
 @Composable
-private fun stringResourceSafe(id: Int): String = androidx.compose.ui.res.stringResource(id)
+private fun stringResourceSafe(id: Int): String = stringResource(id)

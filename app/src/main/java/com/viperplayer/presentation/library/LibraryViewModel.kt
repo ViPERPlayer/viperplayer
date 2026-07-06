@@ -2,6 +2,7 @@ package com.viperplayer.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.repository.NetworkConnectivityChecker
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Playlist
@@ -53,7 +54,7 @@ class LibraryViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val networkConnectivityChecker: com.viperplayer.data.repository.NetworkConnectivityChecker
+    private val networkConnectivityChecker: NetworkConnectivityChecker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())

@@ -53,6 +53,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
+import com.viperplayer.presentation.common.ErrorState
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
@@ -159,7 +160,7 @@ private fun AlbumDetailScreenContent(
             }
 
             is AlbumDetailUiState.Error -> {
-                com.viperplayer.presentation.common.ErrorState(
+                ErrorState(
                     message = uiState.message,
                     onRetry = onRefresh,
                     modifier = Modifier

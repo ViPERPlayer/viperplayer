@@ -2,12 +2,14 @@ package com.viperplayer.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -28,7 +30,7 @@ class PlayerViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val pluginRepository: PluginRepository,
-    private val sleepTimerManager: com.viperplayer.data.player.SleepTimerManager,
+    private val sleepTimerManager: SleepTimerManager,
 ) : ViewModel() {
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
@@ -202,7 +204,7 @@ class PlayerViewModel @Inject constructor(
      * Gets the current audio format from ExoPlayer.
      * Returns null if no track is playing or format information is not available.
      */
-    suspend fun getAudioFormat(): com.viperplayer.domain.repository.AudioFormat? {
+    suspend fun getAudioFormat(): AudioFormat? {
         return playerRepository.getAudioFormat()
     }
 

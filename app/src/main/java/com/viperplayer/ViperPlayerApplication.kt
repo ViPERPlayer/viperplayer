@@ -5,6 +5,7 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Intent
 import android.os.Build
+import android.os.Process
 import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -105,7 +106,7 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     // Fallback for devices running Android 8.1 (API 27) and below
     private fun getProcessNameLegacy(): String? {
         val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
-        val myPid = android.os.Process.myPid()
+        val myPid = Process.myPid()
         for (processInfo in am.runningAppProcesses.orEmpty()) {
             if (processInfo.pid == myPid) {
                 return processInfo.processName

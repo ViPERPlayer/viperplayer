@@ -10,6 +10,7 @@ import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
+import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.Lyrics
@@ -153,7 +154,7 @@ class PluginRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getHomeContent(): Result<List<Pair<String, com.viperplayer.domain.model.HomeContent>>> =
+    override suspend fun getHomeContent(): Result<List<Pair<String, HomeContent>>> =
         coroutineScope {
             try {
                 val plugins = dataSource.connectedPlugins.value

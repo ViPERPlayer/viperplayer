@@ -11,6 +11,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import com.viperplayer.data.player.MediaControllerManager
 import com.viperplayer.data.player.MediaItemMapper
+import com.viperplayer.data.player.PersistedPlayerState
 import com.viperplayer.data.player.PlayerStateMapper
 import com.viperplayer.data.player.PlayerStatePersistence
 import com.viperplayer.domain.model.MediaId
@@ -519,7 +520,7 @@ class PlayerRepositoryImpl @Inject constructor(
             val position = controller.currentPosition.coerceAtLeast(0)
             val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
 
-            com.viperplayer.data.player.PersistedPlayerState(
+            PersistedPlayerState(
                 currentSongMediaId = extractMediaIdFromController(controller)?.toString(),
                 currentPositionMs = position,
                 queuePosition = queuePosition,

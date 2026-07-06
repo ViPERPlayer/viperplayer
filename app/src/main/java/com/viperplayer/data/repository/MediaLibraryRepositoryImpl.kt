@@ -7,12 +7,16 @@ import com.viperplayer.data.local.dao.GenreDao
 import com.viperplayer.data.local.dao.PlayEventDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SongDao
+import com.viperplayer.data.local.entity.AlbumArtistCrossRef
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
 import com.viperplayer.data.local.entity.PlayEventEntity
+import com.viperplayer.data.local.entity.PlaylistSongCrossRef
+import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
+import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistDetail
@@ -56,7 +60,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val artworkDownloader: ArtworkDownloader,
     private val networkConnectivityChecker: NetworkConnectivityChecker,
-    private val localMediaDataSource: com.viperplayer.data.source.LocalMediaDataSource
+    private val localMediaDataSource: LocalMediaDataSource
 ) : MediaLibraryRepository {
 
     // Scope for fire-and-forget background work (e.g. artwork caching) that must not block callers
@@ -133,7 +137,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     // Helper function to compute isPlayable at runtime based on plugin connection, download status, and internet availability
     private fun computeIsPlayable(
-        songEntity: com.viperplayer.data.local.entity.SongEntity,
+        songEntity: SongEntity,
         connectedPluginIds: Set<String>,
         requiresInternet: Boolean,
         isInternetAvailable: Boolean
@@ -329,7 +333,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         album.artists.forEachIndexed { index, artist ->
             val artistId = artistIds[index]
             crossRefDao.insertAlbumArtist(
-                com.viperplayer.data.local.entity.AlbumArtistCrossRef(
+                AlbumArtistCrossRef(
                     albumId = albumId,
                     artistId = artistId,
                     order = index
@@ -510,7 +514,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             album.artists.forEachIndexed { index, artist ->
                 val artistId = albumArtistIds[index]
                 crossRefDao.insertAlbumArtist(
-                    com.viperplayer.data.local.entity.AlbumArtistCrossRef(
+                    AlbumArtistCrossRef(
                         albumId = albumId,
                         artistId = artistId,
                         order = index
@@ -578,7 +582,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             song.artists.forEachIndexed { index, artist ->
                 val artistId = upsertArtist(artist)
                 crossRefDao.insertSongArtist(
-                    com.viperplayer.data.local.entity.SongArtistCrossRef(
+                    SongArtistCrossRef(
                         songId = songId,
                         artistId = artistId,
                         order = index
@@ -909,7 +913,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 val songEntity = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
                 songEntity?.let {
                     crossRefDao.insertPlaylistSong(
-                        com.viperplayer.data.local.entity.PlaylistSongCrossRef(
+                        PlaylistSongCrossRef(
                             playlistId = playlistId,
                             songId = it.id,
                             position = index

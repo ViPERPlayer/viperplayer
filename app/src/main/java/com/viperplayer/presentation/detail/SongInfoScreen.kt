@@ -1,6 +1,9 @@
 package com.viperplayer.presentation.detail
 
+import android.content.Context
 import android.content.Intent
+import android.provider.Settings
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +27,7 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +45,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -83,7 +90,7 @@ fun SongInfoScreen(
                 },
             )
         },
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
+        contentWindowInsets = WindowInsets(0),
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -317,7 +324,7 @@ private fun PluginRow(pluginPackage: String, pluginName: String, onClick: () -> 
             contentAlignment = Alignment.Center,
         ) {
             if (icon != null) {
-                androidx.compose.foundation.Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(28.dp))
+                Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(28.dp))
             } else {
                 Icon(Icons.Filled.Extension, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
             }
@@ -331,7 +338,7 @@ private fun PluginRow(pluginPackage: String, pluginName: String, onClick: () -> 
 }
 
 @Composable
-private fun SectionLabel(text: String, top: androidx.compose.ui.unit.Dp = 0.dp) {
+private fun SectionLabel(text: String, top: Dp = 0.dp) {
     Text(
         text = text.uppercase(),
         fontSize = 11.sp,
@@ -361,10 +368,10 @@ private fun InfoRow(label: String, value: String, divider: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
     }
     if (divider) {
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     }
 }
 
@@ -375,15 +382,15 @@ private fun formatDuration(ms: Long): String {
 }
 
 /** Open the source plugin: its own launcher screen if it has one, else the system app-details page. */
-private fun openPlugin(context: android.content.Context, pluginPackage: String) {
+private fun openPlugin(context: Context, pluginPackage: String) {
     val launch = context.packageManager.getLaunchIntentForPackage(pluginPackage)
-    val intent = launch ?: Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+    val intent = launch ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
         data = android.net.Uri.fromParts("package", pluginPackage, null)
     }
     runCatching { context.startActivity(intent) }
 }
 
-private fun shareSong(context: android.content.Context, song: Song) {
+private fun shareSong(context: Context, song: Song) {
     val text = buildString {
         append(song.title)
         song.artistNames?.let { append(" — $it") }
