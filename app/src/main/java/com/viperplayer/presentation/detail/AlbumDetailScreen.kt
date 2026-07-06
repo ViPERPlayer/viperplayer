@@ -51,9 +51,12 @@ import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
+import com.viperplayer.presentation.plugins.PluginActionsViewModel
+import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
@@ -89,11 +92,19 @@ fun AlbumDetailScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
+    // If this screen's plugin needs the user to act (sign in, verify...), offer it on errors.
+    val actionsViewModel: PluginActionsViewModel = hiltViewModel()
+    val pendingActions by actionsViewModel.pendingActions.collectAsStateWithLifecycle()
+    val pluginAction = pendingActions.firstOrNull { it.pluginId == viewModel.pluginId }
+    val resolvePluginAction = rememberPluginActionResolver { actionsViewModel.refresh() }
+
     AlbumDetailScreenContent(
         rootPadding = rootPadding,
         uiState = uiState,
         currentSong = currentSong,
         isPlaying = isPlaying,
+        pluginAction = pluginAction,
+        onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
         onNavigateToArtist = onNavigateToArtist,
         onRefresh = viewModel::refresh,
@@ -117,6 +128,8 @@ private fun AlbumDetailScreenContent(
     uiState: AlbumDetailUiState,
     currentSong: Song?,
     isPlaying: Boolean,
+    pluginAction: PluginPendingAction? = null,
+    onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
@@ -162,6 +175,8 @@ private fun AlbumDetailScreenContent(
             is AlbumDetailUiState.Error -> {
                 ErrorState(
                     message = uiState.message,
+                    actionLabel = pluginAction?.title,
+                    onAction = pluginAction?.let { action -> { onResolvePluginAction(action) } },
                     onRetry = onRefresh,
                     modifier = Modifier
                         .padding(contentPadding)

@@ -39,7 +39,11 @@ class LocalSettingsViewModel(application: Application) : AndroidViewModel(applic
 
     fun onPermissionResult(granted: Boolean) {
         _state.update { it.copy(hasPermission = granted) }
-        if (granted) scan(force = false)
+        if (granted) {
+            // Same process as the host: clear the pending PERMISSION action immediately.
+            LocalPluginRuntime.host?.notifyStatusChanged()
+            scan(force = false)
+        }
     }
 
     /** Re-check on resume: the user may have granted the permission from system settings. */

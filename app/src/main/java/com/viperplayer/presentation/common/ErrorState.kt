@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,9 @@ import com.viperplayer.R
 /**
  * A friendly, centered empty/error state — a tonal icon chip, a message, and an optional retry —
  * used wherever a screen's data load fails, in place of bare red error text.
+ *
+ * [actionLabel]/[onAction] render a primary call-to-action above Retry — e.g. "Sign in"
+ * when the failing plugin has a pending user action.
  */
 @Composable
 fun ErrorState(
@@ -39,6 +43,8 @@ fun ErrorState(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Rounded.CloudOff,
     title: String? = null,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
     onRetry: (() -> Unit)? = null,
 ) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -78,8 +84,14 @@ fun ErrorState(
                 color = if (title != null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
-            if (onRetry != null) {
+            if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.height(22.dp))
+                Button(onClick = onAction) {
+                    Text(actionLabel)
+                }
+            }
+            if (onRetry != null) {
+                Spacer(Modifier.height(if (actionLabel != null) 10.dp else 22.dp))
                 FilledTonalButton(onClick = onRetry) {
                     Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))

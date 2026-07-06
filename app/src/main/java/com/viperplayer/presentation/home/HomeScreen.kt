@@ -34,8 +34,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -50,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.presentation.common.PlayingArtworkOverlay
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +89,11 @@ import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginCapabilities
+import com.viperplayer.domain.model.PluginPendingAction
+import com.viperplayer.presentation.plugins.PluginActionsBanner
+import com.viperplayer.presentation.plugins.PluginActionsSheet
+import com.viperplayer.presentation.plugins.PluginActionsViewModel
+import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ViperScaffold
@@ -126,10 +135,23 @@ fun HomeScreen(
 
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+
+    // Pending plugin actions (permission grants, sign-ins, verifications) surfaced via the bell.
+    val actionsViewModel: PluginActionsViewModel = hiltViewModel()
+    val pendingActions by actionsViewModel.pendingActions.collectAsStateWithLifecycle()
+    val resolveAction = rememberPluginActionResolver { actionsViewModel.refresh() }
+    // Re-query when returning from a plugin's login/verification/settings activity.
+    LifecycleResumeEffect(Unit) {
+        actionsViewModel.refresh()
+        onPauseOrDispose { }
+    }
+
     HomeScreenContent(
         uiState = uiState,
         currentSongId = currentSong?.id,
         isPlaying = isPlaying,
+        pendingActions = pendingActions,
+        onResolveAction = resolveAction,
         rootPadding = rootPadding,
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
@@ -149,6 +171,8 @@ private fun HomeScreenContent(
     uiState: HomeUiState,
     currentSongId: MediaId? = null,
     isPlaying: Boolean = false,
+    pendingActions: List<PluginPendingAction> = emptyList(),
+    onResolveAction: (PluginPendingAction) -> Unit = {},
     rootPadding: PaddingValues,
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
@@ -162,6 +186,9 @@ private fun HomeScreenContent(
     onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> }
 ) {
     var titleOverflowed by remember { mutableStateOf(false) }
+    var showActionsSheet by remember { mutableStateOf(false) }
+    // Dismissal is keyed on the current action set: a new action re-shows the banner.
+    var bannerDismissed by remember(pendingActions.map { it.key }.toSet()) { mutableStateOf(false) }
     val title = uiState.userName.let { userName ->
         if (userName != null && !titleOverflowed) {
             val resId = when (uiState.greetingType) {
@@ -198,6 +225,20 @@ private fun HomeScreenContent(
                     )
                 },
                 actions = {
+                    IconButton(onClick = { showActionsSheet = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (pendingActions.isNotEmpty()) {
+                                    Badge { Text(pendingActions.size.toString()) }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Notifications,
+                                contentDescription = stringResource(R.string.plugin_actions_bell_cd),
+                            )
+                        }
+                    }
                     IconButton(onClick = onNavigateToHistory) {
                         Icon(
                             imageVector = Icons.Rounded.History,
@@ -262,6 +303,18 @@ private fun HomeScreenContent(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = rootPadding
                     ) {
+                        // Plugins that need the user to act (sign in, grant a permission...).
+                        if (pendingActions.isNotEmpty() && !bannerDismissed) {
+                            item(key = "plugin-actions-banner") {
+                                PluginActionsBanner(
+                                    actions = pendingActions,
+                                    onOpen = { showActionsSheet = true },
+                                    onDismiss = { bannerDismissed = true },
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+
                         // Empty state (no plugins)
                         if (uiState.connectedPlugins.isEmpty()) {
                             item {
@@ -381,6 +434,17 @@ private fun HomeScreenContent(
                 }
             }
         }
+    }
+
+    if (showActionsSheet) {
+        PluginActionsSheet(
+            actions = pendingActions,
+            onResolve = {
+                showActionsSheet = false
+                onResolveAction(it)
+            },
+            onDismiss = { showActionsSheet = false },
+        )
     }
 }
 

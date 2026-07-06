@@ -12,6 +12,7 @@ import com.viperplayer.data.mapper.PluginMapper.toDomainDetail
 import com.viperplayer.data.mapper.PluginMapper.toDomainRef
 import com.viperplayer.data.mapper.PluginMapper.toMediaType
 import com.viperplayer.data.plugin.ConnectedPlugin
+import com.viperplayer.data.plugin.PluginActionNotifier
 import com.viperplayer.data.preferences.PluginPreferences
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -39,6 +40,7 @@ import com.viperplayer.plugin.model.MediaType
 import com.viperplayer.plugin.model.PageRequest
 import com.viperplayer.plugin.model.PluginErrorCode
 import com.viperplayer.plugin.model.PluginException
+import com.viperplayer.plugin.model.RequiredAction
 import com.viperplayer.plugin.model.SearchRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +80,7 @@ class PluginDataSource @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val pluginPreferences: PluginPreferences,
     private val settingsRepository: SettingsRepository,
+    private val actionNotifier: PluginActionNotifier,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -86,6 +89,10 @@ class PluginDataSource @Inject constructor(
 
     private val _connectedPlugins = MutableStateFlow<Map<String, ConnectedPlugin>>(emptyMap())
     val connectedPlugins: StateFlow<Map<String, ConnectedPlugin>> = _connectedPlugins.asStateFlow()
+
+    /** Pending user actions per connected plugin, refreshed at connect, on push, and on demand. */
+    private val _pluginActions = MutableStateFlow<Map<String, List<RequiredAction>>>(emptyMap())
+    val pluginActions: StateFlow<Map<String, List<RequiredAction>>> = _pluginActions.asStateFlow()
 
     /** Set of plugin ids the user has explicitly disabled. */
     val disabledPlugins: Flow<Set<String>> get() = pluginPreferences.disabledPlugins
@@ -231,6 +238,7 @@ class PluginDataSource @Inject constructor(
                 return
             }
             Timber.d("Plugin connected: ${connected.info.name} (${connected.capabilities})")
+            refreshPluginStatus(discovered.id)
         } catch (e: Exception) {
             Timber.e(e, "Error connecting to plugin: ${discovered.id}")
             onPluginConnectionFailed(discovered.id, retry = false)
@@ -245,6 +253,7 @@ class PluginDataSource @Inject constructor(
                 ongoingConnections.remove(pluginId)
                 sc
             }
+            _pluginActions.update { it - pluginId }
             serviceConnection?.let {
                 withContext(Dispatchers.Main) { runCatching { context.unbindService(it) } }
             }
@@ -265,6 +274,7 @@ class PluginDataSource @Inject constructor(
                 ongoingConnections.remove(pluginId)
                 sc
             }
+            _pluginActions.update { it - pluginId }
             serviceConnection?.let {
                 withContext(Dispatchers.Main) { runCatching { context.unbindService(it) } }
             }
@@ -284,6 +294,23 @@ class PluginDataSource @Inject constructor(
         runCatching { connected.connection.shutdown() }
         withContext(Dispatchers.Main) { runCatching { context.unbindService(connected.serviceConnection) } }
         connectionMutex.withLock { _connectedPlugins.update { it - pluginId } }
+        _pluginActions.update { it - pluginId }
+    }
+
+    /** Re-query [pluginId]'s pending user actions. No-op if the plugin isn't connected. */
+    suspend fun refreshPluginStatus(pluginId: String) {
+        val connected = _connectedPlugins.value[pluginId] ?: return
+        runCatching { connected.client.getStatus() }
+            .onSuccess { status ->
+                _pluginActions.update { it + (pluginId to status.actions) }
+                if (status.actions.isEmpty()) actionNotifier.cancel(pluginId)
+            }
+            .onFailure { Timber.w(it, "getStatus failed for $pluginId") }
+    }
+
+    /** Re-query every connected plugin's status (e.g. after returning from a resolution step). */
+    suspend fun refreshAllPluginStatuses() {
+        _connectedPlugins.value.keys.forEach { refreshPluginStatus(it) }
     }
 
     suspend fun disconnectAll() {
@@ -469,7 +496,19 @@ class PluginDataSource @Inject constructor(
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
         val maxBitrateKbps = maxBitrateKbpsFor(settingsRepository.audioQuality.first())
         source(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
-    }.onFailure { Timber.e(it, "getStream failed for $mediaId") }
+    }.onFailure {
+        Timber.e(it, "getStream failed for $mediaId")
+        // Playback-time auth failures usually mean the plugin now has a pending action to show;
+        // playback is interrupted, so also surface it as a notification.
+        if ((it as? PluginException)?.code == PluginErrorCode.AUTH_REQUIRED) {
+            scope.launch {
+                refreshPluginStatus(mediaId.pluginId)
+                _pluginActions.value[mediaId.pluginId]?.firstOrNull()?.let { action ->
+                    actionNotifier.notify(mediaId.pluginId, action)
+                }
+            }
+        }
+    }
 
     /** Map the user's audio-quality setting to a max bitrate (kbps) the plugin caps to; null = highest. */
     private fun maxBitrateKbpsFor(quality: AudioQuality): Int? = when (quality) {
@@ -484,8 +523,20 @@ class PluginDataSource @Inject constructor(
             Timber.d("Plugin $pluginId reported content changed")
         }
 
+        override fun onStatusChanged(pluginId: String) {
+            scope.launch { refreshPluginStatus(pluginId) }
+        }
+
+        override fun onAuthStateChanged(pluginId: String) {
+            // Signing in/out usually adds or clears a pending LOGIN action.
+            scope.launch { refreshPluginStatus(pluginId) }
+        }
+
         override fun onError(pluginId: String, code: Int, message: String?) {
             Timber.e("Plugin $pluginId error: code=$code, message=$message")
+            if (code == PluginErrorCode.AUTH_REQUIRED) {
+                scope.launch { refreshPluginStatus(pluginId) }
+            }
         }
     }
 

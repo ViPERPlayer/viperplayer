@@ -19,7 +19,9 @@ import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
+import com.viperplayer.domain.model.PluginActionType
 import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
@@ -29,7 +31,9 @@ import com.viperplayer.domain.repository.SettingsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import com.viperplayer.plugin.model.ActionType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.decodeFromString
@@ -79,6 +83,38 @@ class PluginRepositoryImpl @Inject constructor(
 
     override val disabledPlugins: Flow<Set<String>>
         get() = dataSource.disabledPlugins
+
+    override val pendingActions: Flow<List<PluginPendingAction>>
+        get() = combine(dataSource.pluginActions, dataSource.connectedPlugins) { actions, connected ->
+            actions.flatMap { (pluginId, pluginActions) ->
+                val plugin = connected[pluginId] ?: return@flatMap emptyList()
+                pluginActions.map { action ->
+                    PluginPendingAction(
+                        pluginId = pluginId,
+                        pluginName = plugin.info.name,
+                        actionId = action.id,
+                        type = action.type.toDomain(),
+                        title = action.title,
+                        description = action.description,
+                        activity = action.activity,
+                        permission = action.permission,
+                        settingsActivity = plugin.info.settingsActivity,
+                    )
+                }
+            }
+        }
+
+    override suspend fun refreshPluginStatuses() {
+        dataSource.refreshAllPluginStatuses()
+    }
+
+    private fun ActionType.toDomain(): PluginActionType = when (this) {
+        ActionType.PERMISSION -> PluginActionType.PERMISSION
+        ActionType.LOGIN -> PluginActionType.LOGIN
+        ActionType.VERIFICATION -> PluginActionType.VERIFICATION
+        ActionType.SETUP -> PluginActionType.SETUP
+        ActionType.UNKNOWN -> PluginActionType.UNKNOWN
+    }
 
     override suspend fun refreshPlugins() {
         dataSource.refreshPlugins()

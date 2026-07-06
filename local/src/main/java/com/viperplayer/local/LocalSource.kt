@@ -37,6 +37,9 @@ class LocalSource(context: Context) : SourceProvider {
         mediaScanner.scanMedia()
     }
 
+    /** Whether the audio permission is granted — drives the plugin's PERMISSION required action. */
+    fun hasAudioPermission(): Boolean = mediaScanner.hasAudioPermission()
+
     override suspend fun search(request: SearchRequest): SearchResult {
         ensureScanned()
         val query = request.query

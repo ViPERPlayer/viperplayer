@@ -442,4 +442,16 @@
     <string name="join_session_paste">Paste invite link</string>
     <string name="join_session_join">Join session</string>
     <string name="join_session_joined">Joined session</string>
+
+    <!-- Plugin pending actions -->
+    <string name="plugin_actions_title">Needs your attention</string>
+    <string name="plugin_actions_bell_cd">Pending plugin actions</string>
+    <string name="plugin_actions_fix">Fix</string>
+    <string name="plugin_actions_empty">Nothing needs your attention</string>
+    <string name="plugin_actions_banner_single">%1$s — %2$s</string>
+    <string name="plugin_actions_banner_multiple">%1$d plugins need your attention</string>
+    <string name="plugin_actions_dismiss">Dismiss</string>
+    <string name="plugin_action_needed">Action needed</string>
+    <string name="plugin_actions_channel_name">Plugin actions</string>
+    <string name="plugin_actions_channel_desc">Shown when a plugin needs you to sign in, verify, or grant a permission</string>
 </resources>

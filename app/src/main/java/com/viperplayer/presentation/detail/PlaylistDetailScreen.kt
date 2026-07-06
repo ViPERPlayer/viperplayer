@@ -47,11 +47,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
+import com.viperplayer.presentation.plugins.PluginActionsViewModel
+import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
@@ -73,11 +76,19 @@ fun PlaylistDetailScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
+    // If this screen's plugin needs the user to act (sign in, verify...), offer it on errors.
+    val actionsViewModel: PluginActionsViewModel = hiltViewModel()
+    val pendingActions by actionsViewModel.pendingActions.collectAsStateWithLifecycle()
+    val pluginAction = pendingActions.firstOrNull { it.pluginId == viewModel.pluginId }
+    val resolvePluginAction = rememberPluginActionResolver { actionsViewModel.refresh() }
+
     PlaylistDetailScreenContent(
         rootPadding = rootPadding,
         uiState = uiState,
         currentSong = currentSong,
         isPlaying = isPlaying,
+        pluginAction = pluginAction,
+        onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
         onRefresh = viewModel::refresh,
         onPlayAll = viewModel::playAll,
@@ -97,6 +108,8 @@ private fun PlaylistDetailScreenContent(
     uiState: PlaylistDetailUiState,
     currentSong: Song?,
     isPlaying: Boolean,
+    pluginAction: PluginPendingAction? = null,
+    onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
     onRefresh: () -> Unit,
     onPlayAll: () -> Unit,
@@ -143,6 +156,8 @@ private fun PlaylistDetailScreenContent(
             is PlaylistDetailUiState.Error -> {
                 ErrorState(
                     message = uiState.message,
+                    actionLabel = pluginAction?.title,
+                    onAction = pluginAction?.let { action -> { onResolvePluginAction(action) } },
                     onRetry = onRefresh,
                     modifier = Modifier
                         .padding(contentPadding)

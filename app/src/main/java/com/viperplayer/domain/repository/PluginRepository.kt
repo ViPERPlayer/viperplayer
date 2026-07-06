@@ -11,6 +11,7 @@ import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
@@ -37,6 +38,18 @@ interface PluginRepository {
      * Flow of plugin ids the user has explicitly disabled.
      */
     val disabledPlugins: Flow<Set<String>>
+
+    /**
+     * Pending user actions across all connected plugins (permission grants, sign-ins,
+     * verifications...), for the host to surface and let the user resolve.
+     */
+    val pendingActions: Flow<List<PluginPendingAction>>
+
+    /**
+     * Re-query every connected plugin's pending actions (e.g. after the user returns from a
+     * resolution step or the app comes back to the foreground).
+     */
+    suspend fun refreshPluginStatuses()
 
     /**
      * Discover all installed plugins.

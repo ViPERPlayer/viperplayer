@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,7 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
+import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.ktx.with
@@ -76,6 +78,16 @@ fun PluginsScreen(
     val context = LocalContext.current
     var menuPluginId by remember { mutableStateOf<String?>(null) }
     var showInfoDialog by remember { mutableStateOf<PluginInfo?>(null) }
+
+    // Pending user actions per plugin (permission, login, verification...).
+    val actionsViewModel: PluginActionsViewModel = hiltViewModel()
+    val pendingActions by actionsViewModel.pendingActions.collectAsStateWithLifecycle()
+    val pendingByPlugin = remember(pendingActions) { pendingActions.groupBy { it.pluginId } }
+    val resolveAction = rememberPluginActionResolver { actionsViewModel.refresh() }
+    LifecycleResumeEffect(Unit) {
+        actionsViewModel.refresh()
+        onPauseOrDispose { }
+    }
 
     Column(
         modifier = Modifier
@@ -197,6 +209,8 @@ fun PluginsScreen(
                             isConnected = isConnected,
                             isToggling = isToggling,
                             connectedPlugin = connectedPlugin,
+                            pendingAction = pendingByPlugin[plugin.id]?.firstOrNull(),
+                            onResolveAction = resolveAction,
                             showMenu = menuPluginId == plugin.id,
                             onToggle = { viewModel.togglePlugin(plugin.id) },
                             onLongPress = { menuPluginId = plugin.id },
@@ -290,6 +304,8 @@ fun PluginCard(
     isConnected: Boolean,
     isToggling: Boolean,
     connectedPlugin: Plugin?,
+    pendingAction: PluginPendingAction? = null,
+    onResolveAction: (PluginPendingAction) -> Unit = {},
     showMenu: Boolean,
     onToggle: () -> Unit,
     onLongPress: () -> Unit,
@@ -383,6 +399,15 @@ fun PluginCard(
                             )
                         }
                     }
+                }
+
+                // Pending user action (permission, login, verification...) — tap to resolve.
+                pendingAction?.let { action ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PluginActionChip(
+                        action = action,
+                        onClick = { onResolveAction(action) },
+                    )
                 }
 
                 // Show capabilities if connected

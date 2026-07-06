@@ -53,6 +53,9 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     private val playlistId = playlistDetail.playlistId
 
+    /** The plugin backing this screen — used to match pending plugin actions on errors. */
+    val pluginId: String get() = playlistId.pluginId
+
     // Minimal placeholder shown while the full playlist is (re)fetched by id.
     private val placeholderPlaylist = Playlist(
         id = playlistDetail.playlistId,
