@@ -15,6 +15,8 @@ import com.viperplayer.plugin.model.Song
  * Ids: a song's id is its `content://` URI string (so the host can resolve and play it directly),
  * while album/artist ids are the MediaStore album/artist ids. Local files are always offline, so
  * songs are emitted with `requiresInternet = false`.
+ *
+ * Missing tags reach this layer as nulls (see LocalSong) and only get display fallbacks here.
  */
 class LocalMapper {
 
@@ -26,16 +28,16 @@ class LocalMapper {
             artists = listOf(
                 Artist(
                     id = localSong.artistId.toString(),
-                    name = localSong.artistName,
+                    name = localSong.artistName ?: UNKNOWN_ARTIST,
                 ),
             ),
             album = Album(
                 id = localSong.albumId.toString(),
-                name = localSong.albumName,
+                name = localSong.albumName ?: UNKNOWN_ALBUM,
                 artists = listOf(
                     Artist(
                         id = localSong.artistId.toString(),
-                        name = localSong.artistName,
+                        name = localSong.albumArtist ?: localSong.artistName ?: UNKNOWN_ARTIST,
                     ),
                 ),
                 artwork = artwork,
@@ -44,27 +46,28 @@ class LocalMapper {
             durationMs = localSong.duration,
             artwork = artwork,
             trackNumber = localSong.trackNumber,
+            discNumber = localSong.discNumber,
             releaseYear = localSong.year,
+            genres = listOfNotNull(localSong.genre),
             isExplicit = false,
             isPlayable = true,
             requiresInternet = false,
+            extras = buildMap {
+                localSong.fileName?.let { put(EXTRA_FILE_NAME, it) }
+                localSong.mimeType?.let { put(EXTRA_MIME_TYPE, it) }
+            },
         )
     }
 
     fun toAlbum(localAlbum: LocalAlbum): Album {
         return Album(
             id = localAlbum.id.toString(),
-            name = localAlbum.name,
-            artists = listOf(
-                Artist(
-                    id = localAlbum.artistId.toString(),
-                    name = localAlbum.artistName,
-                ),
-            ),
+            name = localAlbum.name ?: UNKNOWN_ALBUM,
+            artists = listOf(localAlbum.displayArtist()),
             artwork = localAlbum.artworkUri?.toArtwork(),
             releaseYear = localAlbum.year,
             trackCount = localAlbum.trackCount,
-            type = determineAlbumType(localAlbum.trackCount),
+            type = determineAlbumType(localAlbum),
             songs = localAlbum.songs.map { toSong(it) },
         )
     }
@@ -72,35 +75,45 @@ class LocalMapper {
     fun toArtist(localArtist: LocalArtist): Artist {
         return Artist(
             id = localArtist.id.toString(),
-            name = localArtist.name,
+            name = localArtist.name ?: UNKNOWN_ARTIST,
             artwork = null,
             topSongs = localArtist.songs.take(10).map { toSong(it) },
-            albums = localArtist.albums.map { album -> toAlbumSummary(album, localArtist) },
+            albums = localArtist.albums.map { album -> toAlbumSummary(album) },
         )
     }
 
-    /** Album as it appears inside an artist view: no songs list, artist resolved to the parent. */
-    private fun toAlbumSummary(album: LocalAlbum, artist: LocalArtist): Album {
+    /** Album as it appears inside an artist view: no songs list. */
+    private fun toAlbumSummary(album: LocalAlbum): Album {
         return Album(
             id = album.id.toString(),
-            name = album.name,
-            artists = listOf(
-                Artist(
-                    id = artist.id.toString(),
-                    name = artist.name,
-                ),
-            ),
+            name = album.name ?: UNKNOWN_ALBUM,
+            artists = listOf(album.displayArtist()),
             artwork = album.artworkUri?.toArtwork(),
             releaseYear = album.year,
             trackCount = album.trackCount,
-            type = determineAlbumType(album.trackCount),
+            type = determineAlbumType(album),
         )
     }
 
-    private fun determineAlbumType(trackCount: Int): AlbumType {
+    /**
+     * The artist credited on the album: the inferred album artist when known, "Various artists"
+     * for multi-artist albums without one, otherwise the (single) song artist.
+     */
+    private fun LocalAlbum.displayArtist(): Artist {
+        val songArtists = songs.mapNotNull { it.artistName }.distinct()
+        val name = albumArtistName
+            ?: if (songArtists.size > 1) VARIOUS_ARTISTS else songArtists.firstOrNull() ?: UNKNOWN_ARTIST
+        val id = albumArtistId ?: songs.first().artistId
+        return Artist(id = id.toString(), name = name)
+    }
+
+    private fun determineAlbumType(album: LocalAlbum): AlbumType {
         return when {
-            trackCount == 1 -> AlbumType.SINGLE
-            trackCount <= 4 -> AlbumType.EP
+            album.isCompilation -> AlbumType.COMPILATION
+            album.albumArtistName == null &&
+                album.songs.mapNotNull { it.artistName }.distinct().size > 1 -> AlbumType.COMPILATION
+            album.trackCount == 1 -> AlbumType.SINGLE
+            album.trackCount <= 4 -> AlbumType.EP
             else -> AlbumType.ALBUM
         }
     }
@@ -108,5 +121,15 @@ class LocalMapper {
     private fun android.net.Uri.toArtwork(): Artwork {
         val uri = toString()
         return Artwork(thumbnailUrl = uri, fullUrl = uri)
+    }
+
+    companion object {
+        private const val UNKNOWN_ARTIST = "Unknown artist"
+        private const val UNKNOWN_ALBUM = "Unknown album"
+        private const val VARIOUS_ARTISTS = "Various artists"
+
+        /** Extras keys the host can read from a local Song. */
+        const val EXTRA_FILE_NAME = "fileName"
+        const val EXTRA_MIME_TYPE = "mimeType"
     }
 }

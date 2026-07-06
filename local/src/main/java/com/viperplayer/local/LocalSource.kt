@@ -56,21 +56,22 @@ class LocalSource(context: Context) : SourceProvider {
         if (includeSongs) {
             mediaScanner.getAllSongs().filter {
                 it.title.contains(query, ignoreCase = true) ||
-                    it.artistName.contains(query, ignoreCase = true) ||
-                    it.albumName.contains(query, ignoreCase = true)
+                    it.artistName?.contains(query, ignoreCase = true) == true ||
+                    it.albumName?.contains(query, ignoreCase = true) == true ||
+                    it.fileName?.contains(query, ignoreCase = true) == true
             }.take(perType).forEach { items.add(mapper.toSong(it)) }
         }
 
         if (includeAlbums) {
             mediaScanner.getAllAlbums().filter {
-                it.name.contains(query, ignoreCase = true) ||
-                    it.artistName.contains(query, ignoreCase = true)
+                it.name?.contains(query, ignoreCase = true) == true ||
+                    it.albumArtistName?.contains(query, ignoreCase = true) == true
             }.take(perType).forEach { items.add(mapper.toAlbum(it)) }
         }
 
         if (includeArtists) {
             mediaScanner.getAllArtists().filter {
-                it.name.contains(query, ignoreCase = true)
+                it.name?.contains(query, ignoreCase = true) == true
             }.take(perType).forEach { items.add(mapper.toArtist(it)) }
         }
 

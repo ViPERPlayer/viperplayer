@@ -40,7 +40,7 @@ jobs:
         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-      run: ./gradlew :app:build :plugin-sdk:build :plugin-example:build
+      run: ./gradlew :app:build :plugin-sdk:build :plugin-example:build :local:build
 
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
