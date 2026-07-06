@@ -1,5 +1,6 @@
 package com.viperplayer.local.mapper
 
+import android.net.Uri
 import com.viperplayer.local.model.LocalAlbum
 import com.viperplayer.local.model.LocalArtist
 import com.viperplayer.local.model.LocalSong
@@ -118,7 +119,7 @@ class LocalMapper {
         }
     }
 
-    private fun android.net.Uri.toArtwork(): Artwork {
+    private fun Uri.toArtwork(): Artwork {
         val uri = toString()
         return Artwork(thumbnailUrl = uri, fullUrl = uri)
     }

@@ -1,17 +1,17 @@
+<!-- All names are local_-prefixed: this module's resources merge into the host app,
+     where an identically-named app resource would silently override them. -->
 <resources>
-    <string name="app_name">Local for ViPER Player</string>
+    <string name="local_settings_title">Local files</string>
+    <string name="local_settings_back">Back</string>
+    <string name="local_settings_rescan">Rescan</string>
+    <string name="local_settings_loading">Loading songs…</string>
+    <string name="local_settings_empty_title">No local songs found</string>
+    <string name="local_settings_empty_body">Audio files on this device will show up here and in ViPER Player automatically.</string>
+    <string name="local_settings_songs_header">Available songs (%1$d)</string>
+    <string name="local_settings_unknown_artist">Unknown artist</string>
 
-    <string name="settings_title">Local files</string>
-    <string name="settings_back">Back</string>
-    <string name="settings_rescan">Rescan</string>
-    <string name="settings_loading">Loading songs…</string>
-    <string name="settings_empty_title">No local songs found</string>
-    <string name="settings_empty_body">Audio files on this device will show up here and in ViPER Player automatically.</string>
-    <string name="settings_songs_header">Available songs (%1$d)</string>
-    <string name="settings_unknown_artist">Unknown artist</string>
-
-    <string name="permission_title">Allow access to your music</string>
-    <string name="permission_body">Local Files needs permission to read the audio files on this device so it can play them in ViPER Player.</string>
-    <string name="permission_grant">Allow access</string>
-    <string name="permission_open_settings">Open system settings</string>
+    <string name="local_permission_title">Allow access to your music</string>
+    <string name="local_permission_body">ViPER Player needs permission to read the audio files on this device so it can play them.</string>
+    <string name="local_permission_grant">Allow access</string>
+    <string name="local_permission_open_settings">Open system settings</string>
 </resources>

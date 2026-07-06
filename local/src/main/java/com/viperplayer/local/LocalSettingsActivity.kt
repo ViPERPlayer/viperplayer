@@ -38,10 +38,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.viperplayer.local.data.LocalMediaScanner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.viperplayer.local.model.LocalSong
 import com.viperplayer.local.ui.theme.ViPERPlayerTheme
 
@@ -71,54 +72,46 @@ class LocalSettingsActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalSettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: LocalSettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
-    val scanner = remember { LocalMediaScanner(context) }
-    var hasPermission by remember { mutableStateOf(scanner.hasAudioPermission()) }
-    var songs by remember { mutableStateOf<List<LocalSong>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(hasPermission) }
-    var refreshKey by remember { mutableIntStateOf(0) }
-    var requestedOnce by remember { mutableStateOf(false) }
+    val state by viewModel.state.collectAsState()
+    var requestedOnce by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         requestedOnce = true
-        hasPermission = granted
+        viewModel.onPermissionResult(granted)
     }
 
-    LaunchedEffect(hasPermission, refreshKey) {
-        if (!hasPermission) {
-            // Ask right away on first entry; afterwards the user drives it with the button.
-            if (!requestedOnce) permissionLauncher.launch(LocalMediaScanner.requiredPermission)
-            return@LaunchedEffect
+    // Ask right away on first entry; afterwards the user drives it with the button.
+    LaunchedEffect(Unit) {
+        viewModel.refreshPermissionState()
+        if (!state.hasPermission && !requestedOnce) {
+            permissionLauncher.launch(viewModel.requiredPermission)
         }
-        isLoading = true
-        if (refreshKey > 0) scanner.clearCache()
-        scanner.scanMedia()
-        songs = scanner.getAllSongs()
-        isLoading = false
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(R.string.local_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.settings_back)
+                            contentDescription = stringResource(R.string.local_settings_back)
                         )
                     }
                 },
                 actions = {
-                    if (hasPermission) {
-                        IconButton(onClick = { refreshKey++ }, enabled = !isLoading) {
+                    if (state.hasPermission) {
+                        IconButton(onClick = { viewModel.rescan() }, enabled = !state.isLoading) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.settings_rescan)
+                                contentDescription = stringResource(R.string.local_settings_rescan)
                             )
                         }
                     }
@@ -127,10 +120,10 @@ fun LocalSettingsScreen(
         }
     ) { contentPadding ->
         when {
-            !hasPermission -> {
+            !state.hasPermission -> {
                 PermissionRequest(
                     contentPadding = contentPadding,
-                    onGrant = { permissionLauncher.launch(LocalMediaScanner.requiredPermission) },
+                    onGrant = { permissionLauncher.launch(viewModel.requiredPermission) },
                     onOpenSettings = {
                         context.startActivity(
                             Intent(
@@ -142,7 +135,7 @@ fun LocalSettingsScreen(
                 )
             }
 
-            isLoading -> {
+            state.isLoading -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -151,13 +144,13 @@ fun LocalSettingsScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.settings_loading),
+                        text = stringResource(R.string.local_settings_loading),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }
 
-            songs.isEmpty() -> {
+            state.songs.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -167,13 +160,13 @@ fun LocalSettingsScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.settings_empty_title),
+                        text = stringResource(R.string.local_settings_empty_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(R.string.settings_empty_body),
+                        text = stringResource(R.string.local_settings_empty_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -191,14 +184,14 @@ fun LocalSettingsScreen(
                 ) {
                     item {
                         Text(
-                            text = stringResource(R.string.settings_songs_header, songs.size),
+                            text = stringResource(R.string.local_settings_songs_header, state.songs.size),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
 
-                    items(songs) { song ->
+                    items(state.songs) { song ->
                         SongItem(song = song)
                     }
                 }
@@ -222,31 +215,31 @@ private fun PermissionRequest(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = stringResource(R.string.permission_title),
+            text = stringResource(R.string.local_permission_title),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = stringResource(R.string.permission_body),
+            text = stringResource(R.string.local_permission_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(onClick = onGrant) {
-            Text(stringResource(R.string.permission_grant))
+            Text(stringResource(R.string.local_permission_grant))
         }
         Spacer(modifier = Modifier.height(8.dp))
         // For the "don't ask again" case, where the system dialog no longer shows up.
         TextButton(onClick = onOpenSettings) {
-            Text(stringResource(R.string.permission_open_settings))
+            Text(stringResource(R.string.local_permission_open_settings))
         }
     }
 }
 
 @Composable
-fun SongItem(song: LocalSong) {
+private fun SongItem(song: LocalSong) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -267,7 +260,8 @@ fun SongItem(song: LocalSong) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = song.artistName ?: stringResource(R.string.settings_unknown_artist),
+                            text = song.artistName
+                                ?: stringResource(R.string.local_settings_unknown_artist),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

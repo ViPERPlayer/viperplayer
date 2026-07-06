@@ -5,6 +5,7 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -305,7 +306,7 @@ class LocalMediaScanner(context: Context) {
         lastScanTime = 0
     }
 
-    private fun android.database.Cursor.getStringOrNull(column: Int): String? =
+    private fun Cursor.getStringOrNull(column: Int): String? =
         if (column >= 0 && !isNull(column)) getString(column) else null
 
     /** Normalises blank strings and MediaStore's `<unknown>` placeholder to null. */

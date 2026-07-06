@@ -115,6 +115,9 @@ configurations.all {
 dependencies {
     // Plugin SDK
     implementation(project(":plugin-sdk"))
+
+    // Built-in plugins (embedded in the app; discovered like any other plugin, just in-process)
+    implementation(project(":local"))
     
     // Core Android
     implementation(libs.androidx.core.ktx)

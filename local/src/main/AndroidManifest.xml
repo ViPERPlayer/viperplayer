@@ -6,32 +6,27 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.ViPERPlayer">
+    <!--
+        This module is embedded in the host app: the manifest below merges into the app manifest,
+        so the plugin ships built in and the host discovers/binds its own (in-process) service the
+        same way it does external plugin packages. Nothing needs to be exported.
+    -->
+    <application>
         <activity
-            android:name=".MainActivity"
-            android:exported="true" />
-        
-        <activity
-            android:name=".LocalSettingsActivity"
-            android:exported="true"/>
+            android:name="com.viperplayer.local.LocalSettingsActivity"
+            android:exported="false" />
 
-        <service android:name=".LocalService"
-            android:exported="true"
+        <service
+            android:name="com.viperplayer.local.LocalService"
+            android:exported="false"
             android:enabled="true">
             <intent-filter>
                 <action android:name="com.viperplayer.plugin.ViperPluginService" />
             </intent-filter>
+            <meta-data
+                android:name="com.viperplayer.plugin.NAME"
+                android:value="Local Files" />
         </service>
-
-        <meta-data
-            android:name="com.viperplayer.plugin.NAME"
-            android:value="Local Files" />
     </application>
 
 </manifest>
