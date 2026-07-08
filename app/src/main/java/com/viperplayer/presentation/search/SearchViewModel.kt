@@ -353,7 +353,7 @@ class SearchViewModel @Inject constructor(
                 // Try to find the song in search results first
                 val songFromResults = findSongInResults(songId)
                 if (songFromResults != null) {
-                    playerRepository.play(songFromResults, PlaybackContext.Search)
+                    playerRepository.play(songFromResults, PlaybackContext.Search(_lastSearchedQuery.value))
                     return@launch
                 }
 
@@ -362,7 +362,7 @@ class SearchViewModel @Inject constructor(
                 songResult.onSuccess { song ->
                     // Save song to database
                     mediaLibraryRepository.saveSong(song)
-                    playerRepository.play(song, PlaybackContext.Search)
+                    playerRepository.play(song, PlaybackContext.Search(_lastSearchedQuery.value))
                 }.onFailure { error ->
                     // Handle error - could show a toast or error message
                     Timber.e(error, "Failed to play song: $songId")

@@ -208,17 +208,16 @@ class HomeViewModel @Inject constructor(
                 // Get all songs from quickPicks
                 val songs = state.quickPicks?.filterIsInstance<Song>().orEmpty()
 
+                // Quick picks are recommendations, so play them under the Suggestions context.
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
-                    val context = PlaybackContext.Search
                     if (index != -1) {
-                        playerRepository.playAll(songs, index, context)
+                        playerRepository.playAll(songs, index, PlaybackContext.Suggestions)
                     } else {
-                        playerRepository.play(song, context)
+                        playerRepository.play(song, PlaybackContext.Suggestions)
                     }
                 } else {
-                    val context = PlaybackContext.Search
-                    playerRepository.play(song, context)
+                    playerRepository.play(song, PlaybackContext.Suggestions)
                 }
             } catch (e: Exception) {
                 Timber.w(e, "HomeViewModel background operation failed")
@@ -276,17 +275,16 @@ class HomeViewModel @Inject constructor(
                 val section = state.sections.find { it.id == sectionId }
                 val songs = section?.items?.filterIsInstance<Song>().orEmpty()
 
+                // Home sections have no specific origin entity; leave the context generic.
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
-                    val context = PlaybackContext.Search
                     if (index != -1) {
-                        playerRepository.playAll(songs, index, context)
+                        playerRepository.playAll(songs, index)
                     } else {
-                        playerRepository.play(song, context)
+                        playerRepository.play(song)
                     }
                 } else {
-                    val context = PlaybackContext.Search
-                    playerRepository.play(song, context)
+                    playerRepository.play(song)
                 }
             } catch (e: Exception) {
                 Timber.w(e, "HomeViewModel background operation failed")

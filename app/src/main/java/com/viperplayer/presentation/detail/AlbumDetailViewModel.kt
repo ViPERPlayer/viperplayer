@@ -138,12 +138,10 @@ class AlbumDetailViewModel @AssistedInject constructor(
     fun playAlbum() {
         viewModelScope.launch {
             try {
-                val songs = when (val state = _uiState.value) {
-                    is AlbumDetailUiState.Success -> state.album.songs.orEmpty()
-                    else -> emptyList()
-                }
+                val state = _uiState.value as? AlbumDetailUiState.Success ?: return@launch
+                val songs = state.album.songs.orEmpty()
                 if (songs.isNotEmpty()) {
-                    playerRepository.playAll(songs, 0)
+                    playerRepository.playAll(songs, 0, PlaybackContext.Album(state.album.id, state.album.name))
                 }
             } catch (e: Exception) {
                 Timber.w(e, "AlbumDetail background operation failed")
@@ -154,12 +152,10 @@ class AlbumDetailViewModel @AssistedInject constructor(
     fun shuffle() {
         viewModelScope.launch {
             try {
-                val songs = when (val state = _uiState.value) {
-                    is AlbumDetailUiState.Success -> state.album.songs.orEmpty().shuffled()
-                    else -> emptyList()
-                }
+                val state = _uiState.value as? AlbumDetailUiState.Success ?: return@launch
+                val songs = state.album.songs.orEmpty().shuffled()
                 if (songs.isNotEmpty()) {
-                    playerRepository.playAll(songs, 0)
+                    playerRepository.playAll(songs, 0, PlaybackContext.Album(state.album.id, state.album.name))
                 }
             } catch (e: Exception) {
                 Timber.w(e, "AlbumDetail background operation failed")

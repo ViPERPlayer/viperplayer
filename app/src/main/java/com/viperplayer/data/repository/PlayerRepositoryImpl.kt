@@ -134,7 +134,12 @@ class PlayerRepositoryImpl @Inject constructor(
     // Playback state (state, shuffle, repeat, volume, queue info) - NO position, song, or duration
     override val playbackState: StateFlow<PlaybackInfo> =
         combine(controllerStateFlow, _playbackContext) { controller, context ->
-            PlayerStateMapper.createPlaybackInfo(controller).copy(playbackContext = context)
+            // While an auto-loaded suggestion is playing, surface that instead of the original
+            // context; skipping back into the original queue restores it automatically.
+            val effectiveContext = if (
+                controller.currentMediaItem?.let { MediaItemMapper.run { it.isSuggestion } } == true
+            ) PlaybackContext.Suggestions else context
+            PlayerStateMapper.createPlaybackInfo(controller).copy(playbackContext = effectiveContext)
         }
             .distinctUntilChanged()
             .stateIn(
@@ -246,7 +251,8 @@ class PlayerRepositoryImpl @Inject constructor(
             Timber.d("autoplay: tail=$tailMediaId related=${related.size} new=${fresh.size} queue=${controller.mediaItemCount}")
             if (fresh.isEmpty()) return@launch
             fresh.forEach { runCatching { mediaLibraryRepository.saveSong(it) } }
-            fresh.toMediaItems().forEach { controller.addMediaItem(it) }
+            // Marked so the player can flip its context to "Suggested songs" once these play.
+            fresh.toMediaItems().forEach { controller.addMediaItem(MediaItemMapper.run { it.asSuggestion() }) }
         }
     }
 

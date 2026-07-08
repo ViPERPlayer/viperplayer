@@ -184,12 +184,10 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     fun playAll() {
         viewModelScope.launch {
             try {
-                val songs = when (val state = _uiState.value) {
-                    is PlaylistDetailUiState.Success -> state.songs.filter { it.isPlayable }
-                    else -> emptyList()
-                }
+                val state = _uiState.value as? PlaylistDetailUiState.Success ?: return@launch
+                val songs = state.songs.filter { it.isPlayable }
                 if (songs.isNotEmpty()) {
-                    playerRepository.playAll(songs, 0)
+                    playerRepository.playAll(songs, 0, PlaybackContext.Playlist(state.playlist.id, state.playlist.name))
                 }
             } catch (e: Exception) {
                 Timber.w(e, "PlaylistDetail background operation failed")
@@ -200,14 +198,10 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     fun shuffle() {
         viewModelScope.launch {
             try {
-                val songs = when (val state = _uiState.value) {
-                    is PlaylistDetailUiState.Success -> state.songs.filter { it.isPlayable }
-                        .shuffled()
-
-                    else -> emptyList()
-                }
+                val state = _uiState.value as? PlaylistDetailUiState.Success ?: return@launch
+                val songs = state.songs.filter { it.isPlayable }.shuffled()
                 if (songs.isNotEmpty()) {
-                    playerRepository.playAll(songs, 0)
+                    playerRepository.playAll(songs, 0, PlaybackContext.Playlist(state.playlist.id, state.playlist.name))
                 }
             } catch (e: Exception) {
                 Timber.w(e, "PlaylistDetail background operation failed")

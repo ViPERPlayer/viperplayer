@@ -52,6 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -651,8 +652,11 @@ private fun ContextChip(
         is PlaybackContext.Album -> Icons.Filled.Album to context.name
         is PlaybackContext.Artist -> Icons.Filled.Person to context.name
         is PlaybackContext.Playlist -> Icons.AutoMirrored.Filled.QueueMusic to context.name
-        is PlaybackContext.Search -> Icons.Filled.Search to "Search"
-        null -> Icons.Filled.MusicNote to "Now playing"
+        is PlaybackContext.Search ->
+            Icons.Filled.Search to context.query.ifBlank { stringResource(R.string.player_context_search) }
+        PlaybackContext.Suggestions ->
+            Icons.Filled.AutoAwesome to stringResource(R.string.player_context_suggestions)
+        null -> Icons.Filled.MusicNote to stringResource(R.string.player_context_now_playing)
     }
     Row(
         modifier = modifier

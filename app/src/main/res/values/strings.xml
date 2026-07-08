@@ -443,6 +443,11 @@
     <string name="join_session_join">Join session</string>
     <string name="join_session_joined">Joined session</string>
 
+    <!-- Player context chip -->
+    <string name="player_context_search">Search</string>
+    <string name="player_context_suggestions">Suggested songs</string>
+    <string name="player_context_now_playing">Now playing</string>
+
     <!-- Plugin pending actions -->
     <string name="plugin_actions_title">Needs your attention</string>
     <string name="plugin_actions_bell_cd">Pending plugin actions</string>

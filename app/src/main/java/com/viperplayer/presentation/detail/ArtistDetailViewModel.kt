@@ -168,12 +168,10 @@ class ArtistDetailViewModel @AssistedInject constructor(
     fun playAllSongs() {
         viewModelScope.launch {
             try {
-                val songs = when (val state = _uiState.value) {
-                    is ArtistDetailUiState.Success -> state.artist.topSongs
-                    else -> emptyList()
-                }
+                val state = _uiState.value as? ArtistDetailUiState.Success ?: return@launch
+                val songs = state.artist.topSongs
                 if (songs.isNotEmpty()) {
-                    playerRepository.playAll(songs, 0)
+                    playerRepository.playAll(songs, 0, PlaybackContext.Artist(state.artist.id, state.artist.name))
                 }
             } catch (e: Exception) {
                 Timber.w(e, "ArtistDetail background operation failed")

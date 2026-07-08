@@ -56,5 +56,24 @@ object MediaItemMapper {
      * Converts a list of Songs to MediaItems.
      */
     fun List<Song>.toMediaItems(): List<MediaItem> = map { it.toMediaItem() }
+
+    /**
+     * Marks this item as an auto-loaded suggestion (appended when the original queue ran out).
+     * The player surfaces a "Suggested songs" context while one is playing.
+     */
+    fun MediaItem.asSuggestion(): MediaItem {
+        val extras = Bundle(mediaMetadata.extras ?: Bundle()).apply {
+            putBoolean(EXTRA_IS_SUGGESTION, true)
+        }
+        return buildUpon()
+            .setMediaMetadata(mediaMetadata.buildUpon().setExtras(extras).build())
+            .build()
+    }
+
+    /** Whether this item was appended by autoplay rather than queued by the user. */
+    val MediaItem.isSuggestion: Boolean
+        get() = mediaMetadata.extras?.getBoolean(EXTRA_IS_SUGGESTION) == true
+
+    private const val EXTRA_IS_SUGGESTION = "isSuggestion"
 }
 
