@@ -25,6 +25,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -99,6 +100,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -140,7 +142,9 @@ import com.viperplayer.presentation.ktx.formatDuration
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
 import kotlin.math.sin
@@ -218,19 +222,38 @@ fun PlayerScreen(
     // when the queue is empty so there's always exactly one page.
     val pagerSongs = if (queue.isEmpty()) listOf(song) else queue
     val currentIndex = pagerSongs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+    // currentSong, queue and pager position are three independent flows that settle at different
+    // times; read the index live so the settle handler below never compares against a stale value.
+    val liveCurrentIndex = rememberUpdatedState(currentIndex)
     val pagerState = rememberPagerState(initialPage = currentIndex) { pagerSongs.size }
-    // External track change (skip buttons / auto-advance) -> animate the pager to it.
+    // External track change (skip buttons / auto-advance) -> move the pager to match. Instant, not
+    // animated: on open the queue arrives after the current song, and animating across the loading
+    // gap looked like the player was flipping through tracks.
     LaunchedEffect(currentIndex) {
-        if (currentIndex != pagerState.currentPage) pagerState.animateScrollToPage(currentIndex)
+        if (currentIndex != pagerState.currentPage && !pagerState.isScrollInProgress) {
+            pagerState.scrollToPage(currentIndex)
+        }
     }
-    // User settled on a different page -> play that track. Guarded against the index it's already on
-    // so the programmatic scroll above never loops back into another play call.
-    LaunchedEffect(pagerState, pagerSongs) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            if (page != currentIndex && page in pagerSongs.indices) {
-                viewModel.playFromQueue(page)
+    // Change the track ONLY on a genuine user swipe. Playback must be driven by intent, not by page
+    // position — a programmatic scroll (above) and a queue re-emission both move settledPage without
+    // any drag, and reacting to those caused random song changes when the player opened.
+    LaunchedEffect(pagerState) {
+        var userDragged = false
+        launch {
+            pagerState.interactionSource.interactions.collect { interaction ->
+                if (interaction is DragInteraction.Start) userDragged = true
             }
         }
+        snapshotFlow { pagerState.isScrollInProgress }
+            .filter { scrolling -> !scrolling } // wait until the pager has settled
+            .collect {
+                if (!userDragged) return@collect
+                userDragged = false
+                val page = pagerState.currentPage
+                if (page != liveCurrentIndex.value && page in pagerSongs.indices) {
+                    viewModel.playFromQueue(page)
+                }
+            }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
