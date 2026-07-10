@@ -122,8 +122,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -134,6 +138,9 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.PlaybackContext
+import com.viperplayer.domain.model.isNavigable
+import com.viperplayer.domain.model.navigableAlbum
+import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
@@ -345,7 +352,7 @@ fun PlayerScreen(
                         onDismissRequest = { showOverflowMenu = false },
                         shape = RoundedCornerShape(22.dp),
                     ) {
-                        song.artists.firstOrNull()?.let { artist ->
+                        song.navigableArtist()?.let { artist ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_view_artist)) },
                                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
@@ -355,7 +362,7 @@ fun PlayerScreen(
                                 }
                             )
                         }
-                        song.album?.let { album ->
+                        song.navigableAlbum()?.let { album ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.player_go_to_album)) },
                                 leadingIcon = { Icon(Icons.Filled.Album, contentDescription = null) },
@@ -459,21 +466,13 @@ fun PlayerScreen(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.infiniteBasicMarquee()
                             )
-                            val subtitle = listOfNotNull(current.artistNames, current.album?.name)
-                                .joinToString(" · ")
-                            if (subtitle.isNotEmpty()) {
-                                Text(
-                                    text = subtitle,
-                                    color = Color.White.copy(alpha = 0.82f),
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .padding(top = 5.dp)
-                                        .infiniteBasicMarquee()
-                                )
-                            }
+                            ArtistAlbumSubtitle(
+                                song = current,
+                                onArtistClick = onNavigateToArtist,
+                                modifier = Modifier
+                                    .padding(top = 5.dp)
+                                    .infiniteBasicMarquee()
+                            )
                         }
                     }
                     ConnectedLikeButton(viewModel = viewModel)
@@ -662,6 +661,77 @@ fun PlayerScreen(
         )
     }
 }
+
+/**
+ * The artist(s) + album subtitle under the title. Each artist name is its own tap target that
+ * navigates to that specific artist; artists with no navigable target (blank source id) render as
+ * plain, inert text. The album name (when present) is appended after a " · " separator as a
+ * non-interactive suffix. Preserves the previous single-line marquee styling.
+ */
+@Composable
+private fun ArtistAlbumSubtitle(
+    song: Song,
+    onArtistClick: (Artist) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val artists = song.artists
+    val albumName = song.album?.name
+    if (artists.isEmpty() && albumName.isNullOrEmpty()) return
+
+    val linkColor = MaterialTheme.colorScheme.primary
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    // Build the line once per song, tagging each navigable artist span with its index so a tap can be
+    // mapped back to the artist under the finger.
+    val annotated = remember(artists, albumName, linkColor) {
+        buildAnnotatedString {
+            artists.forEachIndexed { index, artist ->
+                if (index > 0) append(", ")
+                if (artist.isNavigable()) {
+                    pushStringAnnotation(tag = ARTIST_TAG, annotation = index.toString())
+                    withStyle(SpanStyle(color = linkColor, fontWeight = FontWeight.SemiBold)) {
+                        append(artist.name)
+                    }
+                    pop()
+                } else {
+                    append(artist.name)
+                }
+            }
+            if (!albumName.isNullOrEmpty()) {
+                if (artists.isNotEmpty()) append(" · ")
+                append(albumName)
+            }
+        }
+    }
+
+    val hasNavigableArtist = artists.any { it.isNavigable() }
+    val tapModifier = if (hasNavigableArtist) {
+        Modifier.pointerInput(annotated) {
+            detectTapGestures { position ->
+                val layout = textLayoutResult ?: return@detectTapGestures
+                val offset = layout.getOffsetForPosition(position)
+                annotated.getStringAnnotations(ARTIST_TAG, offset, offset)
+                    .firstOrNull()
+                    ?.let { onArtistClick(artists[it.item.toInt()]) }
+            }
+        }
+    } else {
+        Modifier
+    }
+
+    Text(
+        text = annotated,
+        color = Color.White.copy(alpha = 0.82f),
+        fontSize = 17.sp,
+        fontWeight = FontWeight.Medium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        onTextLayout = { textLayoutResult = it },
+        modifier = modifier.then(tapModifier)
+    )
+}
+
+private const val ARTIST_TAG = "artist"
 
 /**
  * Translucent source chip ("Playing from …"). Display-only; navigation lives in the overflow menu.

@@ -52,6 +52,7 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PluginPendingAction
+import com.viperplayer.domain.model.isNavigable
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
@@ -348,12 +349,16 @@ private fun AlbumMetadataHeader(
                         append(artist.name)
                         val endIndex = length
 
-                        addStringAnnotation(
-                            tag = "artist",
-                            annotation = index.toString(),
-                            start = startIndex,
-                            end = endIndex
-                        )
+                        // Only unlinked (navigable) artists get a tap target; a blank source id
+                        // means there is nothing to navigate to, so leave the span inert.
+                        if (artist.isNavigable()) {
+                            addStringAnnotation(
+                                tag = "artist",
+                                annotation = index.toString(),
+                                start = startIndex,
+                                end = endIndex
+                            )
+                        }
 
                         if (index < album.artists.size - 1) {
                             append(", ")

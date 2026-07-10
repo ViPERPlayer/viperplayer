@@ -6,6 +6,8 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.navigableAlbum
+import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
@@ -35,8 +37,10 @@ data class SongInfoUiState(
     val pluginPackage: String,
     val isCurrentSong: Boolean,
 ) {
-    val artist: Artist? get() = song?.artists?.firstOrNull()
-    val album: Album? get() = song?.album
+    /** First artist with a real navigable target, or null when none is linked (tile hidden). */
+    val artist: Artist? get() = song?.navigableArtist()
+    /** The album only when it points at a real navigable target, else null (tile hidden). */
+    val album: Album? get() = song?.navigableAlbum()
 }
 
 @HiltViewModel(assistedFactory = SongInfoViewModel.Factory::class)

@@ -53,6 +53,8 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.navigableAlbum
+import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.presentation.player.PlayerViewModel
 
 /**
@@ -125,10 +127,8 @@ fun MediaItemOptionsBottomSheet(
                         onStartRadio = onStartRadio,
                         onDownload = onDownload,
                         onShare = onShare,
-                        onViewArtist = if (item.artists.isNotEmpty()) {
-                            { onViewArtist(item.artists.first()) }
-                        } else null,
-                        onViewAlbum = item.album?.let { { onViewAlbum(it) } },
+                        onViewArtist = item.navigableArtist()?.let { artist -> { onViewArtist(artist) } },
+                        onViewAlbum = item.navigableAlbum()?.let { album -> { onViewAlbum(album) } },
                         onViewDetails = onViewDetails
                     )
                 }
@@ -142,9 +142,7 @@ fun MediaItemOptionsBottomSheet(
                         onAddToQueue = onAddToQueue,
                         onAddToPlaylist = onAddToPlaylist,
                         onShare = onShare,
-                        onViewArtist = if (item.artists.isNotEmpty()) {
-                            { onViewArtist(item.artists.first()) }
-                        } else null,
+                        onViewArtist = item.navigableArtist()?.let { artist -> { onViewArtist(artist) } },
                         onViewDetails = onViewDetails
                     )
                 }
