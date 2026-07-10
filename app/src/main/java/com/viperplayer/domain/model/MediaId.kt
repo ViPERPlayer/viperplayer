@@ -14,6 +14,10 @@ data class MediaId(
     val pluginId: String,
     val sourceId: String
 ) : Parcelable {
+    init {
+        require(sourceId.isNotBlank()) { "MediaId.sourceId must not be blank" }
+    }
+
     override fun toString(): String {
         val encodedPluginId = Uri.encode(pluginId)
         val encodedSourceId = Uri.encode(sourceId)
@@ -21,6 +25,14 @@ data class MediaId(
     }
 
     companion object {
+        /**
+         * Builds a [MediaId], or null when [sourceId] is blank. Absence of a link is `null` — a
+         * MediaId must never exist with a blank sourceId. Use this at every construction site that
+         * may receive an unlinked reference (e.g. plugin byline artists).
+         */
+        fun of(pluginId: String, sourceId: String): MediaId? =
+            if (sourceId.isBlank()) null else MediaId(pluginId, sourceId)
+
         fun fromString(string: String): MediaId {
             try {
                 val params = string.split("&").associate {

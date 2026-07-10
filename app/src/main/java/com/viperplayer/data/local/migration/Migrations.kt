@@ -105,3 +105,17 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE viper_presets ADD COLUMN reverberationDry INTEGER NOT NULL DEFAULT 50")
     }
 }
+
+/**
+ * v5 -> v6: persist a song's full ordered byline (linked AND unlinked artists) as a JSON blob on
+ * `songs.artistsJson`. Unlinked byline artists have no id and so can't be `artists`/`song_artists`
+ * rows; the cross-ref table now only carries the LINKED refs (for reverse "songs by this artist"
+ * lookups). Old rows keep a NULL `artistsJson` and fall back to rebuilding the byline from
+ * cross-refs at read time — no data is lost. Matches SongEntity.artistsJson (nullable TEXT, no
+ * default), serialized by ArtistRefListConverter.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE songs ADD COLUMN artistsJson TEXT")
+    }
+}

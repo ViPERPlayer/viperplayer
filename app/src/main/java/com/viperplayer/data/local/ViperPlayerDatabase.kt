@@ -27,6 +27,7 @@ import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.entity.ViperDdcCoeffEntity
 import com.viperplayer.data.local.entity.ViperPresetEntity
+import com.viperplayer.data.local.entity.converter.ArtistRefListConverter
 import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConverter
 
 /**
@@ -49,10 +50,14 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         ViperDdcCoeffEntity::class,
         PlayEventEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
-@TypeConverters(AlbumTypeConverter::class, DynamicSystemDeviceTypeConverter::class)
+@TypeConverters(
+    AlbumTypeConverter::class,
+    DynamicSystemDeviceTypeConverter::class,
+    ArtistRefListConverter::class
+)
 abstract class ViperPlayerDatabase : RoomDatabase() {
     abstract fun artistDao(): ArtistDao
     abstract fun albumDao(): AlbumDao

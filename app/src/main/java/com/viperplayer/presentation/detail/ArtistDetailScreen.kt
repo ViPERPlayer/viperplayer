@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PluginPendingAction
@@ -400,13 +401,13 @@ private fun ArtistDetailScreenPreview() {
             Song(
                 id = MediaId("plugin", "song1"),
                 title = "Money",
-                artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+                artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
                 durationMs = 382000
             ),
             Song(
                 id = MediaId("plugin", "song2"),
                 title = "Another Brick in the Wall, Pt. 2",
-                artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+                artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
                 durationMs = 239000,
                 isExplicit = true
             )

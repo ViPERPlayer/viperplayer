@@ -4,6 +4,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistDetail
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CategoryContentType
 import com.viperplayer.domain.model.BannerSection
@@ -79,7 +80,7 @@ object PluginMapper {
     fun SdkSong.toDomain(pluginId: String): Song = Song(
         id = MediaId(pluginId, id),
         title = title,
-        artists = artists.map { it.toDomainRef(pluginId) },
+        artists = artists.map { it.toArtistRef(pluginId) },
         album = album?.toDomain(pluginId),
         durationMs = durationMs,
         artworkUrl = artwork.bestUrl(),
@@ -96,7 +97,7 @@ object PluginMapper {
     fun SdkVideo.toDomain(pluginId: String): Song = Song(
         id = MediaId(pluginId, id),
         title = title,
-        artists = artists.map { it.toDomainRef(pluginId) },
+        artists = artists.map { it.toArtistRef(pluginId) },
         album = album?.toDomain(pluginId),
         durationMs = durationMs,
         artworkUrl = artwork.bestUrl(),
@@ -120,7 +121,7 @@ object PluginMapper {
     fun SdkAlbum.toDomain(pluginId: String): Album = Album(
         id = MediaId(pluginId, id),
         name = name,
-        artists = artists.map { it.toDomainRef(pluginId) },
+        artists = artists.map { it.toArtistRef(pluginId) },
         artworkUrl = artwork.bestUrl(),
         releaseYear = releaseYear,
         trackCount = trackCount ?: 0,
@@ -128,11 +129,24 @@ object PluginMapper {
         songs = songs.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomainSong(pluginId) },
     )
 
-    fun SdkArtist.toDomainRef(pluginId: String): Artist = Artist(
-        id = MediaId(pluginId, id),
+    /** A byline credit (inside a Song/Album). Unlinked artists carry a null [ArtistRef.id]. */
+    fun SdkArtist.toArtistRef(pluginId: String): ArtistRef = ArtistRef(
         name = name,
-        imageUrl = artwork.bestUrl(),
+        id = MediaId.of(pluginId, id),
     )
+
+    /**
+     * A top-level entity artist (search result, similar artist, library artist) — always navigable,
+     * so it must carry a real id. A blank id here is an unlinked artist that should not be surfaced
+     * as an entity; callers use [toArtistRef] instead. Returns null so such an artist is skipped.
+     */
+    fun SdkArtist.toDomainRef(pluginId: String): Artist? = MediaId.of(pluginId, id)?.let { mediaId ->
+        Artist(
+            id = mediaId,
+            name = name,
+            imageUrl = artwork.bestUrl(),
+        )
+    }
 
     fun SdkArtist.toDomainDetail(pluginId: String): ArtistDetail = ArtistDetail(
         id = MediaId(pluginId, id),
@@ -143,7 +157,7 @@ object PluginMapper {
         playlists = playlists.map { it.toDomain(pluginId) },
         featuring = emptyList(),
         appearsOn = emptyList(),
-        similarArtists = similarArtists.map { it.toDomainRef(pluginId) },
+        similarArtists = similarArtists.mapNotNull { it.toDomainRef(pluginId) },
     )
 
     fun SdkPlaylist.toDomain(pluginId: String): Playlist = Playlist(
@@ -168,7 +182,7 @@ object PluginMapper {
         is SdkSong -> toDomain(pluginId)
         is SdkVideo -> toDomain(pluginId)
         is SdkAlbum -> toDomain(pluginId)
-        is SdkArtist -> toDomainRef(pluginId)
+        is SdkArtist -> toDomainRef(pluginId)  // entity artist; unlinked (blank id) -> null, skipped
         is SdkPlaylist -> toDomain(pluginId)
         is UnknownMediaItem -> null // a media kind this host doesn't understand; skip it
         is UnknownPlayableItem -> null // an unknown playable kind; skip it
@@ -250,6 +264,10 @@ object PluginMapper {
 
     fun <T, R> Page<T>.toDomain(transform: (T) -> R): PagedResult<R> =
         PagedResult(items.map(transform), nextCursor, totalCount)
+
+    /** Like [toDomain] but drops items the transform can't map (returns null). */
+    fun <T, R : Any> Page<T>.toDomainNotNull(transform: (T) -> R?): PagedResult<R> =
+        PagedResult(items.mapNotNull(transform), nextCursor, totalCount)
 
     fun PluginManifest.toDomainInfo(): PluginInfo = PluginInfo(
         id = id,

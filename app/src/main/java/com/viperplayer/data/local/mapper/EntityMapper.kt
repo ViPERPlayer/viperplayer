@@ -7,6 +7,7 @@ import com.viperplayer.data.local.entity.PlaylistEntity
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -26,6 +27,15 @@ object EntityMapper {
         )
     }
 
+    /** A linked byline ref for this entity artist (used when rebuilding a byline from cross-refs). */
+    fun Artist.toRef(): ArtistRef = ArtistRef(name = name, id = id)
+
+    /**
+     * A byline ref from a stored artist row. Uses [MediaId.of] so a pre-refactor row with a blank
+     * sourceId (an old unlinked-byline artist) becomes an unlinked ref (null id) instead of throwing.
+     */
+    fun ArtistEntity.toRef(): ArtistRef = ArtistRef(name = name, id = MediaId.of(pluginId, sourceId))
+
     fun Artist.toEntity(): ArtistEntity {
         return ArtistEntity(
             pluginId = id.pluginId,
@@ -39,7 +49,7 @@ object EntityMapper {
     }
 
     // Album mappings (requires artists to be loaded separately)
-    fun AlbumEntity.toDomain(artists: List<Artist> = emptyList()): Album {
+    fun AlbumEntity.toDomain(artists: List<ArtistRef> = emptyList()): Album {
         return Album(
             id = MediaId(pluginId, sourceId),
             name = name,
@@ -73,7 +83,7 @@ object EntityMapper {
     // Note: requiresInternet defaults to true (for streaming), but can be set by plugins
     fun SongEntity.toDomain(
         album: Album? = null,
-        artists: List<Artist> = emptyList(),
+        artists: List<ArtistRef> = emptyList(),
         isPlayable: Boolean = true,
         requiresInternet: Boolean = true
     ): Song {
@@ -119,6 +129,9 @@ object EntityMapper {
             isVideo = isVideo,
             downloadPath = null,
             localArtworkPath = null,
+            // Persist the full ordered byline (linked + unlinked). Empty stays null so a partial
+            // re-save with no artists doesn't clobber an existing stored byline.
+            artistsJson = artists.takeIf { it.isNotEmpty() },
             playCount = 0,
             lastPlayed = null,
             lastUpdated = System.currentTimeMillis(),

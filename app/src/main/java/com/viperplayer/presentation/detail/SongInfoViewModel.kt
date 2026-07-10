@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.navigableAlbum
 import com.viperplayer.domain.model.navigableArtist
+import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
@@ -38,7 +40,7 @@ data class SongInfoUiState(
     val isCurrentSong: Boolean,
 ) {
     /** First artist with a real navigable target, or null when none is linked (tile hidden). */
-    val artist: Artist? get() = song?.navigableArtist()
+    val artist: Artist? get() = song?.navigableArtist()?.toEntity()
     /** The album only when it points at a real navigable target, else null (tile hidden). */
     val album: Album? get() = song?.navigableAlbum()
 }
@@ -63,7 +65,7 @@ class SongInfoViewModel @AssistedInject constructor(
         id = mediaId,
         title = route.initialTitle,
         artists = if (route.initialArtist.isNotBlank()) {
-            listOf(Artist(id = mediaId, name = route.initialArtist))
+            listOf(ArtistRef(name = route.initialArtist, id = mediaId))
         } else {
             emptyList()
         },

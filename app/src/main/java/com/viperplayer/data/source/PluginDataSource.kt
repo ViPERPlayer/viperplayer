@@ -9,6 +9,7 @@ import android.content.ComponentName
 import android.os.IBinder
 import com.viperplayer.data.mapper.PluginMapper.toDomain
 import com.viperplayer.data.mapper.PluginMapper.toDomainDetail
+import com.viperplayer.data.mapper.PluginMapper.toDomainNotNull
 import com.viperplayer.data.mapper.PluginMapper.toDomainRef
 import com.viperplayer.data.mapper.PluginMapper.toMediaType
 import com.viperplayer.data.plugin.ConnectedPlugin
@@ -414,7 +415,7 @@ class PluginDataSource @Inject constructor(
 
     suspend fun getLibraryArtists(pluginId: String, cursor: String?, limit: Int): Result<PagedResult<Artist>> =
         runCatching {
-            source(pluginId).getLibraryArtists(PageRequest(cursor, limit)).toDomain { it.toDomainRef(pluginId) }
+            source(pluginId).getLibraryArtists(PageRequest(cursor, limit)).toDomainNotNull { it.toDomainRef(pluginId) }
         }.onFailure { Timber.e(it, "library artists failed for $pluginId") }
 
     suspend fun getLibraryPlaylists(pluginId: String, cursor: String?, limit: Int): Result<PagedResult<Playlist>> =

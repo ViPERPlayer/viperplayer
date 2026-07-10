@@ -141,6 +141,7 @@ import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.isNavigable
 import com.viperplayer.domain.model.navigableAlbum
 import com.viperplayer.domain.model.navigableArtist
+import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
@@ -352,7 +353,7 @@ fun PlayerScreen(
                         onDismissRequest = { showOverflowMenu = false },
                         shape = RoundedCornerShape(22.dp),
                     ) {
-                        song.navigableArtist()?.let { artist ->
+                        song.navigableArtist()?.toEntity()?.let { artist ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_view_artist)) },
                                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
@@ -712,7 +713,7 @@ private fun ArtistAlbumSubtitle(
                 val offset = layout.getOffsetForPosition(position)
                 annotated.getStringAnnotations(ARTIST_TAG, offset, offset)
                     .firstOrNull()
-                    ?.let { onArtistClick(artists[it.item.toInt()]) }
+                    ?.let { artists[it.item.toInt()].toEntity()?.let(onArtistClick) }
             }
         }
     } else {

@@ -49,10 +49,12 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.AlbumType
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.isNavigable
+import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
@@ -382,8 +384,8 @@ private fun AlbumMetadataHeader(
                                     )
                                     .firstOrNull()
                                     ?.let { annotation ->
-                                        val artist = album.artists[annotation.item.toInt()]
-                                        onArtistClick(artist)
+                                        album.artists[annotation.item.toInt()].toEntity()
+                                            ?.let(onArtistClick)
                                     }
                             }
                         }
@@ -500,7 +502,7 @@ private fun AlbumDetailScreenPreview() {
         Song(
             id = MediaId("plugin", "song1"),
             title = "Speak to Me",
-            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
             durationMs = 90000,
             trackNumber = 1,
             discNumber = 1
@@ -508,7 +510,7 @@ private fun AlbumDetailScreenPreview() {
         Song(
             id = MediaId("plugin", "song2"),
             title = "Breathe (In the Air)",
-            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
             durationMs = 169000,
             trackNumber = 2,
             discNumber = 1
@@ -516,7 +518,7 @@ private fun AlbumDetailScreenPreview() {
         Song(
             id = MediaId("plugin", "song3"),
             title = "On the Run",
-            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
             durationMs = 213000,
             trackNumber = 3,
             discNumber = 1,
@@ -525,7 +527,7 @@ private fun AlbumDetailScreenPreview() {
         Song(
             id = MediaId("plugin", "song4"),
             title = "Time",
-            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
             durationMs = 421000,
             trackNumber = 4,
             discNumber = 1
@@ -533,7 +535,7 @@ private fun AlbumDetailScreenPreview() {
         Song(
             id = MediaId("plugin", "song11"),
             title = "Bonus Track 1",
-            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
             durationMs = 300000,
             trackNumber = 1,
             discNumber = 2
@@ -541,7 +543,7 @@ private fun AlbumDetailScreenPreview() {
         Song(
             id = MediaId("plugin", "song12"),
             title = "Bonus Track 2",
-            artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
             durationMs = 240000,
             trackNumber = 2,
             discNumber = 2
@@ -551,7 +553,7 @@ private fun AlbumDetailScreenPreview() {
     val album = Album(
         id = MediaId("plugin", "album1"),
         name = "The Dark Side of the Moon",
-        artists = listOf(Artist(MediaId("plugin", "artist1"), "Pink Floyd")),
+        artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
         artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
         releaseYear = 1973,
         trackCount = 10,

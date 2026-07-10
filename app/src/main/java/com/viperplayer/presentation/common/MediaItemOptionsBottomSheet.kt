@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -127,7 +128,7 @@ fun MediaItemOptionsBottomSheet(
                         onStartRadio = onStartRadio,
                         onDownload = onDownload,
                         onShare = onShare,
-                        onViewArtist = item.navigableArtist()?.let { artist -> { onViewArtist(artist) } },
+                        onViewArtist = item.navigableArtist()?.toEntity()?.let { artist -> { onViewArtist(artist) } },
                         onViewAlbum = item.navigableAlbum()?.let { album -> { onViewAlbum(album) } },
                         onViewDetails = onViewDetails
                     )
@@ -142,7 +143,7 @@ fun MediaItemOptionsBottomSheet(
                         onAddToQueue = onAddToQueue,
                         onAddToPlaylist = onAddToPlaylist,
                         onShare = onShare,
-                        onViewArtist = item.navigableArtist()?.let { artist -> { onViewArtist(artist) } },
+                        onViewArtist = item.navigableArtist()?.toEntity()?.let { artist -> { onViewArtist(artist) } },
                         onViewDetails = onViewDetails
                     )
                 }

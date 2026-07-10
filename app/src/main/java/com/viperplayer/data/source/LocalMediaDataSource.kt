@@ -7,7 +7,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.net.toUri
 import com.viperplayer.domain.model.Album
-import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -70,15 +70,15 @@ class LocalMediaDataSource @Inject constructor(
                     id
                 )
 
-                val artist = Artist(
-                    id = MediaId("local", artistId.toString()),
-                    name = artistName ?: "Unknown Artist"
+                val artistRef = ArtistRef(
+                    name = artistName ?: "Unknown Artist",
+                    id = MediaId.of("local", artistId.toString())
                 )
 
                 val album = Album(
                     id = MediaId("local", albumId.toString()),
                     name = albumName ?: "Unknown Album",
-                    artists = listOf(artist),
+                    artists = listOf(artistRef),
                     artworkUrl = getAlbumArtUri(albumId)?.toString()
                 )
 
@@ -86,7 +86,7 @@ class LocalMediaDataSource @Inject constructor(
                     Song(
                         id = MediaId("local", contentUri.toString()),
                         title = title,
-                        artists = listOf(artist),
+                        artists = listOf(artistRef),
                         album = album,
                         durationMs = duration,
                         artworkUrl = getAlbumArtUri(albumId)?.toString(),

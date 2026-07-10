@@ -75,6 +75,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
@@ -1273,12 +1274,7 @@ private fun getSampleAlbums(): List<Album> {
         Album(
             id = MediaId("album", "1"),
             name = "Midnight Dreams",
-            artists = listOf(
-                Artist(
-                    id = MediaId("artist", "1"),
-                    name = "The Nocturnes"
-                )
-            ),
+            artists = listOf(ArtistRef(name = "The Nocturnes", id = MediaId("artist", "1"))),
             artworkUrl = "https://picsum.photos/seed/album1/400/400",
             releaseYear = 2023,
             trackCount = 12
@@ -1286,12 +1282,7 @@ private fun getSampleAlbums(): List<Album> {
         Album(
             id = MediaId("album", "2"),
             name = "Electric Waves",
-            artists = listOf(
-                Artist(
-                    id = MediaId("artist", "2"),
-                    name = "Synth Masters"
-                )
-            ),
+            artists = listOf(ArtistRef(name = "Synth Masters", id = MediaId("artist", "2"))),
             artworkUrl = "https://picsum.photos/seed/album2/400/400",
             releaseYear = 2024,
             trackCount = 10
@@ -1299,12 +1290,7 @@ private fun getSampleAlbums(): List<Album> {
         Album(
             id = MediaId("album", "3"),
             name = "Acoustic Sessions",
-            artists = listOf(
-                Artist(
-                    id = MediaId("artist", "3"),
-                    name = "The Unplugged"
-                )
-            ),
+            artists = listOf(ArtistRef(name = "The Unplugged", id = MediaId("artist", "3"))),
             artworkUrl = "https://picsum.photos/seed/album3/400/400",
             releaseYear = 2022,
             trackCount = 8
@@ -1312,12 +1298,7 @@ private fun getSampleAlbums(): List<Album> {
         Album(
             id = MediaId("album", "4"),
             name = "Urban Beats",
-            artists = listOf(
-                Artist(
-                    id = MediaId("artist", "4"),
-                    name = "City Sounds"
-                )
-            ),
+            artists = listOf(ArtistRef(name = "City Sounds", id = MediaId("artist", "4"))),
             artworkUrl = "https://picsum.photos/seed/album4/400/400",
             releaseYear = 2024,
             trackCount = 15
@@ -1325,12 +1306,7 @@ private fun getSampleAlbums(): List<Album> {
         Album(
             id = MediaId("album", "5"),
             name = "Classical Collection",
-            artists = listOf(
-                Artist(
-                    id = MediaId("artist", "5"),
-                    name = "Symphony Orchestra"
-                )
-            ),
+            artists = listOf(ArtistRef(name = "Symphony Orchestra", id = MediaId("artist", "5"))),
             artworkUrl = "https://picsum.photos/seed/album5/400/400",
             releaseYear = 2021,
             trackCount = 20

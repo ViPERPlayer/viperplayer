@@ -14,7 +14,7 @@ import kotlinx.serialization.Serializable
 data class Song(
     override val id: MediaId,
     val title: String,
-    val artists: List<Artist> = emptyList(),
+    val artists: List<ArtistRef> = emptyList(),
     val album: Album? = null,
     val durationMs: Long? = 0,
     val artworkUrl: String? = null,

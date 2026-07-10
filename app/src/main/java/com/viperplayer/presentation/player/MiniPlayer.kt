@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
@@ -374,9 +374,9 @@ fun MiniPlayerPreview() {
                     id = MediaId("test", "1"),
                     title = "Sample Song",
                     artists = listOf(
-                        Artist(
-                            id = MediaId("test", "artist1"),
-                            name = "Sample Artist"
+                        ArtistRef(
+                            name = "Sample Artist",
+                            id = MediaId("test", "artist1")
                         )
                     )
                 ),
