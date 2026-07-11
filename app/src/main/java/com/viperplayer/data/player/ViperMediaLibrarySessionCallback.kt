@@ -6,6 +6,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionError
+import androidx.core.net.toUri
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -174,19 +175,22 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                             is Artist -> buildBrowsableItem(
                                 PREFIX_ARTIST + it.id.toString(),
                                 it.name,
-                                it.imageUrl
+                                it.imageUrl,
+                                MediaMetadata.MEDIA_TYPE_ARTIST
                             )
 
                             is Album -> buildBrowsableItem(
                                 PREFIX_ALBUM + it.id.toString(),
                                 it.name,
-                                it.artworkUrl
+                                it.artworkUrl,
+                                MediaMetadata.MEDIA_TYPE_ALBUM
                             )
 
                             is Playlist -> buildBrowsableItem(
                                 PREFIX_PLAYLIST + it.id.toString(),
                                 it.name,
-                                it.artworkUrl
+                                it.artworkUrl,
+                                MediaMetadata.MEDIA_TYPE_PLAYLIST
                             )
 
                             else -> null
@@ -229,24 +233,30 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
 
     private fun getRootChildren(): List<MediaItem> {
         return listOf(
-            buildBrowsableItem(ARTISTS_ID, "Artists"),
-            buildBrowsableItem(ALBUMS_ID, "Albums"),
-            buildBrowsableItem(PLAYLISTS_ID, "Playlists"),
-            buildBrowsableItem(SONGS_ID, "Songs")
+            buildBrowsableItem(ARTISTS_ID, "Artists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS),
+            buildBrowsableItem(ALBUMS_ID, "Albums", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
+            buildBrowsableItem(PLAYLISTS_ID, "Playlists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS),
+            buildBrowsableItem(SONGS_ID, "Songs", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
         )
     }
 
     private suspend fun getAllArtists(): List<MediaItem> {
         val artists = mediaLibraryRepository.getAllSavedArtists().first()
         return artists.map { artist ->
-            buildBrowsableItem(PREFIX_ARTIST + artist.id.toString(), artist.name, artist.imageUrl)
+            buildBrowsableItem(
+                PREFIX_ARTIST + artist.id.toString(), artist.name, artist.imageUrl,
+                MediaMetadata.MEDIA_TYPE_ARTIST
+            )
         }
     }
 
     private suspend fun getAllAlbums(): List<MediaItem> {
         val albums = mediaLibraryRepository.getAllSavedAlbums().first()
         return albums.map { album ->
-            buildBrowsableItem(PREFIX_ALBUM + album.id.toString(), album.name, album.artworkUrl)
+            buildBrowsableItem(
+                PREFIX_ALBUM + album.id.toString(), album.name, album.artworkUrl,
+                MediaMetadata.MEDIA_TYPE_ALBUM
+            )
         }
     }
 
@@ -256,7 +266,8 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
             buildBrowsableItem(
                 PREFIX_PLAYLIST + playlist.id.toString(),
                 playlist.name,
-                playlist.artworkUrl
+                playlist.artworkUrl,
+                MediaMetadata.MEDIA_TYPE_PLAYLIST
             )
         }
     }
@@ -305,14 +316,21 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         return localPlaylist?.songs?.map { it.toMediaItem() } ?: emptyList()
     }
 
-    private fun buildBrowsableItem(id: String, title: String, iconUri: String? = null): MediaItem {
+    private fun buildBrowsableItem(
+        id: String,
+        title: String,
+        iconUri: String? = null,
+        mediaType: Int = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+    ): MediaItem {
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setIsBrowsable(true)
             .setIsPlayable(false)
+            .setMediaType(mediaType)
 
-        if (iconUri != null) {
-            // metadata.setArtworkUri(Uri.parse(iconUri)) // if Uri needed
+        // Artwork so Android Auto / the media browser render a thumbnail rather than a plain row.
+        if (!iconUri.isNullOrBlank()) {
+            metadata.setArtworkUri(iconUri.toUri())
         }
 
         return MediaItem.Builder()
