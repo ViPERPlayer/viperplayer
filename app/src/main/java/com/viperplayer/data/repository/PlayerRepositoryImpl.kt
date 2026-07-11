@@ -5,6 +5,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -99,6 +101,10 @@ class PlayerRepositoryImpl @Inject constructor(
                         trySend(controller)
                     }
 
+                    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+                        trySend(controller)
+                    }
+
                     override fun onPositionDiscontinuity(
                         oldPosition: Player.PositionInfo,
                         newPosition: Player.PositionInfo,
@@ -147,6 +153,16 @@ class PlayerRepositoryImpl @Inject constructor(
                 started = SharingStarted.Eagerly,
                 initialValue = PlaybackInfo()
             )
+
+    override val playbackSpeed: StateFlow<Float> =
+        controllerStateFlow.map { it.playbackParameters.speed }
+            .distinctUntilChanged()
+            .stateIn(scope, SharingStarted.WhileSubscribed(5000), 1f)
+
+    override val playbackPitch: StateFlow<Float> =
+        controllerStateFlow.map { it.playbackParameters.pitch }
+            .distinctUntilChanged()
+            .stateIn(scope, SharingStarted.WhileSubscribed(5000), 1f)
 
     // ... queue implementation same as before ...
 
@@ -657,6 +673,19 @@ class PlayerRepositoryImpl @Inject constructor(
 
     override suspend fun setRepeatMode(mode: RepeatMode) {
         mediaControllerManager.controllerFlow.first().repeatMode = mode.toMedia3RepeatMode()
+    }
+
+    override suspend fun setPlaybackSpeed(speed: Float) {
+        val controller = mediaControllerManager.controllerFlow.first()
+        controller.playbackParameters = controller.playbackParameters
+            .withSpeed(speed.coerceIn(0.25f, 3f))
+    }
+
+    override suspend fun setPlaybackPitch(pitch: Float) {
+        val controller = mediaControllerManager.controllerFlow.first()
+        val current = controller.playbackParameters
+        // Independent of speed — Sonic applies pitch separately from tempo.
+        controller.playbackParameters = PlaybackParameters(current.speed, pitch.coerceIn(0.5f, 2f))
     }
 
     override suspend fun getAudioFormat(): AudioFormat? {

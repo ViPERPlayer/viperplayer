@@ -78,7 +78,9 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Slider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.RadioButton
@@ -202,6 +204,7 @@ fun PlayerScreen(
     var showQr by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
     val comingSoonMessage = stringResource(R.string.toast_coming_soon)
@@ -387,6 +390,14 @@ fun PlayerScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 viewModel.startSongRadio()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_playback_speed)) },
+                            leadingIcon = { Icon(Icons.Filled.Speed, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                showSpeedDialog = true
                             }
                         )
                         DropdownMenuItem(
@@ -659,6 +670,67 @@ fun PlayerScreen(
             onDismiss = { showSleepTimerDialog = false },
         )
     }
+
+    if (showSpeedDialog) {
+        val speed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
+        val pitch by viewModel.playbackPitch.collectAsStateWithLifecycle()
+        PlaybackSpeedDialog(
+            speed = speed,
+            pitch = pitch,
+            onSpeedChange = viewModel::setPlaybackSpeed,
+            onPitchChange = viewModel::setPlaybackPitch,
+            onDismiss = { showSpeedDialog = false },
+        )
+    }
+}
+
+/**
+ * Adjusts playback speed (tempo) and pitch independently — Sonic time-stretches without altering
+ * pitch, and pitch shifts without altering tempo. Reset returns both to 1.0×.
+ */
+@Composable
+private fun PlaybackSpeedDialog(
+    speed: Float,
+    pitch: Float,
+    onSpeedChange: (Float) -> Unit,
+    onPitchChange: (Float) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
+        },
+        dismissButton = {
+            TextButton(onClick = { onSpeedChange(1f); onPitchChange(1f) }) {
+                Text(stringResource(R.string.action_reset))
+            }
+        },
+        title = { Text(stringResource(R.string.action_playback_speed)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.playback_speed_value, speed),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = speed,
+                    onValueChange = onSpeedChange,
+                    valueRange = 0.5f..2f,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.playback_pitch_value, pitch),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = pitch,
+                    onValueChange = onPitchChange,
+                    valueRange = 0.5f..2f,
+                )
+            }
+        },
+    )
 }
 
 /**

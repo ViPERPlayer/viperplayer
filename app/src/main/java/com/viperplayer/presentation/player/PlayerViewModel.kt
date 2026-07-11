@@ -213,6 +213,18 @@ class PlayerViewModel @Inject constructor(
     /** Currently-armed sleep timer duration in minutes, or null when off. */
     val sleepTimerMinutes: StateFlow<Int?> = sleepTimerManager.activeMinutes
 
+    /** Playback speed (tempo) and pitch, adjustable independently. */
+    val playbackSpeed: StateFlow<Float> = playerRepository.playbackSpeed
+    val playbackPitch: StateFlow<Float> = playerRepository.playbackPitch
+
+    fun setPlaybackSpeed(speed: Float) {
+        viewModelScope.launch { playerRepository.setPlaybackSpeed(speed) }
+    }
+
+    fun setPlaybackPitch(pitch: Float) {
+        viewModelScope.launch { playerRepository.setPlaybackPitch(pitch) }
+    }
+
     /** "Song radio": seed a queue of related songs from the current track and play it. */
     fun startSongRadio() {
         viewModelScope.launch {

@@ -133,6 +133,18 @@ interface PlayerRepository {
      */
     suspend fun setRepeatMode(mode: RepeatMode)
 
+    /** Current playback speed (tempo), 1.0 = normal. */
+    val playbackSpeed: StateFlow<Float>
+
+    /** Current playback pitch, 1.0 = normal. Adjustable independently of [playbackSpeed]. */
+    val playbackPitch: StateFlow<Float>
+
+    /** Set playback speed (tempo) without affecting pitch. Clamped to a sane range. */
+    suspend fun setPlaybackSpeed(speed: Float)
+
+    /** Set playback pitch without affecting speed. Clamped to a sane range. */
+    suspend fun setPlaybackPitch(pitch: Float)
+
     /**
      * Gets the current audio format from ExoPlayer (sample rate, bitrate, channels, bit depth).
      * Returns null if no track is playing or format information is not available.
