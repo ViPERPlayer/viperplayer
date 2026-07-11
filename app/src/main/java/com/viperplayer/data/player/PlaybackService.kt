@@ -48,6 +48,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
@@ -124,6 +125,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
         // Wire audio settings (skip-silence + ReplayGain) reactively to the player.
         observeAudioSettings()
+
+        // Keep any home-screen widget in sync while the service is alive (no-op if no widget added).
+        runCatching { PlayerWidgetUpdater.ensureStarted(this) }
+            .onFailure { Timber.w(it, "Failed to start widget updater") }
     }
 
     /**

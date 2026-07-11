@@ -485,4 +485,12 @@
     <string name="lyrics_title">Lyrics</string>
     <string name="lyrics_translate">Translate lyrics</string>
     <string name="lyrics_none">No lyrics available for this track</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_nothing_playing">Nothing playing</string>
+    <string name="widget_tap_to_open">Tap to open ViPER Player</string>
+    <string name="widget_artwork_cd">Album artwork</string>
+    <string name="widget_previous_cd">Previous track</string>
+    <string name="widget_play_pause_cd">Play or pause</string>
+    <string name="widget_next_cd">Next track</string>
 </resources>
