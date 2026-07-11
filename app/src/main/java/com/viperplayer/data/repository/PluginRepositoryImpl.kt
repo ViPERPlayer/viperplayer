@@ -288,6 +288,30 @@ class PluginRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getLibrarySongs(
+        pluginId: String,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Song>> = dataSource.getLibrarySongs(pluginId, cursor, limit)
+
+    override suspend fun getLibraryAlbums(
+        pluginId: String,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Album>> = dataSource.getLibraryAlbums(pluginId, cursor, limit)
+
+    override suspend fun getLibraryArtists(
+        pluginId: String,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Artist>> = dataSource.getLibraryArtists(pluginId, cursor, limit)
+
+    override suspend fun getLibraryPlaylists(
+        pluginId: String,
+        cursor: String?,
+        limit: Int
+    ): Result<PagedResult<Playlist>> = dataSource.getLibraryPlaylists(pluginId, cursor, limit)
+
     // ---- multi-plugin pagination ----
     // An aggregate cursor packs each plugin's own opaque cursor as base64(JSON); on "load more"
     // only the plugins that still have a cursor are re-queried, each with its own.

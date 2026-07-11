@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -44,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,9 +78,32 @@ fun PluginsScreen(
     viewModel: PluginsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val syncing by viewModel.syncing.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var menuPluginId by remember { mutableStateOf<String?>(null) }
     var showInfoDialog by remember { mutableStateOf<PluginInfo?>(null) }
+
+    // Surface library-sync outcomes as a Toast.
+    LaunchedEffect(Unit) {
+        viewModel.syncEvents.collect { event ->
+            val message = when (event) {
+                is LibrarySyncEvent.Success ->
+                    if (event.result.isEmpty) {
+                        context.getString(R.string.plugins_sync_empty)
+                    } else {
+                        context.getString(
+                            R.string.plugins_sync_result,
+                            event.result.songs,
+                            event.result.albums,
+                            event.result.artists,
+                            event.result.playlists,
+                        )
+                    }
+                is LibrarySyncEvent.Failure -> context.getString(R.string.plugins_sync_failed)
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
 
     // Pending user actions per plugin (permission, login, verification...).
     val actionsViewModel: PluginActionsViewModel = hiltViewModel()
@@ -212,9 +238,15 @@ fun PluginsScreen(
                             pendingAction = pendingByPlugin[plugin.id]?.firstOrNull(),
                             onResolveAction = resolveAction,
                             showMenu = menuPluginId == plugin.id,
+                            canSyncLibrary = viewModel.hasLibrary(plugin.id),
+                            isSyncing = plugin.id in syncing,
                             onToggle = { viewModel.togglePlugin(plugin.id) },
                             onLongPress = { menuPluginId = plugin.id },
                             onDismissMenu = { menuPluginId = null },
+                            onSyncLibrary = {
+                                menuPluginId = null
+                                viewModel.syncLibrary(plugin.id)
+                            },
                             onShowInfo = {
                                 showInfoDialog = displayInfo
                                 menuPluginId = null
@@ -307,9 +339,12 @@ fun PluginCard(
     pendingAction: PluginPendingAction? = null,
     onResolveAction: (PluginPendingAction) -> Unit = {},
     showMenu: Boolean,
+    canSyncLibrary: Boolean = false,
+    isSyncing: Boolean = false,
     onToggle: () -> Unit,
     onLongPress: () -> Unit,
     onDismissMenu: () -> Unit,
+    onSyncLibrary: () -> Unit = {},
     onShowInfo: () -> Unit,
     onUninstall: () -> Unit,
     modifier: Modifier = Modifier,
@@ -431,6 +466,15 @@ fun PluginCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            // Library sync in progress for this plugin.
+            if (isSyncing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             // Show settings button if plugin has settings activity
             if (plugin.settingsActivity != null) {
                 IconButton(
@@ -464,6 +508,19 @@ fun PluginCard(
                     expanded = showMenu,
                     onDismissRequest = onDismissMenu
                 ) {
+                    if (canSyncLibrary) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.plugins_sync_library)) },
+                            onClick = onSyncLibrary,
+                            enabled = !isSyncing,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = null
+                                )
+                            }
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.plugins_show_info)) },
                         onClick = onShowInfo,

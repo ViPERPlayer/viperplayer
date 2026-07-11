@@ -334,6 +334,12 @@
     <string name="plugins_settings_cd">Plugin Settings</string>
     <string name="plugins_show_info">Show info</string>
     <string name="plugins_uninstall">Uninstall</string>
+    <string name="plugins_sync_library">Sync library</string>
+    <string name="plugins_sync_started">Syncing library…</string>
+    <string name="plugins_sync_empty">This source has no library</string>
+    <string name="plugins_sync_failed">Couldn\'t sync library</string>
+    <!-- Sync result: %1$d songs, %2$d albums, %3$d artists, %4$d playlists -->
+    <string name="plugins_sync_result">Synced %1$d songs, %2$d albums, %3$d artists, %4$d playlists</string>
 
     <!-- Listen-together / social sheets -->
     <string name="social_share_subtitle">Share what you\'re listening to so friends can follow along.</string>

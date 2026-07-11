@@ -2,12 +2,18 @@ package com.viperplayer.presentation.plugins
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.sync.LibrarySyncManager
+import com.viperplayer.data.sync.SyncResult
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -31,7 +37,8 @@ data class PluginsUiState(
  */
 @HiltViewModel
 class PluginsViewModel @Inject constructor(
-    private val pluginRepository: PluginRepository
+    private val pluginRepository: PluginRepository,
+    private val librarySyncManager: LibrarySyncManager,
 ) : ViewModel() {
     companion object {
         private const val TAG = "PluginsViewModel"
@@ -39,6 +46,16 @@ class PluginsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(PluginsUiState())
     val uiState: StateFlow<PluginsUiState> = _uiState.asStateFlow()
+
+    /** Plugin ids currently having their library synced (for a per-row spinner). */
+    val syncing: StateFlow<Set<String>> = librarySyncManager.syncing
+
+    /** One-shot library-sync outcomes for the UI to surface as a Toast/snackbar. */
+    private val _syncEvents = MutableSharedFlow<LibrarySyncEvent>(
+        extraBufferCapacity = 8,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val syncEvents: SharedFlow<LibrarySyncEvent> = _syncEvents.asSharedFlow()
 
     init {
         Timber.d("ViewModel initialized")
@@ -136,5 +153,35 @@ class PluginsViewModel @Inject constructor(
     fun getConnectedPlugin(pluginId: String): Plugin? {
         return _uiState.value.connectedPlugins[pluginId]
     }
+
+    /** True when the connected plugin advertises an account library that can be synced. */
+    fun hasLibrary(pluginId: String): Boolean {
+        return _uiState.value.connectedPlugins[pluginId]?.capabilities?.hasLibrary ?: false
+    }
+
+    /**
+     * Pull [pluginId]'s account library into the local library, then emit a one-shot event with the
+     * counts (or "no library") for the UI to Toast.
+     */
+    fun syncLibrary(pluginId: String) {
+        Timber.d("syncLibrary() called for: $pluginId")
+        viewModelScope.launch {
+            val event = try {
+                LibrarySyncEvent.Success(pluginId, librarySyncManager.syncPlugin(pluginId))
+            } catch (e: Exception) {
+                Timber.e(e, "syncLibrary() failed for: $pluginId")
+                LibrarySyncEvent.Failure(pluginId, e.message)
+            }
+            _syncEvents.emit(event)
+        }
+    }
+}
+
+/** One-shot result of a library sync, surfaced to the UI as a Toast/snackbar. */
+sealed interface LibrarySyncEvent {
+    val pluginId: String
+
+    data class Success(override val pluginId: String, val result: SyncResult) : LibrarySyncEvent
+    data class Failure(override val pluginId: String, val message: String?) : LibrarySyncEvent
 }
 

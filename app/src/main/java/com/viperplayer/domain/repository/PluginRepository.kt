@@ -146,6 +146,34 @@ interface PluginRepository {
         limit: Int = 50
     ): Result<PagedResult<Playlist>>
 
+    /** Get one plugin's library songs (single-plugin, opaque per-plugin cursor). */
+    suspend fun getLibrarySongs(
+        pluginId: String,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Song>>
+
+    /** Get one plugin's library albums (single-plugin, opaque per-plugin cursor). */
+    suspend fun getLibraryAlbums(
+        pluginId: String,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Album>>
+
+    /** Get one plugin's library artists (single-plugin, opaque per-plugin cursor). */
+    suspend fun getLibraryArtists(
+        pluginId: String,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Artist>>
+
+    /** Get one plugin's library playlists (single-plugin, opaque per-plugin cursor). */
+    suspend fun getLibraryPlaylists(
+        pluginId: String,
+        cursor: String? = null,
+        limit: Int = 50
+    ): Result<PagedResult<Playlist>>
+
     /**
      * Get song details.
      */
