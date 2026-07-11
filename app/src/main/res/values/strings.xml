@@ -480,4 +480,9 @@
     <string name="playlist_import">Import playlist</string>
     <string name="playlist_import_success">Imported %1$d songs (%2$d skipped)</string>
     <string name="playlist_import_failure">Couldn\'t import playlist</string>
+
+    <!-- Lyrics -->
+    <string name="lyrics_title">Lyrics</string>
+    <string name="lyrics_translate">Translate lyrics</string>
+    <string name="lyrics_none">No lyrics available for this track</string>
 </resources>

@@ -142,7 +142,12 @@ dependencies {
     
     // Kotlinx
     implementation(libs.kotlinx.coroutines.guava)
+    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.serialization.json)
+
+    // ML Kit — on-device lyrics translation (models download on demand; no API key)
+    implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
 
     // Ktor Client
     implementation(libs.ktor.client.core)

@@ -2,6 +2,7 @@ package com.viperplayer.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
@@ -14,8 +15,11 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,6 +36,7 @@ class PlayerViewModel @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val pluginRepository: PluginRepository,
     private val sleepTimerManager: SleepTimerManager,
+    private val lyricsTranslator: LyricsTranslator,
 ) : ViewModel() {
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
@@ -58,6 +64,45 @@ class PlayerViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
+
+    // --- Lyrics translation (on-device, ML Kit) ---
+
+    private val _translationEnabled = MutableStateFlow(false)
+
+    /** Whether the user has toggled on translated lyrics in the lyrics sheet. */
+    val translationEnabled: StateFlow<Boolean> = _translationEnabled.asStateFlow()
+
+    /** Flip the lyrics-translation toggle. */
+    fun toggleTranslation() {
+        _translationEnabled.value = !_translationEnabled.value
+    }
+
+    private val _translationInProgress = MutableStateFlow(false)
+
+    /** True while an on-device translation is being computed (model download / per-line translate). */
+    val translationInProgress: StateFlow<Boolean> = _translationInProgress.asStateFlow()
+
+    /**
+     * Per-line translations aligned to [lyrics] `.lines` order, or null when translation is off,
+     * unavailable, or still loading. Recomputed whenever the song or the toggle changes; in-flight
+     * work is cancelled by [mapLatest] when either input changes.
+     */
+    val translatedLines: StateFlow<List<String>?> = combine(lyrics, translationEnabled) { l, enabled ->
+        l.takeIf { enabled }
+    }.mapLatest { current ->
+        val lines = current?.lines?.map { it.text }
+        if (lines.isNullOrEmpty()) return@mapLatest null
+        _translationInProgress.value = true
+        try {
+            lyricsTranslator.translate(lines, Locale.getDefault().language)
+        } finally {
+            _translationInProgress.value = false
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
 
     /**
      * Gets the current playback position in milliseconds.

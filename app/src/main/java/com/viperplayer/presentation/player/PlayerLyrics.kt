@@ -17,7 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,9 +38,11 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.R
 import com.viperplayer.domain.model.Lyrics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -106,6 +110,8 @@ fun LyricsSheet(
     onDismiss: () -> Unit
 ) {
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
+    val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
+    val translatedLines by viewModel.translatedLines.collectAsStateWithLifecycle()
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
@@ -121,12 +127,30 @@ fun LyricsSheet(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 8.dp)
     ) {
-        Text(
-            text = "Lyrics",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.lyrics_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { viewModel.toggleTranslation() }) {
+                Icon(
+                    imageVector = Icons.Filled.Translate,
+                    contentDescription = stringResource(R.string.lyrics_translate),
+                    tint = if (translationEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        }
 
         val current = lyrics
         when {
@@ -138,7 +162,7 @@ fun LyricsSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No lyrics available for this track",
+                        text = stringResource(R.string.lyrics_none),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -159,6 +183,8 @@ fun LyricsSheet(
                 val sungColor = MaterialTheme.colorScheme.primary
                 val pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                val translationColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                val translations = translatedLines
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.heightIn(max = 520.dp),
@@ -182,20 +208,35 @@ fun LyricsSheet(
                         } else {
                             AnnotatedString(line.text)
                         }
-                        Text(
-                            text = lineText,
-                            color = when {
-                                active && line.words.isNotEmpty() -> Color.Unspecified
-                                active -> sungColor
-                                else -> inactiveColor
-                            },
-                            fontSize = if (active) 20.sp else 17.sp,
-                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        val translation = translations?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSeek(line.startMs) }
                                 .padding(vertical = 2.dp)
-                        )
+                        ) {
+                            Text(
+                                text = lineText,
+                                color = when {
+                                    active && line.words.isNotEmpty() -> Color.Unspecified
+                                    active -> sungColor
+                                    else -> inactiveColor
+                                },
+                                fontSize = if (active) 20.sp else 17.sp,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                            )
+                            // Per-line translation: smaller and dimmer, never cropped (wraps freely).
+                            if (translation != null) {
+                                Text(
+                                    text = translation,
+                                    color = translationColor,
+                                    fontSize = if (active) 15.sp else 13.sp,
+                                    fontStyle = FontStyle.Italic,
+                                    fontWeight = FontWeight.Normal,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
