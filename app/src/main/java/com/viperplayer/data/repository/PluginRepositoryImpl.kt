@@ -1,6 +1,7 @@
 package com.viperplayer.data.repository
 
 import android.util.Base64
+import com.viperplayer.data.lyrics.LrcLibLyricsProvider
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -50,6 +51,7 @@ import javax.inject.Singleton
 class PluginRepositoryImpl @Inject constructor(
     private val dataSource: PluginDataSource,
     private val settingsRepository: SettingsRepository,
+    private val lrcLib: LrcLibLyricsProvider,
 ) : PluginRepository {
     override val discoveredPlugins: Flow<List<PluginInfo>>
         get() = dataSource.discoveredPlugins.map { plugins ->
@@ -346,13 +348,21 @@ class PluginRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getLyrics(song: Song): Result<Lyrics?> {
-        return dataSource.getLyrics(
+        val fromPlugin = dataSource.getLyrics(
             id = song.id,
             title = song.title,
             artist = song.artistNames,
             album = song.album?.name,
             durationMs = song.durationMs
-        )
+        ).getOrNull()?.takeUnless { it.isEmpty }
+
+        // A synced result from the source plugin (possibly word-level) is best. Otherwise fall back
+        // to LRCLIB for line-synced lyrics, keeping any plugin plain text as a last resort.
+        if (fromPlugin != null && fromPlugin.synced) return Result.success(fromPlugin)
+        val fallback = runCatching { lrcLib.getLyrics(song) }
+            .onFailure { Timber.e(it, "LRCLIB fallback threw for '${song.title}'") }
+            .getOrNull()?.takeUnless { it.isEmpty }
+        return Result.success(fallback?.takeIf { it.synced } ?: fromPlugin ?: fallback)
     }
 
     override suspend fun getArtistSongs(

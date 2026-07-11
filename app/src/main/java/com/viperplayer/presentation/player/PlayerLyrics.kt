@@ -30,9 +30,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,14 +72,13 @@ fun LyricLine(
             tint = Color.White.copy(alpha = 0.92f),
             modifier = Modifier.size(20.dp)
         )
+        // Lyrics are never cropped — the current line wraps to as many lines as it needs.
         Text(
             text = text,
             color = Color.White.copy(alpha = 0.92f),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             fontStyle = FontStyle.Italic,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -109,7 +111,8 @@ fun LyricsSheet(
     LaunchedEffect(Unit) {
         while (isActive) {
             position = viewModel.getCurrentPosition()
-            delay(200)
+            // Poll faster for word-by-word lyrics so the highlight tracks each word smoothly.
+            delay(if (lyrics?.wordSynced == true) 90L else 200L)
         }
     }
 
@@ -153,6 +156,9 @@ fun LyricsSheet(
                         )
                     }
                 }
+                val sungColor = MaterialTheme.colorScheme.primary
+                val pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.heightIn(max = 520.dp),
@@ -161,12 +167,27 @@ fun LyricsSheet(
                 ) {
                     itemsIndexed(current.lines) { index, line ->
                         val active = index == activeIndex
+                        // On the active line with word timings, reveal it word-by-word: words already
+                        // sung take the accent color, upcoming words stay dim. Otherwise the whole
+                        // line highlights at once.
+                        val lineText = if (active && line.words.isNotEmpty()) {
+                            val wordIndex = line.currentWordIndex(position)
+                            buildAnnotatedString {
+                                line.words.forEachIndexed { i, word ->
+                                    withStyle(SpanStyle(color = if (i <= wordIndex) sungColor else pendingColor)) {
+                                        append(word.text)
+                                    }
+                                }
+                            }
+                        } else {
+                            AnnotatedString(line.text)
+                        }
                         Text(
-                            text = line.text,
-                            color = if (active) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                            text = lineText,
+                            color = when {
+                                active && line.words.isNotEmpty() -> Color.Unspecified
+                                active -> sungColor
+                                else -> inactiveColor
                             },
                             fontSize = if (active) 20.sp else 17.sp,
                             fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,

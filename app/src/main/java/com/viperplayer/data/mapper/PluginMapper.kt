@@ -17,6 +17,8 @@ import com.viperplayer.domain.model.ItemShape
 import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsLine
+import com.viperplayer.domain.model.LyricsWord
+import com.viperplayer.plugin.util.LrcParser
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.SectionAction
 import com.viperplayer.domain.model.SectionFilter
@@ -172,11 +174,28 @@ object PluginMapper {
         songs = songs.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomainSong(pluginId) },
     )
 
-    fun SdkLyrics.toDomain(): Lyrics = Lyrics(
-        synced = synced,
-        lines = lines.map { LyricsLine(startMs = it.startMs, text = it.text) },
-        plainText = plainText,
-    )
+    fun SdkLyrics.toDomain(): Lyrics {
+        // A provider may hand us timed lines directly, or return raw LRC text (standard, or the
+        // word-level A2 "enhanced" form) in plainText — parse that so it still syncs word-by-word.
+        val rawText = plainText
+        val parsed = if (lines.isEmpty() && !rawText.isNullOrBlank() && LrcParser.looksLikeLrc(rawText)) {
+            LrcParser.parse(rawText)
+        } else {
+            null
+        }
+        val effectiveLines = parsed?.lines ?: lines
+        return Lyrics(
+            synced = (synced || parsed?.synced == true) && effectiveLines.isNotEmpty(),
+            lines = effectiveLines.map { line ->
+                LyricsLine(
+                    startMs = line.startMs,
+                    text = line.text,
+                    words = line.words.map { LyricsWord(startMs = it.startMs, text = it.text) },
+                )
+            },
+            plainText = plainText,
+        )
+    }
 
     fun SdkMediaItem.toDomain(pluginId: String): MediaItem? = when (this) {
         is SdkSong -> toDomain(pluginId)
