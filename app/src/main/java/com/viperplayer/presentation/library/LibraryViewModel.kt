@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.repository.NetworkConnectivityChecker
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -70,7 +71,8 @@ class LibraryViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val networkConnectivityChecker: NetworkConnectivityChecker
+    private val networkConnectivityChecker: NetworkConnectivityChecker,
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -253,10 +255,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun downloadSong(song: Song) {
-        // TODO: Implement download
-        viewModelScope.launch {
-            // mediaLibraryRepository.setSongDownloaded(song.id, true, downloadPath)
-        }
+        downloadManager.enqueue(song)
     }
 
     fun playAlbum(album: Album) {

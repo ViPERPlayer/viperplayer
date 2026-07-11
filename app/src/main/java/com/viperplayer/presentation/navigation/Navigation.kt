@@ -30,6 +30,7 @@ import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailViewModel
 import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
+import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
@@ -90,6 +91,9 @@ object History : NavKey
 
 @Serializable
 object Analytics : NavKey
+
+@Serializable
+object Downloads : NavKey
 
 @Serializable
 data class AlbumDetail(
@@ -179,7 +183,8 @@ fun ViperNavDisplay(
                 },
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
-                }
+                },
+                onNavigateToDownloads = { navigator.navigate(Downloads) }
             )
         }
 
@@ -261,6 +266,13 @@ fun ViperNavDisplay(
 
         entry<Analytics> {
             AnalyticsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Downloads> {
+            DownloadsScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() }
             )

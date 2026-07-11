@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -208,6 +209,8 @@ fun PlayerScreen(
     val context = LocalContext.current
     val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
     val comingSoonMessage = stringResource(R.string.toast_coming_soon)
+    val downloadStartedMessage = stringResource(R.string.toast_download_started)
+    val downloadUnavailableMessage = stringResource(R.string.toast_download_unavailable)
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
 
     val song = currentSong
@@ -416,6 +419,16 @@ fun PlayerScreen(
                                 showOverflowMenu = false
                                 // No add-to-existing-playlist backend yet — mocked, prepared for wiring.
                                 Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_download)) },
+                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                val started = viewModel.downloadCurrentSong()
+                                val message = if (started) downloadStartedMessage else downloadUnavailableMessage
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                             }
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

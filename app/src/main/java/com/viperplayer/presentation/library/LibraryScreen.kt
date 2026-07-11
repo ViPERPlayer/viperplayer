@@ -19,6 +19,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Refresh
@@ -69,6 +70,7 @@ fun LibraryScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToDownloads: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -138,6 +140,12 @@ fun LibraryScreen(
                                 contentDescription = stringResource(R.string.playlist_import)
                             )
                         }
+                    }
+                    IconButton(onClick = onNavigateToDownloads) {
+                        Icon(
+                            Icons.Default.Download,
+                            contentDescription = stringResource(R.string.downloads_title)
+                        )
                     }
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")

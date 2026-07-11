@@ -423,6 +423,19 @@
     <string name="toast_coming_soon">Coming soon</string>
     <string name="toast_added_to_queue">Added to queue</string>
     <string name="toast_playing_next">Playing next</string>
+    <string name="toast_download_started">Download started</string>
+    <string name="toast_download_unavailable">Not available for this source</string>
+
+    <!-- Downloads -->
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_empty">No downloaded songs</string>
+    <string name="downloads_in_progress">In progress</string>
+    <string name="downloads_completed">Downloaded</string>
+    <string name="downloads_remove">Remove download</string>
+    <string name="downloads_state_queued">Queued…</string>
+    <string name="downloads_state_running">Downloading… %1$d%%</string>
+    <string name="downloads_state_failed">Download failed</string>
+    <string name="downloads_state_unsupported">Not available for offline download</string>
 
     <!-- Sleep timer -->
     <string name="sleep_timer_off">Off</string>

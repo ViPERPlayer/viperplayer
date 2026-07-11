@@ -2,6 +2,7 @@ package com.viperplayer.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
@@ -37,6 +38,7 @@ class PlayerViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val sleepTimerManager: SleepTimerManager,
     private val lyricsTranslator: LyricsTranslator,
+    private val downloadManager: DownloadManager,
 ) : ViewModel() {
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
@@ -287,6 +289,17 @@ class PlayerViewModel @Inject constructor(
             mediaLibraryRepository.saveSong(song)
             mediaLibraryRepository.setSongSaved(song.id, true)
         }
+    }
+
+    /**
+     * Queue the current song for offline download. Returns true if a download was started, false if
+     * there is no current song. Whether the source is actually downloadable is reported later through
+     * [DownloadManager.downloads] (progressive URLs download; DASH/HLS/PCM are marked UNSUPPORTED).
+     */
+    fun downloadCurrentSong(): Boolean {
+        val song = currentSong.value ?: return false
+        downloadManager.enqueue(song)
+        return true
     }
 
     /** Arm (or, with a non-positive value, cancel) the sleep timer. */
