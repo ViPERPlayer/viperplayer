@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 5,
-    "identityHash": "7ef1fb904ada47553315d3b3fc796699",
+    "version": 1,
+    "identityHash": "942f492cb0a10b619a4745fc26498085",
     "entities": [
       {
         "tableName": "artists",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `pluginId` TEXT NOT NULL, `sourceId` TEXT NOT NULL, `name` TEXT NOT NULL, `imageUrl` TEXT, `isLiked` INTEGER NOT NULL, `isSaved` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `pluginId` TEXT NOT NULL, `sourceId` TEXT, `name` TEXT NOT NULL, `imageUrl` TEXT, `isLiked` INTEGER NOT NULL, `isSaved` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -23,8 +23,7 @@
           {
             "fieldPath": "sourceId",
             "columnName": "sourceId",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "name",
@@ -1547,7 +1546,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7ef1fb904ada47553315d3b3fc796699')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '942f492cb0a10b619a4745fc26498085')"
     ]
   }
 }

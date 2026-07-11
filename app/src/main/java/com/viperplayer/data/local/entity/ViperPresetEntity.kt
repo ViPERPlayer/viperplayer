@@ -81,8 +81,7 @@ data class ViperPresetEntity(
     val viperDdcEnabled: Boolean = ViperDefaults.DDC_ENABLED,
     val viperDdcSelectedFile: String? = null,
 
-    // IIR Equalizer (schema v2). @ColumnInfo defaults MUST match MIGRATION_1_2's ALTER ... DEFAULT
-    // so Room's runtime schema validation passes on upgrade.
+    // IIR Equalizer. Keep the @ColumnInfo defaultValue in sync with the field default below.
     @ColumnInfo(defaultValue = "0")
     val iirEqualizerEnabled: Boolean = ViperDefaults.IIR_EQUALIZER_ENABLED,
     @ColumnInfo(defaultValue = "10")
@@ -110,8 +109,7 @@ data class ViperPresetEntity(
     @ColumnInfo(defaultValue = "0")
     val convolverCrossChannel: Int = ViperDefaults.CONVOLVER_CROSS_CHANNEL,
 
-    // FET Compressor (schema v5). @ColumnInfo defaults MUST match MIGRATION_4_5's
-    // ALTER ... DEFAULT and the FetCompressorState() defaults.
+    // FET Compressor. Keep the @ColumnInfo defaults in sync with the FetCompressorState() defaults.
     @ColumnInfo(defaultValue = "0")
     val fetCompressorEnabled: Boolean = false,
     @ColumnInfo(defaultValue = "100")

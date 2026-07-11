@@ -8,6 +8,7 @@ import com.viperplayer.data.local.dao.PlayEventDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.AlbumArtistCrossRef
+import com.viperplayer.data.local.entity.ArtistEntity
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
 import com.viperplayer.data.local.entity.PlayEventEntity
@@ -73,20 +74,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     // byline fallback). Cross-ref'd artists are always linked, so the ref carries a real id.
     private suspend fun loadArtist(artistId: Long): ArtistRef? {
         val entity = artistDao.getByIdSync(artistId) ?: return null
-        // Build the ref directly through MediaId.of() rather than ArtistEntity.toDomain(): a
-        // pre-refactor DB can hold artist rows with a blank sourceId (the old unlinked-byline
-        // artists), and constructing a MediaId from those now throws. Blank → null id (unlinked).
-        return ArtistRef(name = entity.name, id = MediaId.of(entity.pluginId, entity.sourceId))
+        // A row with a null sourceId is an unlinked byline artist (a name with no navigable
+        // identity) → null id; a real sourceId → a linked ref that navigates to the artist.
+        return ArtistRef(name = entity.name, id = entity.sourceId?.let { MediaId(entity.pluginId, it) })
     }
 
     /**
-     * A song's ordered byline. Prefers the full stored list ([SongEntity.artistsJson], which keeps
-     * unlinked artists too); for pre-migration rows (null column) it rebuilds from the linked-only
-     * `song_artists` cross-refs.
+     * A song's ordered byline, rebuilt from the `song_artists` join. Every byline artist — linked or
+     * unlinked — is a row in `artists`; unlinked rows carry a null sourceId → a null-id [ArtistRef].
      */
     private suspend fun songByline(entity: SongEntity): List<ArtistRef> =
-        entity.artistsJson
-            ?: crossRefDao.getArtistIdsForSong(entity.id).mapNotNull { loadArtist(it) }
+        crossRefDao.getArtistIdsForSong(entity.id).mapNotNull { loadArtist(it) }
 
     /**
      * Upsert an artist: insert if doesn't exist, update if exists.
@@ -120,13 +118,22 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Upsert a byline ref that is LINKED (has an id), returning its artist-row id. Unlinked refs
-     * (null id) can't be [Artist] rows and return null — the caller skips their cross-ref (the full
-     * ordered byline is preserved separately on the owning row's JSON column).
+     * Upsert a byline ref to an `artists` row and return its id. A linked ref (non-null id) dedups
+     * on (pluginId, sourceId); an unlinked ref (null id) becomes a null-sourceId row deduped on
+     * (pluginId, name) under [owningPluginId]. Byline order is kept by the caller's cross-ref.
      */
-    private suspend fun upsertArtistRef(ref: ArtistRef): Long? {
-        val id = ref.id ?: return null
+    private suspend fun upsertArtistRef(owningPluginId: String, ref: ArtistRef): Long {
+        val id = ref.id ?: return upsertUnlinkedArtist(owningPluginId, ref.name)
         return upsertArtist(Artist(id = id, name = ref.name))
+    }
+
+    /** Find-or-insert a null-sourceId (unlinked) artist row for a plain byline name. */
+    private suspend fun upsertUnlinkedArtist(pluginId: String, name: String): Long {
+        artistDao.getUnlinkedByName(pluginId, name)?.let { return it.id }
+        val insertedId = artistDao.insert(ArtistEntity(pluginId = pluginId, sourceId = null, name = name))
+        return if (insertedId != -1L) insertedId
+        else artistDao.getUnlinkedByName(pluginId, name)?.id
+            ?: throw IllegalStateException("Failed to insert or find unlinked artist: $name")
     }
 
     /**
@@ -344,18 +351,18 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveAlbum(album: Album): Unit = withContext(Dispatchers.IO) {
-        // Upsert the LINKED byline refs first (unlinked refs have no id and no artist row),
-        // preserving their IDs and their position in the byline.
-        val linkedArtistIds = album.artists.mapIndexedNotNull { index, ref ->
-            upsertArtistRef(ref)?.let { index to it }
+        // Upsert every byline ref (linked → dedup on sourceId; unlinked → null-sourceId row),
+        // keeping each artist's position in the byline.
+        val artistIds = album.artists.mapIndexed { index, ref ->
+            index to upsertArtistRef(album.id.pluginId, ref)
         }
 
-        val primaryArtistId = linkedArtistIds.firstOrNull()?.second
+        val primaryArtistId = artistIds.firstOrNull()?.second
         val albumId = upsertAlbum(album, primaryArtistId)
 
-        // Clear existing album-artist relationships and recreate them (linked refs only)
+        // Clear existing album-artist relationships and recreate the full ordered byline.
         crossRefDao.deleteAlbumArtists(albumId)
-        linkedArtistIds.forEach { (order, artistId) ->
+        artistIds.forEach { (order, artistId) ->
             crossRefDao.insertAlbumArtist(
                 AlbumArtistCrossRef(
                     albumId = albumId,
@@ -514,18 +521,18 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun saveSong(song: Song): Unit = withContext(Dispatchers.IO) {
         // Upsert album first if exists, preserving its ID
         val albumId = song.album?.let { album ->
-            // Upsert the LINKED album byline refs first (unlinked refs have no artist row),
-            // preserving their IDs and byline position.
-            val linkedAlbumArtistIds = album.artists.mapIndexedNotNull { index, ref ->
-                upsertArtistRef(ref)?.let { index to it }
+            // Upsert every album byline ref (linked → dedup on sourceId; unlinked → null-sourceId
+            // row), keeping each artist's byline position.
+            val albumArtistIds = album.artists.mapIndexed { index, ref ->
+                index to upsertArtistRef(album.id.pluginId, ref)
             }
 
-            val primaryArtistId = linkedAlbumArtistIds.firstOrNull()?.second
+            val primaryArtistId = albumArtistIds.firstOrNull()?.second
             val albumId = upsertAlbum(album, primaryArtistId)
 
-            // Clear existing album-artist relationships and recreate them (linked refs only)
+            // Clear existing album-artist relationships and recreate the full ordered byline.
             crossRefDao.deleteAlbumArtists(albumId)
-            linkedAlbumArtistIds.forEach { (order, artistId) ->
+            albumArtistIds.forEach { (order, artistId) ->
                 crossRefDao.insertAlbumArtist(
                     AlbumArtistCrossRef(
                         albumId = albumId,
@@ -588,14 +595,14 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             }
         }
 
-        // Rewrite song-artist relationships only when the incoming song actually carries artists;
-        // a partial re-save (empty artists) must not strip the existing associations. The full
-        // ordered byline (incl. unlinked refs) is stored on songs.artistsJson via toEntity(); here
-        // we only cross-ref the LINKED refs, so "songs by this artist" reverse lookups keep working.
+        // Rewrite the song byline only when the incoming song carries artists; a partial re-save
+        // (empty artists) must not strip existing associations. Every byline artist — linked or
+        // unlinked — becomes an `artists` row plus an ordered `song_artists` cross-ref, so the full
+        // ordered byline round-trips and "songs by this artist" reverse lookups keep working.
         if (song.artists.isNotEmpty()) {
             crossRefDao.deleteSongArtists(songId)
             song.artists.forEachIndexed { index, ref ->
-                val artistId = upsertArtistRef(ref) ?: return@forEachIndexed
+                val artistId = upsertArtistRef(song.id.pluginId, ref)
                 crossRefDao.insertSongArtist(
                     SongArtistCrossRef(
                         songId = songId,

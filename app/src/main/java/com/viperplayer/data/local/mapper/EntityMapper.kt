@@ -19,9 +19,11 @@ object EntityMapper {
 
     // Artist mappings
     // Artist is a lightweight ref (id/name/image); heavy fields live on ArtistDetail (plugin API only).
+    // A domain [Artist] is always navigable, so this is only valid for a row with a real sourceId
+    // (reached via getArtist(mediaId) lookups). Unlinked rows surface as an [ArtistRef] via [toRef].
     fun ArtistEntity.toDomain(): Artist {
         return Artist(
-            id = MediaId(pluginId, sourceId),
+            id = MediaId(pluginId, checkNotNull(sourceId) { "navigable artist row must have a sourceId" }),
             name = name,
             imageUrl = imageUrl
         )
@@ -30,11 +32,8 @@ object EntityMapper {
     /** A linked byline ref for this entity artist (used when rebuilding a byline from cross-refs). */
     fun Artist.toRef(): ArtistRef = ArtistRef(name = name, id = id)
 
-    /**
-     * A byline ref from a stored artist row. Uses [MediaId.of] so a pre-refactor row with a blank
-     * sourceId (an old unlinked-byline artist) becomes an unlinked ref (null id) instead of throwing.
-     */
-    fun ArtistEntity.toRef(): ArtistRef = ArtistRef(name = name, id = MediaId.of(pluginId, sourceId))
+    /** A byline ref from a stored artist row: a null sourceId is an unlinked (null-id) ref. */
+    fun ArtistEntity.toRef(): ArtistRef = ArtistRef(name = name, id = sourceId?.let { MediaId(pluginId, it) })
 
     fun Artist.toEntity(): ArtistEntity {
         return ArtistEntity(
@@ -129,9 +128,6 @@ object EntityMapper {
             isVideo = isVideo,
             downloadPath = null,
             localArtworkPath = null,
-            // Persist the full ordered byline (linked + unlinked). Empty stays null so a partial
-            // re-save with no artists doesn't clobber an existing stored byline.
-            artistsJson = artists.takeIf { it.isNotEmpty() },
             playCount = 0,
             lastPlayed = null,
             lastUpdated = System.currentTimeMillis(),

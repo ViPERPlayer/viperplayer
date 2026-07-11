@@ -17,6 +17,10 @@ interface ArtistDao {
     @Query("SELECT * FROM artists WHERE pluginId = :pluginId AND sourceId = :sourceId LIMIT 1")
     suspend fun getByMediaId(pluginId: String, sourceId: String): ArtistEntity?
 
+    /** Find an unlinked (null-sourceId) byline artist by name, for dedup on insert. */
+    @Query("SELECT * FROM artists WHERE pluginId = :pluginId AND sourceId IS NULL AND name = :name LIMIT 1")
+    suspend fun getUnlinkedByName(pluginId: String, name: String): ArtistEntity?
+
     @Query("SELECT * FROM artists WHERE id = :id")
     fun getById(id: Long): Flow<ArtistEntity?>
 

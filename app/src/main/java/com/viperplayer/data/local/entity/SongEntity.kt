@@ -5,7 +5,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.viperplayer.domain.model.ArtistRef
 
 /**
  * Room entity for Song.
@@ -47,9 +46,6 @@ data class SongEntity(
     val isVideo: Boolean = false,
     val downloadPath: String? = null,
     val localArtworkPath: String? = null, // Local path to cached artwork
-    // Full ordered byline (linked + unlinked artists) as a JSON blob. Null on pre-migration rows,
-    // which fall back to rebuilding the byline from `song_artists` cross-refs. See ArtistRefListConverter.
-    val artistsJson: List<ArtistRef>? = null,
     // Audio normalization
     val replayGainDb: Float? = null, // ReplayGain value in dB
     val peakAmplitude: Float? = null, // Peak amplitude (0.0-1.0+)
