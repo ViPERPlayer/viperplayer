@@ -30,4 +30,5 @@ data class LocalSong(
     val dateAdded: Long?,
     val dateModified: Long?,
     val albumArtUri: Uri?,
+    val folderPath: String? = null,
 )

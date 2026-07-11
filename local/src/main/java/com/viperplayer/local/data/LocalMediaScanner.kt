@@ -30,7 +30,10 @@ private const val CACHE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
  * untagged titles and track numbers, decode disc-in-track encodings (1002 = disc 1, track 2), and
  * infer each album's artist from its songs when the ALBUM_ARTIST tag is missing.
  */
-class LocalMediaScanner(context: Context) {
+class LocalMediaScanner(
+    context: Context,
+    private val settings: LocalScanSettings = LocalScanSettings(context),
+) {
     private val appContext: Context = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
 
@@ -67,6 +70,11 @@ class LocalMediaScanner(context: Context) {
 
         val songs = mutableListOf<LocalSong>()
 
+        // Read filter settings once for this scan pass.
+        val blacklist = settings.blacklistedFolders
+        val whitelist = settings.whitelistedFolders
+        val minDurationMs = settings.minTrackLengthSeconds.toLong() * 1000L
+
         val projection = buildList {
             add(MediaStore.Audio.Media._ID)
             add(MediaStore.Audio.Media.DISPLAY_NAME)
@@ -81,6 +89,8 @@ class LocalMediaScanner(context: Context) {
             add(MediaStore.Audio.Media.YEAR)
             add(MediaStore.Audio.Media.DATE_ADDED)
             add(MediaStore.Audio.Media.DATE_MODIFIED)
+            @Suppress("DEPRECATION")
+            add(MediaStore.Audio.Media.DATA)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 // Columns only queryable on API 30+.
                 add(MediaStore.Audio.Media.ALBUM_ARTIST)
@@ -115,6 +125,8 @@ class LocalMediaScanner(context: Context) {
                 val yearColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
                 val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
                 val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+                @Suppress("DEPRECATION")
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
                 // API 30+ columns; -1 when absent from the projection.
                 val albumArtistColumn = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ARTIST)
                 val genreColumn = cursor.getColumnIndex(MediaStore.Audio.Media.GENRE)
@@ -172,6 +184,26 @@ class LocalMediaScanner(context: Context) {
                         trackNumber %= 1000
                     }
 
+                    val filePath = cursor.getStringOrNull(dataColumn)
+                    val folderPath = filePath
+                        ?.substringBeforeLast('/', "")
+                        ?.takeIf { it.isNotEmpty() }
+
+                    // Folder blacklist: drop songs in an excluded folder (or any subfolder of one).
+                    if (folderPath != null && blacklist.any { folderPath.isUnder(it) }) {
+                        continue
+                    }
+                    // Folder whitelist: when set, only keep songs under a whitelisted folder.
+                    if (whitelist.isNotEmpty() &&
+                        (folderPath == null || whitelist.none { folderPath.isUnder(it) })
+                    ) {
+                        continue
+                    }
+                    // Minimum track length: drop known-short tracks when the filter is enabled.
+                    if (minDurationMs > 0 && duration != null && duration < minDurationMs) {
+                        continue
+                    }
+
                     val contentUri = ContentUris.withAppendedId(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                         id
@@ -197,7 +229,8 @@ class LocalMediaScanner(context: Context) {
                             isCompilation = isCompilation,
                             dateAdded = dateAdded,
                             dateModified = dateModified,
-                            albumArtUri = getAlbumArtUri(albumId)
+                            albumArtUri = getAlbumArtUri(albumId),
+                            folderPath = folderPath
                         )
                     )
                 }
@@ -312,6 +345,12 @@ class LocalMediaScanner(context: Context) {
     /** Normalises blank strings and MediaStore's `<unknown>` placeholder to null. */
     private fun String?.takeIfRealTag(): String? =
         this?.takeIf { it.isNotBlank() && it != MediaStore.UNKNOWN_STRING }
+
+    /** True when this folder path equals [ancestor] or is a descendant of it. */
+    private fun String.isUnder(ancestor: String): Boolean {
+        val a = ancestor.trimEnd('/')
+        return this == a || startsWith("$a/")
+    }
 
     companion object {
         /** The runtime permission needed to read audio from MediaStore on this Android version. */

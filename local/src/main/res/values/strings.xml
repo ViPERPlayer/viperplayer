@@ -14,4 +14,20 @@
     <string name="local_permission_body">ViPER Player needs permission to read the audio files on this device so it can play them.</string>
     <string name="local_permission_grant">Allow access</string>
     <string name="local_permission_open_settings">Open system settings</string>
+
+    <string name="local_tab_songs">Songs</string>
+    <string name="local_tab_folders">Folders</string>
+    <string name="local_tab_filters">Filters</string>
+
+    <string name="local_folders_header">Folders (%1$d)</string>
+    <string name="local_folders_song_count">%1$d songs</string>
+    <string name="local_folders_empty">No folders found</string>
+
+    <string name="local_filters_min_length_title">Minimum track length</string>
+    <string name="local_filters_min_length_body">Hide clips and short sounds below this length.</string>
+    <string name="local_filters_min_length_off">Off</string>
+    <string name="local_filters_min_length_seconds">%1$ds</string>
+    <string name="local_filters_folders_title">Included folders</string>
+    <string name="local_filters_folders_body">Turn a folder off to exclude its songs from your library.</string>
+    <string name="local_filters_folders_empty">Scanned folders will appear here.</string>
 </resources>
