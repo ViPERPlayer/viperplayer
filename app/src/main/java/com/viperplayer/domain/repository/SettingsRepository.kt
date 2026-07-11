@@ -68,6 +68,10 @@ interface SettingsRepository {
     val autoLoadMore: Flow<Boolean>
     suspend fun setAutoLoadMore(enabled: Boolean)
 
+    /** Crossfade duration in seconds (0 = off). Implemented as a track-change volume fade. */
+    val crossfadeDurationSeconds: Flow<Int>
+    suspend fun setCrossfadeDurationSeconds(seconds: Int)
+
     // Content
     val showExplicitContent: Flow<Boolean>
     suspend fun setShowExplicitContent(enabled: Boolean)

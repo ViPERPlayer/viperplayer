@@ -257,6 +257,10 @@
     <string name="player_bypass_dsp_desc">Skips the ViPER processor and ReplayGain for an untouched signal path. Note: the system may still resample to the output device\'s rate.</string>
     <string name="player_auto_load_more">Auto Load More</string>
     <string name="player_auto_load_more_desc">Automatically load more songs when queue ends</string>
+    <string name="player_crossfade">Crossfade</string>
+    <string name="player_crossfade_desc">Fade out the ending track and fade in the next one</string>
+    <string name="player_crossfade_off">Off</string>
+    <string name="player_crossfade_seconds">%1$ds</string>
     <string name="player_category_normalization">Audio Normalization</string>
     <string name="player_replaygain">ReplayGain</string>
     <string name="player_replaygain_desc">Normalize volume across songs</string>

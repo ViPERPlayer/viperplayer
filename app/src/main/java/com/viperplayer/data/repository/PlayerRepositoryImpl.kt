@@ -25,12 +25,16 @@ import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -61,7 +65,8 @@ class PlayerRepositoryImpl @Inject constructor(
     private val mediaControllerManager: MediaControllerManager,
     private val playerStatePersistence: PlayerStatePersistence,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val pluginRepository: PluginRepository
+    private val pluginRepository: PluginRepository,
+    private val settingsRepository: SettingsRepository
 ) : PlayerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -135,6 +140,64 @@ class PlayerRepositoryImpl @Inject constructor(
         controllerStateFlow
             .onEach { maybeExtendQueue(it) }
             .launchIn(scope)
+
+        startCrossfadeVolumeLoop()
+    }
+
+    /**
+     * "Crossfade" (labelled as such in settings) implemented as a track-change VOLUME FADE: the
+     * current track's volume is ramped DOWN near its end and the next track's volume is ramped UP at
+     * its start. This is an approximation, not a true overlap-crossfade.
+     *
+     * TODO: A true crossfade (audibly overlapping the tail of one track with the head of the next)
+     * is impossible with a single media3 MediaController/ExoPlayer — it plays one item at a time and
+     * cannot mix two. Achieving real overlap needs a two-player mixing architecture (two players
+     * whose outputs are summed while their volumes are cross-ramped).
+     *
+     * A MediaController must be accessed on the MAIN thread, so the whole loop runs on
+     * Dispatchers.Main and every controller access is guarded so a released controller can't crash.
+     */
+    private fun startCrossfadeVolumeLoop() {
+        scope.launch(Dispatchers.Main) {
+            combine(
+                mediaControllerManager.controllerFlow,
+                settingsRepository.crossfadeDurationSeconds
+            ) { c, s -> c to s }
+                .collectLatest { (controller, seconds) ->
+                    val fadeMs = seconds * 1000L
+                    if (fadeMs <= 0L) {
+                        // Off: make sure we never leave the controller attenuated.
+                        runCatching { controller.volume = 1f }
+                        return@collectLatest
+                    }
+                    try {
+                        while (isActive) {
+                            val vol = try {
+                                val dur = controller.duration // may be C.TIME_UNSET (<=0)
+                                val pos = controller.currentPosition
+                                if (dur > 0 && controller.isPlaying) {
+                                    val remaining = dur - pos
+                                    when {
+                                        // Fade OUT near the end of the track.
+                                        remaining in 1..fadeMs -> remaining.toFloat() / fadeMs
+                                        // Fade IN near the start of the track.
+                                        pos in 0..fadeMs -> (pos.toFloat() / fadeMs).coerceAtLeast(0.05f)
+                                        else -> 1f
+                                    }
+                                } else 1f
+                            } catch (e: Exception) {
+                                1f
+                            }
+                            runCatching { controller.volume = vol.coerceIn(0f, 1f) }
+                            delay(100)
+                        }
+                    } finally {
+                        // CRITICAL: never leave the volume attenuated when the fade stops or the
+                        // setting changes (collectLatest cancels this block on a new emission).
+                        runCatching { controller.volume = 1f }
+                    }
+                }
+        }
     }
 
     // Playback state (state, shuffle, repeat, volume, queue info) - NO position, song, or duration

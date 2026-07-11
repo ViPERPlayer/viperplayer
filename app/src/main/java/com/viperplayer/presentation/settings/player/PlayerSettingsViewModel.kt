@@ -21,7 +21,8 @@ data class PlayerSettingsUiState(
     val replayGainPreampDb: Float = 0f,
     val autoLoadMore: Boolean = false,
     val dspBypass: Boolean = false,
-    val replayGainAlbumMode: Boolean = false
+    val replayGainAlbumMode: Boolean = false,
+    val crossfadeDurationSeconds: Int = 0
 )
 
 @HiltViewModel
@@ -73,6 +74,11 @@ class PlayerSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(replayGainAlbumMode = enabled) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.crossfadeDurationSeconds.collect { seconds ->
+                _uiState.update { it.copy(crossfadeDurationSeconds = seconds) }
+            }
+        }
     }
 
     fun setAudioQuality(quality: AudioQuality) {
@@ -121,6 +127,12 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setReplayGainAlbumMode(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setReplayGainAlbumMode(enabled)
+        }
+    }
+
+    fun setCrossfadeDurationSeconds(seconds: Int) {
+        viewModelScope.launch {
+            settingsRepository.setCrossfadeDurationSeconds(seconds.coerceIn(0, 12))
         }
     }
 }

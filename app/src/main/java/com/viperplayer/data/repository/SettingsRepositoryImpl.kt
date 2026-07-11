@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -43,6 +44,7 @@ class SettingsRepositoryImpl @Inject constructor(
         private val DSP_BYPASS_KEY = booleanPreferencesKey("dsp_bypass")
         private val REPLAY_GAIN_ALBUM_MODE_KEY = booleanPreferencesKey("replay_gain_album_mode")
         private val AUTO_LOAD_MORE_KEY = booleanPreferencesKey("auto_load_more")
+        private val CROSSFADE_DURATION_SECONDS_KEY = intPreferencesKey("crossfade_duration_seconds")
 
         // Content
         private val SHOW_EXPLICIT_CONTENT_KEY = booleanPreferencesKey("show_explicit_content")
@@ -191,6 +193,16 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setAutoLoadMore(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[AUTO_LOAD_MORE_KEY] = enabled
+        }
+    }
+
+    override val crossfadeDurationSeconds: Flow<Int> = dataStore.data.mapDistinct { preferences ->
+        preferences[CROSSFADE_DURATION_SECONDS_KEY] ?: 0 // Default 0 = off
+    }
+
+    override suspend fun setCrossfadeDurationSeconds(seconds: Int) {
+        dataStore.edit { preferences ->
+            preferences[CROSSFADE_DURATION_SECONDS_KEY] = seconds
         }
     }
 

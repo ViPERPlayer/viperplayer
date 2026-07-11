@@ -141,6 +141,13 @@ fun PlayerSettingsScreen(
                     onCheckedChange = viewModel::setAutoLoadMore
                 )
             }
+            item {
+                CrossfadeSliderItem(
+                    seconds = uiState.crossfadeDurationSeconds,
+                    icon = Icons.Default.GraphicEq,
+                    onSecondsChanged = viewModel::setCrossfadeDurationSeconds
+                )
+            }
 
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -486,6 +493,85 @@ private fun HistoryDurationSliderItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CrossfadeSliderItem(
+    seconds: Int,
+    icon: ImageVector,
+    onSecondsChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val valueText = if (seconds <= 0) {
+        stringResource(R.string.player_crossfade_off)
+    } else {
+        stringResource(R.string.player_crossfade_seconds, seconds)
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column {
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.player_crossfade),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.player_crossfade_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Text(
+                        text = valueText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                colors = ListItemDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Slider(
+                    value = seconds.toFloat(),
+                    onValueChange = { value -> onSecondsChanged(value.roundToInt()) },
+                    valueRange = 0f..12f,
+                    steps = 11, // 12 steps for 13 integer values (0..12)
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                )
             }
         }
     }
