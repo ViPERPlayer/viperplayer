@@ -18,6 +18,7 @@ import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toRef
+import com.viperplayer.data.playlist.M3uSerializer
 import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -31,6 +32,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SongWithStats
 import com.viperplayer.domain.model.StatPeriod
 import com.viperplayer.domain.model.StatsSummary
+import com.viperplayer.domain.repository.M3uImportResult
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
 import kotlinx.coroutines.CoroutineScope
@@ -993,6 +995,59 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 Timber.e(e, "Failed to save local song: ${song.title}")
             }
         }
+    }
+
+    // Playlist import/export (M3U)
+
+    override suspend fun exportPlaylistToM3u(mediaId: MediaId): String? =
+        withContext(Dispatchers.IO) {
+            val playlist = if (mediaId.pluginId == "local" && mediaId.sourceId == "liked_songs") {
+                getLikedSongsPlaylist().first()
+            } else {
+                getPlaylist(mediaId).first()
+            } ?: return@withContext null
+            M3uSerializer.serialize(playlist.name, playlist.songs.orEmpty())
+        }
+
+    override suspend fun importPlaylistFromM3u(
+        playlistName: String,
+        content: String
+    ): M3uImportResult = withContext(Dispatchers.IO) {
+        val entries = M3uSerializer.parse(content)
+        var skipped = 0
+        val songs = entries.mapNotNull { entry ->
+            val viper = M3uSerializer.parseViperUri(entry.location)
+            if (viper == null) {
+                // A foreign file-path / content:// location we can't map to a known MediaId — skip it.
+                skipped++
+                return@mapNotNull null
+            }
+            val (pluginId, sourceId) = viper
+            val id = MediaId.of(pluginId, sourceId)
+            if (id == null) {
+                skipped++
+                return@mapNotNull null
+            }
+            // Prefer a fully-hydrated song already in the library; otherwise build a minimal one
+            // from the #EXTINF metadata so the playlist entry is still created.
+            getSong(id).first() ?: Song(
+                id = id,
+                title = entry.title ?: sourceId,
+                durationMs = entry.durationSec?.takeIf { it >= 0 }?.let { it * 1000L },
+            )
+        }
+
+        val playlist = Playlist(
+            id = MediaId("local", "import_${System.currentTimeMillis()}"),
+            name = playlistName.ifBlank { "Imported playlist" },
+            songCount = songs.size,
+            isPublic = false,
+            isEditable = true,
+            songs = songs,
+        )
+        savePlaylist(playlist)
+        Timber.i("Imported M3U playlist '%s': %d songs, %d skipped", playlist.name, songs.size, skipped)
+        M3uImportResult(imported = songs.size, skipped = skipped)
     }
 }
 

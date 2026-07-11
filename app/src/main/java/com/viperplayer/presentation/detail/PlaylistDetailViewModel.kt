@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.detail
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.PlaybackContext
@@ -13,13 +15,19 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -35,12 +43,19 @@ sealed class PlaylistDetailUiState {
     data class Error(val message: String) : PlaylistDetailUiState()
 }
 
+/** One-shot result of an M3U export, surfaced as a Toast by the screen. */
+sealed interface ExportEvent {
+    data object Success : ExportEvent
+    data object Failure : ExportEvent
+}
+
 /**
  * ViewModel for Playlist Detail screen.
  */
 @HiltViewModel(assistedFactory = PlaylistDetailViewModel.Factory::class)
 class PlaylistDetailViewModel @AssistedInject constructor(
     @Assisted private val playlistDetail: PlaylistDetail,
+    @ApplicationContext private val context: Context,
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository
@@ -66,6 +81,21 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     private val _uiState =
         MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading(placeholderPlaylist))
     val uiState = _uiState.asStateFlow()
+
+    private val _exportEvents = MutableSharedFlow<ExportEvent>(extraBufferCapacity = 1)
+    val exportEvents: SharedFlow<ExportEvent> = _exportEvents.asSharedFlow()
+
+    /** Default file name suggested to the SAF "create document" picker. */
+    val suggestedExportFileName: String
+        get() {
+            val name = when (val state = _uiState.value) {
+                is PlaylistDetailUiState.Success -> state.playlist.name
+                is PlaylistDetailUiState.Loading -> state.initialPlaylist.name
+                else -> playlistDetail.initialName
+            }
+            val safe = name.replace(Regex("[^A-Za-z0-9 _-]"), "_").trim().ifBlank { "playlist" }
+            return "$safe.m3u"
+        }
 
     // Expose current song and playing state from player repository
     val currentSong = playerRepository.currentSong
@@ -235,6 +265,26 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     fun refresh() {
         loadPlaylistDetails()
+    }
+
+    /** Serialize the current playlist to M3U and write it to the SAF [uri]. */
+    fun exportToM3u(uri: Uri) {
+        viewModelScope.launch {
+            val ok = try {
+                withContext(Dispatchers.IO) {
+                    val content = mediaLibraryRepository.exportPlaylistToM3u(playlistId)
+                        ?: return@withContext false
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(content.toByteArray(Charsets.UTF_8))
+                    } ?: return@withContext false
+                    true
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to export playlist to M3U")
+                false
+            }
+            _exportEvents.tryEmit(if (ok) ExportEvent.Success else ExportEvent.Failure)
+        }
     }
 }
 

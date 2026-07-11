@@ -1,5 +1,8 @@
 package com.viperplayer.presentation.library
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.data.repository.NetworkConnectivityChecker
@@ -11,9 +14,14 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -24,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -46,11 +55,18 @@ data class LibraryUiState(
     val error: String? = null
 )
 
+/** One-shot result of an M3U import, surfaced as a Toast by the screen. */
+sealed interface ImportEvent {
+    data class Success(val imported: Int, val skipped: Int) : ImportEvent
+    data object Failure : ImportEvent
+}
+
 /**
  * ViewModel for Library screen.
  */
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
@@ -59,6 +75,9 @@ class LibraryViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+
+    private val _importEvents = MutableSharedFlow<ImportEvent>(extraBufferCapacity = 1)
+    val importEvents: SharedFlow<ImportEvent> = _importEvents.asSharedFlow()
 
     // Expose current song and playing state from player repository
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
@@ -323,6 +342,43 @@ class LibraryViewModel @Inject constructor(
 
     fun refresh() {
         loadContent(_uiState.value.selectedTab)
+    }
+
+    /**
+     * Read the M3U document at the SAF [uri], resolve its entries, and persist them as a new local
+     * playlist. Emits an [ImportEvent] with the result. The playlist is named after the file.
+     */
+    fun importPlaylist(uri: Uri) {
+        viewModelScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    val content = context.contentResolver.openInputStream(uri)?.use { input ->
+                        input.readBytes().toString(Charsets.UTF_8)
+                    } ?: return@withContext null
+                    val name = queryDisplayName(uri)?.substringBeforeLast('.') ?: "Imported playlist"
+                    mediaLibraryRepository.importPlaylistFromM3u(name, content)
+                }
+            } catch (e: Exception) {
+                null
+            }
+            if (result != null) {
+                _importEvents.tryEmit(ImportEvent.Success(result.imported, result.skipped))
+                // Surface the new playlist immediately if the user is on the Playlists tab.
+                if (_uiState.value.selectedTab == LibraryTab.PLAYLISTS) {
+                    loadContent(LibraryTab.PLAYLISTS)
+                }
+            } else {
+                _importEvents.tryEmit(ImportEvent.Failure)
+            }
+        }
+    }
+
+    /** Best-effort display name for a SAF document [uri] (used to name the imported playlist). */
+    private fun queryDisplayName(uri: Uri): String? {
+        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+        }
     }
 }
 

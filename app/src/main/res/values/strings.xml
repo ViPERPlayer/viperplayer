@@ -472,4 +472,12 @@
     <string name="plugin_action_needed">Action needed</string>
     <string name="plugin_actions_channel_name">Plugin actions</string>
     <string name="plugin_actions_channel_desc">Shown when a plugin needs you to sign in, verify, or grant a permission</string>
+
+    <!-- M3U playlist import/export -->
+    <string name="playlist_export_m3u">Export as M3U</string>
+    <string name="playlist_export_success">Playlist exported</string>
+    <string name="playlist_export_failure">Couldn\'t export playlist</string>
+    <string name="playlist_import">Import playlist</string>
+    <string name="playlist_import_success">Imported %1$d songs (%2$d skipped)</string>
+    <string name="playlist_import_failure">Couldn\'t import playlist</string>
 </resources>

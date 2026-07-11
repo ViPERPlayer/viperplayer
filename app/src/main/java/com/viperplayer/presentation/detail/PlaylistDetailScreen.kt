@@ -13,10 +13,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
@@ -82,6 +88,27 @@ fun PlaylistDetailScreen(
     val pluginAction = pendingActions.firstOrNull { it.pluginId == viewModel.pluginId }
     val resolvePluginAction = rememberPluginActionResolver { actionsViewModel.refresh() }
 
+    val context = LocalContext.current
+    val exportSuccessMsg = stringResource(R.string.playlist_export_success)
+    val exportFailureMsg = stringResource(R.string.playlist_export_failure)
+
+    // SAF "create document" launcher — the Composable only hosts it; the ViewModel writes the file.
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("audio/x-mpegurl")
+    ) { uri ->
+        if (uri != null) viewModel.exportToM3u(uri)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.exportEvents.collect { event ->
+            val message = when (event) {
+                ExportEvent.Success -> exportSuccessMsg
+                ExportEvent.Failure -> exportFailureMsg
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     PlaylistDetailScreenContent(
         rootPadding = rootPadding,
         uiState = uiState,
@@ -91,6 +118,7 @@ fun PlaylistDetailScreen(
         onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
         onRefresh = viewModel::refresh,
+        onExport = { exportLauncher.launch(viewModel.suggestedExportFileName) },
         onPlayAll = viewModel::playAll,
         onShuffle = viewModel::shuffle,
         onPlaySong = viewModel::playSong,
@@ -112,6 +140,7 @@ private fun PlaylistDetailScreenContent(
     onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
     onRefresh: () -> Unit,
+    onExport: () -> Unit = {},
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
     onPlaySong: (Song) -> Unit,
@@ -135,6 +164,9 @@ private fun PlaylistDetailScreenContent(
         title = title,
         onNavigateBack = onNavigateBack,
         actions = {
+            IconButton(onClick = onExport, enabled = (playlist?.songCount ?: 0) > 0 || playlist?.songs?.isNotEmpty() == true) {
+                Icon(Icons.Default.FileUpload, contentDescription = stringResource(R.string.playlist_export_m3u))
+            }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }

@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
@@ -30,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,8 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.viperplayer.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.domain.model.Album
@@ -69,6 +77,27 @@ fun LibraryScreen(
 
     val optionsController = rememberMediaItemOptionsController()
 
+    val context = LocalContext.current
+    val importFailureMsg = stringResource(R.string.playlist_import_failure)
+
+    // SAF "open document" launcher — the Composable only hosts it; the ViewModel reads + imports.
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) viewModel.importPlaylist(uri)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.importEvents.collect { event ->
+            val message = when (event) {
+                is ImportEvent.Success ->
+                    context.getString(R.string.playlist_import_success, event.imported, event.skipped)
+                ImportEvent.Failure -> importFailureMsg
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
     val tabs = listOf("Songs", "Albums", "Artists", "Playlists")
 
     Scaffold(
@@ -92,8 +121,27 @@ fun LibraryScreen(
                     fontWeight = FontWeight.Bold
                 )
 
-                IconButton(onClick = { viewModel.refresh() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (uiState.selectedTab == LibraryTab.PLAYLISTS) {
+                        IconButton(onClick = {
+                            importLauncher.launch(
+                                arrayOf(
+                                    "audio/x-mpegurl",
+                                    "audio/mpegurl",
+                                    "application/vnd.apple.mpegurl",
+                                    "*/*"
+                                )
+                            )
+                        }) {
+                            Icon(
+                                Icons.Default.FileDownload,
+                                contentDescription = stringResource(R.string.playlist_import)
+                            )
+                        }
+                    }
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
             }
 

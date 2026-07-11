@@ -90,5 +90,24 @@ interface MediaLibraryRepository {
 
     // Local Files
     suspend fun scanLocalFiles()
+
+    // Playlist import/export (M3U)
+    /**
+     * Serialize a saved playlist (looked up by [mediaId]) to an extended-M3U document, or null if
+     * the playlist can't be found.
+     */
+    suspend fun exportPlaylistToM3u(mediaId: MediaId): String?
+
+    /**
+     * Parse an extended-M3U [content], resolve its entries into songs, and persist them as a new
+     * local playlist named [playlistName]. Returns an [M3uImportResult] with counts.
+     */
+    suspend fun importPlaylistFromM3u(playlistName: String, content: String): M3uImportResult
 }
+
+/** Outcome of an M3U import: how many entries became songs and how many were skipped. */
+data class M3uImportResult(
+    val imported: Int,
+    val skipped: Int,
+)
 
