@@ -215,6 +215,15 @@
     <string name="storage_clear_downloads_confirm">Are you sure you want to delete all downloaded songs? This cannot be undone.</string>
     <string name="storage_clear_song_cache_confirm">Are you sure you want to clear the song cache? This will remove temporary audio files.</string>
     <string name="storage_clear_image_cache_confirm">Are you sure you want to clear the image cache? This will remove cached artwork.</string>
+    <string name="storage_category_backup">Backup &amp; Restore</string>
+    <string name="storage_backup">Back up</string>
+    <string name="storage_backup_desc">Export your library, settings, and ViPER presets to a file</string>
+    <string name="storage_restore">Restore</string>
+    <string name="storage_restore_desc">Import a backup file</string>
+    <string name="storage_backup_success">Backup exported</string>
+    <string name="storage_backup_failure">Backup failed</string>
+    <string name="storage_restore_success">Backup restored</string>
+    <string name="storage_restore_failure">Restore failed</string>
 
     <!-- Settings hub -->
     <string name="settings_appearance">Appearance</string>

@@ -56,5 +56,8 @@ object DatabaseModule {
 
     @Provides
     fun providePlayEventDao(database: ViperPlayerDatabase) = database.playEventDao()
+
+    @Provides
+    fun provideViperPresetDao(database: ViperPlayerDatabase) = database.viperPresetDao()
 }
 

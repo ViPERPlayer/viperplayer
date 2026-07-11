@@ -1,5 +1,8 @@
 package com.viperplayer.presentation.settings.storage
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +20,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -61,8 +67,38 @@ fun StorageSettingsScreen(
     var showClearSongCacheDialog by remember { mutableStateOf(false) }
     var showClearImageCacheDialog by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+
+    val backupSuccessMsg = stringResource(R.string.storage_backup_success)
+    val backupFailureMsg = stringResource(R.string.storage_backup_failure)
+    val restoreSuccessMsg = stringResource(R.string.storage_restore_success)
+    val restoreFailureMsg = stringResource(R.string.storage_restore_failure)
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) viewModel.exportBackup(uri)
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) viewModel.importBackup(uri)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.refreshSizes()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            val message = when (event) {
+                BackupEvent.ExportSuccess -> backupSuccessMsg
+                BackupEvent.ExportFailure -> backupFailureMsg
+                BackupEvent.RestoreSuccess -> restoreSuccessMsg
+                BackupEvent.RestoreFailure -> restoreFailureMsg
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     ViperScaffold(
@@ -156,6 +192,30 @@ fun StorageSettingsScreen(
                     description = formatBytes(uiState.imageCacheSize),
                     icon = Icons.Default.Delete,
                     onClick = { showClearImageCacheDialog = true }
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                SettingsCategory(stringResource(R.string.storage_category_backup))
+            }
+            item {
+                SettingsItem(
+                    title = stringResource(R.string.storage_backup),
+                    description = stringResource(R.string.storage_backup_desc),
+                    icon = Icons.Default.Save,
+                    onClick = { exportLauncher.launch("viper-player-backup.json") }
+                )
+            }
+            item {
+                SettingsItem(
+                    title = stringResource(R.string.storage_restore),
+                    description = stringResource(R.string.storage_restore_desc),
+                    icon = Icons.Default.Restore,
+                    onClick = { importLauncher.launch(arrayOf("application/json")) }
                 )
             }
         }
