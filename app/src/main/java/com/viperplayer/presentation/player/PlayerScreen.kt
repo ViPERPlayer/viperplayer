@@ -470,9 +470,7 @@ fun PlayerScreen(
                             ArtistAlbumSubtitle(
                                 song = current,
                                 onArtistClick = onNavigateToArtist,
-                                modifier = Modifier
-                                    .padding(top = 5.dp)
-                                    .infiniteBasicMarquee()
+                                modifier = Modifier.padding(top = 5.dp)
                             )
                         }
                     }
@@ -665,9 +663,10 @@ fun PlayerScreen(
 
 /**
  * The artist(s) + album subtitle under the title. Each artist name is its own tap target that
- * navigates to that specific artist; artists with no navigable target (blank source id) render as
- * plain, inert text. The album name (when present) is appended after a " · " separator as a
- * non-interactive suffix. Preserves the previous single-line marquee styling.
+ * navigates to that specific artist; artists with no navigable target (null id) render as plain,
+ * inert text. Navigable artists are not tinted — a subtle weight is their only affordance, matching
+ * the rest of the subtitle color. The album name (when present) is appended after a " · " separator
+ * as a non-interactive suffix. Wraps to multiple lines when the byline is long.
  */
 @Composable
 private fun ArtistAlbumSubtitle(
@@ -679,18 +678,17 @@ private fun ArtistAlbumSubtitle(
     val albumName = song.album?.name
     if (artists.isEmpty() && albumName.isNullOrEmpty()) return
 
-    val linkColor = MaterialTheme.colorScheme.primary
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     // Build the line once per song, tagging each navigable artist span with its index so a tap can be
     // mapped back to the artist under the finger.
-    val annotated = remember(artists, albumName, linkColor) {
+    val annotated = remember(artists, albumName) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
                 if (index > 0) append(", ")
                 if (artist.isNavigable()) {
                     pushStringAnnotation(tag = ARTIST_TAG, annotation = index.toString())
-                    withStyle(SpanStyle(color = linkColor, fontWeight = FontWeight.SemiBold)) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
                         append(artist.name)
                     }
                     pop()
@@ -725,7 +723,7 @@ private fun ArtistAlbumSubtitle(
         color = Color.White.copy(alpha = 0.82f),
         fontSize = 17.sp,
         fontWeight = FontWeight.Medium,
-        maxLines = 1,
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         onTextLayout = { textLayoutResult = it },
         modifier = modifier.then(tapModifier)

@@ -38,19 +38,15 @@ import androidx.navigation3.runtime.NavKey
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.determineLayoutVisibility
-import com.viperplayer.presentation.navigation.AlbumDetail
-import com.viperplayer.presentation.navigation.ArtistDetail
-import com.viperplayer.presentation.navigation.JoinSession
-import com.viperplayer.presentation.navigation.SongInfo
 import com.viperplayer.presentation.navigation.Home
 import com.viperplayer.presentation.navigation.Library
 import com.viperplayer.presentation.navigation.Navigator
 import com.viperplayer.presentation.navigation.Search
 import com.viperplayer.presentation.navigation.Viper
+import com.viperplayer.presentation.navigation.PlayerBottomSheetNavHost
 import com.viperplayer.presentation.navigation.ViperNavDisplay
 import com.viperplayer.presentation.navigation.rememberNavigationState
 import com.viperplayer.presentation.player.MiniPlayer
-import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import kotlinx.coroutines.launch
 
@@ -260,31 +256,8 @@ fun ViperPlayerApp(
                     dragHandle = null,
                     contentWindowInsets = { WindowInsets() }
                 ) {
-                    PlayerScreen(
-                        onNavigateToArtist = { artist ->
-                            showPlayerBottomSheet = false
-                            navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
-                        },
-                        onNavigateToAlbum = { album ->
-                            showPlayerBottomSheet = false
-                            navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
-                        },
-                        onNavigateToSongInfo = { song ->
-                            showPlayerBottomSheet = false
-                            navigator.navigate(
-                                SongInfo(
-                                    mediaId = song.id,
-                                    initialTitle = song.title,
-                                    initialArtist = song.artistNames.orEmpty(),
-                                    initialArtworkUrl = song.artworkUrl,
-                                )
-                            )
-                        },
-                        onNavigateToJoinSession = {
-                            showPlayerBottomSheet = false
-                            navigator.navigate(JoinSession)
-                        },
-                        onCollapse = { showPlayerBottomSheet = false }
+                    PlayerBottomSheetNavHost(
+                        onDismiss = { showPlayerBottomSheet = false }
                     )
                 }
             }
