@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -71,6 +72,14 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     /** The plugin backing this screen — used to match pending plugin actions on errors. */
     val pluginId: String get() = playlistId.pluginId
 
+    /**
+     * Whether this playlist lives in the local Room database (the virtual "Liked Songs" list or a
+     * user-created local playlist). These are observed reactively; everything else is a remote plugin
+     * playlist loaded once via [PluginRepository].
+     */
+    private val isLocalPlaylist: Boolean
+        get() = playlistId.pluginId == "local"
+
     // Minimal placeholder shown while the full playlist is (re)fetched by id.
     private val placeholderPlaylist = Playlist(
         id = playlistDetail.playlistId,
@@ -107,8 +116,9 @@ class PlaylistDetailViewModel @AssistedInject constructor(
             initialValue = false
         )
 
-    // Track if we're already observing the liked songs playlist
-    private var isObservingLikedSongs = false
+    // Track if we're already observing a Room-backed local playlist (Liked Songs or a user playlist).
+    // These are perpetual DB collectors started once; a later refresh must not restart them.
+    private var isObservingLocalPlaylist = false
 
     init {
         loadPlaylistDetails()
@@ -116,10 +126,11 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     private fun loadPlaylistDetails() {
         viewModelScope.launch {
-            // Liked Songs is backed by a perpetual DB collector started on the first load; a later
-            // refresh must not reset to Loading (the collector won't necessarily re-emit), or the
-            // screen sticks on the spinner forever.
-            if (playlistId.pluginId == "local" && playlistId.sourceId == "liked_songs" && isObservingLikedSongs) {
+            // Local playlists (Liked Songs + user-created ones) are backed by a perpetual DB collector
+            // started on the first load; a later refresh must not reset to Loading (the collector
+            // won't necessarily re-emit) or restart the collector, or the screen sticks on the spinner
+            // forever / leaks collectors.
+            if (isLocalPlaylist && isObservingLocalPlaylist) {
                 return@launch
             }
             _uiState.update {
@@ -132,27 +143,38 @@ class PlaylistDetailViewModel @AssistedInject constructor(
             }
 
             try {
-                // Check if this is the "Liked Songs" playlist
-                if (playlistId.pluginId == "local" && playlistId.sourceId == "liked_songs") {
-                    // Observe reactively from MediaLibraryRepository for real-time updates
-                    // Only start observing once to avoid multiple collectors
-                    if (!isObservingLikedSongs) {
-                        isObservingLikedSongs = true
-                        mediaLibraryRepository.getLikedSongsPlaylist()
-                            .collect { playlist ->
-                                val songs = playlist.songs ?: emptyList()
-                                _uiState.value = PlaylistDetailUiState.Success(
-                                    playlist = playlist,
-                                    songs = songs
+                // Room-backed local playlists (the virtual "Liked Songs" list and user-created ones)
+                // are observed reactively so edits (reorder / remove / add) persist and re-render.
+                if (isLocalPlaylist) {
+                    // Only start observing once to avoid multiple collectors.
+                    if (!isObservingLocalPlaylist) {
+                        isObservingLocalPlaylist = true
+                        val playlistFlow = if (playlistId.sourceId == "liked_songs") {
+                            mediaLibraryRepository.getLikedSongsPlaylist()
+                        } else {
+                            mediaLibraryRepository.getPlaylist(playlistId)
+                        }
+                        playlistFlow.collect { playlist ->
+                            if (playlist == null) {
+                                _uiState.value = PlaylistDetailUiState.Error(
+                                    context.getString(R.string.playlist_not_found)
                                 )
+                                return@collect
                             }
+                            val songs = playlist.songs ?: emptyList()
+                            _uiState.value = PlaylistDetailUiState.Success(
+                                playlist = playlist,
+                                songs = songs
+                            )
+                        }
                     }
                 } else {
                     // Load from PluginRepository (one-time load for plugin playlists)
                     val playlistResult = pluginRepository.getPlaylist(playlistId)
                     if (playlistResult.isFailure) {
                         _uiState.value = PlaylistDetailUiState.Error(
-                            playlistResult.exceptionOrNull()?.message ?: "Failed to load playlist"
+                            playlistResult.exceptionOrNull()?.message
+                                ?: context.getString(R.string.playlist_load_failed)
                         )
                         return@launch
                     }
@@ -174,7 +196,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.value = PlaylistDetailUiState.Error(
-                    e.message ?: "Failed to load playlist details"
+                    e.message ?: context.getString(R.string.playlist_load_details_failed)
                 )
             }
         }
@@ -265,6 +287,55 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     fun refresh() {
         loadPlaylistDetails()
+    }
+
+    /**
+     * Whether this playlist can be edited in place (reorder / remove). Only user-created local
+     * playlists are editable; the virtual "Liked Songs" list and remote plugin playlists are not.
+     */
+    val isEditable: Boolean
+        get() = playlistId.pluginId == "local" && playlistId.sourceId != "liked_songs"
+
+    /**
+     * Remove the song at [index] from this playlist and reflect it in the UI immediately. Backed by
+     * [MediaLibraryRepository.removeSongFromPlaylist]; only valid for editable local playlists.
+     */
+    fun removeSongAt(index: Int) {
+        if (!isEditable) return
+        val state = _uiState.value as? PlaylistDetailUiState.Success ?: return
+        val song = state.songs.getOrNull(index) ?: return
+        // Optimistically update the list so the row disappears without waiting on the DB round-trip.
+        val updatedSongs = state.songs.toMutableList().apply { removeAt(index) }
+        _uiState.value = state.copy(
+            playlist = state.playlist.copy(songCount = updatedSongs.size),
+            songs = updatedSongs
+        )
+        viewModelScope.launch {
+            try {
+                mediaLibraryRepository.removeSongFromPlaylist(playlistId, song.id)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to remove song from playlist")
+            }
+        }
+    }
+
+    /**
+     * Move the song at [fromIndex] to [toIndex] within this playlist, persisting the new order.
+     * Only valid for editable local playlists.
+     */
+    fun moveSong(fromIndex: Int, toIndex: Int) {
+        if (!isEditable || fromIndex == toIndex) return
+        val state = _uiState.value as? PlaylistDetailUiState.Success ?: return
+        if (fromIndex !in state.songs.indices || toIndex !in state.songs.indices) return
+        val updatedSongs = state.songs.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+        _uiState.value = state.copy(songs = updatedSongs)
+        viewModelScope.launch {
+            try {
+                mediaLibraryRepository.reorderPlaylistSongs(playlistId, fromIndex, toIndex)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to reorder playlist songs")
+            }
+        }
     }
 
     /** Serialize the current playlist to M3U and write it to the SAF [uri]. */

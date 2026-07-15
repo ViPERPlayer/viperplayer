@@ -35,6 +35,13 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists ORDER BY name ASC")
     fun getAll(): Flow<List<PlaylistEntity>>
 
+    /**
+     * User-created local playlists (the ones "Add to playlist" targets), newest first.
+     * The virtual "liked_songs" playlist is not a row and is therefore never returned here.
+     */
+    @Query("SELECT * FROM playlists WHERE pluginId = 'local' ORDER BY id DESC")
+    fun getAllLocal(): Flow<List<PlaylistEntity>>
+
     @Query("SELECT * FROM playlists WHERE name LIKE :query ORDER BY name ASC")
     fun search(query: String): Flow<List<PlaylistEntity>>
 

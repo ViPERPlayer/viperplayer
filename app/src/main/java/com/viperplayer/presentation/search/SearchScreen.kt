@@ -72,6 +72,8 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.presentation.common.ErrorState
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.AddToPlaylistSheetHost
+import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.common.ViperScaffold
@@ -96,6 +98,7 @@ fun SearchScreen(
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
 
     val optionsController = rememberMediaItemOptionsController()
+    val addToPlaylistController = rememberAddToPlaylistController()
     val scope = rememberCoroutineScope()
 
     // Resolve a SearchItem to its domain media (suspending) and open the shared options sheet.
@@ -497,10 +500,14 @@ fun SearchScreen(
             onPlay = { scope.launch { if (it is Song) viewModel.playSong(it.id) } },
             onPlayNext = { scope.launch { if (it is Song) viewModel.playNext(it) } },
             onAddToQueue = { scope.launch { if (it is Song) viewModel.addToQueue(it) } },
+            onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onLike = { scope.launch { if (it is Song) viewModel.toggleLike(it) } },
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
         )
+
+        // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
+        AddToPlaylistSheetHost(controller = addToPlaylistController)
     }
 }
 

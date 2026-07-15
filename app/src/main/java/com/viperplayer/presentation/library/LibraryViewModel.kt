@@ -92,9 +92,6 @@ class LibraryViewModel @Inject constructor(
             initialValue = false
         )
 
-    // Track if we're already observing playlists to avoid multiple collectors
-    private var isObservingPlaylists = false
-
     // The current tab's load coroutine — some tabs collect perpetual flows, so cancel the previous
     // one before each reload, otherwise re-selecting a tab / refreshing leaks a collector per call.
     private var loadJob: Job? = null
@@ -168,51 +165,30 @@ class LibraryViewModel @Inject constructor(
                     }
 
                     LibraryTab.PLAYLISTS -> {
-                        // Load plugin playlists
+                        // Load plugin playlists once (they are network-backed and don't change locally).
                         val result = pluginRepository.getLibraryPlaylists(limit = 50)
                         val pluginPlaylists = result.getOrNull()?.items.orEmpty()
 
-                        // Get the "Liked Songs" playlist
-                        val likedSongsPlaylist = mediaLibraryRepository.getLikedSongsPlaylist()
-                            .first()
-
-                        // Combine plugin playlists with "Liked Songs" playlist
-                        // Always show "Liked Songs" at the top if it has any songs
-                        val allPlaylists = if (likedSongsPlaylist.songCount > 0) {
-                            listOf(likedSongsPlaylist) + pluginPlaylists
-                        } else {
-                            pluginPlaylists
-                        }
-
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                playlists = allPlaylists
-                            )
-                        }
-
-                        // Observe changes to liked songs playlist reactively (only once)
-                        if (!isObservingPlaylists) {
-                            isObservingPlaylists = true
-                            viewModelScope.launch {
-                                mediaLibraryRepository.getLikedSongsPlaylist()
-                                    .collect { updatedLikedSongsPlaylist ->
-                                        // Only update if we're on playlists tab
-                                        if (_uiState.value.selectedTab == LibraryTab.PLAYLISTS) {
-                                            // Reuse the already-fetched plugin playlists instead of
-                                            // re-hitting the network on every liked-songs change (e.g. a like).
-                                            val updatedAllPlaylists =
-                                                if (updatedLikedSongsPlaylist.songCount > 0) {
-                                                    listOf(updatedLikedSongsPlaylist) + pluginPlaylists
-                                                } else {
-                                                    pluginPlaylists
-                                                }
-
-                                            _uiState.update {
-                                                it.copy(playlists = updatedAllPlaylists)
-                                            }
-                                        }
-                                    }
+                        // Observe the local (Room-backed) playlists reactively: the virtual "Liked
+                        // Songs" list plus the user-created local playlists. This makes newly created
+                        // playlists (e.g. from "Add to playlist -> New playlist") appear immediately
+                        // and be openable/editable in PlaylistDetailScreen.
+                        combine(
+                            mediaLibraryRepository.getLikedSongsPlaylist(),
+                            mediaLibraryRepository.getLocalPlaylists()
+                        ) { likedSongsPlaylist, localPlaylists ->
+                            // Order: Liked Songs (if any) -> user local playlists -> plugin playlists.
+                            buildList {
+                                if (likedSongsPlaylist.songCount > 0) add(likedSongsPlaylist)
+                                addAll(localPlaylists)
+                                addAll(pluginPlaylists)
+                            }
+                        }.collect { allPlaylists ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    playlists = allPlaylists
+                                )
                             }
                         }
                     }

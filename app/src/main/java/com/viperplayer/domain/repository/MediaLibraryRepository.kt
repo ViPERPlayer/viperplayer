@@ -82,6 +82,40 @@ interface MediaLibraryRepository {
     fun getAllLikedPlaylists(): Flow<List<Playlist>>
     fun getAllSavedPlaylists(): Flow<List<Playlist>>
     fun getLikedSongsPlaylist(): Flow<Playlist>
+
+    /**
+     * User-created local playlists (the targets of "Add to playlist"), newest first, kept in sync
+     * with the database. Does not include the virtual "Liked Songs" playlist.
+     */
+    fun getLocalPlaylists(): Flow<List<Playlist>>
+
+    /**
+     * Create a new, empty local playlist named [name] and return its [MediaId]. The name is trimmed;
+     * a blank name is stored as a generic fallback.
+     */
+    suspend fun createLocalPlaylist(name: String): MediaId
+
+    /**
+     * Append [song] to the end of the playlist identified by [playlistId]. Persists the song first so
+     * a not-yet-saved song (e.g. a plugin track from the player) still lands in the playlist. A song
+     * already present in the playlist is left untouched (its position is preserved). No-op if the
+     * playlist does not exist locally.
+     */
+    suspend fun addSongToPlaylist(playlistId: MediaId, song: Song)
+
+    /**
+     * Remove the song at [songId] from the playlist [playlistId] and compact the remaining positions
+     * so they stay contiguous (0..n-1). No-op if the playlist or song is not found.
+     */
+    suspend fun removeSongFromPlaylist(playlistId: MediaId, songId: MediaId)
+
+    /**
+     * Move the song at [fromIndex] to [toIndex] within playlist [playlistId], rewriting the stored
+     * positions to reflect the new order. Out-of-range indices or a no-op move leave the playlist
+     * unchanged.
+     */
+    suspend fun reorderPlaylistSongs(playlistId: MediaId, fromIndex: Int, toIndex: Int)
+
     suspend fun savePlaylist(playlist: Playlist)
     suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean)
     suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean)

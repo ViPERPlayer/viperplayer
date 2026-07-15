@@ -64,7 +64,9 @@ import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ListItemTrailingWithDuration
+import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
+import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
@@ -379,14 +381,20 @@ private fun ArtistDetailScreenContent(
             }
         }
 
+        val addToPlaylistController = rememberAddToPlaylistController()
+
         // Media item options bottom sheet
         MediaItemOptionsSheetHost(
             controller = optionsController,
             onPlay = { if (it is Song) onPlaySong(it) },
             onPlayNext = { if (it is Song) onPlayNext(it) },
             onAddToQueue = { if (it is Song) onAddToQueue(it) },
+            onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onViewAlbum = onNavigateToAlbum,
         )
+
+        // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
+        AddToPlaylistSheetHost(controller = addToPlaylistController)
     }
 }
 

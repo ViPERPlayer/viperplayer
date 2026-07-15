@@ -148,6 +148,8 @@ import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
+import com.viperplayer.presentation.common.AddToPlaylistSheetHost
+import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.ktx.formatDuration
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
@@ -206,9 +208,9 @@ fun PlayerScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
+    val addToPlaylistController = rememberAddToPlaylistController()
     val context = LocalContext.current
     val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
-    val comingSoonMessage = stringResource(R.string.toast_coming_soon)
     val downloadStartedMessage = stringResource(R.string.toast_download_started)
     val downloadUnavailableMessage = stringResource(R.string.toast_download_unavailable)
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
@@ -417,8 +419,7 @@ fun PlayerScreen(
                             leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
                             onClick = {
                                 showOverflowMenu = false
-                                // No add-to-existing-playlist backend yet — mocked, prepared for wiring.
-                                Toast.makeText(context, comingSoonMessage, Toast.LENGTH_SHORT).show()
+                                addToPlaylistController.show(song)
                             }
                         )
                         DropdownMenuItem(
@@ -672,6 +673,9 @@ fun PlayerScreen(
             onNavigateToJoinSession()
         },
     )
+
+    // Add-to-playlist picker (existing playlists + create new) — opened from the overflow menu.
+    AddToPlaylistSheetHost(controller = addToPlaylistController)
 
     if (showSleepTimerDialog) {
         SleepTimerDialog(

@@ -57,6 +57,8 @@ import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.AddToPlaylistSheetHost
+import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.ktx.bottom
@@ -78,6 +80,7 @@ fun LibraryScreen(
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
     val optionsController = rememberMediaItemOptionsController()
+    val addToPlaylistController = rememberAddToPlaylistController()
 
     val context = LocalContext.current
     val importFailureMsg = stringResource(R.string.playlist_import_failure)
@@ -362,9 +365,13 @@ fun LibraryScreen(
                     else -> {}
                 }
             },
+            onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
         )
+
+        // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
+        AddToPlaylistSheetHost(controller = addToPlaylistController)
     }
 }
 

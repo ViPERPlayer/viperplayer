@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.detail
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,15 +10,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.items
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -39,13 +45,20 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -57,6 +70,8 @@ import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.common.AddToPlaylistSheetHost
+import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
 import com.viperplayer.presentation.plugins.PluginActionsViewModel
@@ -109,11 +124,14 @@ fun PlaylistDetailScreen(
         }
     }
 
+    val addToPlaylistController = rememberAddToPlaylistController()
+
     PlaylistDetailScreenContent(
         rootPadding = rootPadding,
         uiState = uiState,
         currentSong = currentSong,
         isPlaying = isPlaying,
+        isEditable = viewModel.isEditable,
         pluginAction = pluginAction,
         onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
@@ -124,10 +142,16 @@ fun PlaylistDetailScreen(
         onPlaySong = viewModel::playSong,
         onPlayNext = viewModel::playNext,
         onAddToQueue = viewModel::addToQueue,
+        onAddToPlaylist = { addToPlaylistController.show(it) },
+        onRemoveSongAt = viewModel::removeSongAt,
+        onMoveSong = viewModel::moveSong,
         onToggleLike = { /* TODO: Implement toggle like */ },
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToAlbum = onNavigateToAlbum,
     )
+
+    // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
+    AddToPlaylistSheetHost(controller = addToPlaylistController)
 }
 
 @Composable
@@ -136,6 +160,7 @@ private fun PlaylistDetailScreenContent(
     uiState: PlaylistDetailUiState,
     currentSong: Song?,
     isPlaying: Boolean,
+    isEditable: Boolean = false,
     pluginAction: PluginPendingAction? = null,
     onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -146,11 +171,15 @@ private fun PlaylistDetailScreenContent(
     onPlaySong: (Song) -> Unit,
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
+    onAddToPlaylist: (Song) -> Unit = {},
+    onRemoveSongAt: (Int) -> Unit = {},
+    onMoveSong: (Int, Int) -> Unit = { _, _ -> },
     onToggleLike: (Song) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
 ) {
     val optionsController = rememberMediaItemOptionsController()
+    var editMode by remember { mutableStateOf(false) }
 
     val playlist = when (uiState) {
         is PlaylistDetailUiState.Success -> uiState.playlist
@@ -164,6 +193,15 @@ private fun PlaylistDetailScreenContent(
         title = title,
         onNavigateBack = onNavigateBack,
         actions = {
+            if (isEditable && uiState is PlaylistDetailUiState.Success) {
+                IconButton(onClick = { editMode = !editMode }) {
+                    if (editMode) {
+                        Icon(Icons.Default.Done, contentDescription = stringResource(R.string.action_done))
+                    } else {
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit))
+                    }
+                }
+            }
             IconButton(onClick = onExport, enabled = (playlist?.songCount ?: 0) > 0 || playlist?.songs?.isNotEmpty() == true) {
                 Icon(Icons.Default.FileUpload, contentDescription = stringResource(R.string.playlist_export_m3u))
             }
@@ -198,80 +236,98 @@ private fun PlaylistDetailScreenContent(
             }
 
             is PlaylistDetailUiState.Success -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(contentPadding),
-                    contentPadding = rootPadding
-                ) {
-                    // Playlist metadata header (no artwork — artwork is in the collapsing app bar)
-                    item {
-                        PlaylistMetadataHeader(
-                            playlist = uiState.playlist,
-                            songCount = uiState.songs.size,
-                            onPlayAll = onPlayAll,
-                            onShuffle = onShuffle
-                        )
-                    }
-
-                    // Songs list
-                    if (uiState.songs.isEmpty()) {
+                if (editMode) {
+                    EditablePlaylistSongList(
+                        songs = uiState.songs,
+                        contentPadding = contentPadding,
+                        rootPadding = rootPadding,
+                        onMoveSong = onMoveSong,
+                        onRemoveSongAt = onRemoveSongAt,
+                        header = {
+                            PlaylistMetadataHeader(
+                                playlist = uiState.playlist,
+                                songCount = uiState.songs.size,
+                                onPlayAll = onPlayAll,
+                                onShuffle = onShuffle
+                            )
+                        },
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(contentPadding),
+                        contentPadding = rootPadding
+                    ) {
+                        // Playlist metadata header (no artwork — artwork is in the collapsing app bar)
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.playlist_no_songs),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            PlaylistMetadataHeader(
+                                playlist = uiState.playlist,
+                                songCount = uiState.songs.size,
+                                onPlayAll = onPlayAll,
+                                onShuffle = onShuffle
+                            )
+                        }
+
+                        // Songs list
+                        if (uiState.songs.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.playlist_no_songs),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            itemsIndexed(uiState.songs, key = { index, song -> "${song.id}-$index" }) { _, song ->
+                                ListItem(
+                                    title = song.title,
+                                    badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
+                                    subtitle = song.artistNames,
+                                    isActive = currentSong?.id == song.id,
+                                    leadingContent = {
+                                        ListItemLeadingArtwork(
+                                            artworkUrl = song.artworkUrl,
+                                            type = SearchItem.Type.SONG,
+                                            isActive = currentSong?.id == song.id,
+                                            isPlaying = currentSong?.id == song.id && isPlaying
+                                        )
+                                    },
+                                    trailingContent = {
+                                        ListItemTrailingWithDuration(
+                                            durationMs = song.durationMs,
+                                            onMoreClick = { optionsController.show(song) }
+                                        )
+                                    },
+                                    onClick = if (song.isPlayable) {
+                                        { onPlaySong(song) }
+                                    } else null,
+                                    onLongClick = { optionsController.show(song) },
+                                    onPlayNext = if (song.isPlayable) {
+                                        { onPlayNext(song) }
+                                    } else null,
+                                    onAddToQueue = if (song.isPlayable) {
+                                        { onAddToQueue(song) }
+                                    } else null,
+                                    modifier = Modifier
+                                        .animateItem()
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (!song.isPlayable) {
+                                                Modifier.alpha(0.5f)
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
                                 )
                             }
-                        }
-                    } else {
-                        itemsIndexed(uiState.songs, key = { index, song -> "${song.id}-$index" }) { _, song ->
-                            ListItem(
-                                title = song.title,
-                                badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                                subtitle = song.artistNames,
-                                isActive = currentSong?.id == song.id,
-                                leadingContent = {
-                                    ListItemLeadingArtwork(
-                                        artworkUrl = song.artworkUrl,
-                                        type = SearchItem.Type.SONG,
-                                        isActive = currentSong?.id == song.id,
-                                        isPlaying = currentSong?.id == song.id && isPlaying
-                                    )
-                                },
-                                trailingContent = {
-                                    ListItemTrailingWithDuration(
-                                        durationMs = song.durationMs,
-                                        onMoreClick = { optionsController.show(song) }
-                                    )
-                                },
-                                onClick = if (song.isPlayable) {
-                                    { onPlaySong(song) }
-                                } else null,
-                                onLongClick = { optionsController.show(song) },
-                                onPlayNext = if (song.isPlayable) {
-                                    { onPlayNext(song) }
-                                } else null,
-                                onAddToQueue = if (song.isPlayable) {
-                                    { onAddToQueue(song) }
-                                } else null,
-                                modifier = Modifier
-                                    .animateItem()
-                                    .fillMaxWidth()
-                                    .then(
-                                        if (!song.isPlayable) {
-                                            Modifier.alpha(0.5f)
-                                        } else {
-                                            Modifier
-                                        }
-                                    )
-                            )
                         }
                     }
                 }
@@ -284,10 +340,135 @@ private fun PlaylistDetailScreenContent(
             onPlay = { if (it is Song) onPlaySong(it) },
             onPlayNext = { if (it is Song) onPlayNext(it) },
             onAddToQueue = { if (it is Song) onAddToQueue(it) },
+            onAddToPlaylist = { if (it is Song) onAddToPlaylist(it) },
             onLike = { if (it is Song) onToggleLike(it) },
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
         )
+    }
+}
+
+/**
+ * Reorderable + removable song list shown in a local playlist's edit mode. Drag the handle to move a
+ * row (committed once on drop, so the underlying list only rewrites once), tap × to remove a row.
+ * All mutations are forwarded to the ViewModel via [onMoveSong] / [onRemoveSongAt] — this composable
+ * keeps only a transient working copy so a drag can animate before the state round-trips back.
+ */
+@Composable
+private fun EditablePlaylistSongList(
+    songs: List<Song>,
+    contentPadding: PaddingValues,
+    rootPadding: PaddingValues,
+    onMoveSong: (Int, Int) -> Unit,
+    onRemoveSongAt: (Int) -> Unit,
+    header: @Composable () -> Unit,
+) {
+    val density = LocalDensity.current
+    val rowHeight = 64.dp
+    val rowHeightPx = with(density) { rowHeight.toPx() }
+
+    // Working copy so a drag reorders live without waiting for the ViewModel round-trip.
+    var localSongs by remember(songs) { mutableStateOf(songs) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var startIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+
+    fun commitReorder() {
+        val from = startIndex
+        val to = draggingIndex
+        if (from != null && to != null && from != to) {
+            onMoveSong(from, to)
+        }
+        draggingIndex = null
+        startIndex = null
+        dragOffset = 0f
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(contentPadding),
+        contentPadding = rootPadding
+    ) {
+        item { header() }
+
+        itemsIndexed(localSongs, key = { _, song -> song.id.toString() }) { index, song ->
+            val isDragging = draggingIndex == index
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(rowHeight)
+                    .zIndex(if (isDragging) 1f else 0f)
+                    .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
+                    .background(
+                        if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest
+                        else Color.Transparent
+                    )
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = stringResource(R.string.playlist_reorder_song),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .testTag("dragHandle_$index")
+                        .pointerInput(localSongs.size) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    startIndex = index
+                                    draggingIndex = index
+                                    dragOffset = 0f
+                                },
+                                onDragEnd = { commitReorder() },
+                                onDragCancel = { commitReorder() },
+                            ) { change, dragAmount ->
+                                change.consume()
+                                dragOffset += dragAmount.y
+                                val current = draggingIndex ?: return@detectDragGesturesAfterLongPress
+                                // Once the row has been dragged past a neighbour's midpoint, swap it.
+                                if (dragOffset > rowHeightPx / 2 && current < localSongs.lastIndex) {
+                                    localSongs = localSongs.toMutableList()
+                                        .apply { add(current + 1, removeAt(current)) }
+                                    draggingIndex = current + 1
+                                    dragOffset -= rowHeightPx
+                                } else if (dragOffset < -rowHeightPx / 2 && current > 0) {
+                                    localSongs = localSongs.toMutableList()
+                                        .apply { add(current - 1, removeAt(current)) }
+                                    draggingIndex = current - 1
+                                    dragOffset += rowHeightPx
+                                }
+                            }
+                        }
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = song.artistNames.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                IconButton(
+                    onClick = { onRemoveSongAt(index) },
+                    modifier = Modifier.testTag("removeSong_$index")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.playlist_remove_song),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 

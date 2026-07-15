@@ -9,6 +9,7 @@ import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
 import com.viperplayer.data.local.entity.QueueSongCrossRef
 import com.viperplayer.data.local.entity.SongArtistCrossRef
+import kotlinx.coroutines.flow.Flow
 
 /**
  * DAO for cross-reference table operations.
@@ -58,6 +59,17 @@ interface CrossRefDao {
     @Query("SELECT songId FROM playlist_songs WHERE playlistId = :playlistId ORDER BY position ASC")
     suspend fun getSongIdsForPlaylist(playlistId: Long): List<Long>
 
+    /** Reactive song ids for a playlist; re-emits whenever playlist_songs membership/order changes. */
+    @Query("SELECT songId FROM playlist_songs WHERE playlistId = :playlistId ORDER BY position ASC")
+    fun getSongIdsForPlaylistFlow(playlistId: Long): Flow<List<Long>>
+
+    /**
+     * Reactive song counts per playlist, keyed by playlistId. Re-emits whenever playlist_songs
+     * membership changes so callers can keep counts fresh without polling.
+     */
+    @Query("SELECT playlistId, COUNT(*) AS songCount FROM playlist_songs GROUP BY playlistId")
+    fun getPlaylistSongCounts(): Flow<List<PlaylistSongCount>>
+
     @Query("SELECT playlistId FROM playlist_songs WHERE songId = :songId ORDER BY position ASC")
     suspend fun getPlaylistIdsForSong(songId: Long): List<Long>
 
@@ -75,6 +87,14 @@ interface CrossRefDao {
 
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long)
+
+    /** Highest position currently used in a playlist, or null when the playlist has no songs. */
+    @Query("SELECT MAX(position) FROM playlist_songs WHERE playlistId = :playlistId")
+    suspend fun getMaxPositionForPlaylist(playlistId: Long): Int?
+
+    /** Whether a specific song is already in a playlist (used to avoid duplicate inserts). */
+    @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun countSongInPlaylist(playlistId: Long, songId: Long): Int
 
     // Artist-Genre relationships
     @Query("SELECT genreId FROM artist_genres WHERE artistId = :artistId")
@@ -114,4 +134,10 @@ interface CrossRefDao {
     @Query("DELETE FROM queue_songs WHERE songId = :songId")
     suspend fun removeSongFromQueue(songId: Long)
 }
+
+/** Projection of the number of songs in a single playlist, keyed by [playlistId]. */
+data class PlaylistSongCount(
+    val playlistId: Long,
+    val songCount: Int,
+)
 

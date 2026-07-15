@@ -119,8 +119,26 @@
     <string name="song_detail_track_number">Track Number</string>
     <string name="song_detail_disc_number">Disc Number</string>
     <string name="song_detail_album">Album</string>
+    <!-- Add-to-playlist picker -->
+    <string name="add_to_playlist_title">Add to playlist</string>
+    <string name="add_to_playlist_new">New playlist</string>
+    <string name="add_to_playlist_empty">You have no playlists yet</string>
+    <string name="add_to_playlist_added">Added to \"%1$s\"</string>
+    <string name="add_to_playlist_failed">Couldn\'t add to \"%1$s\"</string>
+    <string name="create_playlist_title">New playlist</string>
+    <string name="create_playlist_name_hint">Playlist name</string>
+    <string name="action_create">Create</string>
+
+    <!-- Playlist editing -->
+    <string name="action_edit">Edit</string>
+    <string name="playlist_remove_song">Remove from playlist</string>
+    <string name="playlist_reorder_song">Reorder</string>
+
     <!-- Misc empty / error states -->
     <string name="playlist_no_songs">No songs in this playlist</string>
+    <string name="playlist_not_found">Playlist not found</string>
+    <string name="playlist_load_failed">Failed to load playlist</string>
+    <string name="playlist_load_details_failed">Failed to load playlist details</string>
     <string name="home_genres_load_error">Couldn\'t load — tap a genre to retry.</string>
 
     <!-- Album types -->

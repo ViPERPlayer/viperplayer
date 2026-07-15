@@ -19,6 +19,7 @@ import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toRef
 import com.viperplayer.data.playlist.M3uSerializer
+import com.viperplayer.data.playlist.PlaylistOrdering
 import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
@@ -43,9 +44,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -778,17 +782,25 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     // Playlists
     override fun getPlaylist(mediaId: MediaId): Flow<Playlist?> {
+        // Observe playlist_songs reactively (via flatMapLatest on the playlist row id) so that
+        // membership/order edits — including a same-app add from the picker — re-emit here rather
+        // than requiring a manual reload.
+        val songIdsFlow = playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId)
+            .map { it?.id }
+            .distinctUntilChanged()
+            .flatMapLatest { playlistId ->
+                if (playlistId == null) flowOf(emptyList())
+                else crossRefDao.getSongIdsForPlaylistFlow(playlistId)
+            }
         return combine(
             playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
-            playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id },
+            songIdsFlow,
             pluginRepository.connectedPlugins,
             networkConnectivityChecker.isInternetAvailable
-        ) { playlistEntity, playlistId, connectedPlugins, isInternetAvailable ->
+        ) { playlistEntity, songIds, connectedPlugins, isInternetAvailable ->
             if (playlistEntity == null) return@combine null
 
             val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
-
-            val songIds = playlistId?.let { crossRefDao.getSongIdsForPlaylist(it) } ?: emptyList()
             val songs = songIds.mapNotNull { songId ->
                 val songEntity = songDao.getById(songId).first() ?: return@mapNotNull null
                 val artists = songByline(songEntity)
@@ -983,6 +995,105 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 songs = songs
             )
         }
+    }
+
+    override fun getLocalPlaylists(): Flow<List<Playlist>> {
+        // Combine with the reactive per-playlist counts so adding/removing songs (which mutates
+        // playlist_songs, not the playlists row) re-emits fresh counts instead of showing stale ones.
+        return combine(
+            playlistDao.getAllLocal(),
+            crossRefDao.getPlaylistSongCounts()
+        ) { entities, counts ->
+            val countsById = counts.associate { it.playlistId to it.songCount }
+            entities.map { entity ->
+                entity.toDomain().copy(songCount = countsById[entity.id] ?: 0)
+            }
+        }
+    }
+
+    override suspend fun createLocalPlaylist(name: String): MediaId = withContext(Dispatchers.IO) {
+        val trimmed = name.trim().ifBlank { "Playlist" }
+        val mediaId = MediaId("local", "playlist_${UUID.randomUUID()}")
+        savePlaylist(
+            Playlist(
+                id = mediaId,
+                name = trimmed,
+                songCount = 0,
+                isPublic = false,
+                isEditable = true,
+                songs = emptyList(),
+            )
+        )
+        mediaId
+    }
+
+    override suspend fun addSongToPlaylist(playlistId: MediaId, song: Song): Unit =
+        withContext(Dispatchers.IO) {
+            val playlistEntity =
+                playlistDao.getByMediaId(playlistId.pluginId, playlistId.sourceId) ?: return@withContext
+            // If the song already has a row and is already a member, leave its position untouched
+            // (no duplicate: PK is playlistId+songId) and skip saveSong so we don't clobber good
+            // persisted metadata with a possibly leaner Song object.
+            val existing = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+            if (existing != null &&
+                crossRefDao.countSongInPlaylist(playlistEntity.id, existing.id) > 0
+            ) {
+                return@withContext
+            }
+            // Persist the song so a not-yet-saved plugin track still has a row to reference.
+            saveSong(song)
+            val songEntity =
+                songDao.getByMediaId(song.id.pluginId, song.id.sourceId) ?: return@withContext
+            val nextPosition =
+                PlaylistOrdering.nextPosition(crossRefDao.getMaxPositionForPlaylist(playlistEntity.id))
+            crossRefDao.insertPlaylistSong(
+                PlaylistSongCrossRef(
+                    playlistId = playlistEntity.id,
+                    songId = songEntity.id,
+                    position = nextPosition,
+                )
+            )
+        }
+
+    override suspend fun removeSongFromPlaylist(playlistId: MediaId, songId: MediaId): Unit =
+        withContext(Dispatchers.IO) {
+            val playlistEntity =
+                playlistDao.getByMediaId(playlistId.pluginId, playlistId.sourceId) ?: return@withContext
+            val songEntity =
+                songDao.getByMediaId(songId.pluginId, songId.sourceId) ?: return@withContext
+            crossRefDao.removeSongFromPlaylist(playlistEntity.id, songEntity.id)
+            // Compact positions so they stay contiguous (0..n-1) after the removal.
+            rewritePlaylistPositions(playlistEntity.id, crossRefDao.getSongIdsForPlaylist(playlistEntity.id))
+        }
+
+    override suspend fun reorderPlaylistSongs(
+        playlistId: MediaId,
+        fromIndex: Int,
+        toIndex: Int
+    ): Unit = withContext(Dispatchers.IO) {
+        val playlistEntity =
+            playlistDao.getByMediaId(playlistId.pluginId, playlistId.sourceId) ?: return@withContext
+        val ordered = crossRefDao.getSongIdsForPlaylist(playlistEntity.id)
+        val reordered = PlaylistOrdering.move(ordered, fromIndex, toIndex)
+        if (reordered == ordered) return@withContext
+        rewritePlaylistPositions(playlistEntity.id, reordered)
+    }
+
+    /**
+     * Rewrite the playlist_songs positions for [playlistId] to match the given ordered song ids.
+     * All rows are rewritten in a single Room transaction (one `insertPlaylistSongs` list insert) so
+     * the reactive `getSongIdsForPlaylistFlow` never observes a transient state where two rows share
+     * a position — avoiding a brief wrong-order flicker on reorder/remove.
+     */
+    private suspend fun rewritePlaylistPositions(playlistId: Long, orderedSongIds: List<Long>) {
+        val rows = orderedSongIds.mapIndexed { index, songId ->
+            PlaylistSongCrossRef(
+                playlistId = playlistId,
+                songId = songId,
+                position = index,
+            )
+        }
+        crossRefDao.insertPlaylistSongs(rows)
     }
 
     override suspend fun scanLocalFiles(): Unit = withContext(Dispatchers.IO) {
