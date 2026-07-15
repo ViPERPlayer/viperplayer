@@ -159,17 +159,23 @@ class BluetoothCodecReader @Inject constructor(
                 suspendCancellableCoroutine { cont ->
                     // Holds the bound proxy so cancellation (or a post-cancellation bind) can close it
                     // exactly once and never leak the profile.
+                    // All access to `closed`/`boundProxy` is guarded by `closeLock` so the
+                    // main-thread service callback and the cancellation thread can't both close
+                    // the same proxy (or miss the write) in the bind-at-timeout race.
+                    val closeLock = Any()
                     var boundProxy: BluetoothProfile? = null
                     var closed = false
                     fun closeOnce(proxy: BluetoothProfile?) {
-                        if (proxy != null && !closed) {
-                            closed = true
-                            runCatching { adapter.closeProfileProxy(BluetoothProfile.A2DP, proxy) }
+                        synchronized(closeLock) {
+                            if (proxy != null && !closed) {
+                                closed = true
+                                runCatching { adapter.closeProfileProxy(BluetoothProfile.A2DP, proxy) }
+                            }
                         }
                     }
                     val listener = object : BluetoothProfile.ServiceListener {
                         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                            boundProxy = proxy
+                            synchronized(closeLock) { boundProxy = proxy }
                             if (cont.isActive) {
                                 cont.resume(proxy)
                             } else {
@@ -182,7 +188,7 @@ class BluetoothCodecReader @Inject constructor(
                             if (cont.isActive) cont.resume(null)
                         }
                     }
-                    cont.invokeOnCancellation { closeOnce(boundProxy) }
+                    cont.invokeOnCancellation { closeOnce(synchronized(closeLock) { boundProxy }) }
                     val requested = adapter.getProfileProxy(context, listener, BluetoothProfile.A2DP)
                     if (!requested && cont.isActive) cont.resume(null)
                 }

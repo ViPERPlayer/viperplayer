@@ -3,6 +3,7 @@ package com.viperplayer.presentation.detail
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -416,7 +417,7 @@ private fun formatDuration(ms: Long): String {
 private fun openPlugin(context: Context, pluginPackage: String) {
     val launch = context.packageManager.getLaunchIntentForPackage(pluginPackage)
     val intent = launch ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = android.net.Uri.fromParts("package", pluginPackage, null)
+        data = Uri.fromParts("package", pluginPackage, null)
     }
     runCatching { context.startActivity(intent) }
 }
