@@ -79,6 +79,36 @@ class LocalTagReaderTest {
         assertEquals("v2.3 lyrics", lyrics.plainText)
     }
 
+    @Test
+    fun `id3v22 ULT frame (6-byte header, 3-char id) is parsed`() {
+        val ult = usltFrame(encoding = 3, descriptor = "", lyrics = "v2.2 unsynced")
+        val tag = id3v22(listOf("ULT" to ult))
+        val lyrics = LocalTagReader.readEmbeddedLyrics(tag)!!
+        assertFalse(lyrics.synced)
+        assertEquals("v2.2 unsynced", lyrics.plainText)
+    }
+
+    @Test
+    fun `id3v22 SLT synced frame is parsed to synced lines`() {
+        val slt = syltFrame(encoding = 3, descriptor = "", entries = listOf("Hola" to 750, "Mundo" to 2250))
+        val tag = id3v22(listOf("SLT" to slt))
+        val lyrics = LocalTagReader.readEmbeddedLyrics(tag)!!
+        assertTrue(lyrics.synced)
+        assertEquals(2, lyrics.lines.size)
+        assertEquals(750L, lyrics.lines[0].startMs)
+        assertEquals("Hola", lyrics.lines[0].text)
+        assertEquals(2250L, lyrics.lines[1].startMs)
+        assertEquals("Mundo", lyrics.lines[1].text)
+    }
+
+    @Test
+    fun `id3v23 with an extended header still finds a following lyric frame`() {
+        val uslt = usltFrame(encoding = 3, descriptor = "", lyrics = "after ext header")
+        val tag = id3(versionMajor = 3, frames = listOf("USLT" to uslt), extendedHeaderPad = 8)
+        val lyrics = LocalTagReader.readEmbeddedLyrics(tag)!!
+        assertEquals("after ext header", lyrics.plainText)
+    }
+
     // ---- Vorbis comments (FLAC / Ogg) ---------------------------------------------------------
 
     @Test
@@ -117,6 +147,31 @@ class LocalTagReaderTest {
         val ogg = oggWithVorbisComments(listOf("LYRICS=ogg plain lyrics"))
         val lyrics = LocalTagReader.readEmbeddedLyrics(ogg)!!
         assertEquals("ogg plain lyrics", lyrics.plainText)
+    }
+
+    @Test
+    fun `flac finds VORBIS_COMMENT after a large PICTURE block via stream walk`() {
+        // A ~3 MiB PICTURE block precedes the comment — past the 2 MiB head cap. Reading from a stream
+        // must skip the picture by its length and still surface the comment without buffering it.
+        val flac = flacWithPictureThenComments(
+            pictureSize = 3 * 1024 * 1024,
+            comments = listOf("UNSYNCEDLYRICS=lyrics behind a big cover"),
+        )
+        val lyrics = LocalTagReader.readEmbeddedLyrics(flac.inputStream())!!
+        assertFalse(lyrics.synced)
+        assertEquals("lyrics behind a big cover", lyrics.plainText)
+    }
+
+    @Test
+    fun `flac synced lyrics after a large PICTURE block are read from a stream`() {
+        val flac = flacWithPictureThenComments(
+            pictureSize = 3 * 1024 * 1024,
+            comments = listOf("SYNCEDLYRICS=[00:03.00]behind cover"),
+        )
+        val lyrics = LocalTagReader.readEmbeddedLyrics(flac.inputStream())!!
+        assertTrue(lyrics.synced)
+        assertEquals(3000L, lyrics.lines[0].startMs)
+        assertEquals("behind cover", lyrics.lines[0].text)
     }
 
     // ---- sniffing / negatives -----------------------------------------------------------------
@@ -213,11 +268,34 @@ class LocalTagReaderTest {
         (value and 0xFF).toByte(),
     )
 
+    private fun be24(value: Int): ByteArray = byteArrayOf(
+        ((value ushr 16) and 0xFF).toByte(),
+        ((value ushr 8) and 0xFF).toByte(),
+        (value and 0xFF).toByte(),
+    )
+
     private fun id3v24(frames: List<Pair<String, ByteArray>>) = id3(versionMajor = 4, frames = frames)
 
-    /** Build a minimal ID3v2 tag containing [frames]. Frame sizes are sync-safe for v2.4, BE for v2.3. */
-    private fun id3(versionMajor: Int, frames: List<Pair<String, ByteArray>>): ByteArray {
+    /**
+     * Build a minimal ID3v2 tag containing [frames]. Frame sizes are sync-safe for v2.4 and BE for
+     * v2.3. When [extendedHeaderPad] > 0 (v2.3 only) a synthetic extended header of that many padding
+     * bytes is emitted after the main header; its 4-byte BE size field EXCLUDES its own length, as the
+     * v2.3 spec requires — the reader must skip `4 + size` to land on the first frame.
+     */
+    private fun id3(
+        versionMajor: Int,
+        frames: List<Pair<String, ByteArray>>,
+        extendedHeaderPad: Int = 0,
+    ): ByteArray {
         val body = ByteArrayOutputStream()
+        var flags = 0
+        if (extendedHeaderPad > 0 && versionMajor == 3) {
+            flags = flags or 0x40 // extended-header present
+            // v2.3 extended header: size(4 BE, excludes these 4 bytes) | flags(2) | paddingSize(4) | ...
+            val extBody = byteArrayOf(0, 0) + be32(extendedHeaderPad) + ByteArray(extendedHeaderPad)
+            body.write(be32(extBody.size)) // size excludes its own 4 bytes
+            body.write(extBody)
+        }
         for ((id, data) in frames) {
             body.write(id.toByteArray(Charsets.ISO_8859_1))
             body.write(if (versionMajor >= 4) syncSafe(data.size) else be32(data.size))
@@ -229,8 +307,28 @@ class LocalTagReaderTest {
         out.write("ID3".toByteArray(Charsets.ISO_8859_1))
         out.write(versionMajor) // version major
         out.write(0)            // version revision
-        out.write(0)            // flags
+        out.write(flags)        // flags
         out.write(syncSafe(bodyBytes.size)) // tag size is always sync-safe
+        out.write(bodyBytes)
+        return out.toByteArray()
+    }
+
+    /** Build a minimal ID3v2.2 tag: 6-byte frame headers (3-char id + 3-byte non-sync-safe size). */
+    private fun id3v22(frames: List<Pair<String, ByteArray>>): ByteArray {
+        val body = ByteArrayOutputStream()
+        for ((id, data) in frames) {
+            require(id.length == 3) { "v2.2 frame ids are 3 chars" }
+            body.write(id.toByteArray(Charsets.ISO_8859_1))
+            body.write(be24(data.size)) // 3-byte non-sync-safe size
+            body.write(data)
+        }
+        val bodyBytes = body.toByteArray()
+        val out = ByteArrayOutputStream()
+        out.write("ID3".toByteArray(Charsets.ISO_8859_1))
+        out.write(2) // version major = 2
+        out.write(0) // revision
+        out.write(0) // flags
+        out.write(syncSafe(bodyBytes.size))
         out.write(bodyBytes)
         return out.toByteArray()
     }
@@ -263,6 +361,34 @@ class LocalTagReaderTest {
         val out = ByteArrayOutputStream()
         out.write("fLaC".toByteArray(Charsets.ISO_8859_1))
         out.write(0x84) // last-block flag (0x80) | type 4 (VORBIS_COMMENT)
+        out.write(byteArrayOf(
+            ((body.size ushr 16) and 0xFF).toByte(),
+            ((body.size ushr 8) and 0xFF).toByte(),
+            (body.size and 0xFF).toByte(),
+        ))
+        out.write(body)
+        return out.toByteArray()
+    }
+
+    /**
+     * A FLAC file whose first metadata block is a large PICTURE (type 6) of [pictureSize] bytes,
+     * followed by the (last) VORBIS_COMMENT block. Exercises the stream walk skipping a big cover to
+     * reach a comment that sits past the in-memory head cap.
+     */
+    private fun flacWithPictureThenComments(pictureSize: Int, comments: List<String>): ByteArray {
+        val body = vorbisCommentBody(comments)
+        val out = ByteArrayOutputStream()
+        out.write("fLaC".toByteArray(Charsets.ISO_8859_1))
+        // PICTURE block (type 6), not last.
+        out.write(0x06)
+        out.write(byteArrayOf(
+            ((pictureSize ushr 16) and 0xFF).toByte(),
+            ((pictureSize ushr 8) and 0xFF).toByte(),
+            (pictureSize and 0xFF).toByte(),
+        ))
+        out.write(ByteArray(pictureSize)) // dummy cover data
+        // VORBIS_COMMENT block (type 4), last.
+        out.write(0x84)
         out.write(byteArrayOf(
             ((body.size ushr 16) and 0xFF).toByte(),
             ((body.size ushr 8) and 0xFF).toByte(),

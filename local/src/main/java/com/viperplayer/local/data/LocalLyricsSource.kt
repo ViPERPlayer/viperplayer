@@ -38,15 +38,15 @@ class LocalLyricsSource(
 
     /**
      * Probe for a sidecar lyric file next to [audioPath] in preference order and parse the first that
-     * exists and yields lyrics. Returns null when none are found/readable.
+     * exists and yields lyrics. The parent directory is listed and matched case-insensitively so an
+     * uppercase extension (`Song.LRC`) is still found. Returns null when none are found/readable.
      */
     private fun readSidecar(audioPath: String): Lyrics? {
-        for (candidate in LyricsFiles.sidecarCandidates(audioPath)) {
-            val file = File(candidate)
-            val content = runCatching { if (file.isFile) file.readText() else null }.getOrNull()
-                ?: continue
-            LyricsFiles.parseSidecar(candidate, content)?.let { return it }
-        }
-        return null
+        val parent = File(audioPath).parentFile ?: return null
+        val siblingNames = runCatching { parent.list()?.toList() }.getOrNull() ?: return null
+        val match = LyricsFiles.resolveSidecarName(audioPath, siblingNames) ?: return null
+        val file = File(parent, match)
+        val content = runCatching { if (file.isFile) file.readText() else null }.getOrNull() ?: return null
+        return LyricsFiles.parseSidecar(match, content)
     }
 }
