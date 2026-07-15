@@ -1,8 +1,11 @@
 package com.viperplayer.presentation.detail
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -72,8 +76,20 @@ fun SongInfoScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val audioFormat by viewModel.audioFormat.collectAsStateWithLifecycle()
     val bluetoothCodec by viewModel.bluetoothCodec.collectAsStateWithLifecycle()
+    val bluetoothPermissionNeeded by viewModel.bluetoothPermissionNeeded.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val song = state.song ?: return
+
+    // Request BLUETOOTH_CONNECT only when it's actually needed (missing + on a BT A2DP route), so we
+    // don't prompt on wired/speaker playback. On grant, the ViewModel re-reads the codec.
+    val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) viewModel.onBluetoothPermissionGranted() }
+    LaunchedEffect(bluetoothPermissionNeeded) {
+        if (bluetoothPermissionNeeded) {
+            bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+    }
 
     Scaffold(
         topBar = {

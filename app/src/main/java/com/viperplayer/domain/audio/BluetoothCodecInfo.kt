@@ -83,5 +83,17 @@ data class BluetoothCodecInfo(
             }
             return BluetoothCodecInfo(codecType = codecType, displayName = name, ldacBitrateLabel = ldacLabel)
         }
+
+        /**
+         * Whether the UI should prompt for BLUETOOTH_CONNECT. Pure so it's JVM-testable: we only ask
+         * when this track is playing ([isCurrentSong]), the permission is missing
+         * ([permissionMissing]), AND audio is actually on a BT A2DP route ([onBluetoothRoute]) —
+         * otherwise the codec section wouldn't show even with the grant, so we don't bother the user.
+         */
+        fun shouldPromptForBluetoothPermission(
+            isCurrentSong: Boolean,
+            permissionMissing: Boolean,
+            onBluetoothRoute: Boolean,
+        ): Boolean = isCurrentSong && permissionMissing && onBluetoothRoute
     }
 }

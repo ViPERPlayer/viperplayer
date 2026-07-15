@@ -19,8 +19,11 @@ import com.viperplayer.domain.audio.BluetoothCodecInfo.Companion.SOURCE_CODEC_TY
 import com.viperplayer.domain.audio.BluetoothCodecInfo.Companion.codecTypeToName
 import com.viperplayer.domain.audio.BluetoothCodecInfo.Companion.from
 import com.viperplayer.domain.audio.BluetoothCodecInfo.Companion.ldacBitrateLabel
+import com.viperplayer.domain.audio.BluetoothCodecInfo.Companion.shouldPromptForBluetoothPermission
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -120,5 +123,53 @@ class BluetoothCodecInfoTest {
         val info = from(SOURCE_CODEC_TYPE_AAC)!!
         assertEquals("AAC", info.label)
         assertNull(info.ldacBitrateLabel)
+    }
+
+    // --- BLUETOOTH_CONNECT permission gating (drives the runtime prompt in SongInfoScreen) ---
+
+    @Test
+    fun shouldPrompt_onlyWhenCurrentAndMissingAndOnBtRoute() {
+        assertTrue(
+            shouldPromptForBluetoothPermission(
+                isCurrentSong = true,
+                permissionMissing = true,
+                onBluetoothRoute = true,
+            )
+        )
+    }
+
+    @Test
+    fun shouldNotPrompt_whenPermissionAlreadyGranted() {
+        assertFalse(
+            shouldPromptForBluetoothPermission(
+                isCurrentSong = true,
+                permissionMissing = false,
+                onBluetoothRoute = true,
+            )
+        )
+    }
+
+    @Test
+    fun shouldNotPrompt_whenNotOnBluetoothRoute() {
+        // Wired/speaker playback: requesting the permission would gain nothing, so we don't ask.
+        assertFalse(
+            shouldPromptForBluetoothPermission(
+                isCurrentSong = true,
+                permissionMissing = true,
+                onBluetoothRoute = false,
+            )
+        )
+    }
+
+    @Test
+    fun shouldNotPrompt_whenTrackIsNotPlaying() {
+        // Viewing info for a non-playing track: no runtime format to read, so no prompt.
+        assertFalse(
+            shouldPromptForBluetoothPermission(
+                isCurrentSong = false,
+                permissionMissing = true,
+                onBluetoothRoute = true,
+            )
+        )
     }
 }

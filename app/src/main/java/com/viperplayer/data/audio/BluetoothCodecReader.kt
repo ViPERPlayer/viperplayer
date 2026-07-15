@@ -1,19 +1,32 @@
 package com.viperplayer.data.audio
 
 import android.Manifest
+import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.viperplayer.domain.audio.BluetoothCodecInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import javax.inject.Inject
@@ -49,9 +62,13 @@ class BluetoothCodecReader @Inject constructor(
         }.getOrDefault(false)
     }
 
+    /** True when we still need the runtime BLUETOOTH_CONNECT permission to read the codec. */
+    fun needsBluetoothConnectPermission(): Boolean = !hasBluetoothConnectPermission()
+
     /**
      * The active Bluetooth A2DP codec, or null when not on a BT route, the codec can't be read, or
-     * permission isn't granted. Suspends only briefly to acquire the A2DP profile proxy.
+     * permission isn't granted. All blocking binder IPC (proxy acquisition + reflective codec-status
+     * reads) runs on [Dispatchers.IO], so this is safe to call from a main-thread coroutine.
      */
     suspend fun readActiveCodec(): BluetoothCodecInfo? {
         if (!isBluetoothA2dpRoute()) return null
@@ -62,11 +79,68 @@ class BluetoothCodecReader @Inject constructor(
         val adapter = bluetoothAdapter ?: return null
         if (!adapter.isEnabled) return null
 
-        val proxy = acquireA2dpProxy(adapter) ?: return null
-        return try {
-            readCodecFromProxy(proxy)
-        } finally {
-            runCatching { adapter.closeProfileProxy(BluetoothProfile.A2DP, proxy) }
+        return withContext(Dispatchers.IO) {
+            val proxy = acquireA2dpProxy(adapter) ?: return@withContext null
+            try {
+                readCodecFromProxy(proxy)
+            } finally {
+                runCatching { adapter.closeProfileProxy(BluetoothProfile.A2DP, proxy) }
+            }
+        }
+    }
+
+    /**
+     * Emits the active codec now and again whenever the BT route/codec/connection changes, so the UI
+     * stays in sync when the user switches codec/LDAC quality or changes route while a screen is open.
+     * Emissions are debounced and each re-read runs off the main thread (see [readActiveCodec]). The
+     * broadcast receiver + audio-device callback are unregistered when the flow is cancelled.
+     */
+    fun codecFlow(): Flow<BluetoothCodecInfo?> = changeSignals()
+        .onStart { emit(Unit) }
+        .debounce(REFRESH_DEBOUNCE_MS)
+        .map { readActiveCodec() }
+
+    /**
+     * Bare "something relevant changed" signals from A2DP broadcasts and audio-device route changes;
+     * the caller maps each to a fresh codec read. Falls back to just the initial [onStart] emission
+     * if neither source can be registered.
+     */
+    private fun changeSignals(): Flow<Unit> = callbackFlow {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                trySend(Unit)
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
+            addAction(ACTION_ACTIVE_DEVICE_CHANGED)
+            addAction(ACTION_CODEC_CONFIG_CHANGED)
+        }
+        runCatching {
+            ContextCompat.registerReceiver(
+                context,
+                receiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+        }.onFailure { Timber.d(it, "Could not register A2DP change receiver") }
+
+        // AudioManager route changes catch switches to/from BT that the A2DP broadcasts miss.
+        val audioCallback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+                trySend(Unit)
+            }
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                trySend(Unit)
+            }
+        }
+        runCatching { audioManager?.registerAudioDeviceCallback(audioCallback, null) }
+            .onFailure { Timber.d(it, "Could not register audio-device callback") }
+
+        awaitClose {
+            runCatching { context.unregisterReceiver(receiver) }
+            runCatching { audioManager?.unregisterAudioDeviceCallback(audioCallback) }
         }
     }
 
@@ -83,15 +157,32 @@ class BluetoothCodecReader @Inject constructor(
         runCatching {
             withTimeoutOrNullSafe {
                 suspendCancellableCoroutine { cont ->
+                    // Holds the bound proxy so cancellation (or a post-cancellation bind) can close it
+                    // exactly once and never leak the profile.
+                    var boundProxy: BluetoothProfile? = null
+                    var closed = false
+                    fun closeOnce(proxy: BluetoothProfile?) {
+                        if (proxy != null && !closed) {
+                            closed = true
+                            runCatching { adapter.closeProfileProxy(BluetoothProfile.A2DP, proxy) }
+                        }
+                    }
                     val listener = object : BluetoothProfile.ServiceListener {
                         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                            if (cont.isActive) cont.resume(proxy)
+                            boundProxy = proxy
+                            if (cont.isActive) {
+                                cont.resume(proxy)
+                            } else {
+                                // Bound after cancellation/timeout — close it so it doesn't leak.
+                                closeOnce(proxy)
+                            }
                         }
 
                         override fun onServiceDisconnected(profile: Int) {
                             if (cont.isActive) cont.resume(null)
                         }
                     }
+                    cont.invokeOnCancellation { closeOnce(boundProxy) }
                     val requested = adapter.getProfileProxy(context, listener, BluetoothProfile.A2DP)
                     if (!requested && cont.isActive) cont.resume(null)
                 }
@@ -145,5 +236,13 @@ class BluetoothCodecReader @Inject constructor(
 
     private companion object {
         const val PROXY_TIMEOUT_MS = 2_000L
+        const val REFRESH_DEBOUNCE_MS = 400L
+
+        // Hidden BluetoothA2dp actions the framework broadcasts on active-device / codec changes. Not
+        // in the public SDK, so referenced by their stable string values; harmless if never fired.
+        const val ACTION_ACTIVE_DEVICE_CHANGED =
+            "android.bluetooth.a2dp.profile.action.ACTIVE_DEVICE_CHANGED"
+        const val ACTION_CODEC_CONFIG_CHANGED =
+            "android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED"
     }
 }
