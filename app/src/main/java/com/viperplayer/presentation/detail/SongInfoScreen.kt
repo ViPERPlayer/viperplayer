@@ -71,6 +71,7 @@ fun SongInfoScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val audioFormat by viewModel.audioFormat.collectAsStateWithLifecycle()
+    val bluetoothCodec by viewModel.bluetoothCodec.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val song = state.song ?: return
 
@@ -172,6 +173,20 @@ fun SongInfoScreen(
                 item {
                     SectionLabel(stringResource(R.string.song_detail_audio_format), top = 20.dp)
                     AudioFormatGrid(fmt)
+                }
+            }
+
+            // Bluetooth output codec (runtime — only when the playing track is on a BT A2DP route)
+            bluetoothCodec?.let { codec ->
+                item {
+                    SectionLabel(stringResource(R.string.song_info_bluetooth_output), top = 20.dp)
+                    RowsCard {
+                        InfoRow(
+                            label = stringResource(R.string.song_info_bluetooth_codec),
+                            value = codec.label,
+                            divider = false,
+                        )
+                    }
                 }
             }
 

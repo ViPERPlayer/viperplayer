@@ -2,6 +2,8 @@ package com.viperplayer.presentation.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.audio.BluetoothCodecReader
+import com.viperplayer.domain.audio.BluetoothCodecInfo
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistRef
@@ -51,6 +53,7 @@ class SongInfoViewModel @AssistedInject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository,
     private val pluginRepository: PluginRepository,
+    private val bluetoothCodecReader: BluetoothCodecReader,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -106,6 +109,22 @@ class SongInfoViewModel @AssistedInject constructor(
         .map { it?.id == mediaId }
         .distinctUntilChanged()
         .mapLatest { isCurrent -> if (isCurrent) playerRepository.getAudioFormat() else null }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = null,
+        )
+
+    /**
+     * The active Bluetooth A2DP codec (e.g. "LDAC 990kbps", "aptX HD"), only when this track is the
+     * one playing and audio is actually routing to a BT device. Null on wired/speaker routes, when
+     * the platform can't report it, or when [Manifest.permission.BLUETOOTH_CONNECT] isn't granted —
+     * the reader degrades gracefully.
+     */
+    val bluetoothCodec: StateFlow<BluetoothCodecInfo?> = playerRepository.currentSong
+        .map { it?.id == mediaId }
+        .distinctUntilChanged()
+        .mapLatest { isCurrent -> if (isCurrent) bluetoothCodecReader.readActiveCodec() else null }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
