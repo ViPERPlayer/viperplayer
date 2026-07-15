@@ -490,6 +490,8 @@
     <string name="song_info_unit_bit">bit</string>
     <string name="song_info_unit_kbps">kbps</string>
     <string name="song_info_unit_ch">ch</string>
+    <string name="song_info_bluetooth_output">Bluetooth output</string>
+    <string name="song_info_bluetooth_codec">Codec</string>
 
     <!-- Join a session -->
     <string name="join_session_title">Join a session</string>
