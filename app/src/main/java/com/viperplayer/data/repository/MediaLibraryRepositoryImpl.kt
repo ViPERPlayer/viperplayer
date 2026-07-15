@@ -1027,6 +1027,16 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         mediaId
     }
 
+    override suspend fun renamePlaylist(mediaId: MediaId, newName: String): Unit =
+        withContext(Dispatchers.IO) {
+            // Guard: only user-created local playlists can be renamed. Remote plugin playlists and the
+            // virtual "Liked Songs" list (which isn't a stored row) are left untouched.
+            if (mediaId.pluginId != "local" || mediaId.sourceId == "liked_songs") return@withContext
+            val trimmed = newName.trim()
+            if (trimmed.isBlank()) return@withContext
+            playlistDao.updateName(mediaId.pluginId, mediaId.sourceId, trimmed)
+        }
+
     override suspend fun addSongToPlaylist(playlistId: MediaId, song: Song): Unit =
         withContext(Dispatchers.IO) {
             val playlistEntity =

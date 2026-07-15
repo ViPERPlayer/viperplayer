@@ -149,6 +149,9 @@ dependencies {
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
 
+    // Reorderable — drag-to-reorder for the playlist edit-mode list
+    implementation(libs.reorderable)
+
     // Ktor Client
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

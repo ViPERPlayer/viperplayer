@@ -133,6 +133,9 @@
     <string name="action_edit">Edit</string>
     <string name="playlist_remove_song">Remove from playlist</string>
     <string name="playlist_reorder_song">Reorder</string>
+    <string name="playlist_rename">Rename playlist</string>
+    <string name="playlist_rename_label">Playlist name</string>
+    <string name="playlist_rename_error_blank">Name can\'t be empty</string>
 
     <!-- Misc empty / error states -->
     <string name="playlist_no_songs">No songs in this playlist</string>

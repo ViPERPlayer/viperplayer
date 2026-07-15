@@ -1,7 +1,6 @@
 package com.viperplayer.presentation.detail
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
@@ -32,33 +33,32 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -84,6 +84,8 @@ import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun PlaylistDetailScreen(
@@ -145,6 +147,7 @@ fun PlaylistDetailScreen(
         onAddToPlaylist = { addToPlaylistController.show(it) },
         onRemoveSongAt = viewModel::removeSongAt,
         onMoveSong = viewModel::moveSong,
+        onRename = viewModel::rename,
         onToggleLike = { /* TODO: Implement toggle like */ },
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToAlbum = onNavigateToAlbum,
@@ -155,7 +158,7 @@ fun PlaylistDetailScreen(
 }
 
 @Composable
-private fun PlaylistDetailScreenContent(
+internal fun PlaylistDetailScreenContent(
     rootPadding: PaddingValues,
     uiState: PlaylistDetailUiState,
     currentSong: Song?,
@@ -174,12 +177,15 @@ private fun PlaylistDetailScreenContent(
     onAddToPlaylist: (Song) -> Unit = {},
     onRemoveSongAt: (Int) -> Unit = {},
     onMoveSong: (Int, Int) -> Unit = { _, _ -> },
+    onRename: (String) -> Unit = {},
     onToggleLike: (Song) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
 ) {
     val optionsController = rememberMediaItemOptionsController()
     var editMode by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
 
     val playlist = when (uiState) {
         is PlaylistDetailUiState.Success -> uiState.playlist
@@ -207,6 +213,36 @@ private fun PlaylistDetailScreenContent(
             }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
+            }
+            // Overflow menu: rename is only offered for editable local playlists.
+            if (isEditable && uiState is PlaylistDetailUiState.Success) {
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.testTag("playlistOverflowMenu")
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.action_more)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.playlist_rename)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, contentDescription = null)
+                            },
+                            onClick = {
+                                showMenu = false
+                                showRenameDialog = true
+                            },
+                            modifier = Modifier.testTag("renamePlaylistMenuItem")
+                        )
+                    }
+                }
             }
         },
     ) { contentPadding ->
@@ -345,14 +381,79 @@ private fun PlaylistDetailScreenContent(
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
         )
+
+        // Rename dialog (only reachable for editable local playlists via the overflow menu).
+        if (showRenameDialog) {
+            RenamePlaylistDialog(
+                currentName = playlist?.name.orEmpty(),
+                onConfirm = { newName ->
+                    onRename(newName)
+                    showRenameDialog = false
+                },
+                onDismiss = { showRenameDialog = false },
+            )
+        }
     }
 }
 
 /**
- * Reorderable + removable song list shown in a local playlist's edit mode. Drag the handle to move a
- * row (committed once on drop, so the underlying list only rewrites once), tap × to remove a row.
- * All mutations are forwarded to the ViewModel via [onMoveSong] / [onRemoveSongAt] — this composable
- * keeps only a transient working copy so a drag can animate before the state round-trips back.
+ * Dialog for renaming a local playlist. Prefilled with [currentName]; the confirm button is disabled
+ * while the field is blank, and confirming forwards the trimmed name to [onConfirm]. Pure UI — no
+ * persistence happens here; the caller wires [onConfirm] to the ViewModel.
+ */
+@Composable
+internal fun RenamePlaylistDialog(
+    currentName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(currentName) }
+    val isBlank = name.isBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.playlist_rename)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.playlist_rename_label)) },
+                singleLine = true,
+                isError = isBlank,
+                supportingText = if (isBlank) {
+                    { Text(stringResource(R.string.playlist_rename_error_blank)) }
+                } else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("renamePlaylistField"),
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(name.trim()) },
+                enabled = !isBlank,
+                modifier = Modifier.testTag("renamePlaylistConfirm"),
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+/**
+ * Reorderable + removable song list shown in a local playlist's edit mode. Backed by the
+ * `sh.calvin.reorderable` library: drag the [Modifier.draggableHandle] on a row to move it (each
+ * hover-swap updates a transient working copy so the move animates live), and the net move is
+ * committed once on drop via [onMoveSong] — keeping the ViewModel/repo's single-transaction position
+ * rewrite. Tapping × removes a row via [onRemoveSongAt].
+ *
+ * The [LazyColumn] carries a header item at list index 0, so the reorderable item indices are offset
+ * by one relative to the song list; [HEADER_OFFSET] converts between the two.
  */
 @Composable
 private fun EditablePlaylistSongList(
@@ -363,28 +464,26 @@ private fun EditablePlaylistSongList(
     onRemoveSongAt: (Int) -> Unit,
     header: @Composable () -> Unit,
 ) {
-    val density = LocalDensity.current
-    val rowHeight = 64.dp
-    val rowHeightPx = with(density) { rowHeight.toPx() }
-
-    // Working copy so a drag reorders live without waiting for the ViewModel round-trip.
+    // Working copy so a drag reorders live without waiting for the ViewModel round-trip. Re-seeded
+    // whenever the source list changes (add / remove / the committed reorder coming back).
     var localSongs by remember(songs) { mutableStateOf(songs) }
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var startIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
 
-    fun commitReorder() {
-        val from = startIndex
-        val to = draggingIndex
-        if (from != null && to != null && from != to) {
-            onMoveSong(from, to)
+    // The song index (into [localSongs]) where the current drag began; the net move start→end is what
+    // we commit on drop, matching the ViewModel's atomic moveSong(from, to) contract.
+    var dragStartSongIndex by remember { mutableStateOf<Int?>(null) }
+
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        // Library item indices include the header at index 0; convert to song-list indices.
+        val fromSong = from.index - HEADER_OFFSET
+        val toSong = to.index - HEADER_OFFSET
+        if (fromSong in localSongs.indices && toSong in localSongs.indices) {
+            localSongs = localSongs.toMutableList().apply { add(toSong, removeAt(fromSong)) }
         }
-        draggingIndex = null
-        startIndex = null
-        dragOffset = 0f
     }
 
     LazyColumn(
+        state = lazyListState,
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding),
@@ -393,84 +492,78 @@ private fun EditablePlaylistSongList(
         item { header() }
 
         itemsIndexed(localSongs, key = { _, song -> song.id.toString() }) { index, song ->
-            val isDragging = draggingIndex == index
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(rowHeight)
-                    .zIndex(if (isDragging) 1f else 0f)
-                    .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
-                    .background(
-                        if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest
-                        else Color.Transparent
-                    )
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DragHandle,
-                    contentDescription = stringResource(R.string.playlist_reorder_song),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            ReorderableItem(reorderableState, key = song.id.toString()) { isDragging ->
+                val elevation = if (isDragging) 8.dp else 0.dp
+                Row(
                     modifier = Modifier
-                        .testTag("dragHandle_$index")
-                        .pointerInput(localSongs.size) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    startIndex = index
-                                    draggingIndex = index
-                                    dragOffset = 0f
-                                },
-                                onDragEnd = { commitReorder() },
-                                onDragCancel = { commitReorder() },
-                            ) { change, dragAmount ->
-                                change.consume()
-                                dragOffset += dragAmount.y
-                                val current = draggingIndex ?: return@detectDragGesturesAfterLongPress
-                                // Once the row has been dragged past a neighbour's midpoint, swap it.
-                                if (dragOffset > rowHeightPx / 2 && current < localSongs.lastIndex) {
-                                    localSongs = localSongs.toMutableList()
-                                        .apply { add(current + 1, removeAt(current)) }
-                                    draggingIndex = current + 1
-                                    dragOffset -= rowHeightPx
-                                } else if (dragOffset < -rowHeightPx / 2 && current > 0) {
-                                    localSongs = localSongs.toMutableList()
-                                        .apply { add(current - 1, removeAt(current)) }
-                                    draggingIndex = current - 1
-                                    dragOffset += rowHeightPx
-                                }
-                            }
-                        }
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = song.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = song.artistNames.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                IconButton(
-                    onClick = { onRemoveSongAt(index) },
-                    modifier = Modifier.testTag("removeSong_$index")
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .shadow(elevation)
+                        .background(
+                            if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest
+                            else MaterialTheme.colorScheme.surface
+                        )
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.playlist_remove_song),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = stringResource(R.string.playlist_reorder_song),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .testTag("dragHandle_$index")
+                            .draggableHandle(
+                                onDragStarted = {
+                                    dragStartSongIndex = localSongs.indexOfFirst {
+                                        it.id.toString() == song.id.toString()
+                                    }.takeIf { it >= 0 }
+                                },
+                                onDragStopped = {
+                                    val from = dragStartSongIndex
+                                    val to = localSongs.indexOfFirst {
+                                        it.id.toString() == song.id.toString()
+                                    }
+                                    if (from != null && to >= 0 && from != to) {
+                                        onMoveSong(from, to)
+                                    }
+                                    dragStartSongIndex = null
+                                },
+                            )
                     )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = song.artistNames.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(
+                        onClick = { onRemoveSongAt(index) },
+                        modifier = Modifier.testTag("removeSong_$index")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.playlist_remove_song),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/** The playlist metadata header occupies LazyColumn item index 0, ahead of the song rows. */
+private const val HEADER_OFFSET = 1
 
 /**
  * Metadata header for the playlist (below the collapsing app bar).

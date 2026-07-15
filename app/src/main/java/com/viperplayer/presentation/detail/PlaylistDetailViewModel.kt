@@ -338,6 +338,24 @@ class PlaylistDetailViewModel @AssistedInject constructor(
         }
     }
 
+    /**
+     * Rename this playlist to [newName], persisting the change. Only valid for editable local
+     * playlists; a blank name is ignored. The Room-backed reactive flow re-emits the new name, so the
+     * UI updates without an optimistic write here.
+     */
+    fun rename(newName: String) {
+        if (!isEditable) return
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            try {
+                mediaLibraryRepository.renamePlaylist(playlistId, trimmed)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to rename playlist")
+            }
+        }
+    }
+
     /** Serialize the current playlist to M3U and write it to the SAF [uri]. */
     fun exportToM3u(uri: Uri) {
         viewModelScope.launch {
