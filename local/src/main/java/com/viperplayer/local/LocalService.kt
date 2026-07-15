@@ -5,6 +5,7 @@ import com.viperplayer.local.data.LocalMediaScanner
 import com.viperplayer.plugin.author.ViperPluginService
 import com.viperplayer.plugin.author.pluginRegistration
 import com.viperplayer.plugin.model.ActionType
+import com.viperplayer.plugin.model.LyricsCapabilities
 import com.viperplayer.plugin.model.PluginStatus
 import com.viperplayer.plugin.model.RequiredAction
 import com.viperplayer.plugin.model.SourceCapabilities
@@ -25,6 +26,12 @@ class LocalService : ViperPluginService() {
                 supportsOffline = true,
                 canSeek = true,
             ),
+        )
+        // Embedded (SYLT/USLT, Vorbis LYRICS/UNSYNCEDLYRICS) + sidecar (.lrc/.ttml/.srt) lyrics for
+        // local files. Synced is supported when the file/sidecar carries timestamps.
+        lyrics(
+            LocalLyricsProvider(context, localSource),
+            LyricsCapabilities(synced = true),
         )
         settingsActivity(LocalSettingsActivity::class.java.name)
         // Report the missing audio permission as a required action. The plugin is embedded in the

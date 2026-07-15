@@ -31,4 +31,6 @@ data class LocalSong(
     val dateModified: Long?,
     val albumArtUri: Uri?,
     val folderPath: String? = null,
+    /** Absolute file-system path (MediaStore `DATA`), when known; used to find sidecar lyric files. */
+    val filePath: String? = null,
 )
