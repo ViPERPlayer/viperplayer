@@ -3,8 +3,10 @@ package com.viperplayer.presentation.viper
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.runtime.Stable
+import com.viperplayer.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.model.AutoEqParser
 import com.viperplayer.domain.model.DynamicSystemDeviceType
 import com.viperplayer.domain.model.FetCompressorState
 import com.viperplayer.domain.model.IirEqualizerPresets
@@ -743,6 +745,59 @@ class ViperViewModel @Inject constructor(
                 state.copy(
                     iirEqualizer = IirEqualizerState()
                 )
+            }
+        }
+    }
+
+    /**
+     * Import an AutoEq headphone-correction profile (GraphicEQ or ParametricEQ text) from [uri],
+     * resample its curve onto the equalizer's current fixed band center-frequencies (log-frequency
+     * linear interpolation), and apply the resulting per-band gains (with any profile preamp
+     * folded in and clamped to the EQ's dB range). The file read runs on an IO dispatcher inside
+     * the repository; parsing happens in the pure [AutoEqParser].
+     */
+    fun importAutoEqProfile(uri: String) {
+        viewModelScope.launch {
+            val text = viperAssetRepository.readTextFromUri(uri)
+            if (text == null) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.iir_autoeq_read_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            when (val result = AutoEqParser.parse(text)) {
+                is AutoEqParser.ParseResult.Success -> {
+                    viperRepository.updateEffectsState { state ->
+                        val bandFrequencies =
+                            IirEqualizerPresets.getFrequencies(state.iirEqualizer.bandCount)
+                        val gains = result.profile.gainsForBands(
+                            bandFrequenciesHz = bandFrequencies,
+                            minGainDb = IirEqualizerPresets.MIN_GAIN_DB,
+                            maxGainDb = IirEqualizerPresets.MAX_GAIN_DB,
+                        )
+                        state.copy(
+                            iirEqualizer = state.iirEqualizer.copy(
+                                enabled = true,
+                                preset = "Custom",
+                                bandGains = gains,
+                            )
+                        )
+                    }
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.iir_autoeq_imported),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                is AutoEqParser.ParseResult.Error -> Toast.makeText(
+                    context,
+                    context.getString(R.string.iir_autoeq_import_failed, result.reason),
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }

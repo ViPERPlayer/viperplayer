@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.viper.effect
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,18 +10,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,8 +54,17 @@ fun IirEqualizerEffect(
     onBandCountChange: (Int) -> Unit,
     onPresetChange: (String) -> Unit,
     onBandGainChange: (Int, Float) -> Unit,
+    onImportAutoEq: (String) -> Unit,
     onReset: () -> Unit
 ) {
+    // AutoEq profiles are plain text; some providers hand them out as .txt (text/plain) and some as
+    // generic octet streams, so accept both.
+    val autoEqLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { onImportAutoEq(it.toString()) }
+    }
+
     Effect(
         icon = painterResource(R.drawable.ic_spectrum), // Used ic_spectrum as fallback
         title = stringResource(R.string.iir_equalizer),
@@ -120,7 +136,31 @@ fun IirEqualizerEffect(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Import AutoEq / GraphicEQ correction profile
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = {
+                    autoEqLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.FileUpload,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.iir_import_autoeq))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Graph
         EqualizerGraph(
@@ -187,7 +227,7 @@ fun IirEqualizerEffect(
                     VerticalSlider(
                         value = state.bandGains.getOrElse(index) { 0f },
                         onValueChange = { onBandGainChange(index, it) },
-                        valueRange = -12f..12f,
+                        valueRange = IirEqualizerPresets.MIN_GAIN_DB..IirEqualizerPresets.MAX_GAIN_DB,
                         steps = 239,
                         modifier = Modifier
                             .height(200.dp)
