@@ -13,6 +13,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
+import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -45,6 +46,10 @@ class SettingsRepositoryImpl @Inject constructor(
         private val REPLAY_GAIN_ALBUM_MODE_KEY = booleanPreferencesKey("replay_gain_album_mode")
         private val AUTO_LOAD_MORE_KEY = booleanPreferencesKey("auto_load_more")
         private val CROSSFADE_DURATION_SECONDS_KEY = intPreferencesKey("crossfade_duration_seconds")
+        private val REPLAY_GAIN_MODE_KEY = stringPreferencesKey("replay_gain_mode")
+        private val REPLAY_GAIN_UNTAGGED_PREAMP_DB_KEY = floatPreferencesKey("replay_gain_untagged_preamp_db")
+        private val REPLAY_GAIN_DRC_ENABLED_KEY = booleanPreferencesKey("replay_gain_drc_enabled")
+        private val REPLAY_GAIN_POST_AMP_DB_KEY = floatPreferencesKey("replay_gain_post_amp_db")
 
         // Content
         private val SHOW_EXPLICIT_CONTENT_KEY = booleanPreferencesKey("show_explicit_content")
@@ -183,6 +188,57 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setReplayGainPreampDb(preampDb: Float) {
         dataStore.edit { preferences ->
             preferences[REPLAY_GAIN_PREAMP_DB_KEY] = preampDb
+        }
+    }
+
+    override val replayGainMode: Flow<ReplayGainMode> = dataStore.data.mapDistinct { preferences ->
+        preferences[REPLAY_GAIN_MODE_KEY]?.let {
+            try {
+                ReplayGainMode.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                ReplayGainMode.SMART
+            }
+        } ?: if (preferences[REPLAY_GAIN_ALBUM_MODE_KEY] == true) {
+            // Back-compat: honor the legacy album-mode toggle if the new mode was never set.
+            ReplayGainMode.ALBUM
+        } else {
+            ReplayGainMode.SMART
+        }
+    }
+
+    override suspend fun setReplayGainMode(mode: ReplayGainMode) {
+        dataStore.edit { preferences ->
+            preferences[REPLAY_GAIN_MODE_KEY] = mode.name
+        }
+    }
+
+    override val replayGainUntaggedPreampDb: Flow<Float> = dataStore.data.mapDistinct { preferences ->
+        preferences[REPLAY_GAIN_UNTAGGED_PREAMP_DB_KEY] ?: 0f
+    }
+
+    override suspend fun setReplayGainUntaggedPreampDb(preampDb: Float) {
+        dataStore.edit { preferences ->
+            preferences[REPLAY_GAIN_UNTAGGED_PREAMP_DB_KEY] = preampDb
+        }
+    }
+
+    override val replayGainDrcEnabled: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[REPLAY_GAIN_DRC_ENABLED_KEY] ?: false
+    }
+
+    override suspend fun setReplayGainDrcEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[REPLAY_GAIN_DRC_ENABLED_KEY] = enabled
+        }
+    }
+
+    override val replayGainPostAmpDb: Flow<Float> = dataStore.data.mapDistinct { preferences ->
+        preferences[REPLAY_GAIN_POST_AMP_DB_KEY] ?: 0f
+    }
+
+    override suspend fun setReplayGainPostAmpDb(postAmpDb: Float) {
+        dataStore.edit { preferences ->
+            preferences[REPLAY_GAIN_POST_AMP_DB_KEY] = postAmpDb
         }
     }
 

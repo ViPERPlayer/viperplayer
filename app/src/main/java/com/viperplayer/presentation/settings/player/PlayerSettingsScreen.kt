@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +53,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.R
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.HistoryDuration
+import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import kotlin.math.roundToInt
@@ -204,79 +206,14 @@ fun PlayerSettingsScreen(
                                 color = MaterialTheme.colorScheme.outlineVariant
                             )
 
-                            Column(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.player_replaygain_preamp),
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = String.format(
-                                                "%.1f",
-                                                uiState.replayGainPreampDb
-                                            ),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Text(
-                                            text = "dB",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        IconButton(
-                                            onClick = { viewModel.setReplayGainPreampDb(0f) },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Refresh,
-                                                contentDescription = stringResource(R.string.value_slider_reset_to_default),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Slider(
-                                    value = uiState.replayGainPreampDb,
-                                    onValueChange = { viewModel.setReplayGainPreampDb(it) },
-                                    valueRange = -12f..6f,
-                                    steps = 179
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.player_replaygain_album_mode),
-                                            style = MaterialTheme.typography.titleSmall
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.player_replaygain_album_mode_desc),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Switch(
-                                        checked = uiState.replayGainAlbumMode,
-                                        onCheckedChange = viewModel::setReplayGainAlbumMode
-                                    )
-                                }
-                            }
+                            ReplayGainControls(
+                                uiState = uiState,
+                                onPreampChange = viewModel::setReplayGainPreampDb,
+                                onUntaggedPreampChange = viewModel::setReplayGainUntaggedPreampDb,
+                                onModeChange = viewModel::setReplayGainMode,
+                                onDrcChange = viewModel::setReplayGainDrcEnabled,
+                                onPostAmpChange = viewModel::setReplayGainPostAmpDb
+                            )
                         }
                     }
                 }
@@ -294,6 +231,195 @@ fun PlayerSettingsScreen(
             onDismiss = { showAudioQualityDialog = false }
         )
     }
+}
+
+/**
+ * The expandable ReplayGain controls: tagged preamp, gain-mode selector (track/album/smart),
+ * untagged preamp, DRC clip-guard toggle, and post-amp. Stateless — renders [uiState] and forwards
+ * events — so it can be exercised directly in a Compose UI test.
+ */
+@Composable
+internal fun ReplayGainControls(
+    uiState: PlayerSettingsUiState,
+    onPreampChange: (Float) -> Unit,
+    onUntaggedPreampChange: (Float) -> Unit,
+    onModeChange: (ReplayGainMode) -> Unit,
+    onDrcChange: (Boolean) -> Unit,
+    onPostAmpChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        DbSliderRow(
+            label = stringResource(R.string.player_replaygain_preamp),
+            valueDb = uiState.replayGainPreampDb,
+            valueRange = -12f..6f,
+            steps = 179,
+            onValueChange = onPreampChange,
+            onReset = { onPreampChange(0f) }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.player_replaygain_mode),
+            style = MaterialTheme.typography.titleSmall
+        )
+        Text(
+            text = gainModeDescription(uiState.replayGainMode),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        GainModeSelector(
+            selected = uiState.replayGainMode,
+            onSelected = onModeChange
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.player_replaygain_untagged_preamp_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        DbSliderRow(
+            label = stringResource(R.string.player_replaygain_untagged_preamp),
+            valueDb = uiState.replayGainUntaggedPreampDb,
+            valueRange = -12f..6f,
+            steps = 179,
+            onValueChange = onUntaggedPreampChange,
+            onReset = { onUntaggedPreampChange(0f) }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.player_replaygain_drc),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = stringResource(R.string.player_replaygain_drc_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = uiState.replayGainDrcEnabled,
+                onCheckedChange = onDrcChange
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.player_replaygain_post_amp_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        DbSliderRow(
+            label = stringResource(R.string.player_replaygain_post_amp),
+            valueDb = uiState.replayGainPostAmpDb,
+            valueRange = -12f..12f,
+            steps = 239,
+            onValueChange = onPostAmpChange,
+            onReset = { onPostAmpChange(0f) }
+        )
+    }
+}
+
+@Composable
+private fun GainModeSelector(
+    selected: ReplayGainMode,
+    onSelected: (ReplayGainMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf(
+        ReplayGainMode.TRACK to stringResource(R.string.player_replaygain_mode_track),
+        ReplayGainMode.ALBUM to stringResource(R.string.player_replaygain_mode_album),
+        ReplayGainMode.SMART to stringResource(R.string.player_replaygain_mode_smart)
+    )
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { (mode, label) ->
+            FilterChip(
+                selected = mode == selected,
+                onClick = { onSelected(mode) },
+                label = { Text(label) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DbSliderRow(
+    label: String,
+    valueDb: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = String.format("%.1f", valueDb),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "dB",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                IconButton(
+                    onClick = onReset,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.value_slider_reset_to_default),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+        Slider(
+            value = valueDb,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps
+        )
+    }
+}
+
+@Composable
+private fun gainModeDescription(mode: ReplayGainMode): String = when (mode) {
+    ReplayGainMode.TRACK -> stringResource(R.string.player_replaygain_mode_track_desc)
+    ReplayGainMode.ALBUM -> stringResource(R.string.player_replaygain_mode_album_desc)
+    ReplayGainMode.SMART -> stringResource(R.string.player_replaygain_mode_smart_desc)
 }
 
 @Composable
