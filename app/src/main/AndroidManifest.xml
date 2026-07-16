@@ -4,7 +4,9 @@
 
     <!-- Network permission for loading artwork -->
     <uses-permission android:name="android.permission.INTERNET" />
-    
+    <!-- Read network metered/unmetered state to size playback buffers (see PlaybackTuning). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Foreground service for media playback -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
         tools:ignore="ForegroundServicesPolicy" />

@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.IBinder
 import androidx.annotation.OptIn
 import androidx.lifecycle.Lifecycle
@@ -25,9 +27,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.RenderersFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
@@ -51,6 +56,8 @@ import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.data.lastfm.LastfmScrobbler
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.data.stats.PlayHistoryRecorder
+import com.viperplayer.domain.audio.NetworkType
+import com.viperplayer.domain.audio.PlaybackTuning
 import com.viperplayer.domain.audio.ReplayGainCalculator
 import com.viperplayer.domain.audio.ReplayGainMode as CalcReplayGainMode
 import com.viperplayer.domain.audio.ReplayGainSettings
@@ -62,11 +69,15 @@ import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
@@ -135,6 +146,26 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     /** Last track we auto-loaded related songs for, so we don't re-fetch on repeated transitions. */
     private var lastAutoLoadSongId: String? = null
 
+    /**
+     * The ReplayGain base volume for the current track (1.0 = no attenuation), the single source of
+     * truth for the player's *steady-state* volume. The crossfade loop multiplies this by a fade
+     * factor near track boundaries so the two volume owners never clobber each other — see
+     * [applyVolume]. Read/written on the player (main) thread only.
+     */
+    private var replayGainVolume: Float = 1f
+
+    /** Current crossfade fade duration in ms (0 = crossfade off). Updated from settings. */
+    @Volatile
+    private var crossfadeMs: Long = 0L
+
+    /**
+     * mediaId of the item we last attempted an out-of-range seek recovery on, so a recovery that
+     * itself keeps failing can't loop forever — we retry recovery once per item and then fall back
+     * to the normal skip. Cleared on a real item transition (see [onMediaItemTransition]). Player
+     * (main) thread only.
+     */
+    private var seekRecoveryMediaId: String? = null
+
     override fun onCreate() {
         dispatcher.onServicePreSuperOnCreate()
         super.onCreate()
@@ -158,6 +189,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
         // Wire audio settings (skip-silence + ReplayGain) reactively to the player.
         observeAudioSettings()
+
+        // Drive the crossfade track-boundary fade (kept consistent with gapless) as the single
+        // volume owner alongside ReplayGain.
+        observeCrossfade()
 
         // Persist the last playback state (for Android 11+ media resumption), debounced.
         observeAndPersistLastSession()
@@ -270,6 +305,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setAudioAttributes(
+                // handleAudioFocus=true delegates transient-loss ducking/pausing and focus-regain
+                // resume to ExoPlayer (mirrors PlaybackTuning.focusReaction). Combined with
+                // setHandleAudioBecomingNoisy above, playback pauses on headphone unplug / BT drop.
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -278,6 +316,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             )
             .setMediaSourceFactory(createExoPlayerMediaSourceFactory())
             .setRenderersFactory(createExoPlayerRenderersFactory())
+            .setLoadControl(createLoadControl())
             .build()
             .apply {
                 addListener(this@PlaybackService)
@@ -285,9 +324,58 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             }
     }
 
+    /**
+     * A [LoadControl] sized for the current network via the pure [PlaybackTuning.selectBuffer]:
+     * metered/cellular links buffer less (less wasted mobile data on skipped tracks), unmetered links
+     * buffer more for jitter resilience. `prioritizeTimeOverSizeThresholds(true)` keeps the time-based
+     * buffer targets even for high-bitrate lossless, so the next item is prefetched for a smooth
+     * (gapless) transition rather than being capped by a byte budget.
+     *
+     * The network type is sampled once here at player construction (a LoadControl is fixed for the
+     * player's lifetime and can't be swapped without rebuilding it). A mid-session Wi-Fi↔cellular
+     * change therefore keeps the buffer profile chosen at start — an acceptable trade for not tearing
+     * down and rebuilding the player on every connectivity change.
+     */
+    private fun createLoadControl(): LoadControl {
+        val profile = PlaybackTuning.selectBuffer(currentNetworkType())
+        return DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                profile.minBufferMs,
+                profile.maxBufferMs,
+                profile.bufferForPlaybackMs,
+                profile.bufferForPlaybackAfterRebufferMs,
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
+    }
+
+    /** Current network type for buffer sizing; conservative [NetworkType.UNKNOWN] on any failure. */
+    private fun currentNetworkType(): NetworkType {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return NetworkType.UNKNOWN
+        return runCatching {
+            val network = cm.activeNetwork ?: return NetworkType.UNKNOWN
+            val caps = cm.getNetworkCapabilities(network) ?: return NetworkType.UNKNOWN
+            if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) {
+                NetworkType.UNMETERED
+            } else {
+                NetworkType.METERED
+            }
+        }.getOrDefault(NetworkType.UNKNOWN)
+    }
+
     private fun createExoPlayerMediaSourceFactory(): MediaSource.Factory {
         val dataSourceFactory = createExoPlayerDataSourceFactory()
-        val base = DefaultMediaSourceFactory(dataSourceFactory)
+        // Constant-bitrate seeking makes seeks in CBR MP3s (and other CBR streams that lack a seek
+        // table) land accurately instead of snapping to the nearest coarse index point. We use the
+        // plain (non-ALWAYS) variant on purpose: it enables CBR-assumption seeking only when the
+        // stream length IS known, so seeks stay in-bounds. The ALWAYS variant would additionally
+        // assume CBR for unknown-length streams (e.g. plugin HTTP streams without a reliable
+        // Content-Length), where a computed seek target can overshoot and throw
+        // ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE — abandoning the track. VBR accuracy is
+        // unaffected either way.
+        val extractorsFactory = DefaultExtractorsFactory()
+            .setConstantBitrateSeekingEnabled(true)
+        val base = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
         val dash = DashMediaSource.Factory(dataSourceFactory)
         return ViperMediaSource.Factory(this, pluginDataSource, base, dash, dataSourceFactory)
     }
@@ -413,6 +501,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("onMediaItemTransition() called with: mediaItem = $mediaItem, reason = $reason")
+
+        // A real item transition means the previous seek-recovery attempt (if any) is no longer
+        // relevant: arm recovery again for the newly-started item.
+        seekRecoveryMediaId = null
 
         // Record a play whenever a new media item starts (manual, skip, or auto-advance): bumps the
         // song's play count/lastPlayed and inserts a per-play event that powers History and Stats.
@@ -579,7 +671,8 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
      */
     private suspend fun applyReplayGain() {
         if (settingsRepository.dspBypass.first()) {
-            player.volume = 1f // clean path: no ReplayGain scaling
+            replayGainVolume = 1f // clean path: no ReplayGain scaling
+            applyVolume()
             return
         }
         val settings = ReplayGainSettings(
@@ -600,7 +693,59 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         val sequentialAlbum = isPlayingSequentialAlbum()
         val volume = ReplayGainCalculator.computeVolume(tags, settings, sequentialAlbum)
         Timber.d("applyReplayGain: volume=$volume (settings=$settings, tags=$tags, sequentialAlbum=$sequentialAlbum)")
-        player.volume = volume
+        replayGainVolume = volume
+        applyVolume()
+    }
+
+    /**
+     * Applies the effective player volume = ReplayGain base × current crossfade fade factor. This is
+     * the single place that writes [player.volume]; both the ReplayGain path and the crossfade loop
+     * funnel through here so they compose instead of overwriting each other (the bug where crossfade's
+     * volume=1f wiped ReplayGain attenuation and vice-versa). Must run on the player (main) thread.
+     */
+    private fun applyVolume() {
+        val factor = PlaybackTuning.crossfadeFactor(
+            positionMs = player.currentPosition,
+            durationMs = player.duration,
+            crossfadeMs = crossfadeMs,
+            // Matches the old loop: never fade a paused track, so pausing inside a fade window can't
+            // leave the volume stuck low (it recovers to the RG base immediately, not on resume).
+            isPlaying = player.isPlaying,
+        )
+        player.volume = PlaybackTuning.effectiveVolume(replayGainVolume, factor)
+    }
+
+    /**
+     * Drives the crossfade track-boundary volume fade from inside the service (the single volume
+     * owner). While crossfade is enabled it re-applies base×factor every 100ms so the outgoing track
+     * fades out near its end and the incoming one fades in at its start. When crossfade is off it
+     * resolves to the ReplayGain base (factor = 1.0), so nothing is left attenuated — this is the
+     * gapless path, where ExoPlayer's native seamless transition (encoder delay/padding aware) runs
+     * unimpeded. [PlaybackTuning.resolveTransition] keeps the two mutually exclusive.
+     */
+    private fun observeCrossfade() {
+        lifecycleScope.launch {
+            settingsRepository.crossfadeDurationSeconds
+                .map { seconds -> PlaybackTuning.resolveTransition(seconds) }
+                .collectLatest { policy ->
+                    crossfadeMs = policy.crossfadeMs
+                    if (policy.crossfadeMs <= 0L) {
+                        // Off (gapless): settle back to the ReplayGain base and stop polling.
+                        applyVolume()
+                        return@collectLatest
+                    }
+                    try {
+                        while (isActive) {
+                            applyVolume()
+                            delay(CROSSFADE_TICK_MS)
+                        }
+                    } finally {
+                        // Never leave the track attenuated when the loop is cancelled (setting change).
+                        crossfadeMs = 0L
+                        applyVolume()
+                    }
+                }
+        }
     }
 
     private fun ReplayGainMode.toCalcMode(): CalcReplayGainMode = when (this) {
@@ -647,7 +792,30 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     }
 
     override fun onPlayerError(error: PlaybackException) {
-        Timber.e(error, "onPlayerError() called with: error = $error")
+        // A read-position-out-of-range error is a recoverable seek mishap, not a dead item: a seek
+        // computed a byte offset past the end of the stream (e.g. an unknown-length HTTP stream, or a
+        // stream whose real length was shorter than assumed). Skipping to the next track here would
+        // abandon a perfectly playable song. Instead re-clamp to a safe position on the CURRENT item
+        // and re-prepare, once per item so a genuinely broken item can still fall through to a skip.
+        if (error.errorCode == PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE &&
+            tryRecoverFromOutOfRangeSeek(error)
+        ) {
+            return
+        }
+
+        // Call out an unplayable-format error distinctly so it's obvious in logs that the item can
+        // never render on this device (missing codec / unsupported container) — not a transient
+        // network blip. Either way we skip past it below so the queue never gets stuck.
+        val unplayable = error.errorCode in UNPLAYABLE_FORMAT_ERROR_CODES
+        if (unplayable) {
+            Timber.e(
+                error,
+                "Unplayable format for %s (errorCode=%d); skipping",
+                player.currentMediaItem?.mediaId, error.errorCode,
+            )
+        } else {
+            Timber.e(error, "onPlayerError() called with: error = $error")
+        }
 
         // Try to skip to next song if available. After a fatal error the player is in STATE_IDLE,
         // so it must be re-prepared or it stays frozen on the next item.
@@ -659,6 +827,41 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             Timber.d("No next song available, stopping playback")
             player.stop()
         }
+    }
+
+    /**
+     * Recover from an out-of-range seek by re-preparing the CURRENT item at a safe position instead
+     * of abandoning it. Returns true if recovery was attempted (caller should stop), false to let the
+     * normal skip path run.
+     *
+     * Guarded by [seekRecoveryMediaId] so a single item is recovered at most once between real
+     * transitions: if the re-prepare itself errors out, the next [onPlayerError] sees the same
+     * mediaId already recorded and falls through to the skip, so there is no infinite loop.
+     */
+    private fun tryRecoverFromOutOfRangeSeek(error: PlaybackException): Boolean {
+        val mediaId = player.currentMediaItem?.mediaId ?: return false
+        if (seekRecoveryMediaId == mediaId) {
+            Timber.w("Out-of-range seek recurred for %s; giving up and skipping", mediaId)
+            return false
+        }
+        seekRecoveryMediaId = mediaId
+
+        // Land a bit before the end when the duration is known (the overshoot means the true end is at
+        // or before this point); otherwise restart the item from the beginning, which is always valid.
+        val duration = player.duration
+        val safePosition = if (duration != C.TIME_UNSET && duration > SEEK_RECOVERY_END_MARGIN_MS) {
+            duration - SEEK_RECOVERY_END_MARGIN_MS
+        } else {
+            0L
+        }
+        Timber.w(
+            error,
+            "Out-of-range seek for %s; re-clamping to %dms and re-preparing instead of skipping",
+            mediaId, safePosition,
+        )
+        player.seekTo(safePosition)
+        player.prepare()
+        return true
     }
 
     override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) {
@@ -726,5 +929,29 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             .putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
             .putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
         sendBroadcast(intent)
+    }
+
+    private companion object {
+        /** How often the crossfade loop re-applies the fade volume while crossfade is active. */
+        private const val CROSSFADE_TICK_MS = 100L
+
+        /**
+         * How far before a known duration to re-clamp when recovering from an out-of-range seek —
+         * far enough to stay clear of the (over-assumed) end, small enough to feel like the same spot.
+         */
+        private const val SEEK_RECOVERY_END_MARGIN_MS = 1_000L
+
+        /**
+         * Media3 error codes that mean the item can never decode on this device (missing codec /
+         * unsupported container / malformed media), as opposed to a transient network error. Used to
+         * log a clearer message before skipping so the queue is never left stuck.
+         */
+        private val UNPLAYABLE_FORMAT_ERROR_CODES = setOf(
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED,
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
+        )
     }
 }
