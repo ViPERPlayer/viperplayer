@@ -8,8 +8,10 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.autoplaylist.AutoPlaylistType
 import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.SortView
+import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -74,6 +76,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
+    private val autoPlaylistRepository: AutoPlaylistRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -94,6 +97,14 @@ class PlaylistDetailViewModel @AssistedInject constructor(
      */
     private val isLocalPlaylist: Boolean
         get() = playlistId.pluginId == "local"
+
+    /**
+     * The dynamic auto-playlist type this screen renders, or null when it is a normal (local/plugin)
+     * playlist. Auto-playlists are virtual and computed live from library + play-history, so they are
+     * observed reactively (like local playlists) rather than fetched once.
+     */
+    private val autoPlaylistType: AutoPlaylistType? =
+        if (AutoPlaylistType.isAutoPlaylist(playlistId)) AutoPlaylistType.fromId(playlistId.sourceId) else null
 
     // Minimal placeholder shown while the full playlist is (re)fetched by id.
     private val placeholderPlaylist = Playlist(
@@ -180,11 +191,11 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     private fun loadPlaylistDetails() {
         viewModelScope.launch {
-            // Local playlists (Liked Songs + user-created ones) are backed by a perpetual DB collector
-            // started on the first load; a later refresh must not reset to Loading (the collector
-            // won't necessarily re-emit) or restart the collector, or the screen sticks on the spinner
-            // forever / leaks collectors.
-            if (isLocalPlaylist && isObservingLocalPlaylist) {
+            // Local playlists (Liked Songs + user-created ones) and virtual auto-playlists are backed
+            // by a perpetual reactive collector started on the first load; a later refresh must not
+            // reset to Loading (the collector won't necessarily re-emit) or restart the collector, or
+            // the screen sticks on the spinner forever / leaks collectors.
+            if ((isLocalPlaylist || autoPlaylistType != null) && isObservingLocalPlaylist) {
                 return@launch
             }
             _uiState.update {
@@ -197,6 +208,19 @@ class PlaylistDetailViewModel @AssistedInject constructor(
             }
 
             try {
+                // Virtual auto-playlists are computed live from library + play-history; observe the
+                // repository so the list re-renders as the library / history change.
+                if (autoPlaylistType != null) {
+                    if (!isObservingLocalPlaylist) {
+                        isObservingLocalPlaylist = true
+                        autoPlaylistRepository.getAutoPlaylist(autoPlaylistType).collect { playlist ->
+                            val songs = playlist.songs ?: emptyList()
+                            _uiState.value = successState(playlist, songs, currentSortOrder)
+                        }
+                    }
+                    return@launch
+                }
+
                 // Room-backed local playlists (the virtual "Liked Songs" list and user-created ones)
                 // are observed reactively so edits (reorder / remove / add) persist and re-render.
                 if (isLocalPlaylist) {

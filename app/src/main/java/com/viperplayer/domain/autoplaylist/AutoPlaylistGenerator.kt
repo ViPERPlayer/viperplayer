@@ -1,0 +1,230 @@
+package com.viperplayer.domain.autoplaylist
+
+import com.viperplayer.domain.model.ArtistRef
+import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.stats.PlayRecord
+import java.util.Random
+
+/**
+ * Pure, Android-free generation of the dynamic auto-playlists' song lists.
+ *
+ * Every function here is deterministic and side-effect free: it takes the raw inputs (library songs
+ * and/or listening [PlayRecord]s, plus `now` / `limit` / a shuffle `seed`) and returns the ordered
+ * `List<Song>` for one [AutoPlaylistType]. There are no DB, clock, or RNG dependencies — the
+ * repository supplies the real data and `System.currentTimeMillis()`, and the ViewModel/screen only
+ * render the result. This is what makes the generators trivially unit-testable.
+ *
+ * ### How a play-history song that is no longer in the library is handled
+ * The play-based generators ([mostPlayed], [recentlyPlayed], [forgotten]) key off the play-history,
+ * which is fully denormalized (title/artist/album/artwork are copied onto each [PlayRecord]). A song
+ * present in history but missing from the current library is therefore **included** using its cached
+ * metadata (see [recordToSong]) rather than skipped, so the playlist doesn't silently lose tracks
+ * when a plugin song is un-saved. Where the live library still has the song, its (richer, current)
+ * [Song] is preferred so likes/artwork/playability stay accurate.
+ */
+object AutoPlaylistGenerator {
+
+    /** Default maximum number of songs an auto-playlist yields. */
+    const val DEFAULT_LIMIT = 100
+
+    /**
+     * "Recently added" — library songs newest-first.
+     *
+     * [songsNewestFirst] must already be ordered newest-added first (the repository supplies this via
+     * an insertion-order query). This function de-duplicates by [Song.id] (keeping the first, i.e.
+     * newest, occurrence) and takes the first [limit]. Keeping the ordering as an input — rather than
+     * re-deriving a date here — keeps the function pure while the "date desc" ordering lives in SQL.
+     */
+    fun recentlyAdded(songsNewestFirst: List<Song>, limit: Int = DEFAULT_LIMIT): List<Song> =
+        songsNewestFirst.distinctBy { it.id }.take(limit.coerceAtLeast(0))
+
+    /**
+     * "Favorites / Liked" — the user's liked songs, in the order supplied by the liked-songs source.
+     * De-duplicated by id and limited. (A thin wrapper so the surface is uniform with the others.)
+     */
+    fun favorites(likedSongs: List<Song>, limit: Int = DEFAULT_LIMIT): List<Song> =
+        likedSongs.distinctBy { it.id }.take(limit.coerceAtLeast(0))
+
+    /**
+     * "Shuffle All" — every library song in a shuffled order. Deterministic for a given [seed] so the
+     * result is testable; the caller passes a fresh seed (e.g. the current time) for real shuffles.
+     */
+    fun shuffleAll(librarySongs: List<Song>, seed: Long, limit: Int = DEFAULT_LIMIT): List<Song> =
+        librarySongs.distinctBy { it.id }
+            .shuffled(Random(seed))
+            .take(limit.coerceAtLeast(0))
+
+    /**
+     * "Most Played" — songs ranked by play count (descending) within the given records.
+     *
+     * Ties break deterministically: higher play count, then more-recent last play, then [MediaId]
+     * string ascending — identical inputs always yield the same order. Each ranked media id resolves
+     * to a [Song] via [library] (preferred) or the play-history's cached metadata.
+     *
+     * @param records the play-history to rank over (already range-filtered by the caller if desired).
+     * @param library the current library songs, indexed by id for resolution.
+     * @param keyOf how a [Song]'s [MediaId] maps to the string the play-history stores. Defaults to the
+     *   pure [mediaKey]; the (Android) repository passes `MediaId::toString` so the join matches the
+     *   Uri-encoded ids actually persisted. Overriding it keeps this function Android-free/testable.
+     */
+    fun mostPlayed(
+        records: List<PlayRecord>,
+        library: List<Song>,
+        limit: Int = DEFAULT_LIMIT,
+        keyOf: (MediaId) -> String = ::mediaKey,
+    ): List<Song> {
+        if (records.isEmpty()) return emptyList()
+        val byId = indexLibrary(library, keyOf)
+        return records.groupBy { it.mediaId }
+            .map { (mediaId, group) ->
+                RankedPlay(
+                    mediaId = mediaId,
+                    playCount = group.size,
+                    lastPlayedMs = group.maxOf { it.timestampMs },
+                    representative = group.first(),
+                )
+            }
+            .sortedWith(
+                compareByDescending<RankedPlay> { it.playCount }
+                    .thenByDescending { it.lastPlayedMs }
+                    .thenBy { it.mediaId },
+            )
+            .take(limit.coerceAtLeast(0))
+            .map { resolve(it.mediaId, it.representative, byId) }
+    }
+
+    /**
+     * "Recently Played" — the distinct songs most recently played, newest first.
+     *
+     * Collapses the (chronological) history to one entry per media id at its most-recent play, orders
+     * by that play descending (id ascending as a deterministic tie-break), and takes [limit].
+     */
+    fun recentlyPlayed(
+        records: List<PlayRecord>,
+        library: List<Song>,
+        limit: Int = DEFAULT_LIMIT,
+        keyOf: (MediaId) -> String = ::mediaKey,
+    ): List<Song> {
+        if (records.isEmpty()) return emptyList()
+        val byId = indexLibrary(library, keyOf)
+        return records.groupBy { it.mediaId }
+            .map { (mediaId, group) ->
+                val latest = group.maxByOrNull { it.timestampMs }!!
+                RankedPlay(
+                    mediaId = mediaId,
+                    playCount = group.size,
+                    lastPlayedMs = latest.timestampMs,
+                    representative = latest,
+                )
+            }
+            .sortedWith(
+                compareByDescending<RankedPlay> { it.lastPlayedMs }
+                    .thenBy { it.mediaId },
+            )
+            .take(limit.coerceAtLeast(0))
+            .map { resolve(it.mediaId, it.representative, byId) }
+    }
+
+    /**
+     * "Forgotten" — songs played before but not recently: their most-recent play is older than
+     * [notRecentBeforeMs] (i.e. `now - staleness window`). Ordered by most-recent play descending so
+     * the "least forgotten" (closest to the cutoff) come first, then id ascending. Empty when nothing
+     * qualifies.
+     *
+     * @param records the full play-history.
+     * @param library current library songs for resolution.
+     * @param notRecentBeforeMs a song qualifies only if its last play is strictly before this instant
+     *   (typically `now - 30 days`). A song played at/after this is "recent" and excluded.
+     */
+    fun forgotten(
+        records: List<PlayRecord>,
+        library: List<Song>,
+        notRecentBeforeMs: Long,
+        limit: Int = DEFAULT_LIMIT,
+        keyOf: (MediaId) -> String = ::mediaKey,
+    ): List<Song> {
+        if (records.isEmpty()) return emptyList()
+        val byId = indexLibrary(library, keyOf)
+        return records.groupBy { it.mediaId }
+            .map { (mediaId, group) ->
+                val latest = group.maxByOrNull { it.timestampMs }!!
+                RankedPlay(
+                    mediaId = mediaId,
+                    playCount = group.size,
+                    lastPlayedMs = latest.timestampMs,
+                    representative = latest,
+                )
+            }
+            .filter { it.lastPlayedMs < notRecentBeforeMs }
+            .sortedWith(
+                compareByDescending<RankedPlay> { it.lastPlayedMs }
+                    .thenBy { it.mediaId },
+            )
+            .take(limit.coerceAtLeast(0))
+            .map { resolve(it.mediaId, it.representative, byId) }
+    }
+
+    /** A media id's aggregated play stats, used to rank the play-based playlists. */
+    private data class RankedPlay(
+        val mediaId: String,
+        val playCount: Int,
+        val lastPlayedMs: Long,
+        val representative: PlayRecord,
+    )
+
+    /**
+     * Resolves a ranked media id to a [Song]: prefers the live library entry (current likes/artwork/
+     * playability), falling back to a [Song] rebuilt from the play-history's cached metadata when the
+     * song is no longer in the library. The library is indexed by the same raw id string the
+     * play-history stores ([Song.id] via [mediaKey]).
+     */
+    private fun resolve(mediaIdString: String, record: PlayRecord, byId: Map<String, Song>): Song =
+        byId[mediaIdString] ?: recordToSong(record)
+
+    /**
+     * The join key between a [Song] and a [PlayRecord]: the [Song.id]'s canonical `pluginId&sourceId`
+     * string, computed purely (no Android `Uri`) so the generator stays Android-free and JVM-testable.
+     * Must produce the same string the play-history stores in [PlayRecord.mediaId] for identical ids.
+     */
+    fun mediaKey(mediaId: MediaId): String = "pluginId=${mediaId.pluginId}&sourceId=${mediaId.sourceId}"
+
+    /** Indexes [library] by [keyOf] for O(1) resolution of a ranked history id back to a song. */
+    private fun indexLibrary(library: List<Song>, keyOf: (MediaId) -> String): Map<String, Song> =
+        library.associateBy { keyOf(it.id) }
+
+    /**
+     * Builds a minimal [Song] from a [PlayRecord]'s cached metadata, for a history song that is no
+     * longer in the library. Not internet-required and marked playable so it can still be launched;
+     * the player resolves the real stream via the plugin at play time. Parses the record's id string
+     * purely (no `Uri`); a malformed id yields a fallback [MediaId] so this never throws.
+     */
+    fun recordToSong(record: PlayRecord): Song = Song(
+        id = parseMediaId(record.mediaId),
+        title = record.title,
+        artists = record.artist.takeIf { it.isNotBlank() }
+            ?.let { listOf(ArtistRef(name = it)) }
+            .orEmpty(),
+        durationMs = record.durationMs.takeIf { it > 0L },
+        artworkUrl = record.artworkUrl,
+    )
+
+    /**
+     * Pure parse of a `pluginId=…&sourceId=…` id string into a [MediaId] (no Android `Uri`). Values are
+     * used as-is; a missing/blank `sourceId` falls back to the raw string so a [MediaId] can always be
+     * constructed (its `sourceId` must be non-blank).
+     */
+    private fun parseMediaId(raw: String): MediaId {
+        val params = raw.split("&").mapNotNull { part ->
+            val idx = part.indexOf('=')
+            if (idx <= 0) null else part.substring(0, idx) to part.substring(idx + 1)
+        }.toMap()
+        val pluginId = params["pluginId"].orEmpty()
+        // sourceId must be non-blank (MediaId's init requires it); fall back to the raw string, then to
+        // a placeholder so a malformed/blank id can never throw here.
+        val sourceId = params["sourceId"]?.takeIf { it.isNotBlank() }
+            ?: raw.takeIf { it.isNotBlank() }
+            ?: "unknown"
+        return MediaId(pluginId.ifBlank { "unknown" }, sourceId)
+    }
+}

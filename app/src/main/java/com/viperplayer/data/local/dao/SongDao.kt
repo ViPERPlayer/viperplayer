@@ -35,6 +35,14 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE isSaved = 1 ORDER BY title ASC")
     fun getAllSaved(): Flow<List<SongEntity>>
 
+    /**
+     * Saved songs newest-added first. The autoincrement primary key is monotonically increasing with
+     * insertion, so `id DESC` is a stable "date added" ordering (there is no dedicated added-at
+     * column). Feeds the "Recently Added" auto-playlist.
+     */
+    @Query("SELECT * FROM songs WHERE isSaved = 1 ORDER BY id DESC")
+    fun getAllSavedByDateAddedDesc(): Flow<List<SongEntity>>
+
     @Query("SELECT * FROM songs WHERE isDownloaded = 1 ORDER BY title ASC")
     fun getAllDownloaded(): Flow<List<SongEntity>>
 

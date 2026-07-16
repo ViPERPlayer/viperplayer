@@ -60,6 +60,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortOption
 import com.viperplayer.domain.model.SortView
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
@@ -340,13 +341,51 @@ fun LibraryScreen(
                     }
 
                     LibraryTab.PLAYLISTS -> {
-                        if (uiState.playlists.isEmpty()) {
+                        if (uiState.playlists.isEmpty() && uiState.autoPlaylists.isEmpty()) {
                             EmptyLibraryContent("No playlists in your library")
                         } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
+                                // Dynamic auto-playlists (Recently Added / Most Played / …) in their
+                                // own section, above the regular playlists. Auto entries open the same
+                                // PlaylistDetail screen (their MediaId's plugin is "auto").
+                                if (uiState.autoPlaylists.isNotEmpty()) {
+                                    item(key = "auto_playlists_header") {
+                                        LibrarySectionHeader(
+                                            title = stringResource(R.string.auto_playlists_section),
+                                            modifier = Modifier.animateItem()
+                                        )
+                                    }
+                                    items(
+                                        uiState.autoPlaylists,
+                                        key = { playlist -> "auto-${playlist.id}" }
+                                    ) { playlist ->
+                                        // Base ListItem with no trailing "more" button — auto-playlists
+                                        // have no per-item options (they're computed, not editable).
+                                        ListItem(
+                                            title = playlist.name,
+                                            badges = emptyList(),
+                                            subtitle = playlist.description
+                                                ?: "${playlist.songCount} ${if (playlist.songCount == 1) "song" else "songs"}",
+                                            isActive = false,
+                                            leadingContent = {
+                                                ListItemLeadingArtwork(
+                                                    artworkUrl = playlist.artworkUrl,
+                                                    type = SearchItem.Type.PLAYLIST,
+                                                    isActive = false,
+                                                    isPlaying = false,
+                                                )
+                                            },
+                                            trailingContent = {},
+                                            onClick = { onNavigateToPlaylist(playlist) },
+                                            modifier = Modifier
+                                                .animateItem()
+                                                .fillMaxWidth()
+                                        )
+                                    }
+                                }
                                 itemsIndexed(uiState.playlists, key = { index, playlist -> "${playlist.id}-$index" }) { index, playlist ->
                                     ListItem(
                                         type = SearchItem.Type.PLAYLIST,
@@ -454,5 +493,18 @@ fun EmptyLibraryContent(message: String) {
             )
         }
     }
+}
+
+/** A small section header (e.g. "Auto-playlists") for a list of library items. */
+@Composable
+fun LibrarySectionHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    )
 }
 

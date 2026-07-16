@@ -524,6 +524,39 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getSongsByDateAdded(): Flow<List<Song>> {
+        // "Recently Added" auto-playlist: saved library songs newest-first (insertion order). Uses the
+        // same entity->domain mapping (with connectivity-aware playability) as getAllSavedSongs.
+        return combine(
+            songDao.getAllSavedByDateAddedDesc(),
+            pluginRepository.connectedPlugins,
+            networkConnectivityChecker.isInternetAvailable
+        ) { entities, connectedPlugins, isInternetAvailable ->
+            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+            entities.map { entity ->
+                val artists = songByline(entity)
+                val album = entity.albumId?.let {
+                    albumDao.getById(it).first()?.let { albumEntity ->
+                        val albumArtistIds = crossRefDao.getArtistIdsForAlbum(albumEntity.id)
+                        val albumArtists = albumArtistIds.mapNotNull { artistId ->
+                            loadArtist(artistId)
+                        }
+                        albumEntity.toDomain(albumArtists)
+                    }
+                }
+                // Default to true for database songs (assume streaming)
+                val requiresInternet = true
+                val isPlayable = computeIsPlayable(
+                    entity,
+                    connectedPluginIds,
+                    requiresInternet,
+                    isInternetAvailable
+                )
+                entity.toDomain(album, artists, isPlayable, requiresInternet)
+            }
+        }
+    }
+
     override suspend fun saveSong(song: Song): Unit = withContext(Dispatchers.IO) {
         // Upsert album first if exists, preserving its ID
         val albumId = song.album?.let { album ->
