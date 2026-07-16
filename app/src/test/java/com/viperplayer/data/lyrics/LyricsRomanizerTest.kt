@@ -155,6 +155,20 @@ class LyricsRomanizerTest {
         assertEquals(listOf("さくら", "さくら"), fake.calls)
     }
 
+    @Test
+    fun freshInstance_hasColdCache_forSongChangeReset() {
+        // The player builds a *fresh* romanizer per song (see PlayerViewModel.songRomanizer) so the
+        // cache is reset on a track change without a cross-coroutine clear(). A new instance must have
+        // a cold cache — i.e. it transliterates the line again rather than reusing a sibling's cache.
+        val fake = FakeTransliterator()
+
+        LyricsRomanizer(fake).romanize(listOf("さくら"))   // previous song
+        LyricsRomanizer(fake).romanize(listOf("さくら"))   // new song -> fresh romanizer
+
+        // Each song's romanizer transliterated the line once: no stale cross-song cache hit.
+        assertEquals(listOf("さくら", "さくら"), fake.calls)
+    }
+
     // --- Engine-returns-nothing-useful handling ---
 
     @Test
