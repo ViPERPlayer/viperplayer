@@ -13,18 +13,32 @@ object PlayerQueueLogic {
 
     // --- Playback speed / pitch (issue #8) ---
 
-    /** Inclusive tempo range the player accepts; the dialog slider and the controller both clamp to it. */
+    // Two distinct ranges, single-sourced here so production doesn't drift from the unit-tested math:
+    //   * The ENGINE range ([MIN_SPEED]..[MAX_SPEED] / [MIN_PITCH]..[MAX_PITCH]) is the hard bound the
+    //     controller clamps to — what ExoPlayer's Sonic tempo/pitch stretcher accepts safely.
+    //   * The UI range ([SPEED_UI_RANGE] / [PITCH_UI_RANGE]) is what the dialog sliders expose. It is
+    //     intentionally narrower than the engine range (the extreme tempos/pitches are unpleasant),
+    //     so a slider value is always within the engine bound and [clampSpeed]/[clampPitch] are a
+    //     no-op for it; the clamps still guard any programmatic/out-of-band request.
+
+    /** Inclusive tempo range the engine (ExoPlayer/Sonic) accepts; the controller clamps to it. */
     const val MIN_SPEED = 0.25f
     const val MAX_SPEED = 3f
 
-    /** Inclusive pitch range the player accepts. */
+    /** Inclusive pitch range the engine accepts. */
     const val MIN_PITCH = 0.5f
     const val MAX_PITCH = 2f
 
-    /** Clamp a requested tempo to the accepted [MIN_SPEED]..[MAX_SPEED] range. */
+    /** The (narrower) tempo range the speed-dialog slider exposes to the user. */
+    val SPEED_UI_RANGE = 0.5f..2f
+
+    /** The (narrower) pitch range the speed-dialog slider exposes to the user. */
+    val PITCH_UI_RANGE = 0.5f..2f
+
+    /** Clamp a requested tempo to the engine-safe [MIN_SPEED]..[MAX_SPEED] range. */
     fun clampSpeed(speed: Float): Float = speed.coerceIn(MIN_SPEED, MAX_SPEED)
 
-    /** Clamp a requested pitch to the accepted [MIN_PITCH]..[MAX_PITCH] range. */
+    /** Clamp a requested pitch to the engine-safe [MIN_PITCH]..[MAX_PITCH] range. */
     fun clampPitch(pitch: Float): Float = pitch.coerceIn(MIN_PITCH, MAX_PITCH)
 
     // --- Song radio queue building (issue #7) ---

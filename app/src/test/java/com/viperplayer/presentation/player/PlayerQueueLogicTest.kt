@@ -215,6 +215,36 @@ class PlayerQueueLogicTest {
         assertEquals(1.25f, PlayerQueueLogic.clampPitch(1.25f), 0.0001f)
     }
 
+    @Test
+    fun uiRanges_areWithinEngineBounds_soSliderValuesNeedNoClamp() {
+        // The dialog sliders may only produce values the engine already accepts, so a slider value
+        // survives clampSpeed/clampPitch unchanged.
+        assertTrue(PlayerQueueLogic.SPEED_UI_RANGE.start >= PlayerQueueLogic.MIN_SPEED)
+        assertTrue(PlayerQueueLogic.SPEED_UI_RANGE.endInclusive <= PlayerQueueLogic.MAX_SPEED)
+        assertTrue(PlayerQueueLogic.PITCH_UI_RANGE.start >= PlayerQueueLogic.MIN_PITCH)
+        assertTrue(PlayerQueueLogic.PITCH_UI_RANGE.endInclusive <= PlayerQueueLogic.MAX_PITCH)
+        assertEquals(
+            PlayerQueueLogic.SPEED_UI_RANGE.start,
+            PlayerQueueLogic.clampSpeed(PlayerQueueLogic.SPEED_UI_RANGE.start),
+            0.0001f
+        )
+        assertEquals(
+            PlayerQueueLogic.SPEED_UI_RANGE.endInclusive,
+            PlayerQueueLogic.clampSpeed(PlayerQueueLogic.SPEED_UI_RANGE.endInclusive),
+            0.0001f
+        )
+        assertEquals(
+            PlayerQueueLogic.PITCH_UI_RANGE.start,
+            PlayerQueueLogic.clampPitch(PlayerQueueLogic.PITCH_UI_RANGE.start),
+            0.0001f
+        )
+        assertEquals(
+            PlayerQueueLogic.PITCH_UI_RANGE.endInclusive,
+            PlayerQueueLogic.clampPitch(PlayerQueueLogic.PITCH_UI_RANGE.endInclusive),
+            0.0001f
+        )
+    }
+
     // --- radio queue building (issue #7) ---
 
     @Test

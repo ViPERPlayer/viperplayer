@@ -26,6 +26,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.presentation.player.PlayerQueueLogic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -691,14 +692,14 @@ class PlayerRepositoryImpl @Inject constructor(
     override suspend fun setPlaybackSpeed(speed: Float) {
         val controller = mediaControllerManager.controllerFlow.first()
         controller.playbackParameters = controller.playbackParameters
-            .withSpeed(speed.coerceIn(0.25f, 3f))
+            .withSpeed(PlayerQueueLogic.clampSpeed(speed))
     }
 
     override suspend fun setPlaybackPitch(pitch: Float) {
         val controller = mediaControllerManager.controllerFlow.first()
         val current = controller.playbackParameters
         // Independent of speed — Sonic applies pitch separately from tempo.
-        controller.playbackParameters = PlaybackParameters(current.speed, pitch.coerceIn(0.5f, 2f))
+        controller.playbackParameters = PlaybackParameters(current.speed, PlayerQueueLogic.clampPitch(pitch))
     }
 
     override suspend fun getAudioFormat(): AudioFormat? {

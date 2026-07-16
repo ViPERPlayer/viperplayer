@@ -779,7 +779,7 @@ internal fun PlaybackSpeedDialog(
                         speed = it
                         onSpeedChange(it)
                     },
-                    valueRange = 0.5f..2f,
+                    valueRange = PlayerQueueLogic.SPEED_UI_RANGE,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -792,7 +792,7 @@ internal fun PlaybackSpeedDialog(
                         pitch = it
                         onPitchChange(it)
                     },
-                    valueRange = 0.5f..2f,
+                    valueRange = PlayerQueueLogic.PITCH_UI_RANGE,
                 )
             }
         },
@@ -1126,18 +1126,17 @@ internal fun WavySeekBar(
         motionEnabled = motionEnabled,
     )
     val amp by animateFloatAsState(targetAmp, spring(stiffness = Spring.StiffnessLow), label = "waveAmp")
-    // Only run the infinite phase animation while the wave can actually be seen (playing + motion on),
-    // so a paused / reduced-motion bar isn't quietly re-animating every frame.
-    val phase = if (motionEnabled) {
-        rememberInfiniteTransition(label = "wave").animateFloat(
-            initialValue = 0f,
-            targetValue = (2.0 * PI).toFloat(),
-            animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
-            label = "wavePhase"
-        ).value
-    } else {
-        0f
-    }
+    // The infinite phase transition is created unconditionally (a remember must not sit inside an `if`).
+    // We gate the value, not the animation: under reduced motion the wave amplitude is already 0, so a
+    // frozen phase of 0f keeps the bar a flat straight line and no motion is ever visible.
+    val transition = rememberInfiniteTransition(label = "wave")
+    val rawPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2.0 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+        label = "wavePhase"
+    )
+    val phase = if (motionEnabled) rawPhase else 0f
 
     Column(modifier = modifier.fillMaxWidth()) {
         Canvas(
