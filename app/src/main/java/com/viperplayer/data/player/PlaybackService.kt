@@ -158,6 +158,14 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     @Volatile
     private var crossfadeMs: Long = 0L
 
+    /**
+     * mediaId of the item we last attempted an out-of-range seek recovery on, so a recovery that
+     * itself keeps failing can't loop forever — we retry recovery once per item and then fall back
+     * to the normal skip. Cleared on a real item transition (see [onMediaItemTransition]). Player
+     * (main) thread only.
+     */
+    private var seekRecoveryMediaId: String? = null
+
     override fun onCreate() {
         dispatcher.onServicePreSuperOnCreate()
         super.onCreate()
@@ -358,10 +366,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     private fun createExoPlayerMediaSourceFactory(): MediaSource.Factory {
         val dataSourceFactory = createExoPlayerDataSourceFactory()
         // Constant-bitrate seeking makes seeks in CBR MP3s (and other CBR streams that lack a seek
-        // table) land accurately instead of snapping to the nearest coarse index point.
+        // table) land accurately instead of snapping to the nearest coarse index point. We use the
+        // plain (non-ALWAYS) variant on purpose: it enables CBR-assumption seeking only when the
+        // stream length IS known, so seeks stay in-bounds. The ALWAYS variant would additionally
+        // assume CBR for unknown-length streams (e.g. plugin HTTP streams without a reliable
+        // Content-Length), where a computed seek target can overshoot and throw
+        // ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE — abandoning the track. VBR accuracy is
+        // unaffected either way.
         val extractorsFactory = DefaultExtractorsFactory()
             .setConstantBitrateSeekingEnabled(true)
-            .setConstantBitrateSeekingAlwaysEnabled(true)
         val base = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
         val dash = DashMediaSource.Factory(dataSourceFactory)
         return ViperMediaSource.Factory(this, pluginDataSource, base, dash, dataSourceFactory)
@@ -488,6 +501,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("onMediaItemTransition() called with: mediaItem = $mediaItem, reason = $reason")
+
+        // A real item transition means the previous seek-recovery attempt (if any) is no longer
+        // relevant: arm recovery again for the newly-started item.
+        seekRecoveryMediaId = null
 
         // Record a play whenever a new media item starts (manual, skip, or auto-advance): bumps the
         // song's play count/lastPlayed and inserts a per-play event that powers History and Stats.
@@ -775,6 +792,17 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     }
 
     override fun onPlayerError(error: PlaybackException) {
+        // A read-position-out-of-range error is a recoverable seek mishap, not a dead item: a seek
+        // computed a byte offset past the end of the stream (e.g. an unknown-length HTTP stream, or a
+        // stream whose real length was shorter than assumed). Skipping to the next track here would
+        // abandon a perfectly playable song. Instead re-clamp to a safe position on the CURRENT item
+        // and re-prepare, once per item so a genuinely broken item can still fall through to a skip.
+        if (error.errorCode == PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE &&
+            tryRecoverFromOutOfRangeSeek(error)
+        ) {
+            return
+        }
+
         // Call out an unplayable-format error distinctly so it's obvious in logs that the item can
         // never render on this device (missing codec / unsupported container) — not a transient
         // network blip. Either way we skip past it below so the queue never gets stuck.
@@ -799,6 +827,41 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             Timber.d("No next song available, stopping playback")
             player.stop()
         }
+    }
+
+    /**
+     * Recover from an out-of-range seek by re-preparing the CURRENT item at a safe position instead
+     * of abandoning it. Returns true if recovery was attempted (caller should stop), false to let the
+     * normal skip path run.
+     *
+     * Guarded by [seekRecoveryMediaId] so a single item is recovered at most once between real
+     * transitions: if the re-prepare itself errors out, the next [onPlayerError] sees the same
+     * mediaId already recorded and falls through to the skip, so there is no infinite loop.
+     */
+    private fun tryRecoverFromOutOfRangeSeek(error: PlaybackException): Boolean {
+        val mediaId = player.currentMediaItem?.mediaId ?: return false
+        if (seekRecoveryMediaId == mediaId) {
+            Timber.w("Out-of-range seek recurred for %s; giving up and skipping", mediaId)
+            return false
+        }
+        seekRecoveryMediaId = mediaId
+
+        // Land a bit before the end when the duration is known (the overshoot means the true end is at
+        // or before this point); otherwise restart the item from the beginning, which is always valid.
+        val duration = player.duration
+        val safePosition = if (duration != C.TIME_UNSET && duration > SEEK_RECOVERY_END_MARGIN_MS) {
+            duration - SEEK_RECOVERY_END_MARGIN_MS
+        } else {
+            0L
+        }
+        Timber.w(
+            error,
+            "Out-of-range seek for %s; re-clamping to %dms and re-preparing instead of skipping",
+            mediaId, safePosition,
+        )
+        player.seekTo(safePosition)
+        player.prepare()
+        return true
     }
 
     override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) {
@@ -871,6 +934,12 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     private companion object {
         /** How often the crossfade loop re-applies the fade volume while crossfade is active. */
         private const val CROSSFADE_TICK_MS = 100L
+
+        /**
+         * How far before a known duration to re-clamp when recovering from an out-of-range seek —
+         * far enough to stay clear of the (over-assumed) end, small enough to feel like the same spot.
+         */
+        private const val SEEK_RECOVERY_END_MARGIN_MS = 1_000L
 
         /**
          * Media3 error codes that mean the item can never decode on this device (missing codec /

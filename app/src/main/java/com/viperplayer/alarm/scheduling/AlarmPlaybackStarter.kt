@@ -30,10 +30,11 @@ import javax.inject.Singleton
  * media foreground service keeps the process alive) and so a later Dismiss can [cancel][stop] it —
  * the fade [Job] is held here, not in the receiver.
  *
- * NOTE on volume: if the user has crossfade enabled, [PlayerRepository]'s own volume loop also writes
- * `controller.volume` near track boundaries; during that overlap the two may briefly contend. The
- * alarm fade re-asserts every [FADE_STEP_MS], so it still converges to the target. Crossfade is off
- * by default, so this only affects users who opted into it.
+ * NOTE on volume: if the user has crossfade enabled, `PlaybackService.observeCrossfade` (via
+ * `applyVolume`, the single owner of the player volume) also writes the player volume near track
+ * boundaries; during that overlap the two may briefly contend over the same value. The alarm fade
+ * re-asserts every [FADE_STEP_MS], so it still converges to the target. Crossfade is off by default,
+ * so this only affects users who opted into it.
  */
 @Singleton
 class AlarmPlaybackStarter @Inject constructor(
