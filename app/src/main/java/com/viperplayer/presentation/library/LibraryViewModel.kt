@@ -13,6 +13,7 @@ import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.SortView
+import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -61,6 +62,12 @@ data class LibraryUiState(
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    /**
+     * Dynamic auto-playlists (Recently Added / Most Played / …), computed live from the library and
+     * play-history. Shown as their own section above the regular playlists and never re-sorted by the
+     * playlist sort menu, so they keep their stable, meaningful order.
+     */
+    val autoPlaylists: List<Playlist> = emptyList(),
     val songsSort: SortOrder = SortOrder.DEFAULT,
     val albumsSort: SortOrder = SortOrder.DEFAULT,
     val artistsSort: SortOrder = SortOrder.DEFAULT,
@@ -83,6 +90,7 @@ class LibraryViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
+    private val autoPlaylistRepository: AutoPlaylistRepository,
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val settingsRepository: SettingsRepository,
     private val downloadManager: DownloadManager
@@ -133,6 +141,20 @@ class LibraryViewModel @Inject constructor(
             loadContent(LibraryTab.SONGS)
         }
         observeSortOrders()
+        observeAutoPlaylists()
+    }
+
+    /**
+     * Collect the dynamic auto-playlists (computed live from library + play-history) into the UI
+     * state. Perpetual collector started once — the flow re-emits whenever the library or history
+     * changes, keeping the Playlists tab's auto section current without a reload.
+     */
+    private fun observeAutoPlaylists() {
+        viewModelScope.launch {
+            autoPlaylistRepository.getAutoPlaylists().collect { autoPlaylists ->
+                _uiState.update { it.copy(autoPlaylists = autoPlaylists) }
+            }
+        }
     }
 
     /**

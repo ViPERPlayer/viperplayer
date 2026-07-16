@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortOption
 import com.viperplayer.domain.model.SortView
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
@@ -340,13 +342,36 @@ fun LibraryScreen(
                     }
 
                     LibraryTab.PLAYLISTS -> {
-                        if (uiState.playlists.isEmpty()) {
+                        if (uiState.playlists.isEmpty() && uiState.autoPlaylists.isEmpty()) {
                             EmptyLibraryContent("No playlists in your library")
                         } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = rootPadding.bottom()
                             ) {
+                                // Dynamic auto-playlists (Recently Added / Most Played / …) in their
+                                // own section, above the regular playlists. Auto entries open the same
+                                // PlaylistDetail screen (their MediaId's plugin is "auto").
+                                if (uiState.autoPlaylists.isNotEmpty()) {
+                                    item(key = "auto_playlists_header") {
+                                        LibrarySectionHeader(
+                                            title = stringResource(R.string.auto_playlists_section),
+                                            modifier = Modifier.animateItem()
+                                        )
+                                    }
+                                    items(
+                                        uiState.autoPlaylists,
+                                        key = { playlist -> "auto-${playlist.id}" }
+                                    ) { playlist ->
+                                        AutoPlaylistRow(
+                                            playlist = playlist,
+                                            onClick = onNavigateToPlaylist,
+                                            modifier = Modifier
+                                                .animateItem()
+                                                .fillMaxWidth()
+                                        )
+                                    }
+                                }
                                 itemsIndexed(uiState.playlists, key = { index, playlist -> "${playlist.id}-$index" }) { index, playlist ->
                                     ListItem(
                                         type = SearchItem.Type.PLAYLIST,
@@ -454,5 +479,50 @@ fun EmptyLibraryContent(message: String) {
             )
         }
     }
+}
+
+/** A small section header (e.g. "Auto-playlists") for a list of library items. */
+@Composable
+fun LibrarySectionHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+/**
+ * One row for a dynamic auto-playlist (Recently Added / Most Played / …). A base [ListItem] with no
+ * trailing "more" button — auto-playlists are computed, not editable, so they have no per-item options.
+ * Its subtitle is the playlist description, falling back to a localized song count. Extracted so both
+ * the Library screen and its UI test render the exact production row.
+ */
+@Composable
+fun AutoPlaylistRow(
+    playlist: Playlist,
+    onClick: (Playlist) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ListItem(
+        title = playlist.name,
+        badges = emptyList(),
+        subtitle = playlist.description
+            ?: pluralStringResource(R.plurals.song_count, playlist.songCount, playlist.songCount),
+        isActive = false,
+        leadingContent = {
+            ListItemLeadingArtwork(
+                artworkUrl = playlist.artworkUrl,
+                type = SearchItem.Type.PLAYLIST,
+                isActive = false,
+                isPlaying = false,
+            )
+        },
+        trailingContent = {},
+        onClick = { onClick(playlist) },
+        modifier = modifier,
+    )
 }
 

@@ -750,4 +750,19 @@
     <string name="following_title">Following</string>
     <string name="following_unfollow">Unfollow</string>
     <string name="following_empty">You\'re not following any artists yet. Open an artist and tap Follow.</string>
+
+    <!-- Dynamic (smart) auto-playlists -->
+    <string name="auto_playlists_section">Auto-playlists</string>
+    <string name="auto_playlist_recently_added">Recently Added</string>
+    <string name="auto_playlist_recently_added_desc">Songs you added to your library, newest first</string>
+    <string name="auto_playlist_most_played">Most Played</string>
+    <string name="auto_playlist_most_played_desc">Your most-played songs of all time</string>
+    <string name="auto_playlist_recently_played">Recently Played</string>
+    <string name="auto_playlist_recently_played_desc">The songs you played most recently</string>
+    <string name="auto_playlist_favorites">Favorites</string>
+    <string name="auto_playlist_favorites_desc">Songs you\'ve liked</string>
+    <string name="auto_playlist_forgotten">Forgotten</string>
+    <string name="auto_playlist_forgotten_desc">Played before, but not in a while</string>
+    <string name="auto_playlist_shuffle_all">Shuffle All</string>
+    <string name="auto_playlist_shuffle_all_desc">Every song in your library, shuffled</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.viperplayer.di
 
+import com.viperplayer.data.repository.AutoPlaylistRepositoryImpl
 import com.viperplayer.data.repository.CacheRepositoryImpl
 import com.viperplayer.data.repository.ListenTogetherRepositoryImpl
 import com.viperplayer.data.source.AndroidTagDetailsReader
@@ -9,6 +10,7 @@ import com.viperplayer.data.repository.PluginRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
 import com.viperplayer.data.repository.ViperRepositoryImpl
+import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.CacheRepository
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -60,6 +62,12 @@ abstract class DataModule {
     abstract fun bindMediaLibraryRepository(
         impl: MediaLibraryRepositoryImpl
     ): MediaLibraryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAutoPlaylistRepository(
+        impl: AutoPlaylistRepositoryImpl
+    ): AutoPlaylistRepository
 
     @Binds
     @Singleton

@@ -40,6 +40,13 @@ interface MediaLibraryRepository {
     fun getSong(mediaId: MediaId): Flow<Song?>
     fun getAllLikedSongs(): Flow<List<Song>>
     fun getAllSavedSongs(): Flow<List<Song>>
+
+    /**
+     * Saved library songs ordered newest-added first (by insertion order). Source for the
+     * "Recently Added" auto-playlist. Scoped to local library songs — there is no cross-plugin
+     * "date added" for remote tracks.
+     */
+    fun getSongsByDateAdded(): Flow<List<Song>>
     fun getAllDownloadedSongs(): Flow<List<Song>>
     suspend fun saveSong(song: Song)
     suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean)
