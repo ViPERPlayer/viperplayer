@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import com.viperplayer.local.data.cover.FolderCoverResolver
 import com.viperplayer.local.model.LocalAlbum
 import com.viperplayer.local.model.LocalArtist
 import com.viperplayer.local.model.LocalSong
@@ -36,6 +37,7 @@ class LocalMediaScanner(
 ) {
     private val appContext: Context = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
+    private val folderCoverResolver = FolderCoverResolver()
 
     private var cachedSongs: List<LocalSong>? = null
     private var cachedAlbums: List<LocalAlbum>? = null
@@ -265,7 +267,7 @@ class LocalMediaScanner(
                 albumArtistName = albumArtistName,
                 year = albumSongs.mapNotNull { it.year }.maxOrNull(),
                 isCompilation = albumSongs.any { it.isCompilation },
-                artworkUri = sorted.first().albumArtUri,
+                artworkUri = resolveAlbumArtwork(sorted),
                 songs = sorted
             )
         }.sortedBy { it.name?.lowercase() ?: "￿" }
@@ -330,6 +332,25 @@ class LocalMediaScanner(
     }
 
     /**
+     * Resolves an album's cover artwork.
+     *
+     * Embedded-vs-folder policy: a well-named folder image (`cover.jpg`, `front.png`, ...) is
+     * usually the highest-quality, user-curated art, so a folder cover — picked by the scoring
+     * heuristic in [FolderCoverResolver] / AlbumCoverScorer — takes priority over MediaStore's
+     * embedded/cached album art. When the folder has no usable image we fall back to the MediaStore
+     * embedded-art URI, so albums with only embedded art are never left blank. Multi-folder albums
+     * (e.g. per-disc subfolders) are searched in disc/track order; the first folder with a usable
+     * cover wins.
+     */
+    private fun resolveAlbumArtwork(sortedSongs: List<LocalSong>): Uri? {
+        val folderCover = sortedSongs
+            .mapNotNull { it.folderPath }
+            .distinct()
+            .firstNotNullOfOrNull { folderCoverResolver.resolve(it) }
+        return folderCover ?: sortedSongs.first().albumArtUri
+    }
+
+    /**
      * Clear cache to force a rescan on next access.
      */
     fun clearCache() {
@@ -337,6 +358,7 @@ class LocalMediaScanner(
         cachedAlbums = null
         cachedArtists = null
         lastScanTime = 0
+        folderCoverResolver.clear()
     }
 
     private fun Cursor.getStringOrNull(column: Int): String? =
