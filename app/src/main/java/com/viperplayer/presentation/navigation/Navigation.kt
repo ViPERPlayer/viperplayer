@@ -19,6 +19,7 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.viperplayer.alarm.ui.AlarmsScreen
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.analytics.AnalyticsScreen
@@ -85,6 +86,9 @@ object SettingsAbout : NavKey
 
 @Serializable
 object SettingsUpdater : NavKey
+
+@Serializable
+object SettingsAlarms : NavKey
 
 @Serializable
 object History : NavKey
@@ -211,7 +215,15 @@ fun ViperNavDisplay(
                 onNavigateToStorage = { navigator.navigate(SettingsStorage) },
                 onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToAbout = { navigator.navigate(SettingsAbout) },
-                onNavigateToUpdater = { navigator.navigate(SettingsUpdater) }
+                onNavigateToUpdater = { navigator.navigate(SettingsUpdater) },
+                onNavigateToAlarms = { navigator.navigate(SettingsAlarms) }
+            )
+        }
+
+        entry<SettingsAlarms> {
+            AlarmsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
             )
         }
 
