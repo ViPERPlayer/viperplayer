@@ -37,7 +37,7 @@ object AlarmModule {
 @InstallIn(SingletonComponent::class)
 abstract class AlarmBindingsModule {
 
+    // Scope lives on AlarmRepositoryImpl (@Singleton); no need to repeat it on the binding.
     @Binds
-    @Singleton
     abstract fun bindAlarmRepository(impl: AlarmRepositoryImpl): AlarmRepository
 }

@@ -17,9 +17,9 @@ import javax.inject.Inject
 /**
  * Receives alarm fires (and Dismiss actions). On [ACTION_FIRE] it:
  *  1. holds a short wakelock so the device stays awake long enough to start playback,
- *  2. starts playback of the alarm's content with a fade-in (via [AlarmPlaybackStarter]),
- *  3. posts the ringing notification (via [AlarmNotifier]),
- *  4. reschedules the NEXT occurrence for a repeating alarm, or disables a one-shot.
+ *  2. reschedules the NEXT occurrence for a repeating alarm, or disables a one-shot,
+ *  3. starts playback of the alarm's content with a fade-in (via [AlarmPlaybackStarter]),
+ *  4. posts the ringing notification (via [AlarmNotifier]).
  *
  * The receiver is a thin dispatcher; all business logic lives in the injected managers/repository.
  * Uses [goAsync] to keep the process alive across the (suspending) work.
@@ -62,13 +62,16 @@ class AlarmReceiver : BroadcastReceiver() {
                     scheduler.schedule(alarm)
                 }
 
-                notifier.notify(alarm)
-
-                // start() suspends only until playback is issued; the fade continues in the
-                // app-scoped AlarmPlaybackStarter. Bound just the play-issue step by the wakelock.
+                // Resolve content + start playback (+ begin the fade) BEFORE posting the notification,
+                // so playback starts as early as possible inside the ~10s exact-alarm foreground-start
+                // exemption — resolving a large library (e.g. ShuffleAll) mustn't push play past it.
+                // start() suspends only until playback is issued; the fade continues in the app-scoped
+                // AlarmPlaybackStarter. Bound just the play-issue step by the wakelock.
                 withTimeoutOrNull(START_TIMEOUT_MS) {
                     playbackStarter.start(alarm)
                 }
+
+                notifier.notify(alarm)
             } catch (e: Exception) {
                 Timber.e(e, "Alarm #$alarmId fire failed")
             } finally {
