@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -246,6 +248,7 @@ fun AppearanceSettingsContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AccentColorCard(
     selectedArgb: Int?,
@@ -282,11 +285,12 @@ private fun AccentColorCard(
                 }
             }
 
-            Row(
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // "Default" clears the custom accent (falls back to the brand default seed).
                 SwatchDot(
@@ -296,8 +300,9 @@ private fun AccentColorCard(
                     contentDescription = stringResource(R.string.appearance_accent_default),
                     onClick = { onSelect(null) }
                 )
-                // Preset seeds (skip index 0 — it's the default handled above).
-                AccentPresets.drop(1).take(6).forEach { preset ->
+                // Preset seeds (skip index 0 — it's the default handled above). Show all remaining
+                // presets so none is unreachable.
+                AccentPresets.drop(1).forEach { preset ->
                     SwatchDot(
                         color = preset.color,
                         selected = selectedArgb == preset.color.toArgb(),
@@ -343,6 +348,13 @@ private fun SwatchDot(
     val dotColor = if (enabled) color else color.copy(alpha = 0.38f)
     // Pick a check-mark color that contrasts against the swatch (pure color math).
     val onColor = if (ColorMath.onColorFor(color.toArgb()) == ColorMath.WHITE) Color.White else Color.Black
+    // Announce the selected state to screen readers, e.g. "Blue, Selected accent color".
+    val selectedLabel = stringResource(R.string.appearance_accent_selected)
+    val semanticsLabel = when {
+        contentDescription == null -> null
+        selected -> "$contentDescription, $selectedLabel"
+        else -> contentDescription
+    }
     Box(
         modifier = modifier
             .size(40.dp)
@@ -354,8 +366,8 @@ private fun SwatchDot(
             )
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .then(
-                if (contentDescription != null) {
-                    Modifier.semantics { this.contentDescription = contentDescription }
+                if (semanticsLabel != null) {
+                    Modifier.semantics { this.contentDescription = semanticsLabel }
                 } else {
                     Modifier
                 }
@@ -397,14 +409,20 @@ private fun CustomColorDialog(
                         .semantics { contentDescription = "custom_accent_preview" }
                 )
                 Text(
-                    text = "Hue",
+                    text = stringResource(R.string.appearance_accent_hue),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(top = 12.dp)
                 )
                 Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
-                Text(text = "Saturation", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = stringResource(R.string.appearance_accent_saturation),
+                    style = MaterialTheme.typography.labelMedium
+                )
                 Slider(value = saturation, onValueChange = { saturation = it }, valueRange = 0f..1f)
-                Text(text = "Brightness", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = stringResource(R.string.appearance_accent_brightness),
+                    style = MaterialTheme.typography.labelMedium
+                )
                 Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f)
             }
         },

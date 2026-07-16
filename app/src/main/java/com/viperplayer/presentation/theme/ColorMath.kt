@@ -169,9 +169,16 @@ object ColorMath {
     }
 
     /**
-     * The surface-family color roles that a "pure black" (AMOLED) dark theme must map to true black
-     * so that cards, sheets, bars and elevation tints don't reveal near-black gray boxes on an OLED
-     * panel. The corresponding `on*` roles stay untouched (they carry the foreground contrast).
+     * The surface-family fill roles that a "pure black" (AMOLED) dark theme must map to true black
+     * so that cards, sheets, bars and container-tinted widgets don't reveal near-black gray boxes on
+     * an OLED panel. This includes [SURFACE_VARIANT], which is used directly as a container fill (e.g.
+     * chips) and would otherwise render as a near-black gray. The corresponding `on*` roles stay
+     * untouched (they carry the foreground contrast).
+     *
+     * The `surfaceTint` role is intentionally *not* listed here: it is not a fill but the tint
+     * overlay Material applies for elevation. The pure-black transform blackens it separately (see
+     * `pureDark`) to suppress elevation tinting on OLED, and it's excluded from this fill-role set so
+     * the completeness invariant stays about fill roles only.
      *
      * Exposed so the pure-black mapping is auditable/testable independently of Compose's
      * `ColorScheme` type.
@@ -179,6 +186,7 @@ object ColorMath {
     enum class SurfaceRole {
         BACKGROUND,
         SURFACE,
+        SURFACE_VARIANT,
         SURFACE_DIM,
         SURFACE_BRIGHT,
         SURFACE_CONTAINER_LOWEST,

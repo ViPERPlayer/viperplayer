@@ -215,6 +215,10 @@ class ColorMathTest {
                 )
             )
         )
+        assertTrue(
+            "surfaceVariant is used directly as a container fill and must be blackened on OLED",
+            ColorMath.PURE_BLACK_SURFACE_ROLES.contains(ColorMath.SurfaceRole.SURFACE_VARIANT)
+        )
     }
 
     @Test

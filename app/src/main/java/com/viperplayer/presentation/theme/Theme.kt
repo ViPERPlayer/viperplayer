@@ -61,11 +61,16 @@ fun ViPERPlayerTheme(
 }
 
 /**
- * Maps every dark-theme surface role to true black for AMOLED "pure black" mode. Covers the whole
- * surface family (containers, dim/bright, elevation-tinted variants) — not just [ColorScheme.surface]
- * and [ColorScheme.background] — so cards, sheets and bars that draw on `surfaceContainer*` don't
- * show near-black gray boxes on an OLED panel. The `on*` roles are preserved so foreground contrast
- * is unaffected.
+ * Maps every dark-theme surface *fill* role to true black for AMOLED "pure black" mode. Covers the
+ * whole surface family — [ColorScheme.background], [ColorScheme.surface], [ColorScheme.surfaceVariant],
+ * the dim/bright variants, and every `surfaceContainer*` level — so cards, sheets, bars and
+ * container-tinted widgets (e.g. chips that fill with `surfaceVariant`) don't show near-black gray
+ * boxes on an OLED panel. [ColorScheme.surfaceTint] is also set to black so Material applies no
+ * elevation tint on OLED (true black stays black under elevation). The `on*` roles are preserved so
+ * foreground contrast is unaffected.
+ *
+ * The fill roles blackened here are enumerated by [ColorMath.PURE_BLACK_SURFACE_ROLES], which the
+ * unit tests use to guard completeness.
  */
 private fun ColorScheme.pureDark(): ColorScheme {
     return this.copy(
@@ -73,6 +78,8 @@ private fun ColorScheme.pureDark(): ColorScheme {
         onBackground = Color.White,
         surface = Color.Black,
         onSurface = Color.White,
+        surfaceVariant = Color.Black,
+        surfaceTint = Color.Black,
         surfaceDim = Color.Black,
         surfaceBright = Color.Black,
         surfaceContainerLowest = Color.Black,

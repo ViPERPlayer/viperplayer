@@ -407,6 +407,9 @@
     <string name="appearance_accent_custom">Custom…</string>
     <string name="appearance_accent_selected">Selected accent color</string>
     <string name="appearance_accent_custom_title">Custom accent color</string>
+    <string name="appearance_accent_hue">Hue</string>
+    <string name="appearance_accent_saturation">Saturation</string>
+    <string name="appearance_accent_brightness">Brightness</string>
     <string name="action_apply">Apply</string>
 
     <!-- Content settings -->

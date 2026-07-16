@@ -93,17 +93,26 @@ fun ViperPlayerApp(
     // of snapping. A null target means "no explicit seed" and passes through unanimated (Material You
     // or the baseline scheme takes over). The FIRST concrete seed snaps in — we never cross-fade from
     // a placeholder, which would flash a garbage scheme on the first cover decode; only seed→seed
-    // changes tween.
+    // changes tween. When the seed clears (art removed), the animatable is reset to Unspecified so a
+    // later new seed snaps in fresh rather than cross-fading from an unrelated stale color.
     val seedAnimatable = remember { ColorAnimatable(targetSeed ?: Color.Unspecified) }
     LaunchedEffect(targetSeed) {
-        if (targetSeed == null) return@LaunchedEffect
+        if (targetSeed == null) {
+            seedAnimatable.snapTo(Color.Unspecified)
+            return@LaunchedEffect
+        }
         if (seedAnimatable.value == Color.Unspecified) {
             seedAnimatable.snapTo(targetSeed)
         } else {
             seedAnimatable.animateTo(targetSeed, tween(durationMillis = 500))
         }
     }
-    val seedColor = if (targetSeed != null) seedAnimatable.value else null
+    // Until the LaunchedEffect snaps the animatable to the first seed, its value is still Unspecified;
+    // use the target directly for that frame so the theme never gets Color.Unspecified (which would
+    // flash a garbage/black scheme). A null target passes through as null (no explicit seed).
+    val seedColor = targetSeed?.let {
+        if (seedAnimatable.value == Color.Unspecified) it else seedAnimatable.value
+    }
 
     ViPERPlayerTheme(
         darkTheme = darkTheme,
