@@ -11,9 +11,13 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.sort.MediaSorter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +49,10 @@ enum class LibraryTab {
 
 /**
  * UI State for Library screen.
+ *
+ * The `songs`/`albums`/`artists`/`playlists` lists are already sorted for display per the matching
+ * `sortOrder`; the ViewModel keeps the raw (default-ordered) lists privately so re-sorting on a menu
+ * change never needs a reload.
  */
 data class LibraryUiState(
     val selectedTab: LibraryTab = LibraryTab.SONGS,
@@ -53,6 +61,10 @@ data class LibraryUiState(
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    val songsSort: SortOrder = SortOrder.DEFAULT,
+    val albumsSort: SortOrder = SortOrder.DEFAULT,
+    val artistsSort: SortOrder = SortOrder.DEFAULT,
+    val playlistsSort: SortOrder = SortOrder.DEFAULT,
     val error: String? = null
 )
 
@@ -72,11 +84,18 @@ class LibraryViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val networkConnectivityChecker: NetworkConnectivityChecker,
+    private val settingsRepository: SettingsRepository,
     private val downloadManager: DownloadManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+
+    // Raw (default-ordered) lists as loaded, kept so a sort-menu change re-sorts without a reload.
+    private var rawSongs: List<Song> = emptyList()
+    private var rawAlbums: List<Album> = emptyList()
+    private var rawArtists: List<Artist> = emptyList()
+    private var rawPlaylists: List<Playlist> = emptyList()
 
     private val _importEvents = MutableSharedFlow<ImportEvent>(extraBufferCapacity = 1)
     val importEvents: SharedFlow<ImportEvent> = _importEvents.asSharedFlow()
@@ -98,6 +117,42 @@ class LibraryViewModel @Inject constructor(
 
     init {
         loadContent(LibraryTab.SONGS)
+        observeSortOrders()
+    }
+
+    /**
+     * Observe each tab's persisted [SortOrder] and re-sort its already-loaded raw list whenever the
+     * user picks a new order (or on first load). Sorting the raw list here — rather than reloading —
+     * keeps a menu change instant and avoids a network round-trip.
+     */
+    private fun observeSortOrders() {
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.LIBRARY_SONGS).collect { order ->
+                _uiState.update { it.copy(songsSort = order, songs = MediaSorter.sortSongs(rawSongs, order)) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.LIBRARY_ALBUMS).collect { order ->
+                _uiState.update { it.copy(albumsSort = order, albums = MediaSorter.sortAlbums(rawAlbums, order)) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.LIBRARY_ARTISTS).collect { order ->
+                _uiState.update { it.copy(artistsSort = order, artists = MediaSorter.sortArtists(rawArtists, order)) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.LIBRARY_PLAYLISTS).collect { order ->
+                _uiState.update { it.copy(playlistsSort = order, playlists = MediaSorter.sortPlaylists(rawPlaylists, order)) }
+            }
+        }
+    }
+
+    /** Persist a new [order] for [view]; the sort-order observer applies it to the visible list. */
+    fun setSortOrder(view: SortView, order: SortOrder) {
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(view, order)
+        }
     }
 
     fun selectTab(tab: LibraryTab) {
@@ -135,10 +190,11 @@ class LibraryViewModel @Inject constructor(
                                 song.copy(isPlayable = isPlayable)
                             }
                         }.collect { songsWithPlayability ->
+                            rawSongs = songsWithPlayability
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    songs = songsWithPlayability
+                                    songs = MediaSorter.sortSongs(songsWithPlayability, it.songsSort)
                                 )
                             }
                         }
@@ -146,20 +202,22 @@ class LibraryViewModel @Inject constructor(
 
                     LibraryTab.ALBUMS -> {
                         val result = pluginRepository.getLibraryAlbums(limit = 50)
+                        rawAlbums = result.getOrNull()?.items.orEmpty()
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                albums = result.getOrNull()?.items.orEmpty()
+                                albums = MediaSorter.sortAlbums(rawAlbums, it.albumsSort)
                             )
                         }
                     }
 
                     LibraryTab.ARTISTS -> {
                         val result = pluginRepository.getLibraryArtists(limit = 50)
+                        rawArtists = result.getOrNull()?.items.orEmpty()
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                artists = result.getOrNull()?.items.orEmpty()
+                                artists = MediaSorter.sortArtists(rawArtists, it.artistsSort)
                             )
                         }
                     }
@@ -184,10 +242,11 @@ class LibraryViewModel @Inject constructor(
                                 addAll(pluginPlaylists)
                             }
                         }.collect { allPlaylists ->
+                            rawPlaylists = allPlaylists
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    playlists = allPlaylists
+                                    playlists = MediaSorter.sortPlaylists(allPlaylists, it.playlistsSort)
                                 )
                             }
                         }

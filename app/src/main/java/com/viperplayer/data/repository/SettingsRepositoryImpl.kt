@@ -10,6 +10,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.viperplayer.domain.model.SortDirection
+import com.viperplayer.domain.model.SortOption
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
@@ -52,6 +56,10 @@ class SettingsRepositoryImpl @Inject constructor(
         // Storage
         private val MAX_SONG_CACHE_SIZE_KEY = longPreferencesKey("max_song_cache_size")
         private val MAX_IMAGE_CACHE_SIZE_KEY = longPreferencesKey("max_image_cache_size")
+
+        // Sort order — one option + direction key per view (keyed by the view's enum name).
+        private fun sortOptionKey(view: SortView) = stringPreferencesKey("sort_option_${view.name}")
+        private fun sortDirectionKey(view: SortView) = stringPreferencesKey("sort_direction_${view.name}")
     }
 
     private val dataStore = context.settingsDataStore
@@ -235,6 +243,33 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setMaxImageCacheSize(size: Long) {
         dataStore.edit { preferences ->
             preferences[MAX_IMAGE_CACHE_SIZE_KEY] = size
+        }
+    }
+
+    // Sort order per view — persisted as two string keys (option + direction), decoded leniently so a
+    // stale/unknown name falls back to the passthrough default rather than crashing.
+    override fun sortOrder(view: SortView): Flow<SortOrder> = dataStore.data.mapDistinct { preferences ->
+        val option = preferences[sortOptionKey(view)]?.let {
+            try {
+                SortOption.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                SortOption.DEFAULT
+            }
+        } ?: SortOption.DEFAULT
+        val direction = preferences[sortDirectionKey(view)]?.let {
+            try {
+                SortDirection.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                SortDirection.ASCENDING
+            }
+        } ?: SortDirection.ASCENDING
+        SortOrder(option, direction)
+    }
+
+    override suspend fun setSortOrder(view: SortView, order: SortOrder) {
+        dataStore.edit { preferences ->
+            preferences[sortOptionKey(view)] = order.option.name
+            preferences[sortDirectionKey(view)] = order.direction.name
         }
     }
 }

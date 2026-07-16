@@ -1,5 +1,7 @@
 package com.viperplayer.domain.repository
 
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import kotlinx.coroutines.flow.Flow
 
 enum class AudioQuality {
@@ -82,5 +84,10 @@ interface SettingsRepository {
 
     val maxImageCacheSize: Flow<Long> // In bytes
     suspend fun setMaxImageCacheSize(size: Long)
+
+    // Library / detail list sort order, persisted independently per [SortView].
+    /** The persisted [SortOrder] for [view]. Defaults to [SortOrder.DEFAULT] (original order). */
+    fun sortOrder(view: SortView): Flow<SortOrder>
+    suspend fun setSortOrder(view: SortView, order: SortOrder)
 }
 
