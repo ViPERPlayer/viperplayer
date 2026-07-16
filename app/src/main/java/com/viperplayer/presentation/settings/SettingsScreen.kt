@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
@@ -50,6 +51,7 @@ fun SettingsScreen(
     onNavigateToPlugins: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdater: () -> Unit,
+    onNavigateToListeningStats: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -100,6 +102,14 @@ fun SettingsScreen(
                     description = stringResource(R.string.settings_content_desc),
                     icon = Icons.Default.MusicNote,
                     onClick = onNavigateToContent
+                )
+            }
+            item {
+                SettingsSectionItem(
+                    title = stringResource(R.string.listening_stats),
+                    description = stringResource(R.string.listening_stats_desc),
+                    icon = Icons.Default.BarChart,
+                    onClick = onNavigateToListeningStats
                 )
             }
             item {
