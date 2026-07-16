@@ -315,6 +315,27 @@ class LocalTagReaderTest {
     }
 
     @Test
+    fun `id3v23 TDAT does not shadow the TYER year`() {
+        // In ID3v2.3, TDAT is a 4-char DDMM (day+month) string, NOT a year or ISO date; the year lives
+        // in TYER. A file carrying both must resolve to the TYER year, never the DDMM value.
+        val tag = id3(
+            versionMajor = 3,
+            frames = listOf(
+                "TYER" to textFrame("1975"),
+                "TDAT" to textFrame("0112"), // DD=01, MM=12 — must not become the date
+            ),
+        )
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals("1975", tags.date)
+    }
+
+    @Test
+    fun `id3v24 TDRC full timestamp takes precedence for the date`() {
+        val tag = id3v24(listOf("TDRC" to textFrame("1994-08-15")))
+        assertEquals("1994-08-15", LocalTagReader.readTags(tag).date)
+    }
+
+    @Test
     fun `id3v22 three-char text frames map to AudioTags`() {
         val tag = id3v22(
             listOf(
