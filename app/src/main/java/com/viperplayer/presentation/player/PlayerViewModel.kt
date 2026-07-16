@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -79,15 +80,56 @@ class PlayerViewModel @Inject constructor(
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
     val duration: StateFlow<Long> = playerRepository.duration
 
-    /** Lyrics for the current track from a lyrics-capable plugin, or null when none are available. */
-    val lyrics: StateFlow<Lyrics?> = currentSong
-        .mapLatest { song ->
-            song?.let { pluginRepository.getLyrics(it).getOrNull()?.takeUnless { lyrics -> lyrics.isEmpty } }
+    // Last successfully-resolved lyrics keyed by song id. Lets a re-subscription (the sheet reopening
+    // after WhileSubscribed's timeout, on the *same* song) reuse the resolved result instead of
+    // re-flashing the shimmer and re-fetching from the plugin.
+    private var lastResolvedSongId: MediaId? = null
+    private var lastResolvedLyrics: Lyrics? = null
+
+    // Loading vs. resolved lyrics as one atomic result so the renderer can distinguish "still
+    // fetching" (shimmer) from "fetched, none found" (empty state) instead of both looking like null.
+    // flatMapLatest re-emits Loading only when the track actually changes (then Loaded), so the shimmer
+    // shows for a genuinely new track but not when reopening the sheet on the same, already-fetched one.
+    private val lyricsResult: StateFlow<LyricsResult> = currentSong
+        .flatMapLatest { song ->
+            when {
+                song == null -> flowOf<LyricsResult>(LyricsResult.Loaded(null))
+                song.id == lastResolvedSongId ->
+                    // Same song we already resolved: skip the shimmer and the refetch.
+                    flowOf<LyricsResult>(LyricsResult.Loaded(lastResolvedLyrics))
+                else -> flow<LyricsResult> {
+                    emit(LyricsResult.Loading)
+                    val fetched = pluginRepository.getLyrics(song).getOrNull()
+                        ?.takeUnless { lyrics -> lyrics.isEmpty }
+                    lastResolvedSongId = song.id
+                    lastResolvedLyrics = fetched
+                    emit(LyricsResult.Loaded(fetched))
+                }
+            }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
+            initialValue = LyricsResult.Loading
+        )
+
+    /** Lyrics for the current track from a lyrics-capable plugin, or null when none are available. */
+    val lyrics: StateFlow<Lyrics?> = lyricsResult
+        .map { (it as? LyricsResult.Loaded)?.lyrics }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
+        )
+
+    /** True while the current track's lyrics are still being fetched (drives the loading shimmer). */
+    val lyricsLoading: StateFlow<Boolean> = lyricsResult
+        .map { it is LyricsResult.Loading }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
         )
 
     // --- Lyrics translation (on-device, ML Kit) ---
