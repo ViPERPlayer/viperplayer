@@ -88,6 +88,9 @@ class SettingsRepositoryImpl @Inject constructor(
 
         // Library tabs config (order + visibility), serialized by LibraryTabsConfig.
         private val LIBRARY_TABS_CONFIG_KEY = stringPreferencesKey("library_tabs_config")
+
+        // Custom accent/seed color (packed ARGB int), absent when unset. Appended at the end.
+        private val ACCENT_COLOR_KEY = intPreferencesKey("accent_color")
     }
 
     private val dataStore = context.settingsDataStore
@@ -136,6 +139,20 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setPureBlack(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[PURE_BLACK_KEY] = enabled
+        }
+    }
+
+    override val accentColor: Flow<Int?> = dataStore.data.mapDistinct { preferences ->
+        preferences[ACCENT_COLOR_KEY] // null when unset → use the brand default
+    }
+
+    override suspend fun setAccentColor(argb: Int?) {
+        dataStore.edit { preferences ->
+            if (argb == null) {
+                preferences.remove(ACCENT_COLOR_KEY)
+            } else {
+                preferences[ACCENT_COLOR_KEY] = argb
+            }
         }
     }
 

@@ -1,19 +1,20 @@
 package com.viperplayer.presentation.main
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.palette.graphics.Palette
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
-import com.materialkolor.ktx.themeColorOrNull
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
+import com.viperplayer.presentation.theme.ColorMath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ import javax.inject.Inject
 
 data class ViperPlayerAppUiState(
     val themeColor: Color? = null,
+    val accentColor: Color? = null,
     val hasCurrentSong: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicThemeMode: DynamicThemeMode = DynamicThemeMode.DYNAMIC,
@@ -64,7 +66,7 @@ class ViperPlayerAppViewModel @Inject constructor(
                                     .allowHardware(false)
                                     .build()
                             )
-                            result.image?.toBitmap()?.asImageBitmap()?.themeColorOrNull()
+                            result.image?.toBitmap()?.let(::seedFromBitmap)
                         }
                     }
                 }.getOrNull()
@@ -97,5 +99,21 @@ class ViperPlayerAppViewModel @Inject constructor(
                 _uiState.update { it.copy(pureBlack = enabled) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.accentColor.collect { argb ->
+                _uiState.update { it.copy(accentColor = argb?.let(::Color)) }
+            }
+        }
+    }
+
+    /**
+     * Extracts a Material-scheme seed from cover art: builds a [Palette] and delegates the choice to
+     * the pure [ColorMath.bestSeedFrom] (which favors a vivid, well-populated swatch over a drab
+     * dominant one). Returns `null` if no usable swatch is found. Must be called off the main thread.
+     */
+    private fun seedFromBitmap(bitmap: Bitmap): Color? {
+        val palette = Palette.from(bitmap).generate()
+        val swatches = palette.swatches.map { ColorMath.Swatch(it.rgb, it.population) }
+        return ColorMath.bestSeedFrom(swatches)?.let(::Color)
     }
 }

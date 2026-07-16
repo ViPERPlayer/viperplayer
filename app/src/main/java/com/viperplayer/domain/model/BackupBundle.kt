@@ -80,6 +80,8 @@ data class BackupSettings(
     val showExplicitContent: Boolean? = null,
     val maxSongCacheSize: Long? = null,
     val maxImageCacheSize: Long? = null,
+    /** Custom accent seed (packed ARGB), or null for the brand default. Appended for compatibility. */
+    val accentColor: Int? = null,
 )
 
 /**

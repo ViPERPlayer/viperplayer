@@ -401,6 +401,13 @@
     <string name="appearance_theme_type">Theme Type</string>
     <string name="appearance_pure_black">Pure Black</string>
     <string name="appearance_pure_black_desc">Use pure black background in dark theme</string>
+    <string name="appearance_accent_color">Accent Color</string>
+    <string name="appearance_accent_color_desc">Pick a seed color for the app theme (used when dynamic color is off)</string>
+    <string name="appearance_accent_default">Default</string>
+    <string name="appearance_accent_custom">Custom…</string>
+    <string name="appearance_accent_selected">Selected accent color</string>
+    <string name="appearance_accent_custom_title">Custom accent color</string>
+    <string name="action_apply">Apply</string>
 
     <!-- Content settings -->
     <string name="content_category_filters">Content Filters</string>

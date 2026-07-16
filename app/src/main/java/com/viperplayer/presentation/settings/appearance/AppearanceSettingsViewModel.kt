@@ -16,7 +16,9 @@ import javax.inject.Inject
 data class AppearanceSettingsUiState(
     val dynamicThemeMode: DynamicThemeMode = DynamicThemeMode.DYNAMIC,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val pureBlack: Boolean = false
+    val pureBlack: Boolean = false,
+    /** User-picked accent seed (packed ARGB), or `null` for the brand default. */
+    val accentColor: Int? = null
 )
 
 @HiltViewModel
@@ -43,6 +45,11 @@ class AppearanceSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(pureBlack = enabled) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.accentColor.collect { argb ->
+                _uiState.update { it.copy(accentColor = argb) }
+            }
+        }
     }
 
     fun setDynamicThemeMode(mode: DynamicThemeMode) {
@@ -60,6 +67,13 @@ class AppearanceSettingsViewModel @Inject constructor(
     fun setPureBlack(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setPureBlack(enabled)
+        }
+    }
+
+    /** Persist a custom accent seed; pass `null` to clear it and fall back to the brand default. */
+    fun setAccentColor(argb: Int?) {
+        viewModelScope.launch {
+            settingsRepository.setAccentColor(argb)
         }
     }
 }
