@@ -35,6 +35,9 @@ import com.viperplayer.plugin.host.PluginConnection
 import com.viperplayer.plugin.host.PluginDiscovery
 import com.viperplayer.plugin.host.ResolvedStream
 import com.viperplayer.plugin.host.DiscoveredPlugin
+import com.viperplayer.data.sync.push.PluginWriteGateway
+import com.viperplayer.data.sync.push.RemoteSet
+import com.viperplayer.data.sync.push.WriteCapability
 import com.viperplayer.plugin.host.SourceClient
 import com.viperplayer.plugin.model.LyricsRequest
 import com.viperplayer.plugin.model.MediaType
@@ -82,7 +85,7 @@ class PluginDataSource @Inject constructor(
     private val pluginPreferences: PluginPreferences,
     private val settingsRepository: SettingsRepository,
     private val actionNotifier: PluginActionNotifier,
-) {
+) : PluginWriteGateway {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _discoveredPlugins = MutableStateFlow<Map<String, DiscoveredPlugin>>(emptyMap())
@@ -422,6 +425,84 @@ class PluginDataSource @Inject constructor(
         runCatching {
             source(pluginId).getLibraryPlaylists(PageRequest(cursor, limit)).toDomain { it.toDomain(pluginId) }
         }.onFailure { Timber.e(it, "library playlists failed for $pluginId") }
+
+    // ---- Library WRITE (push) — the PUSH direction of two-way sync. Each call routes to the plugin's
+    // optional write verb; a plugin that doesn't advertise `libraryWrite` (or predates the verb) throws
+    // UNSUPPORTED, which the push sync manager records as a skipped (not failed) outbox entry. ----
+
+    /**
+     * The account-library write capability of [pluginId] right now. Reads the *already-connected*
+     * plugin's manifest (no awaitPlugin/timeout): a plugin that isn't currently connected reports
+     * [WriteCapability.UNAVAILABLE] (retry later), never UNSUPPORTED, so a transient disconnect can't
+     * strand queued changes.
+     */
+    override suspend fun libraryWriteCapability(pluginId: String): WriteCapability {
+        val connected = _connectedPlugins.value[pluginId] ?: return WriteCapability.UNAVAILABLE
+        val source = connected.client.source ?: return WriteCapability.UNSUPPORTED
+        return if (source.capabilities.libraryWrite) WriteCapability.SUPPORTED else WriteCapability.UNSUPPORTED
+    }
+
+    override suspend fun setLiked(pluginId: String, trackId: String, liked: Boolean): Result<Unit> =
+        runCatching { source(pluginId).setLiked(trackId, liked) }
+            .onFailure { Timber.e(it, "setLiked failed for $pluginId/$trackId") }
+
+    override suspend fun setFollowed(pluginId: String, artistId: String, followed: Boolean): Result<Unit> =
+        runCatching { source(pluginId).setFollowed(artistId, followed) }
+            .onFailure { Timber.e(it, "setFollowed failed for $pluginId/$artistId") }
+
+    override suspend fun createPlaylist(pluginId: String, name: String): Result<String> =
+        runCatching { source(pluginId).createPlaylist(name) }
+            .onFailure { Timber.e(it, "createPlaylist failed for $pluginId") }
+
+    override suspend fun renamePlaylist(pluginId: String, playlistId: String, name: String): Result<Unit> =
+        runCatching { source(pluginId).renamePlaylist(playlistId, name) }
+            .onFailure { Timber.e(it, "renamePlaylist failed for $pluginId/$playlistId") }
+
+    override suspend fun deletePlaylist(pluginId: String, playlistId: String): Result<Unit> =
+        runCatching { source(pluginId).deletePlaylist(playlistId) }
+            .onFailure { Timber.e(it, "deletePlaylist failed for $pluginId/$playlistId") }
+
+    override suspend fun addTrackToPlaylist(pluginId: String, playlistId: String, trackId: String): Result<Unit> =
+        runCatching { source(pluginId).addTrackToPlaylist(playlistId, trackId) }
+            .onFailure { Timber.e(it, "addTrackToPlaylist failed for $pluginId/$playlistId") }
+
+    override suspend fun removeTrackFromPlaylist(pluginId: String, playlistId: String, trackId: String): Result<Unit> =
+        runCatching { source(pluginId).removeTrackFromPlaylist(playlistId, trackId) }
+            .onFailure { Timber.e(it, "removeTrackFromPlaylist failed for $pluginId/$playlistId") }
+
+    /**
+     * First page of the account's liked/saved track source ids, for push reconciliation, or null.
+     *
+     * PROXY / best-effort by design: the SDK has no distinct "liked-only" read, so we use the
+     * account's library-saved songs ([getLibrarySongs]) as a proxy for the remote liked set. On some
+     * services "saved to library" is not exactly the same as "liked", so this is a deliberate
+     * approximation of the remote set the reconciler diffs against, given the SDK read surface.
+     * Bounded consequence: a redundant like may be skipped as already-present, but real changes still
+     * push — an unlike (a removal off this set) is never suppressed by an over-broad set. Never assume
+     * this equals the true liked set exactly.
+     */
+    override suspend fun likedTrackIds(pluginId: String, limit: Int): RemoteSet? =
+        runCatching {
+            val page = source(pluginId).getLibrarySongs(PageRequest(null, limit))
+            // Complete only if there's no next page — otherwise an absent id is inconclusive.
+            RemoteSet(page.items.map { it.id }.toSet(), complete = page.nextCursor == null)
+        }.getOrNull()
+
+    /**
+     * First page of the account's followed artist source ids, for push reconciliation, or null.
+     *
+     * PROXY / best-effort by design: the SDK has no distinct "followed-only" read, so we use the
+     * account's library-saved artists ([getLibraryArtists]) as a proxy for the remote followed set. On
+     * some services "saved to library" is not exactly the same as "followed", so this is a deliberate
+     * approximation of the remote set the reconciler diffs against, given the SDK read surface.
+     * Bounded consequence: a redundant follow may be skipped as already-present, but real changes still
+     * push — an unfollow (a removal off this set) is never suppressed by an over-broad set.
+     */
+    override suspend fun followedArtistIds(pluginId: String, limit: Int): RemoteSet? =
+        runCatching {
+            val page = source(pluginId).getLibraryArtists(PageRequest(null, limit))
+            RemoteSet(page.items.map { it.id }.toSet(), complete = page.nextCursor == null)
+        }.getOrNull()
 
     suspend fun getSong(id: MediaId): Result<Song> = runCatching {
         source(id.pluginId).getSong(id.sourceId).toDomain(id.pluginId)

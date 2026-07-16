@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -240,12 +241,17 @@ fun PluginsScreen(
                             showMenu = menuPluginId == plugin.id,
                             canSyncLibrary = viewModel.hasLibrary(plugin.id),
                             isSyncing = plugin.id in syncing,
+                            canPushSync = viewModel.hasLibraryWrite(plugin.id),
+                            pushSyncEnabled = plugin.id in uiState.pushSyncEnabled,
                             onToggle = { viewModel.togglePlugin(plugin.id) },
                             onLongPress = { menuPluginId = plugin.id },
                             onDismissMenu = { menuPluginId = null },
                             onSyncLibrary = {
                                 menuPluginId = null
                                 viewModel.syncLibrary(plugin.id)
+                            },
+                            onTogglePushSync = { enabled ->
+                                viewModel.setPushSyncEnabled(plugin.id, enabled)
                             },
                             onShowInfo = {
                                 showInfoDialog = displayInfo
@@ -341,10 +347,13 @@ fun PluginCard(
     showMenu: Boolean,
     canSyncLibrary: Boolean = false,
     isSyncing: Boolean = false,
+    canPushSync: Boolean = false,
+    pushSyncEnabled: Boolean = false,
     onToggle: () -> Unit,
     onLongPress: () -> Unit,
     onDismissMenu: () -> Unit,
     onSyncLibrary: () -> Unit = {},
+    onTogglePushSync: (Boolean) -> Unit = {},
     onShowInfo: () -> Unit,
     onUninstall: () -> Unit,
     modifier: Modifier = Modifier,
@@ -517,6 +526,26 @@ fun PluginCard(
                                 Icon(
                                     imageVector = Icons.Default.Sync,
                                     contentDescription = null
+                                )
+                            }
+                        )
+                    }
+                    if (canPushSync) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.plugins_push_sync)) },
+                            // The row owns the toggle; the Switch is a non-interactive state indicator
+                            // (onCheckedChange = null) so a tap can't flip the preference twice.
+                            onClick = { onTogglePushSync(!pushSyncEnabled) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.CloudUpload,
+                                    contentDescription = null
+                                )
+                            },
+                            trailingIcon = {
+                                Switch(
+                                    checked = pushSyncEnabled,
+                                    onCheckedChange = null,
                                 )
                             }
                         )

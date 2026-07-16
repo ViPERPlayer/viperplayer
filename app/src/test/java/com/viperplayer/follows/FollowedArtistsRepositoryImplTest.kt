@@ -1,5 +1,7 @@
 package com.viperplayer.follows
 
+import com.viperplayer.data.sync.push.LibraryMutation
+import com.viperplayer.data.sync.push.LibraryPushOutbox
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.follows.data.FollowedArtistDao
 import com.viperplayer.follows.data.FollowedArtistEntity
@@ -9,6 +11,7 @@ import com.viperplayer.follows.domain.FollowedArtistSort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -56,7 +59,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun follow_addsArtist() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
 
         repo.follow(followed("1", "Artist One", 100))
 
@@ -67,7 +70,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun follow_isIdempotent_noDuplicates() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
 
         val artist = followed("1", "Artist One", 100)
         repo.follow(artist)
@@ -82,7 +85,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun unfollow_removesArtist() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
         val id = MediaId("plugin", "1")
         repo.follow(followed("1", "Artist One", 100))
 
@@ -93,7 +96,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun unfollow_missingArtist_isNoOp() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
         repo.follow(followed("1", "Artist One", 100))
 
         repo.unfollow(MediaId("plugin", "does-not-exist"))
@@ -103,7 +106,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun isFollowing_reflectsState() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
         val id = MediaId("plugin", "1")
 
         assertFalse(repo.isFollowing(id).first())
@@ -117,7 +120,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun followedArtists_sortedByName() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
         repo.follow(followed("1", "Zed", 100))
         repo.follow(followed("2", "amy", 200))
         repo.follow(followed("3", "Bob", 300))
@@ -129,7 +132,7 @@ class FollowedArtistsRepositoryImplTest {
 
     @Test
     fun followedArtists_sortedByRecentlyFollowed() = runTest {
-        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao())
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
         repo.follow(followed("1", "Old", 100))
         repo.follow(followed("2", "Newest", 300))
         repo.follow(followed("3", "Middle", 200))
@@ -137,5 +140,34 @@ class FollowedArtistsRepositoryImplTest {
         val names = repo.followedArtists(FollowedArtistSort.RECENTLY_FOLLOWED).first().map { it.name }
 
         assertEquals(listOf("Newest", "Middle", "Old"), names)
+    }
+
+    @Test
+    fun follow_and_unfollow_enqueueOppositePushMutations() = runTest {
+        // The two-way-sync wiring must record a SetFollowed(true) on follow and SetFollowed(false) on
+        // unfollow so the change can be propagated to the plugin account.
+        val outbox = CapturingOutbox()
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), outbox)
+        val id = MediaId("plugin", "1")
+
+        repo.follow(followed("1", "Artist One", 100))
+        repo.unfollow(id)
+
+        assertEquals(
+            listOf(
+                LibraryMutation.SetFollowed("plugin", "1", followed = true),
+                LibraryMutation.SetFollowed("plugin", "1", followed = false),
+            ),
+            outbox.captured,
+        )
+    }
+
+    /** Records enqueued mutations so the wiring from the repository to the outbox can be asserted. */
+    private class CapturingOutbox : LibraryPushOutbox {
+        val captured = mutableListOf<LibraryMutation>()
+        override val pendingCount = flowOf(0)
+        override suspend fun enqueue(mutation: LibraryMutation) {
+            captured += mutation
+        }
     }
 }

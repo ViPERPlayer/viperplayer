@@ -2,8 +2,10 @@ package com.viperplayer.presentation.plugins
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.preferences.PushSyncPreferences
 import com.viperplayer.data.sync.LibrarySyncManager
 import com.viperplayer.data.sync.SyncResult
+import com.viperplayer.data.sync.push.PushSyncManager
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.repository.PluginRepository
@@ -28,6 +30,8 @@ data class PluginsUiState(
     val discoveredPlugins: List<PluginInfo> = emptyList(),
     val connectedPlugins: Map<String, Plugin> = emptyMap(),
     val enabledStates: Map<String, Boolean> = emptyMap(),
+    /** Plugin ids the user has opted into PUSHING local library changes up to (two-way sync). */
+    val pushSyncEnabled: Set<String> = emptySet(),
     val togglingPluginId: String? = null,
     val error: String? = null
 )
@@ -39,6 +43,8 @@ data class PluginsUiState(
 class PluginsViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val librarySyncManager: LibrarySyncManager,
+    private val pushSyncPreferences: PushSyncPreferences,
+    private val pushSyncManager: PushSyncManager,
 ) : ViewModel() {
     companion object {
         private const val TAG = "PluginsViewModel"
@@ -86,6 +92,12 @@ class PluginsViewModel @Inject constructor(
                 Timber.d("Disabled plugins updated: $disabled")
                 // enabledStates maps a plugin id to false only when disabled; absent => enabled.
                 _uiState.update { it.copy(enabledStates = disabled.associateWith { false }) }
+            }
+        }
+
+        viewModelScope.launch {
+            pushSyncPreferences.enabledPlugins.collect { enabled ->
+                _uiState.update { it.copy(pushSyncEnabled = enabled) }
             }
         }
     }
@@ -157,6 +169,30 @@ class PluginsViewModel @Inject constructor(
     /** True when the connected plugin advertises an account library that can be synced. */
     fun hasLibrary(pluginId: String): Boolean {
         return _uiState.value.connectedPlugins[pluginId]?.capabilities?.hasLibrary ?: false
+    }
+
+    /** True when the connected plugin can PUSH local library changes up to the account. */
+    fun hasLibraryWrite(pluginId: String): Boolean {
+        return _uiState.value.connectedPlugins[pluginId]?.capabilities?.hasLibraryWrite ?: false
+    }
+
+    /** Whether the user has opted [pluginId] into pushing local library changes up to the account. */
+    fun isPushSyncEnabled(pluginId: String): Boolean =
+        pluginId in _uiState.value.pushSyncEnabled
+
+    /**
+     * Turn two-way push sync on/off for [pluginId]. Enabling kicks a drain to flush anything already
+     * queued; disabling discards the queued backlog so a later re-enable doesn't replay stale intents.
+     */
+    fun setPushSyncEnabled(pluginId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            pushSyncPreferences.setEnabled(pluginId, enabled)
+            if (enabled) {
+                pushSyncManager.requestDrain(pluginId)
+            } else {
+                pushSyncManager.clearPending(pluginId)
+            }
+        }
     }
 
     /**

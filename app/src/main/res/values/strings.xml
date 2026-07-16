@@ -482,6 +482,8 @@
     <string name="plugins_sync_failed">Couldn\'t sync library</string>
     <!-- Sync result: %1$d songs, %2$d albums, %3$d artists, %4$d playlists -->
     <string name="plugins_sync_result">Synced %1$d songs, %2$d albums, %3$d artists, %4$d playlists</string>
+    <!-- Two-way sync: push local library changes (likes, playlists, follows) up to the account. -->
+    <string name="plugins_push_sync">Push changes to account</string>
 
     <!-- Listen-together / social sheets -->
     <string name="social_share_subtitle">Share what you\'re listening to so friends can follow along.</string>

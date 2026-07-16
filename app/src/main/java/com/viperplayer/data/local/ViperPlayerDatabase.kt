@@ -8,6 +8,7 @@ import com.viperplayer.data.local.dao.ArtistDao
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.GenreDao
 import com.viperplayer.data.local.dao.PlayEventDao
+import com.viperplayer.data.local.dao.OutboxDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SearchHistoryDao
 import com.viperplayer.data.local.dao.SongDao
@@ -18,6 +19,7 @@ import com.viperplayer.data.local.entity.AlbumTypeConverter
 import com.viperplayer.data.local.entity.ArtistEntity
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
+import com.viperplayer.data.local.entity.OutboxEntity
 import com.viperplayer.data.local.entity.PlayEventEntity
 import com.viperplayer.data.local.entity.PlaylistEntity
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
@@ -47,9 +49,10 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         QueueSongCrossRef::class,
         ViperPresetEntity::class,
         ViperDdcCoeffEntity::class,
-        PlayEventEntity::class
+        PlayEventEntity::class,
+        OutboxEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(
@@ -66,5 +69,6 @@ abstract class ViperPlayerDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun viperPresetDao(): ViperPresetDao
     abstract fun playEventDao(): PlayEventDao
+    abstract fun outboxDao(): OutboxDao
 }
 

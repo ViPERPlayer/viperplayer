@@ -10,6 +10,8 @@ import com.viperplayer.data.repository.PluginRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
 import com.viperplayer.data.repository.ViperRepositoryImpl
+import com.viperplayer.data.sync.push.LibraryPushOutbox
+import com.viperplayer.data.sync.push.RoomLibraryPushOutbox
 import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.CacheRepository
 import com.viperplayer.domain.repository.ListenTogetherRepository
@@ -92,5 +94,11 @@ abstract class DataModule {
     abstract fun bindTagDetailsReader(
         impl: AndroidTagDetailsReader
     ): TagDetailsReader
+
+    @Binds
+    @Singleton
+    abstract fun bindLibraryPushOutbox(
+        impl: RoomLibraryPushOutbox
+    ): LibraryPushOutbox
 }
 

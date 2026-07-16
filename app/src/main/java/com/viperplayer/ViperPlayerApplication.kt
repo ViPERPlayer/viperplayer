@@ -15,8 +15,10 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import com.viperplayer.BuildConfig
+import com.viperplayer.data.sync.push.PushSyncManager
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.MediaLibraryRepository
+import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +40,12 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var mediaLibraryRepository: MediaLibraryRepository
 
+    @Inject
+    lateinit var pushSyncManager: PushSyncManager
+
+    @Inject
+    lateinit var pluginRepository: PluginRepository
+
     override fun onCreate() {
         super.onCreate()
         setupCrashHandler()
@@ -50,6 +58,24 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
 
         initializeTimber()
         pruneHistory()
+        drainPushOutboxOnConnect()
+    }
+
+    /**
+     * Two-way sync (PUSH): whenever the set of connected plugins changes (a plugin finishes
+     * connecting, or the app comes up with plugins already bound), flush any queued local library
+     * changes for the plugins that now have push sync enabled. Per-plugin gating and coalescing are
+     * handled inside [PushSyncManager]; this is just the "try to drain now" trigger.
+     */
+    private fun drainPushOutboxOnConnect() {
+        CoroutineScope(Dispatchers.IO).launch {
+            // collect (not collectLatest): a new connection event must not cancel an in-flight drain
+            // mid-push. Drains are cheap when there's nothing to do and serialized per plugin, so
+            // occasionally running one drain right after another is fine.
+            pluginRepository.connectedPlugins.collect {
+                pushSyncManager.drainAll()
+            }
+        }
     }
 
     /** Enforce the History Duration retention window at startup (FOREVER prunes nothing). */

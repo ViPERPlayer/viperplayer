@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.viperplayer.data.local.ViperPlayerDatabase
 import com.viperplayer.data.source.LocalMediaDataSource
+import com.viperplayer.data.sync.push.LibraryPushOutbox
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistDetail
@@ -64,6 +65,7 @@ class PlaylistMutationTest {
             artworkDownloader = ArtworkDownloader(context),
             networkConnectivityChecker = NetworkConnectivityChecker(context),
             localMediaDataSource = LocalMediaDataSource(context),
+            libraryPushOutbox = LibraryPushOutbox.NOOP,
         )
     }
 

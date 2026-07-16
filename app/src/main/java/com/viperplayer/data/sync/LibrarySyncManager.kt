@@ -6,6 +6,7 @@ import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.data.sync.push.PushSyncManager
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ data class SyncResult(
 class LibrarySyncManager @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
+    private val pushSyncManager: PushSyncManager,
 ) {
     private val _syncing = MutableStateFlow<Set<String>>(emptySet())
     /** Plugin ids currently syncing, for the UI to show progress. */
@@ -50,6 +52,12 @@ class LibrarySyncManager @Inject constructor(
     suspend fun syncPlugin(pluginId: String): SyncResult = withContext(Dispatchers.IO) {
         _syncing.update { it + pluginId }
         try {
+            // Two-way sync: flush any local changes queued for this plugin (PUSH) before pulling, so
+            // a locally-driven like/follow isn't clobbered by the incoming remote snapshot below. A
+            // disabled/unsupported plugin makes this a no-op.
+            runCatching { pushSyncManager.drainPlugin(pluginId) }
+                .onFailure { Timber.w(it, "Push drain before pull failed for $pluginId") }
+
             val playlists = syncType(
                 pluginId = pluginId,
                 fetch = { cursor -> pluginRepository.getLibraryPlaylists(pluginId, cursor, PAGE_SIZE).getOrNull() },
