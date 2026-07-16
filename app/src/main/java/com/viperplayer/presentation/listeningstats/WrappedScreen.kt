@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.stats.RankedItem
 import com.viperplayer.domain.stats.WrappedSummary
+import java.util.Locale
 
 /**
  * The "Wrapped" (year in review) story: a horizontally-paged sequence of full-screen cards. Reachable
@@ -66,6 +67,7 @@ private sealed interface WrappedCard {
     data class TopAlbum(val item: RankedItem) : WrappedCard
     data object Artists : WrappedCard
     data class TopArtistsList(val items: List<RankedItem>) : WrappedCard
+    data class TopSongsList(val items: List<RankedItem>) : WrappedCard
     data class FunFact(val text: String) : WrappedCard
 }
 
@@ -86,6 +88,7 @@ fun WrappedContent(
             add(WrappedCard.Intro)
             add(WrappedCard.Minutes)
             summary.topSong?.let { add(WrappedCard.TopSong(it)) }
+            if (summary.topSongs.size > 1) add(WrappedCard.TopSongsList(summary.topSongs))
             summary.topArtist?.let { add(WrappedCard.TopArtist(it)) }
             summary.topAlbum?.let { add(WrappedCard.TopAlbum(it)) }
             add(WrappedCard.Artists)
@@ -122,6 +125,10 @@ fun WrappedContent(
                     is WrappedCard.TopAlbum -> WrappedTopItemCard(
                         heading = stringResource(R.string.wrapped_top_album_title),
                         item = card.item,
+                    )
+                    is WrappedCard.TopSongsList -> WrappedLeaderboardCard(
+                        heading = stringResource(R.string.wrapped_top_songs_title),
+                        items = card.items,
                     )
                     WrappedCard.Artists -> WrappedArtistsCard(summary)
                     is WrappedCard.TopArtistsList -> WrappedLeaderboardCard(
@@ -219,7 +226,10 @@ private fun WrappedMinutesCard(summary: WrappedSummary) {
     )
     Spacer(Modifier.height(8.dp))
     Text(
-        text = stringResource(R.string.wrapped_minutes_value, "%,d".format(summary.totalMinutes)),
+        text = stringResource(
+            R.string.wrapped_minutes_value,
+            String.format(Locale.US, "%,d", summary.totalMinutes),
+        ),
         style = MaterialTheme.typography.displayMedium,
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,
