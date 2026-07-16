@@ -22,9 +22,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -122,9 +122,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -190,11 +190,18 @@ fun PlayerScreen(
     // transient 0 readings (the media controller briefly reports 0 as it re-syncs when the app returns
     // to the foreground) so the position doesn't visibly jump back to 0:00.
     var currentPosition by remember { mutableLongStateOf(0L) }
+    var bufferedPosition by remember { mutableLongStateOf(0L) }
     LaunchedEffect(currentSong?.id) {
         currentPosition = 0L
+        bufferedPosition = 0L
+        var tick = 0
         while (isActive) {
             val p = viewModel.getCurrentPosition()
             if (p > 0L) currentPosition = p
+            // Buffered position advances far more slowly than the playhead; poll it less often to
+            // spare the main-thread controller round-trip.
+            if (tick % 8 == 0) bufferedPosition = viewModel.getBufferedPosition()
+            tick++
             delay(16) // ~60fps updates
         }
     }
@@ -328,6 +335,9 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(contentWindowInsets)
         ) {
+            // Grab handle: a downward drag (or tap) collapses the player back to the mini-player.
+            DragToDismissHandle(onDismiss = onCollapse)
+
             // Top bar: collapse · context chip · overflow
             Row(
                 modifier = Modifier
@@ -506,6 +516,7 @@ fun PlayerScreen(
 
                 WavySeekBar(
                     position = { currentPosition },
+                    bufferedPosition = { bufferedPosition },
                     duration = duration,
                     isPlaying = isPlaying,
                     onSeek = { viewModel.seekTo(it) }
@@ -1000,27 +1011,73 @@ private fun MorphPlayButton(
 }
 
 /**
- * Wavy seek bar (§6.2). The played portion is a sine wave (animated while playing, flattened when
- * paused or dragging); the remaining portion is a straight line. The thumb is a vertical pill.
- * Tap or drag to scrub.
+ * A centered grab handle at the top of the player. A downward drag past a small threshold collapses
+ * the player back to the mini-player, mirroring the affordance of a modal bottom sheet. Drag-only
+ * (not tap) to match the standard sheet-handle behavior; the sheet itself is still swipe-dismissable.
  */
 @Composable
-private fun WavySeekBar(
+internal fun DragToDismissHandle(
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val dismissThresholdPx = with(density) { 48.dp.toPx() }
+    var dragged by remember { mutableFloatStateOf(0f) }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(24.dp)
+            .testTag("playerDragHandle")
+            .pointerInput(dismissThresholdPx) {
+                detectVerticalDragGestures(
+                    onDragStart = { dragged = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        dragged += dragAmount
+                    },
+                    onDragEnd = {
+                        if (dragged > dismissThresholdPx) onDismiss()
+                        dragged = 0f
+                    },
+                    onDragCancel = { dragged = 0f },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 36.dp, height = 4.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.55f))
+        )
+    }
+}
+
+/**
+ * Wavy seek bar (§6.2). The played portion is a sine wave (animated while playing, flattened when
+ * paused or dragging); a dimmer segment shows how far the track is buffered ahead of the playhead;
+ * the rest is a faint straight line. The thumb is a vertical pill. Tap or drag to scrub — while
+ * dragging, the left time label previews the target position.
+ */
+@Composable
+internal fun WavySeekBar(
     position: () -> Long,
+    bufferedPosition: () -> Long,
     duration: Long,
     isPlaying: Boolean,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
+    val bufferedColor = Color.White.copy(alpha = 0.55f)
     val remainingColor = Color.White.copy(alpha = 0.35f)
     val density = LocalDensity.current
 
     var dragFraction by remember { mutableStateOf<Float?>(null) }
-    var trackWidthPx by remember { mutableFloatStateOf(1f) }
 
-    val progress = if (duration > 0) (position().toFloat() / duration).coerceIn(0f, 1f) else 0f
+    val progress = PlayerQueueLogic.progressFraction(position(), duration)
     val fraction = dragFraction ?: progress
+    val bufferedFraction = PlayerQueueLogic.progressFraction(bufferedPosition(), duration)
 
     val targetAmp = if (isPlaying && dragFraction == null) 1f else 0f
     val amp by animateFloatAsState(targetAmp, spring(stiffness = Spring.StiffnessLow), label = "waveAmp")
@@ -1036,25 +1093,27 @@ private fun WavySeekBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(28.dp)
-                .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
+                .testTag("seekBar")
                 .pointerInput(duration) {
                     detectTapGestures { offset ->
                         if (duration > 0) {
-                            val f = (offset.x / size.width).coerceIn(0f, 1f)
-                            onSeek((f * duration).toLong())
+                            val f = PlayerQueueLogic.seekFraction(offset.x, size.width.toFloat())
+                            onSeek(PlayerQueueLogic.fractionToPositionMs(f, duration))
                         }
                     }
                 }
                 .pointerInput(duration) {
                     detectHorizontalDragGestures(
                         onDragStart = { offset ->
-                            dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            dragFraction = PlayerQueueLogic.seekFraction(offset.x, size.width.toFloat())
                         },
                         onHorizontalDrag = { change, _ ->
-                            dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                            dragFraction = PlayerQueueLogic.seekFraction(change.position.x, size.width.toFloat())
                         },
                         onDragEnd = {
-                            dragFraction?.let { if (duration > 0) onSeek((it * duration).toLong()) }
+                            dragFraction?.let {
+                                if (duration > 0) onSeek(PlayerQueueLogic.fractionToPositionMs(it, duration))
+                            }
                             dragFraction = null
                         },
                         onDragCancel = { dragFraction = null }
@@ -1064,10 +1123,33 @@ private fun WavySeekBar(
             val w = size.width
             val midY = size.height / 2f
             val playedX = (w * fraction).coerceIn(0f, w)
+            val bufferedX = (w * bufferedFraction).coerceIn(0f, w)
             val strokePx = with(density) { 4.dp.toPx() }
             val ampPx = with(density) { 5.dp.toPx() } * amp
             val wavelenPx = with(density) { 16.dp.toPx() }
             val stepPx = with(density) { 2.dp.toPx() }
+
+            // Remaining portion (drawn first so the buffered segment overlays it).
+            if (playedX < w) {
+                drawLine(
+                    color = remainingColor,
+                    start = Offset(playedX, midY),
+                    end = Offset(w, midY),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            // Buffered-ahead segment: from the playhead to how far the track is loaded.
+            if (bufferedX > playedX) {
+                drawLine(
+                    color = bufferedColor,
+                    start = Offset(playedX, midY),
+                    end = Offset(bufferedX, midY),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+            }
 
             // Played portion: wave when animating, otherwise a straight segment.
             val path = Path().apply {
@@ -1087,17 +1169,6 @@ private fun WavySeekBar(
             }
             drawPath(path, color = primary, style = Stroke(width = strokePx, cap = StrokeCap.Round))
 
-            // Remaining portion.
-            if (playedX < w) {
-                drawLine(
-                    color = remainingColor,
-                    start = Offset(playedX, midY),
-                    end = Offset(w, midY),
-                    strokeWidth = strokePx,
-                    cap = StrokeCap.Round
-                )
-            }
-
             // Thumb: vertical pill.
             val thumbW = with(density) { 5.dp.toPx() }
             val thumbH = with(density) { 22.dp.toPx() }
@@ -1115,7 +1186,9 @@ private fun WavySeekBar(
                 .padding(top = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            val shownPosition = if (dragFraction != null) (fraction * duration).toLong() else position()
+            val shownPosition = dragFraction
+                ?.let { PlayerQueueLogic.fractionToPositionMs(it, duration) }
+                ?: position()
             Text(
                 text = formatDuration(shownPosition, placeholder = null),
                 color = Color.White.copy(alpha = 0.82f),

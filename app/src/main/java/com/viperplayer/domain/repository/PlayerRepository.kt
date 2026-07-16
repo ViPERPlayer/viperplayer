@@ -39,6 +39,12 @@ interface PlayerRepository {
     suspend fun getCurrentPosition(): Long
 
     /**
+     * Gets the buffered position in milliseconds — how far ahead of the current position the player
+     * has loaded. Feeds the seek bar's buffered-progress indicator. Returns 0 when unknown.
+     */
+    suspend fun getBufferedPosition(): Long
+
+    /**
      * Flow of current queue.
      */
     val queue: Flow<List<Song>>

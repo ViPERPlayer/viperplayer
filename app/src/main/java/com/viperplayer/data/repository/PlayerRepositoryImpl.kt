@@ -681,6 +681,11 @@ class PlayerRepositoryImpl @Inject constructor(
         return controller.currentPosition.coerceAtLeast(0)
     }
 
+    override suspend fun getBufferedPosition(): Long {
+        val controller = mediaControllerManager.controllerFlow.first()
+        return controller.bufferedPosition.coerceAtLeast(0)
+    }
+
     override suspend fun addToQueue(song: Song) {
         // Save song with full metadata (album, artists, etc.)
         mediaLibraryRepository.saveSong(song)
