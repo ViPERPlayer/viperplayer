@@ -765,4 +765,25 @@
     <string name="auto_playlist_forgotten_desc">Played before, but not in a while</string>
     <string name="auto_playlist_shuffle_all">Shuffle All</string>
     <string name="auto_playlist_shuffle_all_desc">Every song in your library, shuffled</string>
+
+    <!-- Last.fm scrobbling -->
+    <string name="settings_lastfm">Last.fm</string>
+    <string name="settings_lastfm_desc">Scrobble your listening to Last.fm</string>
+    <string name="lastfm_account">Account</string>
+    <string name="lastfm_scrobbling">Scrobbling</string>
+    <string name="lastfm_not_configured_title">Last.fm API key required</string>
+    <string name="lastfm_not_configured_desc">This build ships with a placeholder Last.fm API key and secret. A real key/secret is required for scrobbling to work.</string>
+    <string name="lastfm_logged_in_as">Signed in as %1$s</string>
+    <string name="lastfm_username">Username</string>
+    <string name="lastfm_password">Password</string>
+    <string name="lastfm_sign_in">Sign in</string>
+    <string name="lastfm_signing_in">Signing in…</string>
+    <string name="lastfm_sign_out">Sign out</string>
+    <string name="lastfm_password_notice">Your password is sent to Last.fm once to obtain a session key and is never stored on your device.</string>
+    <string name="lastfm_scrobble_enabled">Enable scrobbling</string>
+    <string name="lastfm_scrobble_enabled_desc">Submit tracks you play to your Last.fm profile</string>
+    <string name="lastfm_now_playing_enabled">Update Now Playing</string>
+    <string name="lastfm_now_playing_enabled_desc">Show the current track on your Last.fm profile</string>
+    <string name="lastfm_wifi_only">Scrobble on Wi‑Fi only</string>
+    <string name="lastfm_wifi_only_desc">Don\'t use mobile data for scrobbling</string>
 </resources>

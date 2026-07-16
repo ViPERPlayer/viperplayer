@@ -48,6 +48,7 @@ import com.viperplayer.data.player.resumption.LastSessionCodec
 import com.viperplayer.data.player.resumption.LastSessionItem
 import com.viperplayer.data.player.resumption.LastSessionMediaMapper
 import com.viperplayer.data.player.resumption.LastSessionStore
+import com.viperplayer.data.lastfm.LastfmScrobbler
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.data.stats.PlayHistoryRecorder
 import com.viperplayer.domain.audio.ReplayGainCalculator
@@ -104,6 +105,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var playHistoryRecorder: PlayHistoryRecorder
+
+    @Inject
+    lateinit var lastfmScrobbler: LastfmScrobbler
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -423,6 +427,12 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             }
         }
 
+        // Last.fm now-playing: on every new track start, record the start timestamp and (if enabled +
+        // authed) fire track.updateNowPlaying. Off-main; no-ops when not configured/authed. The scrobble
+        // itself is submitted later from onPlaybackStatsReady using the REAL listened time.
+        runCatching { lastfmScrobbler.onTrackStarted(mediaItem) }
+            .onFailure { Timber.w(it, "Failed to notify Last.fm of track start") }
+
         // Re-apply ReplayGain for the newly-started track. (It is also re-applied live when the
         // ReplayGain settings change — see observeAudioSettings.)
         if (mediaItem != null) {
@@ -677,6 +687,13 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         // off the item's extras (streaming sources included) and writes off the main thread.
         runCatching { playHistoryRecorder.onSessionEnded(mediaItem, listenedMs) }
             .onFailure { Timber.e(it, "Failed to record listening-stats play") }
+
+        // Reuse the SAME once-per-session signal (real listened time) to decide a Last.fm scrobble:
+        // the scrobbler applies the Last.fm threshold (>=4min OR >=50%, track >30s) and stamps the
+        // scrobble with the track's recorded start time. Independent of the calls above so one failing
+        // never skips another. No-ops when not configured/authed/disabled.
+        runCatching { lastfmScrobbler.onSessionEnded(mediaItem, listenedMs) }
+            .onFailure { Timber.e(it, "Failed to submit Last.fm scrobble") }
 
         runCatching { MediaId.fromString(mediaItem.mediaId) }.getOrNull()?.let { mediaId ->
             lifecycleScope.launch {
