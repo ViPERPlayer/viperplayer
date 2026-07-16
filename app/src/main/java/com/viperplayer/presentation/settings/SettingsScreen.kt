@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -56,6 +57,7 @@ fun SettingsScreen(
     onNavigateToUpdater: () -> Unit,
     onNavigateToAlarms: () -> Unit,
     onNavigateToListeningStats: () -> Unit,
+    onNavigateToLastfm: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -130,6 +132,14 @@ fun SettingsScreen(
                     description = stringResource(R.string.listening_stats_desc),
                     icon = Icons.Default.BarChart,
                     onClick = onNavigateToListeningStats
+                )
+            }
+            item {
+                SettingsSectionItem(
+                    title = stringResource(R.string.settings_lastfm),
+                    description = stringResource(R.string.settings_lastfm_desc),
+                    icon = Icons.Default.Podcasts,
+                    onClick = onNavigateToLastfm
                 )
             }
             item {
