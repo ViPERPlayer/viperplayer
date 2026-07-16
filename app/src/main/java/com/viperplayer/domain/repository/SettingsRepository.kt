@@ -3,6 +3,7 @@ package com.viperplayer.domain.repository
 import com.viperplayer.domain.model.LyricsAlignment
 import com.viperplayer.domain.model.LyricsFontSize
 import com.viperplayer.domain.model.LyricsFontWeight
+import com.viperplayer.domain.model.LibraryTabsConfig
 import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.SortOrder
@@ -181,5 +182,14 @@ interface SettingsRepository {
     /** The persisted [SortOrder] for [view]. Defaults to [SortOrder.DEFAULT] (original order). */
     fun sortOrder(view: SortView): Flow<SortOrder>
     suspend fun setSortOrder(view: SortView, order: SortOrder)
+
+    /**
+     * The user's library-tabs configuration (order + per-tab visibility). Defaults to
+     * [LibraryTabsConfig.EMPTY] when never customized; the Library reconciles it against the tabs the
+     * app currently ships via [resolveVisibleTabIds], so an empty/absent config means "all tabs, default
+     * order, all visible".
+     */
+    val libraryTabsConfig: Flow<LibraryTabsConfig>
+    suspend fun setLibraryTabsConfig(config: LibraryTabsConfig)
 }
 

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -46,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -99,6 +101,7 @@ fun LibraryScreen(
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToDownloads: () -> Unit = {},
     onNavigateToFollowing: () -> Unit = {},
+    onNavigateToCustomizeTabs: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -129,8 +132,6 @@ fun LibraryScreen(
         }
     }
 
-    val tabs = listOf("Songs", "Albums", "Artists", "Playlists")
-
     Scaffold(
         modifier = Modifier.padding(rootPadding.with(bottom = 0.dp))
     ) { contentPadding ->
@@ -147,7 +148,7 @@ fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Library",
+                    text = stringResource(R.string.library_title),
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -207,21 +208,28 @@ fun LibraryScreen(
                             contentDescription = stringResource(R.string.downloads_title)
                         )
                     }
+                    IconButton(onClick = onNavigateToCustomizeTabs) {
+                        Icon(
+                            Icons.Default.Tune,
+                            contentDescription = stringResource(R.string.library_customize_tabs)
+                        )
+                    }
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
             }
 
-            // Tab row
-            PrimaryTabRow(
-                selectedTabIndex = uiState.selectedTab.ordinal
-            ) {
-                LibraryTab.entries.forEachIndexed { index, tab ->
+            // Tab row — only the visible tabs, in the user's configured order. The selected index is
+            // clamped into range so a just-hidden selection never points past the end for a frame.
+            val selectedIndex = uiState.visibleTabs.indexOf(uiState.selectedTab).coerceAtLeast(0)
+            PrimaryTabRow(selectedTabIndex = selectedIndex) {
+                uiState.visibleTabs.forEach { tab ->
                     Tab(
                         selected = uiState.selectedTab == tab,
                         onClick = { viewModel.selectTab(tab) },
-                        text = { Text(tabs[index]) }
+                        text = { Text(stringResource(tab.labelRes)) },
+                        modifier = Modifier.testTag("libraryTab_${tab.name}")
                     )
                 }
             }

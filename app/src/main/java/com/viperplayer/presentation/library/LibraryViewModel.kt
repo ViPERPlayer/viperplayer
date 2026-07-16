@@ -3,16 +3,21 @@ package com.viperplayer.presentation.library
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
 import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.repository.NetworkConnectivityChecker
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.LibraryTabSetting
+import com.viperplayer.domain.model.LibraryTabsConfig
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.SortView
+import com.viperplayer.domain.model.resolveVisibleTabIds
 import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
@@ -42,10 +47,34 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * Library tabs.
+ * Library tabs. This is the canonical full set of tabs the app ships. Each carries the string resource
+ * for its label, so both the Library TabRow and the "Customize tabs" screen render the same localized
+ * name. The enum [name] is the stable id persisted in [com.viperplayer.domain.model.LibraryTabsConfig];
+ * the reconciliation between a stored config and this set is pure — see [resolveVisibleTabIds].
  */
-enum class LibraryTab {
-    SONGS, ALBUMS, ARTISTS, PLAYLISTS
+enum class LibraryTab(@param:StringRes val labelRes: Int) {
+    SONGS(R.string.library_tab_songs),
+    ALBUMS(R.string.library_tab_albums),
+    ARTISTS(R.string.library_tab_artists),
+    PLAYLISTS(R.string.library_tab_playlists);
+
+    companion object {
+        /** The full set of tab ids (enum names) in default order, for [resolveVisibleTabIds]. */
+        val ALL_IDS: List<String> = entries.map { it.name }
+
+        /** Resolve a persisted id back to a [LibraryTab], or `null` if it names a removed/unknown tab. */
+        fun fromId(id: String): LibraryTab? = entries.firstOrNull { it.name == id }
+    }
+}
+
+/**
+ * Resolve a [LibraryTabsConfig] into the ordered list of visible [LibraryTab]s. Thin presentation-layer
+ * adapter over the pure [resolveVisibleTabIds]: maps ids back to enum values (dropping any that no longer
+ * resolve) and guarantees a non-empty result (falls back to [LibraryTab.SONGS]).
+ */
+fun resolveVisibleTabs(config: LibraryTabsConfig): List<LibraryTab> {
+    val tabs = resolveVisibleTabIds(LibraryTab.ALL_IDS, config).mapNotNull { LibraryTab.fromId(it) }
+    return tabs.ifEmpty { listOf(LibraryTab.SONGS) }
 }
 
 /**
@@ -57,6 +86,12 @@ enum class LibraryTab {
  */
 data class LibraryUiState(
     val selectedTab: LibraryTab = LibraryTab.SONGS,
+    /**
+     * The tabs to show, in the user's configured order, already reconciled against the tabs the app
+     * ships (hidden tabs omitted, new tabs appended, all-hidden guarded). Defaults to every tab in the
+     * natural order so an un-customized library is unchanged. Never empty.
+     */
+    val visibleTabs: List<LibraryTab> = LibraryTab.entries.toList(),
     val isLoading: Boolean = true,
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
@@ -133,15 +168,52 @@ class LibraryViewModel @Inject constructor(
 
     init {
         // Seed the persisted sort orders BEFORE the first content load so the first Success state is
-        // already correctly ordered (no DEFAULT-then-flip). Then start loading and observing. The
-        // seed + load run in one coroutine so the prefetch is guaranteed to complete first; the
-        // per-tab observers below keep re-sorting on later changes.
+        // already correctly ordered (no DEFAULT-then-flip), then let the tabs-config observer drive the
+        // FIRST content load for the resolved initial tab. Running the seed and starting the observer in
+        // one coroutine guarantees the prefetch completes before that first load; the per-tab observers
+        // below keep re-sorting on later changes. The config observer — not a hardcoded loadContent(SONGS)
+        // in init — owns the cold-start load, so the right tab loads exactly once (no redundant SONGS load
+        // that would otherwise be immediately cancelled when the initial tab isn't SONGS).
         viewModelScope.launch {
             seedSortOrders()
-            loadContent(LibraryTab.SONGS)
+            observeTabsConfig()
         }
         observeSortOrders()
         observeAutoPlaylists()
+    }
+
+    /**
+     * Collect the persisted library-tabs config, reconcile it into the ordered visible [LibraryTab]s,
+     * keep the [LibraryUiState.selectedTab] valid, and drive content loading. On the FIRST emission this
+     * seeds the initial selected tab and loads its content exactly once (the cold-start load). On later
+     * emissions, if the currently-selected tab was just hidden (or removed), it falls back to the first
+     * visible tab and loads that. The perpetual collector keeps the TabRow in sync as the user edits the
+     * config on the Customize-tabs screen.
+     */
+    private suspend fun observeTabsConfig() {
+        var firstEmission = true
+        settingsRepository.libraryTabsConfig.collect { config ->
+            val visible = resolveVisibleTabs(config)
+            // Reconcile against the CURRENT selection atomically inside update(): if the selected
+            // tab was just hidden/removed, fall back to the first visible tab. Reading selectedTab
+            // from the update's own `it` (not a pre-read snapshot) avoids clobbering a concurrent
+            // selectTab(). `changedTo` captures the fallback we need to load content for, if any.
+            var changedTo: LibraryTab? = null
+            _uiState.update {
+                val next = if (it.selectedTab in visible) it.selectedTab else visible.first()
+                changedTo = if (next != it.selectedTab) next else null
+                it.copy(visibleTabs = visible, selectedTab = next)
+            }
+            // Cold start: load the resolved initial tab exactly once. Afterwards, only load when the
+            // selection actually changed because its previous value is no longer visible, so the screen
+            // never shows a stale/hidden tab's list.
+            if (firstEmission) {
+                firstEmission = false
+                loadContent(_uiState.value.selectedTab)
+            } else {
+                changedTo?.let { loadContent(it) }
+            }
+        }
     }
 
     /**

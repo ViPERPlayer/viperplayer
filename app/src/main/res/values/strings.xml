@@ -105,6 +105,19 @@
     <string name="nav_search">Search</string>
     <string name="nav_library">Library</string>
     <string name="nav_viper">ViPER</string>
+    <!-- Library tabs + customization -->
+    <string name="library_title">Library</string>
+    <string name="library_tab_songs">Songs</string>
+    <string name="library_tab_albums">Albums</string>
+    <string name="library_tab_artists">Artists</string>
+    <string name="library_tab_playlists">Playlists</string>
+    <string name="library_customize_tabs">Customize tabs</string>
+    <string name="library_customize_tabs_title">Customize tabs</string>
+    <string name="library_customize_tabs_hint">Drag to reorder. Toggle to show or hide a tab. At least one tab must stay visible.</string>
+    <string name="library_customize_tabs_reorder">Reorder %1$s</string>
+    <string name="library_customize_tabs_reset">Reset to default</string>
+    <string name="library_customize_tabs_show">Show %1$s</string>
+    <string name="library_customize_tabs_hide">Hide %1$s</string>
     <!-- Explore / discovery -->
     <string name="explore_title">Explore</string>
     <string name="explore_open">Explore</string>
