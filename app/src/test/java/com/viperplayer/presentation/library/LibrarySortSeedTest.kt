@@ -9,6 +9,7 @@ import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
+import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.domain.sort.MediaSorter
@@ -62,6 +63,14 @@ class LibrarySortSeedTest {
         override suspend fun setReplayGainPreampDb(preampDb: Float) = unused()
         override val replayGainAlbumMode: Flow<Boolean> get() = unused()
         override suspend fun setReplayGainAlbumMode(enabled: Boolean) = unused()
+        override val replayGainMode: Flow<ReplayGainMode> get() = unused()
+        override suspend fun setReplayGainMode(mode: ReplayGainMode) = unused()
+        override val replayGainUntaggedPreampDb: Flow<Float> get() = unused()
+        override suspend fun setReplayGainUntaggedPreampDb(preampDb: Float) = unused()
+        override val replayGainDrcEnabled: Flow<Boolean> get() = unused()
+        override suspend fun setReplayGainDrcEnabled(enabled: Boolean) = unused()
+        override val replayGainPostAmpDb: Flow<Float> get() = unused()
+        override suspend fun setReplayGainPostAmpDb(postAmpDb: Float) = unused()
         override val dspBypass: Flow<Boolean> get() = unused()
         override suspend fun setDspBypass(enabled: Boolean) = unused()
         override val autoLoadMore: Flow<Boolean> get() = unused()
