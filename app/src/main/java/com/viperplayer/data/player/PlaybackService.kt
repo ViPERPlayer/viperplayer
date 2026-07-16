@@ -44,6 +44,7 @@ import androidx.media3.session.MediaSession
 import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
 import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.data.stats.PlayHistoryRecorder
 import com.viperplayer.domain.audio.ReplayGainCalculator
 import com.viperplayer.domain.audio.ReplayGainMode as CalcReplayGainMode
 import com.viperplayer.domain.audio.ReplayGainSettings
@@ -90,6 +91,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var mediaLibraryRepository: MediaLibraryRepository
+
+    @Inject
+    lateinit var playHistoryRecorder: PlayHistoryRecorder
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -548,7 +552,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         if (timeline.isEmpty || eventTime.windowIndex >= timeline.windowCount) return
         val mediaItem = timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
 
-        MediaId.fromString(mediaItem.mediaId)?.let { mediaId ->
+        // Feed the dedicated listening-stats DB from this session-end signal FIRST and independently of
+        // the library-play recording below, so a failure in one can never skip the other. The recorder
+        // applies its own play threshold (>=30s or >=50% of the track) and de-dupes via this
+        // once-per-session callback, so scrubbing / brief skips aren't counted. It reads all metadata
+        // off the item's extras (streaming sources included) and writes off the main thread.
+        runCatching { playHistoryRecorder.onSessionEnded(mediaItem, listenedMs) }
+            .onFailure { Timber.e(it, "Failed to record listening-stats play") }
+
+        runCatching { MediaId.fromString(mediaItem.mediaId) }.getOrNull()?.let { mediaId ->
             lifecycleScope.launch {
                 runCatching { mediaLibraryRepository.recordListenedTime(mediaId, listenedMs) }
                     .onFailure { Timber.e(it, "Failed to record listened time for $mediaId") }

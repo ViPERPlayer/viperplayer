@@ -38,6 +38,8 @@ import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
 import com.viperplayer.presentation.library.LibraryScreen
+import com.viperplayer.presentation.listeningstats.ListeningStatsScreen
+import com.viperplayer.presentation.listeningstats.WrappedScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
 import com.viperplayer.presentation.settings.SettingsScreen
@@ -97,6 +99,12 @@ object History : NavKey
 
 @Serializable
 object Analytics : NavKey
+
+@Serializable
+object ListeningStats : NavKey
+
+@Serializable
+object Wrapped : NavKey
 
 @Serializable
 object Downloads : NavKey
@@ -225,7 +233,8 @@ fun ViperNavDisplay(
                 onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToAbout = { navigator.navigate(SettingsAbout) },
                 onNavigateToUpdater = { navigator.navigate(SettingsUpdater) },
-                onNavigateToAlarms = { navigator.navigate(SettingsAlarms) }
+                onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
+                onNavigateToListeningStats = { navigator.navigate(ListeningStats) }
             )
         }
 
@@ -288,6 +297,20 @@ fun ViperNavDisplay(
         entry<Analytics> {
             AnalyticsScreen(
                 rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<ListeningStats> {
+            ListeningStatsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToWrapped = { navigator.navigate(Wrapped) }
+            )
+        }
+
+        entry<Wrapped> {
+            WrappedScreen(
                 onNavigateBack = { navigator.goBack() }
             )
         }
