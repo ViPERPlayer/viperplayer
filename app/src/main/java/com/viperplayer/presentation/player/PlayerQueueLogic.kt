@@ -1,5 +1,8 @@
 package com.viperplayer.presentation.player
 
+import kotlin.math.PI
+import kotlin.math.sin
+
 /**
  * Android-free pure logic for the now-playing player UI. Everything the player's gestures and
  * indicators depend on that can be reasoned about without Compose or a MediaController lives here so
@@ -7,6 +10,65 @@ package com.viperplayer.presentation.player
  * gets the resulting index math / commands.
  */
 object PlayerQueueLogic {
+
+    // --- Playback speed / pitch (issue #8) ---
+
+    /** Inclusive tempo range the player accepts; the dialog slider and the controller both clamp to it. */
+    const val MIN_SPEED = 0.25f
+    const val MAX_SPEED = 3f
+
+    /** Inclusive pitch range the player accepts. */
+    const val MIN_PITCH = 0.5f
+    const val MAX_PITCH = 2f
+
+    /** Clamp a requested tempo to the accepted [MIN_SPEED]..[MAX_SPEED] range. */
+    fun clampSpeed(speed: Float): Float = speed.coerceIn(MIN_SPEED, MAX_SPEED)
+
+    /** Clamp a requested pitch to the accepted [MIN_PITCH]..[MAX_PITCH] range. */
+    fun clampPitch(pitch: Float): Float = pitch.coerceIn(MIN_PITCH, MAX_PITCH)
+
+    // --- Song radio queue building (issue #7) ---
+
+    /**
+     * Builds the song-radio queue from a [seedId] and its [relatedIds]: the seed always comes first,
+     * followed by the related items with the seed removed and any duplicate ids de-duplicated (first
+     * occurrence wins), preserving related order. Pure id math so radio-queue construction can be
+     * unit-tested independently of Song hydration and the plugin fetch.
+     */
+    fun <ID> radioQueueIds(seedId: ID, relatedIds: List<ID>): List<ID> {
+        val result = ArrayList<ID>(relatedIds.size + 1)
+        val seen = HashSet<ID>()
+        result.add(seedId)
+        seen.add(seedId)
+        for (id in relatedIds) {
+            if (seen.add(id)) result.add(id)
+        }
+        return result
+    }
+
+    // --- Wavy seek bar geometry (issue #10) ---
+
+    /**
+     * The vertical offset (in the seek bar's Y units) of the played-portion wave at horizontal
+     * position [x], for a sine wave of the given [wavelength] and [amplitude] shifted by [phase]
+     * radians. A zero/negative [amplitude] or [wavelength] yields a flat line (0), so a paused /
+     * reduced-motion bar reduces to a straight segment through the same helper. Pure so the wave's
+     * shape can be unit-tested without a Canvas.
+     */
+    fun waveOffset(x: Float, wavelength: Float, amplitude: Float, phase: Float): Float {
+        if (amplitude <= 0f || wavelength <= 0f) return 0f
+        val angle = (x / wavelength).toDouble() * 2.0 * PI + phase
+        return amplitude * sin(angle).toFloat()
+    }
+
+    /**
+     * The target wave amplitude fraction [0f,1f] for the played portion: full waviness only while the
+     * track is actively playing, the user is not dragging, and motion is not disabled (reduced-motion
+     * / animator scale 0). Otherwise flat (0). The caller animates toward this so the wave settles
+     * smoothly rather than snapping.
+     */
+    fun waveAmplitudeTarget(isPlaying: Boolean, isDragging: Boolean, motionEnabled: Boolean): Float =
+        if (isPlaying && !isDragging && motionEnabled) 1f else 0f
 
     /**
      * Result of removing [removeIndex] from a queue whose now-playing item is at [currentIndex].

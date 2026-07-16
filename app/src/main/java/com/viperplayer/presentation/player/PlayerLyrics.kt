@@ -634,7 +634,7 @@ private fun Modifier.fadingEdges(): Modifier = this
  * platform equivalent of `prefers-reduced-motion`). The renderer then uses instant transitions.
  */
 @Composable
-private fun rememberReducedMotion(): Boolean {
+internal fun rememberReducedMotion(): Boolean {
     val context = LocalContext.current
     return remember(context) {
         val scale = Settings.Global.getFloat(

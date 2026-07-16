@@ -286,18 +286,33 @@ fun ViperPlayerApp(
             }
 
             if (showPlayerBottomSheet) {
+                val playerSheetState = rememberModalBottomSheetState(
+                    skipPartiallyExpanded = true
+                )
+                // Collapse from the in-player button (top-left arrow / drag handle): animate the sheet
+                // down first, THEN remove it from composition. Setting showPlayerBottomSheet = false
+                // directly would tear the sheet out instantly with no slide-out (issue #11). The scrim
+                // tap / swipe-down path (onDismissRequest) already animates natively, so it just clears
+                // the flag. hide() is a no-op-safe suspend that resolves once the animation settles.
+                val collapsePlayer: () -> Unit = {
+                    scope.launch {
+                        playerSheetState.hide()
+                    }.invokeOnCompletion {
+                        if (!playerSheetState.isVisible) {
+                            showPlayerBottomSheet = false
+                        }
+                    }
+                }
                 ModalBottomSheet(
                     onDismissRequest = {
                         showPlayerBottomSheet = false
                     },
-                    sheetState = rememberModalBottomSheetState(
-                        skipPartiallyExpanded = true
-                    ),
+                    sheetState = playerSheetState,
                     dragHandle = null,
                     contentWindowInsets = { WindowInsets() }
                 ) {
                     PlayerBottomSheetNavHost(
-                        onDismiss = { showPlayerBottomSheet = false }
+                        onDismiss = collapsePlayer
                     )
                 }
             }

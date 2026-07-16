@@ -189,4 +189,122 @@ class PlayerQueueLogicTest {
     fun progressFraction_unknownDuration_isZero() {
         assertEquals(0f, PlayerQueueLogic.progressFraction(positionMs = 45_000L, durationMs = 0L), 0.0001f)
     }
+
+    // --- playback speed / pitch clamp (issue #8) ---
+
+    @Test
+    fun clampSpeed_insideRange_isUnchanged() {
+        assertEquals(1.5f, PlayerQueueLogic.clampSpeed(1.5f), 0.0001f)
+        assertEquals(1f, PlayerQueueLogic.clampSpeed(1f), 0.0001f)
+    }
+
+    @Test
+    fun clampSpeed_belowMin_clampsToMin() {
+        assertEquals(PlayerQueueLogic.MIN_SPEED, PlayerQueueLogic.clampSpeed(0.01f), 0.0001f)
+    }
+
+    @Test
+    fun clampSpeed_aboveMax_clampsToMax() {
+        assertEquals(PlayerQueueLogic.MAX_SPEED, PlayerQueueLogic.clampSpeed(9f), 0.0001f)
+    }
+
+    @Test
+    fun clampPitch_clampsToRange() {
+        assertEquals(PlayerQueueLogic.MIN_PITCH, PlayerQueueLogic.clampPitch(0.1f), 0.0001f)
+        assertEquals(PlayerQueueLogic.MAX_PITCH, PlayerQueueLogic.clampPitch(5f), 0.0001f)
+        assertEquals(1.25f, PlayerQueueLogic.clampPitch(1.25f), 0.0001f)
+    }
+
+    // --- radio queue building (issue #7) ---
+
+    @Test
+    fun radioQueueIds_seedFirst_thenRelated() {
+        assertEquals(
+            listOf("seed", "a", "b", "c"),
+            PlayerQueueLogic.radioQueueIds("seed", listOf("a", "b", "c"))
+        )
+    }
+
+    @Test
+    fun radioQueueIds_dropsSeedFromRelated() {
+        assertEquals(
+            listOf("seed", "a", "b"),
+            PlayerQueueLogic.radioQueueIds("seed", listOf("a", "seed", "b"))
+        )
+    }
+
+    @Test
+    fun radioQueueIds_dedupesRelated_firstOccurrenceWins() {
+        assertEquals(
+            listOf("seed", "a", "b"),
+            PlayerQueueLogic.radioQueueIds("seed", listOf("a", "b", "a", "b"))
+        )
+    }
+
+    @Test
+    fun radioQueueIds_noRelated_isJustSeed() {
+        assertEquals(listOf("seed"), PlayerQueueLogic.radioQueueIds("seed", emptyList()))
+    }
+
+    @Test
+    fun radioQueueIds_allKeptIdsAreUnique() {
+        val ids = PlayerQueueLogic.radioQueueIds("s", listOf("a", "a", "s", "b", "b", "c"))
+        assertEquals(ids.size, ids.toSet().size)
+    }
+
+    // --- wavy seek bar math (issue #10) ---
+
+    @Test
+    fun waveOffset_zeroAmplitude_isFlat() {
+        assertEquals(0f, PlayerQueueLogic.waveOffset(x = 7f, wavelength = 16f, amplitude = 0f, phase = 1f), 0.0001f)
+    }
+
+    @Test
+    fun waveOffset_nonPositiveWavelength_isFlat() {
+        assertEquals(0f, PlayerQueueLogic.waveOffset(x = 7f, wavelength = 0f, amplitude = 5f, phase = 0f), 0.0001f)
+    }
+
+    @Test
+    fun waveOffset_quarterWavelength_isPeak() {
+        // At x = wavelength/4 with phase 0, sin(pi/2) = 1, so the offset equals the amplitude.
+        val amp = 5f
+        assertEquals(amp, PlayerQueueLogic.waveOffset(x = 4f, wavelength = 16f, amplitude = amp, phase = 0f), 0.001f)
+    }
+
+    @Test
+    fun waveOffset_originWithZeroPhase_isZero() {
+        assertEquals(0f, PlayerQueueLogic.waveOffset(x = 0f, wavelength = 16f, amplitude = 5f, phase = 0f), 0.0001f)
+    }
+
+    @Test
+    fun waveOffset_isBoundedByAmplitude() {
+        // Sample across a full wavelength: the magnitude never exceeds the amplitude.
+        val amp = 3f
+        var x = 0f
+        while (x <= 16f) {
+            val v = PlayerQueueLogic.waveOffset(x, wavelength = 16f, amplitude = amp, phase = 0.7f)
+            assertTrue("offset $v exceeded amplitude $amp at x=$x", kotlin.math.abs(v) <= amp + 0.001f)
+            x += 0.5f
+        }
+    }
+
+    @Test
+    fun waveAmplitudeTarget_fullOnlyWhenPlayingNotDraggingMotionOn() {
+        assertEquals(1f, PlayerQueueLogic.waveAmplitudeTarget(isPlaying = true, isDragging = false, motionEnabled = true), 0.0001f)
+    }
+
+    @Test
+    fun waveAmplitudeTarget_flatWhenPaused() {
+        assertEquals(0f, PlayerQueueLogic.waveAmplitudeTarget(isPlaying = false, isDragging = false, motionEnabled = true), 0.0001f)
+    }
+
+    @Test
+    fun waveAmplitudeTarget_flatWhileDragging() {
+        assertEquals(0f, PlayerQueueLogic.waveAmplitudeTarget(isPlaying = true, isDragging = true, motionEnabled = true), 0.0001f)
+    }
+
+    @Test
+    fun waveAmplitudeTarget_flatUnderReducedMotion() {
+        assertEquals(0f, PlayerQueueLogic.waveAmplitudeTarget(isPlaying = true, isDragging = false, motionEnabled = false), 0.0001f)
+    }
 }

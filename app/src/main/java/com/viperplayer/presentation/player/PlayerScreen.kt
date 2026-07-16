@@ -160,7 +160,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
-import kotlin.math.sin
 
 /**
  * Full-screen "Now Playing" player — Material 3 Expressive, direction B.
@@ -655,6 +654,23 @@ fun PlayerScreen(
         }
     }
 
+    // Song radio preview (issue #7): shows the built radio playlist instead of auto-playing. Driven
+    // entirely by the ViewModel's radioPreview state — starting the radio only sets that state; the
+    // user plays from here.
+    val radioPreview by viewModel.radioPreview.collectAsStateWithLifecycle()
+    radioPreview?.let { preview ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissRadioPreview() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            RadioPreviewSheet(
+                preview = preview,
+                onPlay = { index -> viewModel.playRadioFrom(index) },
+            )
+        }
+    }
+
     if (showLyrics) {
         ModalBottomSheet(
             onDismissRequest = { showLyrics = false },
@@ -703,8 +719,8 @@ fun PlayerScreen(
         val speed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
         val pitch by viewModel.playbackPitch.collectAsStateWithLifecycle()
         PlaybackSpeedDialog(
-            speed = speed,
-            pitch = pitch,
+            currentSpeed = speed,
+            currentPitch = pitch,
             onSpeedChange = viewModel::setPlaybackSpeed,
             onPitchChange = viewModel::setPlaybackPitch,
             onDismiss = { showSpeedDialog = false },
@@ -715,22 +731,38 @@ fun PlayerScreen(
 /**
  * Adjusts playback speed (tempo) and pitch independently — Sonic time-stretches without altering
  * pitch, and pitch shifts without altering tempo. Reset returns both to 1.0×.
+ *
+ * The sliders are driven by **local** state seeded from the real (controller-reported) values, not
+ * bound directly to the player's [StateFlow]. Binding the slider's value straight to the flow made a
+ * drag fight the async controller round-trip: the flow (WhileSubscribed, initialValue 1×) briefly
+ * re-emits 1× as it re-subscribes, snapping the thumb back to 1× (issue #8). Here each drag updates
+ * local state instantly (so the thumb sticks) and forwards the value to the player; the flow is only
+ * used to *re-seed* local state when the player's actual speed changes from elsewhere (e.g. reopening
+ * the dialog, or a restore).
  */
 @Composable
-private fun PlaybackSpeedDialog(
-    speed: Float,
-    pitch: Float,
+internal fun PlaybackSpeedDialog(
+    currentSpeed: Float,
+    currentPitch: Float,
     onSpeedChange: (Float) -> Unit,
     onPitchChange: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var speed by remember(currentSpeed) { mutableFloatStateOf(currentSpeed) }
+    var pitch by remember(currentPitch) { mutableFloatStateOf(currentPitch) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
         },
         dismissButton = {
-            TextButton(onClick = { onSpeedChange(1f); onPitchChange(1f) }) {
+            TextButton(onClick = {
+                speed = 1f
+                pitch = 1f
+                onSpeedChange(1f)
+                onPitchChange(1f)
+            }) {
                 Text(stringResource(R.string.action_reset))
             }
         },
@@ -743,7 +775,10 @@ private fun PlaybackSpeedDialog(
                 )
                 Slider(
                     value = speed,
-                    onValueChange = onSpeedChange,
+                    onValueChange = {
+                        speed = it
+                        onSpeedChange(it)
+                    },
                     valueRange = 0.5f..2f,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -753,7 +788,10 @@ private fun PlaybackSpeedDialog(
                 )
                 Slider(
                     value = pitch,
-                    onValueChange = onPitchChange,
+                    onValueChange = {
+                        pitch = it
+                        onPitchChange(it)
+                    },
                     valueRange = 0.5f..2f,
                 )
             }
@@ -1079,14 +1117,27 @@ internal fun WavySeekBar(
     val fraction = dragFraction ?: progress
     val bufferedFraction = PlayerQueueLogic.progressFraction(bufferedPosition(), duration)
 
-    val targetAmp = if (isPlaying && dragFraction == null) 1f else 0f
-    val amp by animateFloatAsState(targetAmp, spring(stiffness = Spring.StiffnessLow), label = "waveAmp")
-    val phase by rememberInfiniteTransition(label = "wave").animateFloat(
-        initialValue = 0f,
-        targetValue = (2.0 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
-        label = "wavePhase"
+    // Flatten the wave when the user has animations turned off (animator scale 0), matching the
+    // platform's reduced-motion behavior — the seek bar becomes a plain straight track.
+    val motionEnabled = !rememberReducedMotion()
+    val targetAmp = PlayerQueueLogic.waveAmplitudeTarget(
+        isPlaying = isPlaying,
+        isDragging = dragFraction != null,
+        motionEnabled = motionEnabled,
     )
+    val amp by animateFloatAsState(targetAmp, spring(stiffness = Spring.StiffnessLow), label = "waveAmp")
+    // Only run the infinite phase animation while the wave can actually be seen (playing + motion on),
+    // so a paused / reduced-motion bar isn't quietly re-animating every frame.
+    val phase = if (motionEnabled) {
+        rememberInfiniteTransition(label = "wave").animateFloat(
+            initialValue = 0f,
+            targetValue = (2.0 * PI).toFloat(),
+            animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+            label = "wavePhase"
+        ).value
+    } else {
+        0f
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Canvas(
@@ -1151,7 +1202,9 @@ internal fun WavySeekBar(
                 )
             }
 
-            // Played portion: wave when animating, otherwise a straight segment.
+            // Played portion: wave when animating, otherwise a straight segment. Both branches go
+            // through PlayerQueueLogic.waveOffset (a zero amplitude flattens to 0), so the shape is
+            // identical to the unit-tested pure math.
             val path = Path().apply {
                 moveTo(0f, midY)
                 if (ampPx < 0.5f) {
@@ -1159,12 +1212,10 @@ internal fun WavySeekBar(
                 } else {
                     var x = 0f
                     while (x <= playedX) {
-                        val angle = (x / wavelenPx).toDouble() * 2.0 * PI + phase
-                        lineTo(x, midY + ampPx * sin(angle).toFloat())
+                        lineTo(x, midY + PlayerQueueLogic.waveOffset(x, wavelenPx, ampPx, phase))
                         x += stepPx
                     }
-                    val endAngle = (playedX / wavelenPx).toDouble() * 2.0 * PI + phase
-                    lineTo(playedX, midY + ampPx * sin(endAngle).toFloat())
+                    lineTo(playedX, midY + PlayerQueueLogic.waveOffset(playedX, wavelenPx, ampPx, phase))
                 }
             }
             drawPath(path, color = primary, style = Stroke(width = strokePx, cap = StrokeCap.Round))
