@@ -35,6 +35,7 @@ import com.viperplayer.presentation.detail.TagDetailsScreen
 import com.viperplayer.presentation.detail.TagDetailsViewModel
 import com.viperplayer.follows.ui.FollowingScreen
 import com.viperplayer.presentation.downloads.DownloadsScreen
+import com.viperplayer.presentation.explore.ExploreScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
@@ -98,6 +99,10 @@ object SettingsUpdater : NavKey
 
 @Serializable
 object SettingsAlarms : NavKey
+
+/** Discovery surface: charts / new releases / moods aggregated across enabled plugins. */
+@Serializable
+object Explore : NavKey
 
 @Serializable
 object History : NavKey
@@ -183,7 +188,24 @@ fun ViperNavDisplay(
                 },
                 onNavigateToSettings = { navigator.navigate(Settings) },
                 onNavigateToHistory = { navigator.navigate(History) },
-                onNavigateToAnalytics = { navigator.navigate(Analytics) }
+                onNavigateToAnalytics = { navigator.navigate(Analytics) },
+                onNavigateToExplore = { navigator.navigate(Explore) }
+            )
+        }
+
+        entry<Explore> {
+            ExploreScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToAlbum = { album ->
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
+                },
+                onNavigateToArtist = { artist ->
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
+                },
+                onNavigateToPlaylist = { playlist ->
+                    navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
+                }
             )
         }
 
