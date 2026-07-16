@@ -1,11 +1,13 @@
 package com.viperplayer.data.lastfm
 
 import com.viperplayer.data.repository.NetworkConnectivityChecker
+import com.viperplayer.domain.lastfm.LastfmErrorCodes
 import com.viperplayer.domain.lastfm.LastfmRepository
 import com.viperplayer.domain.lastfm.LastfmSettings
-import com.viperplayer.domain.lastfm.LastfmRequests
 import com.viperplayer.domain.lastfm.LoginResult
 import com.viperplayer.domain.lastfm.PendingScrobble
+import com.viperplayer.domain.lastfm.ScrobbleQueueDrainer
+import com.viperplayer.domain.lastfm.ScrobbleQueueDrainer.ScrobbleBatchOutcome
 import com.viperplayer.domain.lastfm.ScrobbleTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,38 +140,66 @@ class LastfmRepositoryImpl @Inject constructor(
 
     /**
      * Submits every queued scrobble in Last.fm-sized, oldest-first batches, deleting each batch that is
-     * accepted. Stops early on the first network error so the remaining rows stay queued for the next
-     * attempt. An API-level rejection of a batch still removes it (it will never succeed on retry).
+     * accepted. Stops early (KEEPING the remaining rows) on a network error OR a TRANSIENT API error
+     * (rate limit / maintenance / try-again) so nothing is lost during a temporary outage. Only a
+     * PERMANENT API rejection drops the batch (it can never succeed on retry). On an invalid-session-key
+     * error the stored session is cleared (local logout) and the drain stops — re-submitting with a dead
+     * key is pointless.
      *
      * The [flushMutex] serializes drains so a scrobble submission and a background flush can't submit
      * or delete the same rows concurrently. Rows are read once (oldest-first) and the exact entity
      * objects are carried through, so a successful batch deletes precisely the rows it submitted.
      */
     private suspend fun drainQueue(sessionKey: String) = flushMutex.withLock {
-        // DAO already returns rows oldest-first; chunk into Last.fm's max batch size, carrying the
-        // entity rows so we delete exactly what we submit.
+        // DAO already returns rows oldest-first; the pure ScrobbleQueueDrainer batches and drives the
+        // keep/drop/clear-session policy, carrying the exact entity rows so we delete precisely what we
+        // submit. All logging + I/O stays here; the control flow is Android-free and unit-tested.
         val rows = pendingScrobbleDao.getAll()
-        if (rows.isEmpty()) return@withLock
-
-        for (entityBatch in rows.chunked(LastfmRequests.MAX_BATCH)) {
-            val batch = entityBatch.map { it.toDomain() }
-            when (api.scrobble(sessionKey, batch)) {
-                is LastfmResult.Success -> pendingScrobbleDao.delete(entityBatch)
-                is LastfmResult.ApiError -> {
-                    // The server rejected these (e.g. malformed); retrying won't help — drop them.
-                    Timber.w("Last.fm: dropping ${entityBatch.size} rejected scrobble(s)")
-                    pendingScrobbleDao.delete(entityBatch)
-                }
-
-                is LastfmResult.NetworkError -> {
-                    Timber.d("Last.fm: network error draining queue — ${entityBatch.size} kept for retry")
-                    return@withLock
-                }
-
-                LastfmResult.NotConfigured -> return@withLock
-            }
-        }
+        ScrobbleQueueDrainer.drain(
+            rows = rows,
+            submit = { entityBatch ->
+                val batch = entityBatch.map { it.toDomain() }
+                classifyScrobbleOutcome(api.scrobble(sessionKey, batch), entityBatch.size)
+            },
+            delete = { entityBatch -> pendingScrobbleDao.delete(entityBatch) },
+            // Never log the key itself.
+            clearSession = { credentialStore.clearSession() },
+        )
     }
+
+    /**
+     * Maps a [LastfmResult] from a scrobble submission to the pure [ScrobbleBatchOutcome] that decides
+     * whether the batch is deleted, kept for retry, or triggers a local logout. Emits the diagnostic
+     * log line for the branch (never logging the session key or any secret).
+     */
+    private fun classifyScrobbleOutcome(result: LastfmResult<Unit>, batchSize: Int): ScrobbleBatchOutcome =
+        when (result) {
+            is LastfmResult.Success -> ScrobbleBatchOutcome.ACCEPTED
+            is LastfmResult.ApiError -> when {
+                // Invalid session key: the stored key is dead. Clear it (local logout so the user
+                // re-logs-in) and stop — re-submitting with a dead key can never succeed.
+                result.code == LastfmErrorCodes.INVALID_SESSION_KEY -> {
+                    Timber.w("Last.fm: session key rejected — clearing stored session")
+                    ScrobbleBatchOutcome.SESSION_INVALID
+                }
+                // Transient (rate limit / maintenance / try-again): KEEP + retry later. Dropping here
+                // would permanently lose the user's queued scrobbles during a temporary outage.
+                LastfmErrorCodes.isRetryableLastfmError(result.code) -> {
+                    Timber.d("Last.fm: transient error ${result.code} — $batchSize kept for retry")
+                    ScrobbleBatchOutcome.RETRY_LATER
+                }
+                // Permanent rejection (bad params/signature/suspended key): retrying won't help — drop.
+                else -> {
+                    Timber.w("Last.fm: dropping $batchSize rejected scrobble(s) (error ${result.code})")
+                    ScrobbleBatchOutcome.DROP
+                }
+            }
+            is LastfmResult.NetworkError -> {
+                Timber.d("Last.fm: network error draining queue — $batchSize kept for retry")
+                ScrobbleBatchOutcome.RETRY_LATER
+            }
+            LastfmResult.NotConfigured -> ScrobbleBatchOutcome.NOT_SENT
+        }
 
     /** Whether a call is allowed by connectivity + the Wi-Fi-only policy right now. */
     private fun isNetworkAllowed(settings: LastfmSettings): Boolean {
