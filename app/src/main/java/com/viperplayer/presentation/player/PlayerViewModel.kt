@@ -10,6 +10,7 @@ import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.RepeatMode
@@ -399,13 +400,54 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch { playerRepository.setPlaybackPitch(pitch) }
     }
 
-    /** "Song radio": seed a queue of related songs from the current track and play it. */
+    // --- Song radio (issue #7) ---
+
+    private val _radioPreview = MutableStateFlow<RadioPreview?>(null)
+
+    /**
+     * The song-radio preview to show the user, or null when no radio has been requested. Non-null
+     * while the radio is being built (Loading) and once it's ready (Ready with the seeded songs). The
+     * radio is NOT played until the user chooses to — the sheet driven by this state shows the
+     * playlist first (issue #7).
+     */
+    val radioPreview: StateFlow<RadioPreview?> = _radioPreview.asStateFlow()
+
+    /**
+     * "Song radio": build a queue of related songs seeded from the current track and SHOW it (as a
+     * preview list) instead of playing immediately. The user plays from the preview via
+     * [playRadioFrom]. Re-invoking rebuilds from the (possibly changed) current song.
+     */
     fun startSongRadio() {
+        val song = currentSong.value ?: return
+        _radioPreview.value = RadioPreview.Loading(song)
         viewModelScope.launch {
-            val song = currentSong.value ?: return@launch
             val related = pluginRepository.getRelatedSongs(song.id).getOrNull()?.items.orEmpty()
-            val queue = listOf(song) + related.filter { it.id != song.id }
-            playerRepository.playAll(queue, startIndex = 0)
+            val bySong = (listOf(song) + related).associateBy { it.id }
+            val orderedIds = PlayerQueueLogic.radioQueueIds(song.id, related.map { it.id })
+            val songs = orderedIds.mapNotNull { bySong[it] }
+            _radioPreview.value = RadioPreview.Ready(seed = song, songs = songs)
+        }
+    }
+
+    /** Dismiss the radio preview without playing anything. */
+    fun dismissRadioPreview() {
+        _radioPreview.value = null
+    }
+
+    /**
+     * Play the built radio starting from [index], then close the preview. No-op unless the preview is
+     * Ready. Marks the queue as [PlaybackContext.Suggestions] so the player chrome labels it as radio.
+     */
+    fun playRadioFrom(index: Int) {
+        val ready = _radioPreview.value as? RadioPreview.Ready ?: return
+        if (ready.songs.isEmpty()) return
+        viewModelScope.launch {
+            playerRepository.playAll(
+                ready.songs,
+                startIndex = index.coerceIn(0, ready.songs.lastIndex),
+                context = PlaybackContext.Suggestions,
+            )
+            _radioPreview.value = null
         }
     }
 
