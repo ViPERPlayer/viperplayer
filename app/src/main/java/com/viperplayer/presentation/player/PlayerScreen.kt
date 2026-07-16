@@ -140,6 +140,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.isNavigable
 import com.viperplayer.domain.model.navigableAlbum
@@ -174,6 +175,7 @@ fun PlayerScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToSongInfo: (Song) -> Unit = {},
+    onNavigateToPlaylist: (MediaId, String, String?) -> Unit = { _, _, _ -> },
     onNavigateToJoinSession: () -> Unit = {},
     onCollapse: () -> Unit = {},
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
@@ -219,6 +221,7 @@ fun PlayerScreen(
     val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
     val downloadStartedMessage = stringResource(R.string.toast_download_started)
     val downloadUnavailableMessage = stringResource(R.string.toast_download_unavailable)
+    val songRadioName = stringResource(R.string.action_song_radio)
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
 
     val song = currentSong
@@ -403,7 +406,11 @@ fun PlayerScreen(
                             leadingIcon = { Icon(Icons.Filled.Sensors, contentDescription = null) },
                             onClick = {
                                 showOverflowMenu = false
-                                viewModel.startSongRadio()
+                                // Open the generated radio in the standard playlist detail screen
+                                // (issue #7): no auto-play — the user plays from the list there.
+                                viewModel.currentSongRadioMediaId()?.let { radioId ->
+                                    onNavigateToPlaylist(radioId, songRadioName, song.artworkUrl)
+                                }
                             }
                         )
                         DropdownMenuItem(
@@ -650,23 +657,6 @@ fun PlayerScreen(
                 viewModel = viewModel,
                 currentSong = song,
                 onDismiss = { showQueueBottomSheet = false }
-            )
-        }
-    }
-
-    // Song radio preview (issue #7): shows the built radio playlist instead of auto-playing. Driven
-    // entirely by the ViewModel's radioPreview state — starting the radio only sets that state; the
-    // user plays from here.
-    val radioPreview by viewModel.radioPreview.collectAsStateWithLifecycle()
-    radioPreview?.let { preview ->
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.dismissRadioPreview() },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            RadioPreviewSheet(
-                preview = preview,
-                onPlay = { index -> viewModel.playRadioFrom(index) },
             )
         }
     }

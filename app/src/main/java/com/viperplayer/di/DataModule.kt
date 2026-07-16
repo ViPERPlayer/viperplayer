@@ -8,6 +8,7 @@ import com.viperplayer.data.source.AndroidTagDetailsReader
 import com.viperplayer.data.repository.MediaLibraryRepositoryImpl
 import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
+import com.viperplayer.data.repository.RadioPlaylistRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
 import com.viperplayer.data.repository.ViperRepositoryImpl
@@ -20,6 +21,7 @@ import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.RadioPlaylistRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.TagDetailsReader
@@ -78,6 +80,12 @@ abstract class DataModule {
     abstract fun bindAutoPlaylistRepository(
         impl: AutoPlaylistRepositoryImpl
     ): AutoPlaylistRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRadioPlaylistRepository(
+        impl: RadioPlaylistRepositoryImpl
+    ): RadioPlaylistRepository
 
     @Binds
     @Singleton

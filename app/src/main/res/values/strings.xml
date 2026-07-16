@@ -588,10 +588,6 @@
 
     <!-- Player overflow menu -->
     <string name="action_song_radio">Song radio</string>
-    <string name="radio_preview_title">Song radio</string>
-    <string name="radio_preview_subtitle">Based on %1$s</string>
-    <string name="radio_preview_play_all">Play all</string>
-    <string name="radio_preview_empty">No radio songs found</string>
     <string name="action_add_to_library">Add to library</string>
     <string name="action_sleep_timer">Sleep timer</string>
     <string name="toast_added_to_library">Added to library</string>
