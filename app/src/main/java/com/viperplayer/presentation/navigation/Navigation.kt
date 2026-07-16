@@ -39,6 +39,7 @@ import com.viperplayer.presentation.explore.ExploreScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
+import com.viperplayer.presentation.library.CustomizeTabsScreen
 import com.viperplayer.presentation.library.LibraryScreen
 import com.viperplayer.presentation.listeningstats.ListeningStatsScreen
 import com.viperplayer.presentation.listeningstats.WrappedScreen
@@ -122,6 +123,10 @@ object Downloads : NavKey
 /** Followed / subscribed artists list. */
 @Serializable
 object Following : NavKey
+
+/** Library tabs customization: reorder + show/hide the Library's tabs. */
+@Serializable
+object CustomizeTabs : NavKey
 
 @Serializable
 data class AlbumDetail(
@@ -237,7 +242,15 @@ fun ViperNavDisplay(
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
                 onNavigateToDownloads = { navigator.navigate(Downloads) },
-                onNavigateToFollowing = { navigator.navigate(Following) }
+                onNavigateToFollowing = { navigator.navigate(Following) },
+                onNavigateToCustomizeTabs = { navigator.navigate(CustomizeTabs) }
+            )
+        }
+
+        entry<CustomizeTabs> {
+            CustomizeTabsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
             )
         }
 

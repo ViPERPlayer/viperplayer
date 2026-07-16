@@ -3,6 +3,7 @@ package com.viperplayer.presentation.library
 import com.viperplayer.domain.model.LyricsAlignment
 import com.viperplayer.domain.model.LyricsFontSize
 import com.viperplayer.domain.model.LyricsFontWeight
+import com.viperplayer.domain.model.LibraryTabsConfig
 import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
@@ -109,6 +110,8 @@ class LibrarySortSeedTest {
         override val lyricsShowRomanizationByDefault: Flow<Boolean> get() = unused()
         override suspend fun setLyricsShowRomanizationByDefault(enabled: Boolean) = unused()
         override val lyricsSettings: Flow<LyricsSettings> get() = unused()
+        override val libraryTabsConfig: Flow<LibraryTabsConfig> get() = unused()
+        override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) = unused()
 
         private fun unused(): Nothing = error("not used in LibrarySortSeedTest")
     }

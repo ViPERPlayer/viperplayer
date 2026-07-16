@@ -14,6 +14,7 @@ import com.viperplayer.domain.model.LyricsAlignment
 import com.viperplayer.domain.model.LyricsBehavior
 import com.viperplayer.domain.model.LyricsFontSize
 import com.viperplayer.domain.model.LyricsFontWeight
+import com.viperplayer.domain.model.LibraryTabsConfig
 import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.SortDirection
@@ -84,6 +85,9 @@ class SettingsRepositoryImpl @Inject constructor(
         // Sort order — one option + direction key per view (keyed by the view's enum name).
         private fun sortOptionKey(view: SortView) = stringPreferencesKey("sort_option_${view.name}")
         private fun sortDirectionKey(view: SortView) = stringPreferencesKey("sort_direction_${view.name}")
+
+        // Library tabs config (order + visibility), serialized by LibraryTabsConfig.
+        private val LIBRARY_TABS_CONFIG_KEY = stringPreferencesKey("library_tabs_config")
     }
 
     private val dataStore = context.settingsDataStore
@@ -449,6 +453,18 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { preferences ->
             preferences[sortOptionKey(view)] = order.option.name
             preferences[sortDirectionKey(view)] = order.direction.name
+        }
+    }
+
+    // Library tabs config — stored as the compact string LibraryTabsConfig.serialize() produces, decoded
+    // leniently (blank/corrupt → EMPTY, i.e. the app falls back to the default all-visible tab set).
+    override val libraryTabsConfig: Flow<LibraryTabsConfig> = dataStore.data.mapDistinct { preferences ->
+        LibraryTabsConfig.deserialize(preferences[LIBRARY_TABS_CONFIG_KEY])
+    }
+
+    override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) {
+        dataStore.edit { preferences ->
+            preferences[LIBRARY_TABS_CONFIG_KEY] = config.serialize()
         }
     }
 
