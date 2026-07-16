@@ -423,6 +423,10 @@
     <string name="iir_band_count">Band Count</string>
     <string name="iir_bands_count">%1$d Bands</string>
     <string name="effect_preset">Preset</string>
+    <string name="iir_import_autoeq">Import AutoEq profile</string>
+    <string name="iir_autoeq_imported">AutoEq profile imported</string>
+    <string name="iir_autoeq_import_failed">Couldn\'t import AutoEq profile: %1$s</string>
+    <string name="iir_autoeq_read_failed">Couldn\'t read the selected file</string>
 
     <!-- ViPER effect: Headphone surround+ -->
     <string name="headphone_surround_plus">Headphone surround+</string>

@@ -3,8 +3,11 @@ package com.viperplayer.presentation.viper
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.runtime.Stable
+import com.viperplayer.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.domain.model.AutoEqParser
+import com.viperplayer.domain.model.AutoEqProfile
 import com.viperplayer.domain.model.DynamicSystemDeviceType
 import com.viperplayer.domain.model.FetCompressorState
 import com.viperplayer.domain.model.IirEqualizerPresets
@@ -684,16 +687,38 @@ class ViperViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The AutoEq profile behind the current "Custom" curve, iff that curve came from an import.
+     * Retained (transiently, in the ViewModel) so a band-count change can re-interpolate the
+     * original correction curve onto the new band centers instead of truncating/zero-padding.
+     * Any manual Custom edit or preset switch clears it (see [clearImportedAutoEqProfile]).
+     */
+    private var importedAutoEqProfile: AutoEqProfile? = null
+
+    private fun clearImportedAutoEqProfile() {
+        importedAutoEqProfile = null
+    }
+
     fun setIirEqualizerBandCount(count: Int) {
         viewModelScope.launch {
+            val imported = importedAutoEqProfile
             viperRepository.updateEffectsState { state ->
-                // For a named preset, use its gains at the new count. For a custom curve, resize the
-                // existing gains (truncate/pad) instead of fetching "Custom" — which isn't a real
-                // preset and would flatten/wipe the user's curve.
-                val newGains = if (state.iirEqualizer.preset == "Custom") {
-                    List(count) { i -> state.iirEqualizer.bandGains.getOrElse(i) { 0f } }
-                } else {
-                    IirEqualizerPresets.getPresetGains(state.iirEqualizer.preset, count)
+                val newGains = when {
+                    // Custom curve that came from an AutoEq import: re-interpolate the original
+                    // correction curve onto the new band centers so the imported response is
+                    // preserved across a band-count change (not truncated/zero-padded).
+                    state.iirEqualizer.preset == "Custom" && imported != null ->
+                        imported.gainsForBands(
+                            bandFrequenciesHz = IirEqualizerPresets.getFrequencies(count),
+                            minGainDb = IirEqualizerPresets.MIN_GAIN_DB,
+                            maxGainDb = IirEqualizerPresets.MAX_GAIN_DB,
+                        )
+                    // A hand-edited Custom curve: resize the existing gains (truncate/pad) instead
+                    // of fetching "Custom" — which isn't a real preset and would flatten it.
+                    state.iirEqualizer.preset == "Custom" ->
+                        List(count) { i -> state.iirEqualizer.bandGains.getOrElse(i) { 0f } }
+                    // Named preset: use its gains at the new count.
+                    else -> IirEqualizerPresets.getPresetGains(state.iirEqualizer.preset, count)
                 }
                 state.copy(
                     iirEqualizer = state.iirEqualizer.copy(
@@ -706,6 +731,8 @@ class ViperViewModel @Inject constructor(
     }
 
     fun setIirEqualizerPreset(preset: String) {
+        // Choosing a named preset abandons any imported AutoEq curve.
+        clearImportedAutoEqProfile()
         viewModelScope.launch {
             viperRepository.updateEffectsState { state ->
                 val newGains =
@@ -721,6 +748,9 @@ class ViperViewModel @Inject constructor(
     }
 
     fun setIirEqualizerBandGain(index: Int, gain: Float) {
+        // A manual band edit turns the curve into a hand-edited Custom one; the imported profile no
+        // longer describes it, so stop re-interpolating from it on band-count changes.
+        clearImportedAutoEqProfile()
         viewModelScope.launch {
             viperRepository.updateEffectsState { state ->
                 val currentGains = state.iirEqualizer.bandGains.toMutableList()
@@ -738,11 +768,68 @@ class ViperViewModel @Inject constructor(
     }
 
     fun resetIirEqualizer() {
+        clearImportedAutoEqProfile()
         viewModelScope.launch {
             viperRepository.updateEffectsState { state ->
                 state.copy(
                     iirEqualizer = IirEqualizerState()
                 )
+            }
+        }
+    }
+
+    /**
+     * Import an AutoEq headphone-correction profile (GraphicEQ or ParametricEQ text) from [uri],
+     * resample its curve onto the equalizer's current fixed band center-frequencies (log-frequency
+     * linear interpolation), and apply the resulting per-band gains (with any profile preamp
+     * folded in and clamped to the EQ's dB range). The file read runs on an IO dispatcher inside
+     * the repository; parsing happens in the pure [AutoEqParser].
+     */
+    fun importAutoEqProfile(uri: String) {
+        viewModelScope.launch {
+            val text = viperAssetRepository.readTextFromUri(uri)
+            if (text == null) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.iir_autoeq_read_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            when (val result = AutoEqParser.parse(text)) {
+                is AutoEqParser.ParseResult.Success -> {
+                    // Retain the parsed profile so a later band-count change re-interpolates the
+                    // original correction curve instead of truncating/zero-padding the gains.
+                    importedAutoEqProfile = result.profile
+                    viperRepository.updateEffectsState { state ->
+                        val bandFrequencies =
+                            IirEqualizerPresets.getFrequencies(state.iirEqualizer.bandCount)
+                        val gains = result.profile.gainsForBands(
+                            bandFrequenciesHz = bandFrequencies,
+                            minGainDb = IirEqualizerPresets.MIN_GAIN_DB,
+                            maxGainDb = IirEqualizerPresets.MAX_GAIN_DB,
+                        )
+                        state.copy(
+                            iirEqualizer = state.iirEqualizer.copy(
+                                enabled = true,
+                                preset = "Custom",
+                                bandGains = gains,
+                            )
+                        )
+                    }
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.iir_autoeq_imported),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                is AutoEqParser.ParseResult.Error -> Toast.makeText(
+                    context,
+                    context.getString(R.string.iir_autoeq_import_failed, result.reason),
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }

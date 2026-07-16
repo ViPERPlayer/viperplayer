@@ -118,6 +118,23 @@ class ViperAssetRepository @Inject constructor(
             return@withContext parseDdcContent(file.readText())
         }
 
+    /**
+     * Read the full text of a document [uri] (e.g. an AutoEq profile) on the IO dispatcher.
+     * Returns null on any IO failure. Parsing of the returned text is done by pure, testable
+     * classes outside this repository.
+     */
+    suspend fun readTextFromUri(uri: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val androidUri = Uri.parse(uri)
+            context.contentResolver.openInputStream(androidUri)?.use { input ->
+                input.bufferedReader().readText()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     private suspend fun importFile(uri: String, destDir: File, onRefresh: () -> Unit): String? {
         try {
             val androidUri = Uri.parse(uri)
