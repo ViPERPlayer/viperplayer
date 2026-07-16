@@ -192,6 +192,10 @@ class PlayerViewModel @Inject constructor(
      * Use this for polling-based position updates where the UI controls the polling frequency.
      */
     suspend fun getCurrentPosition(): Long = playerRepository.getCurrentPosition()
+
+    /** Buffered position in ms (how far ahead of the playhead is loaded) for the seek bar. */
+    suspend fun getBufferedPosition(): Long = playerRepository.getBufferedPosition()
+
     val queue: StateFlow<List<Song>> = playerRepository.queue
         .stateIn(
             scope = viewModelScope,
