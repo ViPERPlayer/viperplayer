@@ -1,5 +1,10 @@
 package com.viperplayer.domain.repository
 
+import com.viperplayer.domain.model.LyricsAlignment
+import com.viperplayer.domain.model.LyricsFontSize
+import com.viperplayer.domain.model.LyricsFontWeight
+import com.viperplayer.domain.model.LyricsHighlightColor
+import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.SortView
 import kotlinx.coroutines.flow.Flow
@@ -136,6 +141,41 @@ interface SettingsRepository {
 
     val maxImageCacheSize: Flow<Long> // In bytes
     suspend fun setMaxImageCacheSize(size: Long)
+
+    // Lyrics (style + behavior) — appended; defaults preserve prior rendering.
+    val lyricsFontSize: Flow<LyricsFontSize>
+    suspend fun setLyricsFontSize(size: LyricsFontSize)
+
+    val lyricsAlignment: Flow<LyricsAlignment>
+    suspend fun setLyricsAlignment(alignment: LyricsAlignment)
+
+    val lyricsFontWeight: Flow<LyricsFontWeight>
+    suspend fun setLyricsFontWeight(weight: LyricsFontWeight)
+
+    val lyricsHighlightColor: Flow<LyricsHighlightColor>
+    suspend fun setLyricsHighlightColor(color: LyricsHighlightColor)
+
+    /** Font-size multiplier applied to the active line (1.0 = no scale-up). */
+    val lyricsActiveLineScale: Flow<Float>
+    suspend fun setLyricsActiveLineScale(scale: Float)
+
+    val lyricsAutoScroll: Flow<Boolean>
+    suspend fun setLyricsAutoScroll(enabled: Boolean)
+
+    val lyricsTapToSeek: Flow<Boolean>
+    suspend fun setLyricsTapToSeek(enabled: Boolean)
+
+    val lyricsDimInactiveLines: Flow<Boolean>
+    suspend fun setLyricsDimInactiveLines(enabled: Boolean)
+
+    val lyricsShowTranslationByDefault: Flow<Boolean>
+    suspend fun setLyricsShowTranslationByDefault(enabled: Boolean)
+
+    val lyricsShowRomanizationByDefault: Flow<Boolean>
+    suspend fun setLyricsShowRomanizationByDefault(enabled: Boolean)
+
+    /** All lyrics settings combined into one snapshot for the renderer/ViewModel. */
+    val lyricsSettings: Flow<LyricsSettings>
 
     // Library / detail list sort order, persisted independently per [SortView].
     /** The persisted [SortOrder] for [view]. Defaults to [SortOrder.DEFAULT] (original order). */

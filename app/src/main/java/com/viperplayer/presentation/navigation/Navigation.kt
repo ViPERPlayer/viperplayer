@@ -47,6 +47,7 @@ import com.viperplayer.presentation.settings.SettingsScreen
 import com.viperplayer.presentation.settings.about.AboutSettingsScreen
 import com.viperplayer.presentation.settings.appearance.AppearanceSettingsScreen
 import com.viperplayer.presentation.settings.content.ContentSettingsScreen
+import com.viperplayer.presentation.settings.lyrics.LyricsSettingsScreen
 import com.viperplayer.presentation.settings.player.PlayerSettingsScreen
 import com.viperplayer.presentation.settings.storage.StorageSettingsScreen
 import com.viperplayer.presentation.settings.updater.UpdaterSettingsScreen
@@ -76,6 +77,9 @@ object Settings : NavKey
 
 @Serializable
 object SettingsAppearance : NavKey
+
+@Serializable
+object SettingsLyrics : NavKey
 
 @Serializable
 object SettingsPlayer : NavKey
@@ -243,6 +247,7 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onNavigateToAppearance = { navigator.navigate(SettingsAppearance) },
+                onNavigateToLyrics = { navigator.navigate(SettingsLyrics) },
                 onNavigateToPlayer = { navigator.navigate(SettingsPlayer) },
                 onNavigateToContent = { navigator.navigate(SettingsContent) },
                 onNavigateToStorage = { navigator.navigate(SettingsStorage) },
@@ -263,6 +268,13 @@ fun ViperNavDisplay(
 
         entry<SettingsAppearance> {
             AppearanceSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<SettingsLyrics> {
+            LyricsSettingsScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() }
             )

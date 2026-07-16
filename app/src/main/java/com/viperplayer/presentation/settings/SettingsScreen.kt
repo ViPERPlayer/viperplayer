@@ -12,8 +12,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
@@ -46,6 +47,7 @@ fun SettingsScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onNavigateToAppearance: () -> Unit,
+    onNavigateToLyrics: () -> Unit,
     onNavigateToPlayer: () -> Unit,
     onNavigateToContent: () -> Unit,
     onNavigateToStorage: () -> Unit,
@@ -88,6 +90,14 @@ fun SettingsScreen(
                     description = stringResource(R.string.settings_appearance_desc),
                     icon = Icons.Default.Palette,
                     onClick = onNavigateToAppearance
+                )
+            }
+            item {
+                SettingsSectionItem(
+                    title = stringResource(R.string.settings_lyrics),
+                    description = stringResource(R.string.settings_lyrics_desc),
+                    icon = Icons.Default.Lyrics,
+                    onClick = onNavigateToLyrics
                 )
             }
             item {

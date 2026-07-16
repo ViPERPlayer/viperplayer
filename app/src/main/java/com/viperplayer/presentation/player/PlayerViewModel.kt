@@ -8,6 +8,7 @@ import com.viperplayer.data.lyrics.LyricsRomanizer
 import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.Playlist
@@ -17,6 +18,7 @@ import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +47,16 @@ class PlayerViewModel @Inject constructor(
     private val lyricsTranslator: LyricsTranslator,
     icuTransliterator: IcuTransliterator,
     private val downloadManager: DownloadManager,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
+
+    /** User-configured lyrics appearance + behavior, applied by the lyrics renderer. */
+    val lyricsSettings: StateFlow<LyricsSettings> = settingsRepository.lyricsSettings
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = LyricsSettings()
+        )
 
     // ICU engine for romanization (thread-safe singleton). A fresh [LyricsRomanizer] (with its own
     // per-line cache) is built per song inside the romanization pipeline — see [romanizedLines] — so
@@ -158,6 +169,23 @@ class PlayerViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = null
     )
+
+    init {
+        // Seed the per-session translation/romanization toggles from the persisted defaults whenever
+        // a new track's lyrics arrive, so each track starts in the user's preferred state.
+        viewModelScope.launch {
+            var lastSeededSong: MediaId? = null
+            combine(currentSong, settingsRepository.lyricsSettings) { song, settings -> song to settings }
+                .collect { (song, settings) ->
+                    val songId = song?.id
+                    if (songId != null && songId != lastSeededSong) {
+                        lastSeededSong = songId
+                        _translationEnabled.value = settings.showTranslationByDefault
+                        _romanizationEnabled.value = settings.showRomanizationByDefault
+                    }
+                }
+        }
+    }
 
     /**
      * Gets the current playback position in milliseconds.

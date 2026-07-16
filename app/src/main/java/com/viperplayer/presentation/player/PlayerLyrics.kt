@@ -39,12 +39,17 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsAlignment
+import com.viperplayer.domain.model.LyricsBehavior
+import com.viperplayer.domain.model.LyricsHighlightColor
+import com.viperplayer.domain.model.LyricsSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -115,6 +120,7 @@ fun LyricsSheet(
     val translatedLines by viewModel.translatedLines.collectAsStateWithLifecycle()
     val romanizationEnabled by viewModel.romanizationEnabled.collectAsStateWithLifecycle()
     val romanizedLines by viewModel.romanizedLines.collectAsStateWithLifecycle()
+    val settings by viewModel.lyricsSettings.collectAsStateWithLifecycle()
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
@@ -132,6 +138,7 @@ fun LyricsSheet(
         translatedLines = translatedLines,
         romanizationEnabled = romanizationEnabled,
         romanizedLines = romanizedLines,
+        settings = settings,
         onToggleTranslation = viewModel::toggleTranslation,
         onToggleRomanization = viewModel::toggleRomanization,
         onSeek = onSeek,
@@ -156,6 +163,7 @@ fun LyricsSheetContent(
     onToggleTranslation: () -> Unit,
     onToggleRomanization: () -> Unit,
     onSeek: (Long) -> Unit,
+    settings: LyricsSettings = LyricsSettings(),
 ) {
     Column(
         modifier = Modifier
@@ -217,18 +225,27 @@ fun LyricsSheetContent(
             lyrics.synced && lyrics.lines.isNotEmpty() -> {
                 val activeIndex = lyrics.currentLineIndex(position)
                 val listState = rememberLazyListState()
-                LaunchedEffect(activeIndex) {
-                    if (activeIndex >= 0) {
+                LaunchedEffect(activeIndex, settings.autoScroll) {
+                    // Auto-scroll honors its toggle; when off, the user scrolls freely.
+                    if (settings.autoScroll && activeIndex >= 0) {
                         listState.animateScrollToItem(
                             index = activeIndex.coerceAtMost(lyrics.lines.lastIndex),
                             scrollOffset = -200
                         )
                     }
                 }
-                val sungColor = MaterialTheme.colorScheme.primary
+                val sungColor = highlightColor(settings.highlightColor)
                 val pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                // Inactive lines dim only when the "dim inactive lines" behavior is on.
+                val dimmedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                val undimmedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
+                // Romanization + translation sub-lines share the secondary (dimmer) color.
                 val secondaryColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                val lineAlign = LyricsStyleMapping.textAlign(settings.alignment)
+                val columnAlignment = when (settings.alignment) {
+                    LyricsAlignment.CENTER -> Alignment.CenterHorizontally
+                    else -> Alignment.Start
+                }
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.heightIn(max = 520.dp),
@@ -252,23 +269,36 @@ fun LyricsSheetContent(
                         } else {
                             AnnotatedString(line.text)
                         }
+                        val dimmed = LyricsBehavior.shouldDimLine(index, activeIndex, settings.dimInactiveLines)
                         val romanization = romanizedLines?.getOrNull(index)?.takeIf { it.isNotBlank() }
                         val translation = translatedLines?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        val rowModifier = Modifier
+                            .fillMaxWidth()
+                            .let { if (settings.tapToSeek) it.clickable { onSeek(line.startMs) } else it }
+                            .padding(vertical = 2.dp)
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSeek(line.startMs) }
-                                .padding(vertical = 2.dp)
+                            modifier = rowModifier,
+                            horizontalAlignment = columnAlignment
                         ) {
                             Text(
                                 text = lineText,
                                 color = when {
                                     active && line.words.isNotEmpty() -> Color.Unspecified
                                     active -> sungColor
-                                    else -> inactiveColor
+                                    dimmed -> dimmedColor
+                                    else -> undimmedColor
                                 },
-                                fontSize = if (active) 20.sp else 17.sp,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                textAlign = lineAlign,
+                                fontSize = if (active) {
+                                    LyricsStyleMapping.activeFontSize(settings.fontSize, settings.activeLineScale)
+                                } else {
+                                    LyricsStyleMapping.baseFontSize(settings.fontSize)
+                                },
+                                fontWeight = if (active) {
+                                    LyricsStyleMapping.activeFontWeight(settings.fontWeight)
+                                } else {
+                                    LyricsStyleMapping.inactiveFontWeight(settings.fontWeight)
+                                },
                             )
                             // Per-line romanization: shown directly under the original (read-along),
                             // smaller and dimmer, never cropped (wraps freely).
@@ -276,7 +306,8 @@ fun LyricsSheetContent(
                                 Text(
                                     text = romanization,
                                     color = secondaryColor,
-                                    fontSize = if (active) 15.sp else 13.sp,
+                                    textAlign = lineAlign,
+                                    fontSize = LyricsStyleMapping.subLineFontSize(settings.fontSize, active),
                                     fontWeight = FontWeight.Normal,
                                     modifier = Modifier.padding(top = 1.dp)
                                 )
@@ -286,7 +317,8 @@ fun LyricsSheetContent(
                                 Text(
                                     text = translation,
                                     color = secondaryColor,
-                                    fontSize = if (active) 15.sp else 13.sp,
+                                    textAlign = lineAlign,
+                                    fontSize = LyricsStyleMapping.subLineFontSize(settings.fontSize, active),
                                     fontStyle = FontStyle.Italic,
                                     fontWeight = FontWeight.Normal,
                                     modifier = Modifier.padding(top = 1.dp)
@@ -309,4 +341,12 @@ fun LyricsSheetContent(
             }
         }
     }
+}
+
+/** Resolve the configured active-line highlight to a concrete theme color. */
+@Composable
+private fun highlightColor(color: LyricsHighlightColor): Color = when (color) {
+    LyricsHighlightColor.PRIMARY -> MaterialTheme.colorScheme.primary
+    LyricsHighlightColor.SECONDARY -> MaterialTheme.colorScheme.secondary
+    LyricsHighlightColor.TERTIARY -> MaterialTheme.colorScheme.tertiary
 }

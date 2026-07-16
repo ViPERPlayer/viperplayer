@@ -1,5 +1,10 @@
 package com.viperplayer.presentation.library
 
+import com.viperplayer.domain.model.LyricsAlignment
+import com.viperplayer.domain.model.LyricsFontSize
+import com.viperplayer.domain.model.LyricsFontWeight
+import com.viperplayer.domain.model.LyricsHighlightColor
+import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortDirection
@@ -83,6 +88,27 @@ class LibrarySortSeedTest {
         override suspend fun setMaxSongCacheSize(size: Long) = unused()
         override val maxImageCacheSize: Flow<Long> get() = unused()
         override suspend fun setMaxImageCacheSize(size: Long) = unused()
+        override val lyricsFontSize: Flow<LyricsFontSize> get() = unused()
+        override suspend fun setLyricsFontSize(size: LyricsFontSize) = unused()
+        override val lyricsAlignment: Flow<LyricsAlignment> get() = unused()
+        override suspend fun setLyricsAlignment(alignment: LyricsAlignment) = unused()
+        override val lyricsFontWeight: Flow<LyricsFontWeight> get() = unused()
+        override suspend fun setLyricsFontWeight(weight: LyricsFontWeight) = unused()
+        override val lyricsHighlightColor: Flow<LyricsHighlightColor> get() = unused()
+        override suspend fun setLyricsHighlightColor(color: LyricsHighlightColor) = unused()
+        override val lyricsActiveLineScale: Flow<Float> get() = unused()
+        override suspend fun setLyricsActiveLineScale(scale: Float) = unused()
+        override val lyricsAutoScroll: Flow<Boolean> get() = unused()
+        override suspend fun setLyricsAutoScroll(enabled: Boolean) = unused()
+        override val lyricsTapToSeek: Flow<Boolean> get() = unused()
+        override suspend fun setLyricsTapToSeek(enabled: Boolean) = unused()
+        override val lyricsDimInactiveLines: Flow<Boolean> get() = unused()
+        override suspend fun setLyricsDimInactiveLines(enabled: Boolean) = unused()
+        override val lyricsShowTranslationByDefault: Flow<Boolean> get() = unused()
+        override suspend fun setLyricsShowTranslationByDefault(enabled: Boolean) = unused()
+        override val lyricsShowRomanizationByDefault: Flow<Boolean> get() = unused()
+        override suspend fun setLyricsShowRomanizationByDefault(enabled: Boolean) = unused()
+        override val lyricsSettings: Flow<LyricsSettings> get() = unused()
 
         private fun unused(): Nothing = error("not used in LibrarySortSeedTest")
     }
