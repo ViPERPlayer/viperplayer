@@ -700,4 +700,11 @@
     <string name="day_short_fri">Fri</string>
     <string name="day_short_sat">Sat</string>
     <string name="day_short_sun">Sun</string>
+
+    <!-- Follow artists / Following -->
+    <string name="action_follow">Follow</string>
+    <string name="action_unfollow">Unfollow</string>
+    <string name="following_title">Following</string>
+    <string name="following_unfollow">Unfollow</string>
+    <string name="following_empty">You\'re not following any artists yet. Open an artist and tap Follow.</string>
 </resources>
