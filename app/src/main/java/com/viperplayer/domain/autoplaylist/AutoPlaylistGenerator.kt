@@ -67,12 +67,18 @@ object AutoPlaylistGenerator {
      * @param keyOf how a [Song]'s [MediaId] maps to the string the play-history stores. Defaults to the
      *   pure [mediaKey]; the (Android) repository passes `MediaId::toString` so the join matches the
      *   Uri-encoded ids actually persisted. Overriding it keeps this function Android-free/testable.
+     * @param mediaIdOf how a history record's id string is turned back into a [MediaId] when the song is
+     *   no longer in the library. Defaults to the pure [parseMediaId]; the (Android) repository passes a
+     *   `MediaId.fromString`-based parser so the reconstructed id is Uri-DECODED (round-tripping the
+     *   encoded string the history stores) instead of keeping percent-escapes. Kept as a parameter so
+     *   this function stays Android-free/testable.
      */
     fun mostPlayed(
         records: List<PlayRecord>,
         library: List<Song>,
         limit: Int = DEFAULT_LIMIT,
         keyOf: (MediaId) -> String = ::mediaKey,
+        mediaIdOf: (String) -> MediaId = ::parseMediaId,
     ): List<Song> {
         if (records.isEmpty()) return emptyList()
         val byId = indexLibrary(library, keyOf)
@@ -91,7 +97,7 @@ object AutoPlaylistGenerator {
                     .thenBy { it.mediaId },
             )
             .take(limit.coerceAtLeast(0))
-            .map { resolve(it.mediaId, it.representative, byId) }
+            .map { resolve(it.mediaId, it.representative, byId, mediaIdOf) }
     }
 
     /**
@@ -105,6 +111,7 @@ object AutoPlaylistGenerator {
         library: List<Song>,
         limit: Int = DEFAULT_LIMIT,
         keyOf: (MediaId) -> String = ::mediaKey,
+        mediaIdOf: (String) -> MediaId = ::parseMediaId,
     ): List<Song> {
         if (records.isEmpty()) return emptyList()
         val byId = indexLibrary(library, keyOf)
@@ -123,7 +130,7 @@ object AutoPlaylistGenerator {
                     .thenBy { it.mediaId },
             )
             .take(limit.coerceAtLeast(0))
-            .map { resolve(it.mediaId, it.representative, byId) }
+            .map { resolve(it.mediaId, it.representative, byId, mediaIdOf) }
     }
 
     /**
@@ -143,6 +150,7 @@ object AutoPlaylistGenerator {
         notRecentBeforeMs: Long,
         limit: Int = DEFAULT_LIMIT,
         keyOf: (MediaId) -> String = ::mediaKey,
+        mediaIdOf: (String) -> MediaId = ::parseMediaId,
     ): List<Song> {
         if (records.isEmpty()) return emptyList()
         val byId = indexLibrary(library, keyOf)
@@ -162,7 +170,7 @@ object AutoPlaylistGenerator {
                     .thenBy { it.mediaId },
             )
             .take(limit.coerceAtLeast(0))
-            .map { resolve(it.mediaId, it.representative, byId) }
+            .map { resolve(it.mediaId, it.representative, byId, mediaIdOf) }
     }
 
     /** A media id's aggregated play stats, used to rank the play-based playlists. */
@@ -179,8 +187,12 @@ object AutoPlaylistGenerator {
      * song is no longer in the library. The library is indexed by the same raw id string the
      * play-history stores ([Song.id] via [mediaKey]).
      */
-    private fun resolve(mediaIdString: String, record: PlayRecord, byId: Map<String, Song>): Song =
-        byId[mediaIdString] ?: recordToSong(record)
+    private fun resolve(
+        mediaIdString: String,
+        record: PlayRecord,
+        byId: Map<String, Song>,
+        mediaIdOf: (String) -> MediaId,
+    ): Song = byId[mediaIdString] ?: recordToSong(record, mediaIdOf)
 
     /**
      * The join key between a [Song] and a [PlayRecord]: the [Song.id]'s canonical `pluginId&sourceId`
@@ -196,11 +208,20 @@ object AutoPlaylistGenerator {
     /**
      * Builds a minimal [Song] from a [PlayRecord]'s cached metadata, for a history song that is no
      * longer in the library. Not internet-required and marked playable so it can still be launched;
-     * the player resolves the real stream via the plugin at play time. Parses the record's id string
-     * purely (no `Uri`); a malformed id yields a fallback [MediaId] so this never throws.
+     * the player resolves the real stream via the plugin at play time.
+     *
+     * @param mediaIdOf turns the record's id string back into a [MediaId]. Defaults to the pure
+     *   [parseMediaId] (no `Uri`) so this is JVM-testable; the (Android) repository passes a
+     *   `MediaId.fromString`-based parser so the reconstructed id is Uri-DECODED and round-trips exactly
+     *   with the encoded string the history stores (otherwise the plugin is later handed a raw
+     *   percent-encoded sourceId and resolves the wrong track / fails to stream — notably for `local`,
+     *   whose sourceId is a `content://…` URI). Either parser must never throw on a malformed id.
      */
-    fun recordToSong(record: PlayRecord): Song = Song(
-        id = parseMediaId(record.mediaId),
+    fun recordToSong(
+        record: PlayRecord,
+        mediaIdOf: (String) -> MediaId = ::parseMediaId,
+    ): Song = Song(
+        id = mediaIdOf(record.mediaId),
         title = record.title,
         artists = record.artist.takeIf { it.isNotBlank() }
             ?.let { listOf(ArtistRef(name = it)) }
@@ -211,10 +232,12 @@ object AutoPlaylistGenerator {
 
     /**
      * Pure parse of a `pluginId=…&sourceId=…` id string into a [MediaId] (no Android `Uri`). Values are
-     * used as-is; a missing/blank `sourceId` falls back to the raw string so a [MediaId] can always be
-     * constructed (its `sourceId` must be non-blank).
+     * used as-is (NOT Uri-decoded); a missing/blank `sourceId` falls back to the raw string so a
+     * [MediaId] can always be constructed (its `sourceId` must be non-blank). Exposed as the pure
+     * default for [recordToSong]/the play-based generators and as a safe fallback for the repository's
+     * decoding parser (`MediaId.fromString`) when an id is genuinely malformed; never throws.
      */
-    private fun parseMediaId(raw: String): MediaId {
+    fun parseMediaId(raw: String): MediaId {
         val params = raw.split("&").mapNotNull { part ->
             val idx = part.indexOf('=')
             if (idx <= 0) null else part.substring(0, idx) to part.substring(idx + 1)

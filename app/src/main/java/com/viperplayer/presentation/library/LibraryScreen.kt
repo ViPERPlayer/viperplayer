@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -362,24 +363,9 @@ fun LibraryScreen(
                                         uiState.autoPlaylists,
                                         key = { playlist -> "auto-${playlist.id}" }
                                     ) { playlist ->
-                                        // Base ListItem with no trailing "more" button — auto-playlists
-                                        // have no per-item options (they're computed, not editable).
-                                        ListItem(
-                                            title = playlist.name,
-                                            badges = emptyList(),
-                                            subtitle = playlist.description
-                                                ?: "${playlist.songCount} ${if (playlist.songCount == 1) "song" else "songs"}",
-                                            isActive = false,
-                                            leadingContent = {
-                                                ListItemLeadingArtwork(
-                                                    artworkUrl = playlist.artworkUrl,
-                                                    type = SearchItem.Type.PLAYLIST,
-                                                    isActive = false,
-                                                    isPlaying = false,
-                                                )
-                                            },
-                                            trailingContent = {},
-                                            onClick = { onNavigateToPlaylist(playlist) },
+                                        AutoPlaylistRow(
+                                            playlist = playlist,
+                                            onClick = onNavigateToPlaylist,
                                             modifier = Modifier
                                                 .animateItem()
                                                 .fillMaxWidth()
@@ -505,6 +491,38 @@ fun LibrarySectionHeader(title: String, modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+/**
+ * One row for a dynamic auto-playlist (Recently Added / Most Played / …). A base [ListItem] with no
+ * trailing "more" button — auto-playlists are computed, not editable, so they have no per-item options.
+ * Its subtitle is the playlist description, falling back to a localized song count. Extracted so both
+ * the Library screen and its UI test render the exact production row.
+ */
+@Composable
+fun AutoPlaylistRow(
+    playlist: Playlist,
+    onClick: (Playlist) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ListItem(
+        title = playlist.name,
+        badges = emptyList(),
+        subtitle = playlist.description
+            ?: pluralStringResource(R.plurals.song_count, playlist.songCount, playlist.songCount),
+        isActive = false,
+        leadingContent = {
+            ListItemLeadingArtwork(
+                artworkUrl = playlist.artworkUrl,
+                type = SearchItem.Type.PLAYLIST,
+                isActive = false,
+                isPlaying = false,
+            )
+        },
+        trailingContent = {},
+        onClick = { onClick(playlist) },
+        modifier = modifier,
     )
 }
 

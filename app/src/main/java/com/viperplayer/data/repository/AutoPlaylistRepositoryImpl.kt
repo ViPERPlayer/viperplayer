@@ -77,17 +77,30 @@ class AutoPlaylistRepositoryImpl @Inject constructor(
         // On-device the play-history stores Song.id via MediaId.toString() (Uri-encoded), so join the
         // library on that exact key rather than the generator's pure default.
         val keyOf: (MediaId) -> String = { it.toString() }
+        // For a history song missing from the library, rebuild its MediaId by Uri-DECODING the stored
+        // (encoded) id via MediaId.fromString — round-tripping MediaId.toString() so the plugin later
+        // gets the original sourceId (e.g. a local `content://…` URI) rather than a percent-encoded one.
+        // fromString may throw on a genuinely malformed id, so fall back to the generator's pure parser.
+        val mediaIdOf: (String) -> MediaId = { raw ->
+            try {
+                MediaId.fromString(raw)
+            } catch (e: IllegalArgumentException) {
+                AutoPlaylistGenerator.parseMediaId(raw)
+            }
+        }
         return when (type) {
             AutoPlaylistType.RECENTLY_ADDED -> AutoPlaylistGenerator.recentlyAdded(recentlyAdded)
-            AutoPlaylistType.MOST_PLAYED -> AutoPlaylistGenerator.mostPlayed(records, library, keyOf = keyOf)
+            AutoPlaylistType.MOST_PLAYED ->
+                AutoPlaylistGenerator.mostPlayed(records, library, keyOf = keyOf, mediaIdOf = mediaIdOf)
             AutoPlaylistType.RECENTLY_PLAYED ->
-                AutoPlaylistGenerator.recentlyPlayed(records, library, keyOf = keyOf)
+                AutoPlaylistGenerator.recentlyPlayed(records, library, keyOf = keyOf, mediaIdOf = mediaIdOf)
             AutoPlaylistType.FAVORITES -> AutoPlaylistGenerator.favorites(liked)
             AutoPlaylistType.FORGOTTEN -> AutoPlaylistGenerator.forgotten(
                 records = records,
                 library = library,
                 notRecentBeforeMs = now - FORGOTTEN_STALENESS_MS,
                 keyOf = keyOf,
+                mediaIdOf = mediaIdOf,
             )
             // A per-open shuffle: seed with the current time so it varies each visit.
             AutoPlaylistType.SHUFFLE_ALL -> AutoPlaylistGenerator.shuffleAll(library, seed = now)

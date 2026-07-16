@@ -315,4 +315,72 @@ class AutoPlaylistGeneratorTest {
     fun mediaKey_matchesCanonicalIdFormat() {
         assertEquals("pluginId=local&sourceId=abc", AutoPlaylistGenerator.mediaKey(mediaId("abc")))
     }
+
+    // ---- id decode round-trip (missing-from-library) -------------------------------------------
+
+    @Test
+    fun mostPlayed_missingSong_reconstructedIdIsDecodedNotPercentEncoded() {
+        // A `local`-style sourceId whose reserved chars ('/' and ':') get percent-encoded by
+        // MediaId.toString() when persisted to the play-history.
+        val rawSourceId = "content://media/external/audio/media/123"
+        // What MediaId.toString() actually stores on-device (Uri-encoded pluginId + sourceId).
+        val encodedMediaId =
+            "pluginId=local&sourceId=${encodeUriComponent(rawSourceId)}"
+        // The record is present in HISTORY but ABSENT from the library, so resolution must fall back
+        // to recordToSong -> mediaIdOf. Empty library guarantees the missing-from-library path.
+        val record = PlayRecord(
+            timestampMs = 100L,
+            mediaId = encodedMediaId,
+            title = "Ghost",
+            artist = "Ghost Artist",
+            album = null,
+            pluginId = "local",
+            listenedMs = 1000L,
+            durationMs = 1000L,
+        )
+
+        // Mirror what AutoPlaylistRepositoryImpl passes: keyOf = MediaId.toString() (encoded) and
+        // mediaIdOf = MediaId.fromString() (Uri-DECODES). Modeled purely here so the test runs on the
+        // JVM without android.net.Uri. If the fix regressed (raw value used, no decode), the sourceId
+        // would keep its percent-escapes and this assertion would fail.
+        val result = AutoPlaylistGenerator.mostPlayed(
+            records = listOf(record),
+            library = emptyList(),
+            keyOf = { id -> "pluginId=${encodeUriComponent(id.pluginId)}&sourceId=${encodeUriComponent(id.sourceId)}" },
+            mediaIdOf = { raw -> decodeCanonicalMediaId(raw) },
+        )
+
+        val ghost = result.single()
+        assertEquals("local", ghost.id.pluginId)
+        // The reconstructed sourceId must decode back to the original content:// URI, NOT the
+        // percent-encoded "content%3A%2F%2F…" form.
+        assertEquals(rawSourceId, ghost.id.sourceId)
+        assertTrue(
+            "sourceId must not retain percent-encoding: ${ghost.id.sourceId}",
+            !ghost.id.sourceId.contains("%3A") && !ghost.id.sourceId.contains("%2F"),
+        )
+    }
+
+    /**
+     * Minimal, pure stand-in for android.net.Uri.encode (used by MediaId.toString()) covering the
+     * reserved chars that appear in a `content://` sourceId, so this JVM test needs no Android runtime.
+     */
+    private fun encodeUriComponent(value: String): String =
+        value.replace("%", "%25").replace(":", "%3A").replace("/", "%2F")
+
+    /**
+     * Pure model of MediaId.fromString(): split on '&'/'=' and Uri-DECODE each value. This is the
+     * decoding behaviour the repository delegates to (via MediaId.fromString) for a missing-from-library
+     * id, verified here without android.net.Uri.
+     */
+    private fun decodeCanonicalMediaId(raw: String): MediaId {
+        val params = raw.split("&").associate {
+            val (k, v) = it.split("=")
+            k to decodeUriComponent(v)
+        }
+        return MediaId(params.getValue("pluginId"), params.getValue("sourceId"))
+    }
+
+    private fun decodeUriComponent(value: String): String =
+        value.replace("%3A", ":").replace("%2F", "/").replace("%25", "%")
 }
