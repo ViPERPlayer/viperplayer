@@ -89,5 +89,18 @@ class NetworkConnectivityChecker @Inject constructor(
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
+
+    /** True if there is a validated internet connection right now. */
+    fun isConnected(): Boolean = isNetworkAvailable()
+
+    /**
+     * True when the active network is unmetered (i.e. Wi-Fi / Ethernet, not cellular). Used by the
+     * "scrobble only on Wi-Fi" option. Returns false when there is no active network.
+     */
+    fun isUnmetered(): Boolean {
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
 }
 

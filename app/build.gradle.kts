@@ -22,6 +22,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Last.fm scrobbling API credentials. These are PLACEHOLDERS — built-in scrobbling will not
+        // function until a real API key + shared secret are supplied here (create one at
+        // https://www.last.fm/api/account/create). Keep real values out of source control (e.g. read
+        // them from a gitignored gradle property / env var). The placeholder is recognised at runtime
+        // (see LastfmApi.PLACEHOLDER / isConfigured) so the UI can explain that setup is required.
+        buildConfigField("String", "LASTFM_API_KEY", "\"REPLACE_WITH_REAL_VALUE\"")
+        buildConfigField("String", "LASTFM_API_SECRET", "\"REPLACE_WITH_REAL_VALUE\"")
+
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
