@@ -85,9 +85,9 @@ data class AutoEqProfile(
 
     companion object {
         /**
-         * Build a profile from a set of parametric peaking (PK) filters by evaluating their
-         * combined magnitude response on a dense log-frequency grid. This lets a ParametricEQ
-         * export be applied to a fixed graphic equalizer.
+         * Build a profile from a set of parametric filters (peaking PK plus low/high shelf
+         * LSC/HSC) by evaluating their combined magnitude response on a dense log-frequency grid.
+         * This lets a ParametricEQ export be applied to a fixed graphic equalizer.
          */
         fun fromParametricFilters(
             filters: List<ParametricFilter>,
@@ -113,9 +113,11 @@ data class AutoEqProfile(
 }
 
 /**
- * A single AutoEq ParametricEQ filter. Only peaking (PK) filters are modeled precisely; low/high
- * shelf types are approximated as peaking so they still contribute a sensible correction when
- * resampled onto graphic bands.
+ * A single AutoEq ParametricEQ filter. Peaking (PK) and low/high shelf (LSC/HSC) types are each
+ * modeled with their own RBJ Audio-EQ-Cookbook biquad, evaluated as a digital transfer function
+ * at the given sample rate. All three types share the same complex `|H(e^jw)|` magnitude routine;
+ * only the biquad coefficients differ by type — so a shelf keeps its plateau instead of collapsing
+ * into a peaking bump.
  */
 data class ParametricFilter(
     val type: FilterType,
@@ -125,40 +127,94 @@ data class ParametricFilter(
 ) {
     enum class FilterType { PEAKING, LOW_SHELF, HIGH_SHELF }
 
+    /** RBJ biquad coefficients (normalized-free: caller uses the raw b/a). */
+    private data class Biquad(
+        val b0: Double, val b1: Double, val b2: Double,
+        val a0: Double, val a1: Double, val a2: Double,
+    )
+
     /**
-     * Magnitude response (dB) of this RBJ peaking biquad at [frequencyHz]. Used to convert a set
-     * of parametric filters into a resamplable curve.
+     * Magnitude response (dB) of this RBJ biquad at [frequencyHz]. The biquad coefficients are
+     * selected by [type] (peaking vs. low/high shelf); the magnitude is then computed from the
+     * shared digital `|H(e^jw)|` evaluator at [sampleRate]. Used to convert a set of parametric
+     * filters into a resamplable curve.
      */
     fun magnitudeDbAt(frequencyHz: Double, sampleRate: Int): Double {
+        val coeffs = coefficients(sampleRate)
+        val mag = magnitudeAt(coeffs, frequencyHz, sampleRate)
+        if (mag <= 0.0) return 0.0
+        return if (mag > 1e-9) 20.0 * log10(mag) else -120.0
+    }
+
+    /** RBJ Audio-EQ-Cookbook biquad coefficients for this filter's [type]. */
+    private fun coefficients(sampleRate: Int): Biquad {
         val a = 10.0.pow(gainDb / 40.0)
-        val w0 = 2.0 * PI * this.frequencyHz / sampleRate
+        val w0 = 2.0 * PI * frequencyHz / sampleRate
         val qq = if (q <= 0.0) 0.707 else q
-        val alpha = sin(w0) / (2.0 * qq)
         val cosW0 = cos(w0)
+        val sinW0 = sin(w0)
+        return when (type) {
+            FilterType.PEAKING -> {
+                val alpha = sinW0 / (2.0 * qq)
+                Biquad(
+                    b0 = 1.0 + alpha * a,
+                    b1 = -2.0 * cosW0,
+                    b2 = 1.0 - alpha * a,
+                    a0 = 1.0 + alpha / a,
+                    a1 = -2.0 * cosW0,
+                    a2 = 1.0 - alpha / a,
+                )
+            }
 
-        // RBJ peaking EQ coefficients.
-        val b0 = 1.0 + alpha * a
-        val b1 = -2.0 * cosW0
-        val b2 = 1.0 - alpha * a
-        val a0 = 1.0 + alpha / a
-        val a1 = -2.0 * cosW0
-        val a2 = 1.0 - alpha / a
+            FilterType.LOW_SHELF -> {
+                // alpha uses the shelf form: sin(w0)/2 * sqrt((A + 1/A)(1/Q - 1) + 2).
+                val alpha = sinW0 / 2.0 * sqrt((a + 1.0 / a) * (1.0 / qq - 1.0) + 2.0)
+                val twoSqrtAAlpha = 2.0 * sqrt(a) * alpha
+                Biquad(
+                    b0 = a * ((a + 1.0) - (a - 1.0) * cosW0 + twoSqrtAAlpha),
+                    b1 = 2.0 * a * ((a - 1.0) - (a + 1.0) * cosW0),
+                    b2 = a * ((a + 1.0) - (a - 1.0) * cosW0 - twoSqrtAAlpha),
+                    a0 = (a + 1.0) + (a - 1.0) * cosW0 + twoSqrtAAlpha,
+                    a1 = -2.0 * ((a - 1.0) + (a + 1.0) * cosW0),
+                    a2 = (a + 1.0) + (a - 1.0) * cosW0 - twoSqrtAAlpha,
+                )
+            }
 
+            FilterType.HIGH_SHELF -> {
+                val alpha = sinW0 / 2.0 * sqrt((a + 1.0 / a) * (1.0 / qq - 1.0) + 2.0)
+                val twoSqrtAAlpha = 2.0 * sqrt(a) * alpha
+                Biquad(
+                    b0 = a * ((a + 1.0) + (a - 1.0) * cosW0 + twoSqrtAAlpha),
+                    b1 = -2.0 * a * ((a - 1.0) + (a + 1.0) * cosW0),
+                    b2 = a * ((a + 1.0) + (a - 1.0) * cosW0 - twoSqrtAAlpha),
+                    a0 = (a + 1.0) - (a - 1.0) * cosW0 + twoSqrtAAlpha,
+                    a1 = 2.0 * ((a - 1.0) - (a + 1.0) * cosW0),
+                    a2 = (a + 1.0) - (a - 1.0) * cosW0 - twoSqrtAAlpha,
+                )
+            }
+        }
+    }
+
+    /**
+     * Digital biquad magnitude `|H(e^jw)|` (linear, not dB) at [frequencyHz], evaluating
+     * H(z) = (b0 + b1 z^-1 + b2 z^-2) / (a0 + a1 z^-1 + a2 z^-2) at z = e^{jw}. Shared by every
+     * filter type so peaking and shelves use the exact same magnitude reduction.
+     */
+    private fun magnitudeAt(c: Biquad, frequencyHz: Double, sampleRate: Int): Double {
         val w = 2.0 * PI * frequencyHz / sampleRate
         val cosW = cos(w)
         val sinW = sin(w)
         val cos2W = cos(2 * w)
         val sin2W = sin(2 * w)
 
-        val numRe = b0 + b1 * cosW + b2 * cos2W
-        val numIm = -(b1 * sinW + b2 * sin2W)
-        val denRe = a0 + a1 * cosW + a2 * cos2W
-        val denIm = -(a1 * sinW + a2 * sin2W)
+        val numRe = c.b0 + c.b1 * cosW + c.b2 * cos2W
+        val numIm = -(c.b1 * sinW + c.b2 * sin2W)
+        val denRe = c.a0 + c.a1 * cosW + c.a2 * cos2W
+        val denIm = -(c.a1 * sinW + c.a2 * sin2W)
 
         val numMag = sqrt(numRe * numRe + numIm * numIm)
         val denMag = sqrt(denRe * denRe + denIm * denIm)
         if (denMag <= 1e-12) return 0.0
-        val mag = numMag / denMag
-        return if (mag > 1e-9) 20.0 * log10(mag) else -120.0
+        return numMag / denMag
     }
 }

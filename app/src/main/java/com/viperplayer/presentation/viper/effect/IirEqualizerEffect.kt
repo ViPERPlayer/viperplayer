@@ -45,6 +45,7 @@ import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.EqualizerGraph
 import com.viperplayer.presentation.viper.component.VerticalSlider
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,29 +197,12 @@ fun IirEqualizerEffect(
                     modifier = Modifier.width(40.dp), // Fixed width for alignment
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Vertical Slider wrapper?
-                    // We don't have a specific VerticalSlider in the summary, assume standard Slider rotated or custom
-                    // Since I cannot implement a complex vertical slider easily without context, 
-                    // I will check if WSTSlider can be vertical OR use a custom layout.
-                    // For now, let's use a simplified representation or check WSTSlider source.
-                    // Actually, let's check `WSTSlider.kt` to see if it supports vertical.
-
-                    // Assuming we need to implement a Vertical Slider here. 
-                    // Compose Material3 doesn't have a VerticalSlider yet (experimental in 1.4?).
-                    // Let's assume standard Slider is horizontal.
-
-                    // Re-use WSTSlider? No, that looks horizontal.
-                    // Let's assume for now we use a vertical Column with Text + Slider (rotated?)
-
-                    // Let's implement a quick CustomVerticalSlider using standard Slider with rotate modifier
-
-                    // Range is -12dB to +12dB = 24dB span.
-                    // We want 0.1dB steps.
-                    // Total intervals = 24 / 0.1 = 240 intervals.
-                    // Steps parameter in Slider is (intervals - 1), so 239.
-
+                    // Range is -12dB to +12dB (24 dB span) at 0.1 dB steps => 240 intervals; the
+                    // Slider `steps` parameter is (intervals - 1), i.e. 239 (see VerticalSlider below).
+                    // Force Locale.US so the dB value renders "-5.0 dB", not "-5,0 dB" in
+                    // comma-decimal locales.
                     Text(
-                        text = "%.1f dB".format(state.bandGains.getOrElse(index) { 0f }),
+                        text = String.format(Locale.US, "%.1f dB", state.bandGains.getOrElse(index) { 0f }),
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.sp,
                         textAlign = TextAlign.Center

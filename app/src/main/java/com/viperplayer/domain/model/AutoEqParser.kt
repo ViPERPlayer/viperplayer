@@ -86,9 +86,12 @@ object AutoEqParser {
             if (!enabled) continue
             val typeToken = match.groupValues[2].uppercase()
             val fc = match.groupValues[3].toDoubleOrNull() ?: continue
-            val gain = match.groupValues[4].toDoubleOrNull() ?: 0.0
+            // Gain and Q are parsed independently from the filter line so either order — and either
+            // omitted — is handled (some tools emit "Q .. Gain ..", shelves may omit Q entirely).
+            val line = match.value
+            val gain = GAIN_TOKEN.find(line)?.groupValues?.getOrNull(1)?.toDoubleOrNull() ?: 0.0
             // Q is optional (e.g. LSC/HSC shelves may omit it); default to a Butterworth-ish 0.707.
-            val q = match.groupValues[5].toDoubleOrNull() ?: 0.707
+            val q = Q_TOKEN.find(line)?.groupValues?.getOrNull(1)?.toDoubleOrNull() ?: 0.707
             val type = when {
                 typeToken.startsWith("LS") -> ParametricFilter.FilterType.LOW_SHELF
                 typeToken.startsWith("HS") -> ParametricFilter.FilterType.HIGH_SHELF
@@ -124,14 +127,22 @@ object AutoEqParser {
 
     private val WHITESPACE = Regex("\\s+")
     private val GRAPHIC_LABEL = Regex("GraphicEQ\\s*:", RegexOption.IGNORE_CASE)
-    private val PREAMP_LINE = Regex("Preamp\\s*:\\s*(-?\\d+(?:\\.\\d+)?)\\s*dB", RegexOption.IGNORE_CASE)
 
-    // Filter N: ON PK Fc 105 Hz Gain -5.0 dB Q 0.70
-    // Captures: 1=ON/OFF  2=type  3=Fc  4=Gain  5=Q (Q optional)
+    // Number sub-pattern accepts an explicit leading + (e.g. "+2.0") as well as - and unsigned,
+    // so "Gain +2.0 dB" / "Preamp: +3.2 dB" are not silently dropped to a 0 dB no-op.
+    private const val NUMBER = "[+-]?\\d+(?:\\.\\d+)?"
+
+    private val PREAMP_LINE = Regex("Preamp\\s*:\\s*($NUMBER)\\s*dB", RegexOption.IGNORE_CASE)
+
+    // Matches the whole filter line up to Fc; Gain and Q are extracted separately (see below) so
+    // they may appear in either order and either may be omitted.
+    // Captures: 1=ON/OFF  2=type  3=Fc
     private val FILTER_LINE = Regex(
-        "Filter\\s*\\d+\\s*:\\s*(ON|OFF)\\s+([A-Za-z]+)\\s+Fc\\s+(-?\\d+(?:\\.\\d+)?)\\s*Hz" +
-            "(?:\\s+Gain\\s+(-?\\d+(?:\\.\\d+)?)\\s*dB)?" +
-            "(?:\\s+Q\\s+(-?\\d+(?:\\.\\d+)?))?",
+        "Filter\\s*\\d+\\s*:\\s*(ON|OFF)\\s+([A-Za-z]+)\\s+Fc\\s+($NUMBER)\\s*Hz.*",
         RegexOption.IGNORE_CASE
     )
+
+    // Order-independent Gain / Q extraction from a single filter line.
+    private val GAIN_TOKEN = Regex("Gain\\s+($NUMBER)\\s*dB", RegexOption.IGNORE_CASE)
+    private val Q_TOKEN = Regex("\\bQ\\s+($NUMBER)", RegexOption.IGNORE_CASE)
 }

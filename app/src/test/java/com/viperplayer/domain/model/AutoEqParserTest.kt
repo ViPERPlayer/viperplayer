@@ -217,4 +217,152 @@ class AutoEqParserTest {
         // Flat 0 dB curve + (-3 dB) preamp -> every band -3 dB.
         assertTrue(gains.all { abs(it - (-3.0f)) < 1e-4f })
     }
+
+    // --- Shelf-filter magnitude (RBJ cookbook) ---------------------------------------------------
+    // Acceptance criterion: a shelf must keep its plateau (a +5 dB low shelf gives ~+5 dB in its
+    // passband, ~+gain/2 near Fc, and ~0 dB in its stopband), unlike a peaking bump.
+
+    @Test
+    fun parametricEq_lowShelf_preservesPlateauAsymptotes() {
+        val content = "Filter 1: ON LSC Fc 105 Hz Gain 5.0 dB Q 0.707"
+        val profile = success(content)
+        // Well below Fc -> full shelf gain (~+5 dB).
+        assertEquals(5.0, profile.interpolateAt(20.0), 0.5)
+        // Near Fc -> about half the gain (~+2.5 dB) for a Q ~0.707 shelf.
+        assertEquals(2.5, profile.interpolateAt(105.0), 0.8)
+        // Well above Fc -> flat (~0 dB).
+        assertEquals(0.0, profile.interpolateAt(8000.0), 0.3)
+    }
+
+    @Test
+    fun parametricEq_highShelf_preservesPlateauAsymptotes() {
+        val content = "Filter 1: ON HSC Fc 4000 Hz Gain 5.0 dB Q 0.707"
+        val profile = success(content)
+        // Well above Fc -> full shelf gain (~+5 dB).
+        assertEquals(5.0, profile.interpolateAt(20000.0), 0.5)
+        // Near Fc -> about half the gain (~+2.5 dB).
+        assertEquals(2.5, profile.interpolateAt(4000.0), 0.8)
+        // Well below Fc -> flat (~0 dB).
+        assertEquals(0.0, profile.interpolateAt(60.0), 0.3)
+    }
+
+    @Test
+    fun parametricEq_lowShelf_isNotEvaluatedAsPeaking() {
+        // Regression guard: the buggy peaking-formula path gave only ~+0.38 dB at 20 Hz for a
+        // +5 dB low shelf. A correct shelf is far above that (>= +4 dB).
+        val profile = success("Filter 1: ON LSC Fc 105 Hz Gain 5.0 dB Q 0.707")
+        assertTrue(
+            "low shelf at 20 Hz should be ~+5 dB, was ${profile.interpolateAt(20.0)}",
+            profile.interpolateAt(20.0) > 4.0
+        )
+    }
+
+    @Test
+    fun parametricFilter_peakingMagnitude_isUnchangedAtCenter() {
+        // Peaking behaviour must still hold: at Fc the gain equals the filter's gainDb.
+        val pk = ParametricFilter(
+            type = ParametricFilter.FilterType.PEAKING,
+            frequencyHz = 1000.0,
+            gainDb = 6.0,
+            q = 1.0,
+        )
+        assertEquals(6.0, pk.magnitudeDbAt(1000.0, 48000), 1e-6)
+    }
+
+    // --- Leading '+' sign in numbers (issue: +2.0 dropped to a 0 dB no-op) -----------------------
+
+    @Test
+    fun parametricEq_leadingPlusSign_isApplied_notZeroed() {
+        val content = """
+            Preamp: +3.2 dB
+            Filter 1: ON PK Fc 1000 Hz Gain +2.0 dB Q 1.0
+        """.trimIndent()
+        val profile = success(content)
+        // Preamp with an explicit '+' must be parsed as +3.2, not dropped to null/0.
+        assertEquals(3.2, profile.preampDb!!, 1e-9)
+        // Gain +2.0 at Fc must be applied (~+2 dB), not silently dropped to a 0 dB no-op.
+        // (interpolateAt returns the raw curve; the preamp is folded in only by gainsForBands.)
+        assertEquals(2.0, profile.interpolateAt(1000.0), 0.05)
+        // The +3.2 preamp is then folded into every band by gainsForBands.
+        val gains = profile.gainsForBands(
+            bandFrequenciesHz = IirEqualizerPresets.FREQUENCIES_10_BANDS,
+            minGainDb = IirEqualizerPresets.MIN_GAIN_DB,
+            maxGainDb = IirEqualizerPresets.MAX_GAIN_DB,
+        )
+        // Band index 5 is 1000 Hz -> ~+2 (gain) + 3.2 (preamp) = ~+5.2 dB, clearly not a 0 dB no-op.
+        assertTrue("expected ~5.2 dB (2.0 gain + 3.2 preamp), was ${gains[5]}", gains[5] > 4.0f)
+    }
+
+    // --- Gain / Q order independence -------------------------------------------------------------
+
+    @Test
+    fun parametricEq_qBeforeGain_parsesBothValues() {
+        // Q written before Gain (reversed from the usual "Gain .. Q .." order).
+        val content = "Filter 1: ON PK Fc 1000 Hz Q 4.0 Gain 6.0 dB"
+        val profile = success(content)
+        // The +6 dB boost must be applied. A high Q (4.0) keeps the peak narrow: at Fc the gain is
+        // ~+6 dB. If Q had been lost/defaulted the peak would be much wider but still positive, so
+        // we assert the boost is present.
+        assertTrue(profile.interpolateAt(1000.0) > 4.0)
+    }
+
+    @Test
+    fun parametricEq_gainMissing_defaultsToNoBoost() {
+        // No Gain token at all -> the filter contributes ~0 dB (default gain), not a crash.
+        val profile = success("Filter 1: ON PK Fc 1000 Hz Q 1.0")
+        assertEquals(0.0, profile.interpolateAt(1000.0), 1e-6)
+    }
+
+    // --- Band-count re-interpolation of an imported curve ----------------------------------------
+    // Mirrors ViperViewModel.setIirEqualizerBandCount: when a Custom curve came from an import, the
+    // retained profile is re-interpolated onto the new band centers (not truncated/zero-padded).
+
+    @Test
+    fun importedCurve_reInterpolatesOnBandCountChange_notZeroPadded() {
+        // A sloped curve so band centers that only exist at 31 bands get non-trivial values.
+        val profile = success("GraphicEQ: 20 -6.0; 20000 6.0")
+
+        val gains10 = profile.gainsForBands(
+            bandFrequenciesHz = IirEqualizerPresets.getFrequencies(10),
+            minGainDb = IirEqualizerPresets.MIN_GAIN_DB,
+            maxGainDb = IirEqualizerPresets.MAX_GAIN_DB,
+        )
+        val gains31 = profile.gainsForBands(
+            bandFrequenciesHz = IirEqualizerPresets.getFrequencies(31),
+            minGainDb = IirEqualizerPresets.MIN_GAIN_DB,
+            maxGainDb = IirEqualizerPresets.MAX_GAIN_DB,
+        )
+
+        assertEquals(31, gains31.size)
+
+        // Re-interpolation, not truncate/zero-pad: a zero-pad of the 10-band gains would leave the
+        // 21 extra bands at exactly 0. This sloped curve reaches +6 dB at the top band, so at least
+        // one band past index 10 must be materially non-zero.
+        assertTrue(
+            "band-count change must re-interpolate, not zero-fill extra bands",
+            gains31.drop(10).any { abs(it) > 0.5f }
+        )
+        // The highest band (20 kHz) is the curve endpoint (+6 dB) — a zero-pad would leave it at 0.
+        assertEquals(6.0f, gains31.last(), 1e-4f)
+
+        // Each 31-band gain matches the curve evaluated at that band center (true re-interpolation).
+        IirEqualizerPresets.getFrequencies(31).forEachIndexed { i, f ->
+            val expected = profile.interpolateAt(f.toDouble())
+                .coerceIn(
+                    IirEqualizerPresets.MIN_GAIN_DB.toDouble(),
+                    IirEqualizerPresets.MAX_GAIN_DB.toDouble()
+                )
+            assertEquals(expected.toFloat(), gains31[i], 1e-4f)
+        }
+
+        // And the 31-band curve is monotonically increasing (matches the ascending source curve),
+        // which a zero-pad of the 10-band gains would break.
+        for (i in 1 until gains31.size) {
+            assertTrue("expected ascending re-interpolated curve", gains31[i] >= gains31[i - 1])
+        }
+
+        // Sanity: 1000 Hz is a band center at both counts (10-band index 5, 31-band index 17) and
+        // must resolve to the same re-interpolated value.
+        assertEquals(gains10[5], gains31[17], 1e-4f)
+    }
 }
