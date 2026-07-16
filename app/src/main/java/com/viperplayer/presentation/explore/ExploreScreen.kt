@@ -118,8 +118,13 @@ internal fun ExploreScreenContent(
         },
     ) { contentPadding ->
         when (uiState) {
+            // Loading / error sit directly in the scaffold slot (no PullToRefreshBox), so they must
+            // apply the top-bar inset (contentPadding) themselves, plus the system/nav rootPadding —
+            // matching the Content branch, which puts contentPadding on its box and rootPadding on
+            // the scroll. Chaining the two here isn't double-padding: they come from different insets.
             ExploreUiState.Loading -> Box(
                 modifier = Modifier
+                    .padding(contentPadding)
                     .padding(rootPadding)
                     .fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -128,6 +133,7 @@ internal fun ExploreScreenContent(
             is ExploreUiState.Error -> ExploreMessage(
                 title = stringResource(R.string.explore_error_title),
                 body = uiState.message,
+                contentPadding = contentPadding,
                 rootPadding = rootPadding,
             )
 
@@ -150,6 +156,9 @@ internal fun ExploreScreenContent(
                         } else {
                             stringResource(R.string.explore_no_plugins_body)
                         },
+                        // Already inside the PullToRefreshBox that applies contentPadding, so only
+                        // add rootPadding here to avoid double-padding the top-bar inset.
+                        contentPadding = PaddingValues(0.dp),
                         rootPadding = rootPadding,
                         testTag = "exploreEmpty",
                     )
@@ -331,11 +340,13 @@ private fun ExploreCategoryCard(category: BrowseCategory, modifier: Modifier = M
 private fun ExploreMessage(
     title: String,
     body: String,
+    contentPadding: PaddingValues,
     rootPadding: PaddingValues,
     testTag: String? = null,
 ) {
     Box(
         modifier = Modifier
+            .padding(contentPadding)
             .padding(rootPadding)
             .fillMaxSize(),
         contentAlignment = Alignment.Center,

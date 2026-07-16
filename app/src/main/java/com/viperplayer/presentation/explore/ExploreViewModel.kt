@@ -7,6 +7,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -101,6 +102,10 @@ class ExploreViewModel @Inject constructor(
                     hasPlugins = lastConnectedPlugins.isNotEmpty(),
                     isRefreshing = false,
                 )
+            } catch (e: CancellationException) {
+                // A newer load (or scope teardown) cancelled this one — honour structured
+                // concurrency and don't surface it as a user-facing error.
+                throw e
             } catch (e: Exception) {
                 Timber.w(e, "Failed to load Explore content")
                 // Don't blow away good content we're already showing on a failed background refresh.
@@ -131,9 +136,16 @@ class ExploreViewModel @Inject constructor(
                         if (state !is ExploreUiState.Content) return@update state
                         state.copy(
                             content = state.content.copy(
+                                // Only re-select within the tapped chip's OWN section: deselect its
+                                // siblings (same plugin + section) and select the tapped one; leave
+                                // every other section's chips untouched so a tap here can't clear an
+                                // active chip that belongs to a different section.
                                 moods = state.content.moods.map {
-                                    it.copy(selected = it.pluginId == mood.pluginId &&
-                                        it.sectionId == mood.sectionId && it.key == mood.key)
+                                    if (it.pluginId == mood.pluginId && it.sectionId == mood.sectionId) {
+                                        it.copy(selected = it.key == mood.key)
+                                    } else {
+                                        it
+                                    }
                                 },
                                 sections = state.content.sections.map { section ->
                                     if (section.id == globalSectionId) {
