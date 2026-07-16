@@ -15,6 +15,7 @@ import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.deriveReplayGainMode
 import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -192,18 +193,18 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override val replayGainMode: Flow<ReplayGainMode> = dataStore.data.mapDistinct { preferences ->
-        preferences[REPLAY_GAIN_MODE_KEY]?.let {
+        // The new mode key (may be absent on upgrade); an unparseable value is treated as unset.
+        val explicit = preferences[REPLAY_GAIN_MODE_KEY]?.let {
             try {
                 ReplayGainMode.valueOf(it)
             } catch (e: IllegalArgumentException) {
-                ReplayGainMode.SMART
+                null
             }
-        } ?: if (preferences[REPLAY_GAIN_ALBUM_MODE_KEY] == true) {
-            // Back-compat: honor the legacy album-mode toggle if the new mode was never set.
-            ReplayGainMode.ALBUM
-        } else {
-            ReplayGainMode.SMART
         }
+        // Raw legacy toggle: null when the key was never written (distinguishes fresh install from
+        // an existing user who left album mode off — the latter must stay on per-track, not flip to SMART).
+        val legacyAlbumMode = preferences[REPLAY_GAIN_ALBUM_MODE_KEY]
+        deriveReplayGainMode(explicit, legacyAlbumMode)
     }
 
     override suspend fun setReplayGainMode(mode: ReplayGainMode) {

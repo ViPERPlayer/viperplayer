@@ -56,6 +56,7 @@ import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -385,7 +386,7 @@ private fun DbSliderRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = String.format("%.1f", valueDb),
+                    text = String.format(Locale.US, "%.1f", valueDb),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary
                 )

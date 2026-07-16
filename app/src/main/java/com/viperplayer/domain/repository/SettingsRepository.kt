@@ -42,6 +42,30 @@ enum class ReplayGainMode {
     SMART
 }
 
+/**
+ * Derives the effective [ReplayGainMode] from persisted settings, preserving back-compat with the
+ * legacy `replay_gain_album_mode` boolean while defaulting fresh installs to [ReplayGainMode.SMART].
+ *
+ * Pure and Android-free so it can be unit-tested directly.
+ *
+ * @param explicit the value of the new `replay_gain_mode` key, or `null` if it was never written.
+ * @param legacyAlbumMode the value of the legacy `replay_gain_album_mode` key, or `null` if that key
+ *   was never written (i.e. a fresh install that predates neither key).
+ *
+ * Precedence:
+ * 1. [explicit] non-null → use it (the user picked a mode explicitly).
+ * 2. else [legacyAlbumMode] non-null → honor the legacy toggle both ways: `true` → [ReplayGainMode.ALBUM],
+ *    `false` → [ReplayGainMode.TRACK]. This keeps existing users on their prior behavior instead of
+ *    silently flipping per-track normalization to SMART on upgrade.
+ * 3. else (neither key ever written = fresh install) → [ReplayGainMode.SMART] (the new default).
+ */
+fun deriveReplayGainMode(explicit: ReplayGainMode?, legacyAlbumMode: Boolean?): ReplayGainMode =
+    when {
+        explicit != null -> explicit
+        legacyAlbumMode != null -> if (legacyAlbumMode) ReplayGainMode.ALBUM else ReplayGainMode.TRACK
+        else -> ReplayGainMode.SMART
+    }
+
 interface SettingsRepository {
     // Appearance
     val dynamicThemeMode: Flow<DynamicThemeMode>
