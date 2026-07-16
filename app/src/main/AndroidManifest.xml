@@ -21,6 +21,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"
         android:minSdkVersion="33" />
 
+    <!-- Install plugin update APKs via the PackageInstaller session API (user confirms each install) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Alarm clock: exact scheduling, re-arm on boot, hold a short wakelock to start playback -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
