@@ -534,4 +534,11 @@
     <string name="widget_previous_cd">Previous track</string>
     <string name="widget_play_pause_cd">Play or pause</string>
     <string name="widget_next_cd">Next track</string>
+
+    <!-- Follow artists / Following -->
+    <string name="action_follow">Follow</string>
+    <string name="action_unfollow">Unfollow</string>
+    <string name="following_title">Following</string>
+    <string name="following_unfollow">Unfollow</string>
+    <string name="following_empty">You\'re not following any artists yet. Open an artist and tap Follow.</string>
 </resources>

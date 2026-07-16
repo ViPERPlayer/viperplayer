@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.BottomSheetDefaults
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,6 +87,7 @@ fun ArtistDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val isFollowing by viewModel.isFollowing.collectAsStateWithLifecycle()
 
     // If this screen's plugin needs the user to act (sign in, verify...), offer it on errors.
     val actionsViewModel: PluginActionsViewModel = hiltViewModel()
@@ -96,6 +100,7 @@ fun ArtistDetailScreen(
         uiState = uiState,
         currentSong = currentSong,
         isPlaying = isPlaying,
+        isFollowing = isFollowing,
         pluginAction = pluginAction,
         onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
@@ -103,6 +108,7 @@ fun ArtistDetailScreen(
         onNavigateToPlaylist = onNavigateToPlaylist,
         onNavigateToArtist = onNavigateToArtist,
         onRefresh = viewModel::refresh,
+        onToggleFollow = viewModel::toggleFollow,
         onPlayAllSongs = viewModel::playAllSongs,
         onPlaySong = viewModel::playSong,
         onPlayNext = viewModel::playNext,
@@ -116,6 +122,7 @@ private fun ArtistDetailScreenContent(
     uiState: ArtistDetailUiState,
     currentSong: Song?,
     isPlaying: Boolean,
+    isFollowing: Boolean = false,
     pluginAction: PluginPendingAction? = null,
     onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -123,6 +130,7 @@ private fun ArtistDetailScreenContent(
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
+    onToggleFollow: () -> Unit = {},
     onPlayAllSongs: () -> Unit,
     onPlaySong: (Song) -> Unit,
     onPlayNext: (Song) -> Unit,
@@ -142,6 +150,17 @@ private fun ArtistDetailScreenContent(
         title = title,
         onNavigateBack = onNavigateBack,
         actions = {
+            IconButton(
+                onClick = onToggleFollow,
+                modifier = Modifier.testTag("followToggle"),
+            ) {
+                Icon(
+                    imageVector = if (isFollowing) Icons.Default.PersonRemove else Icons.Default.PersonAddAlt1,
+                    contentDescription = stringResource(
+                        if (isFollowing) R.string.action_unfollow else R.string.action_follow
+                    ),
+                )
+            }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }

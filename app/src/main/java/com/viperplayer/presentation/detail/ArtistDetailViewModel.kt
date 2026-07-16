@@ -8,6 +8,8 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.follows.data.FollowedArtistsRepository
+import com.viperplayer.follows.domain.FollowedArtist
 import com.viperplayer.presentation.navigation.ArtistDetail as ArtistDetailRoute
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -18,6 +20,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -44,7 +47,8 @@ class ArtistDetailViewModel @AssistedInject constructor(
     @Assisted private val artistDetail: ArtistDetailRoute,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val playerRepository: PlayerRepository
+    private val playerRepository: PlayerRepository,
+    private val followedArtistsRepository: FollowedArtistsRepository
 ) : ViewModel() {
 
     @AssistedFactory
@@ -78,8 +82,44 @@ class ArtistDetailViewModel @AssistedInject constructor(
             initialValue = false
         )
 
+    /** Whether this artist is currently followed — drives the Follow/Following toggle button. */
+    val isFollowing = followedArtistsRepository.isFollowing(artistId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     init {
         loadArtistDetails()
+    }
+
+    /**
+     * Follow the artist if not followed, unfollow otherwise. Reads the current persisted state (not
+     * the possibly-stale [isFollowing] snapshot) so a concurrent toggle can't flip the wrong way, and
+     * uses the latest loaded name/artwork so the Following list has something to render. Follow is
+     * idempotent at the repository level.
+     */
+    fun toggleFollow() {
+        viewModelScope.launch {
+            try {
+                if (followedArtistsRepository.isFollowing(artistId).first()) {
+                    followedArtistsRepository.unfollow(artistId)
+                } else {
+                    val artist = (_uiState.value as? ArtistDetailUiState.Success)?.artist
+                    followedArtistsRepository.follow(
+                        FollowedArtist(
+                            mediaId = artistId,
+                            name = artist?.name ?: artistDetail.initialName,
+                            artworkUrl = artist?.imageUrl ?: artistDetail.initialImageUrl,
+                            followedAt = System.currentTimeMillis(),
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "ArtistDetail follow toggle failed")
+            }
+        }
     }
 
     private fun loadArtistDetails() {

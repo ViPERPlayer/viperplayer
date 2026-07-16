@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +74,7 @@ fun LibraryScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToDownloads: () -> Unit = {},
+    onNavigateToFollowing: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -143,6 +145,12 @@ fun LibraryScreen(
                                 contentDescription = stringResource(R.string.playlist_import)
                             )
                         }
+                    }
+                    IconButton(onClick = onNavigateToFollowing) {
+                        Icon(
+                            Icons.Default.People,
+                            contentDescription = stringResource(R.string.following_title)
+                        )
                     }
                     IconButton(onClick = onNavigateToDownloads) {
                         Icon(

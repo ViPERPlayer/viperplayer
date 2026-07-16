@@ -30,6 +30,7 @@ import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailViewModel
 import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
+import com.viperplayer.follows.ui.FollowingScreen
 import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
@@ -94,6 +95,10 @@ object Analytics : NavKey
 
 @Serializable
 object Downloads : NavKey
+
+/** Followed / subscribed artists list. */
+@Serializable
+object Following : NavKey
 
 @Serializable
 data class AlbumDetail(
@@ -184,7 +189,18 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
-                onNavigateToDownloads = { navigator.navigate(Downloads) }
+                onNavigateToDownloads = { navigator.navigate(Downloads) },
+                onNavigateToFollowing = { navigator.navigate(Following) }
+            )
+        }
+
+        entry<Following> {
+            FollowingScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToArtist = { artist ->
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
+                }
             )
         }
 
