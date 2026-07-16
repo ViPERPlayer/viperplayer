@@ -600,6 +600,7 @@
     <!-- Lyrics -->
     <string name="lyrics_title">Lyrics</string>
     <string name="lyrics_translate">Translate lyrics</string>
+    <string name="lyrics_romanize">Romanize lyrics</string>
     <string name="lyrics_none">No lyrics available for this track</string>
 
     <!-- Home-screen widget -->

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Abc
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
@@ -112,6 +113,8 @@ fun LyricsSheet(
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val translatedLines by viewModel.translatedLines.collectAsStateWithLifecycle()
+    val romanizationEnabled by viewModel.romanizationEnabled.collectAsStateWithLifecycle()
+    val romanizedLines by viewModel.romanizedLines.collectAsStateWithLifecycle()
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
@@ -122,6 +125,38 @@ fun LyricsSheet(
         }
     }
 
+    LyricsSheetContent(
+        lyrics = lyrics,
+        position = position,
+        translationEnabled = translationEnabled,
+        translatedLines = translatedLines,
+        romanizationEnabled = romanizationEnabled,
+        romanizedLines = romanizedLines,
+        onToggleTranslation = viewModel::toggleTranslation,
+        onToggleRomanization = viewModel::toggleRomanization,
+        onSeek = onSeek,
+    )
+}
+
+/**
+ * Stateless body of the lyrics sheet — renders the header (title + translate/romanize toggles) and
+ * the lyric lines (synced with active-line highlight, or plain scroll). Per line it shows, beneath
+ * the original text, the romanization ([romanizedLines]) when [romanizationEnabled] and the
+ * translation ([translatedLines]) when [translationEnabled]. Kept free of ViewModel/data access so
+ * it can be exercised in Compose UI tests.
+ */
+@Composable
+fun LyricsSheetContent(
+    lyrics: Lyrics?,
+    position: Long,
+    translationEnabled: Boolean,
+    translatedLines: List<String>?,
+    romanizationEnabled: Boolean,
+    romanizedLines: List<String?>?,
+    onToggleTranslation: () -> Unit,
+    onToggleRomanization: () -> Unit,
+    onSeek: (Long) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -139,7 +174,18 @@ fun LyricsSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = { viewModel.toggleTranslation() }) {
+            IconButton(onClick = onToggleRomanization) {
+                Icon(
+                    imageVector = Icons.Filled.Abc,
+                    contentDescription = stringResource(R.string.lyrics_romanize),
+                    tint = if (romanizationEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+            IconButton(onClick = onToggleTranslation) {
                 Icon(
                     imageVector = Icons.Filled.Translate,
                     contentDescription = stringResource(R.string.lyrics_translate),
@@ -152,9 +198,8 @@ fun LyricsSheet(
             }
         }
 
-        val current = lyrics
         when {
-            current == null || current.isEmpty -> {
+            lyrics == null || lyrics.isEmpty -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -169,13 +214,13 @@ fun LyricsSheet(
                 }
             }
 
-            current.synced && current.lines.isNotEmpty() -> {
-                val activeIndex = current.currentLineIndex(position)
+            lyrics.synced && lyrics.lines.isNotEmpty() -> {
+                val activeIndex = lyrics.currentLineIndex(position)
                 val listState = rememberLazyListState()
                 LaunchedEffect(activeIndex) {
                     if (activeIndex >= 0) {
                         listState.animateScrollToItem(
-                            index = activeIndex.coerceAtMost(current.lines.lastIndex),
+                            index = activeIndex.coerceAtMost(lyrics.lines.lastIndex),
                             scrollOffset = -200
                         )
                     }
@@ -183,15 +228,14 @@ fun LyricsSheet(
                 val sungColor = MaterialTheme.colorScheme.primary
                 val pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
-                val translationColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                val translations = translatedLines
+                val secondaryColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.heightIn(max = 520.dp),
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    itemsIndexed(current.lines) { index, line ->
+                    itemsIndexed(lyrics.lines) { index, line ->
                         val active = index == activeIndex
                         // On the active line with word timings, reveal it word-by-word: words already
                         // sung take the accent color, upcoming words stay dim. Otherwise the whole
@@ -208,7 +252,8 @@ fun LyricsSheet(
                         } else {
                             AnnotatedString(line.text)
                         }
-                        val translation = translations?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        val romanization = romanizedLines?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        val translation = translatedLines?.getOrNull(index)?.takeIf { it.isNotBlank() }
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -225,11 +270,22 @@ fun LyricsSheet(
                                 fontSize = if (active) 20.sp else 17.sp,
                                 fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                             )
+                            // Per-line romanization: shown directly under the original (read-along),
+                            // smaller and dimmer, never cropped (wraps freely).
+                            if (romanization != null) {
+                                Text(
+                                    text = romanization,
+                                    color = secondaryColor,
+                                    fontSize = if (active) 15.sp else 13.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+                            }
                             // Per-line translation: smaller and dimmer, never cropped (wraps freely).
                             if (translation != null) {
                                 Text(
                                     text = translation,
-                                    color = translationColor,
+                                    color = secondaryColor,
                                     fontSize = if (active) 15.sp else 13.sp,
                                     fontStyle = FontStyle.Italic,
                                     fontWeight = FontWeight.Normal,
@@ -243,7 +299,7 @@ fun LyricsSheet(
 
             else -> {
                 Text(
-                    text = current.plainText.orEmpty(),
+                    text = lyrics.plainText.orEmpty(),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
