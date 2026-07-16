@@ -47,6 +47,7 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
@@ -58,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -210,6 +212,17 @@ fun SearchScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    // "Recent searches" header + Clear-all, shown only when the field is empty (so
+                    // it's genuinely the recent list, not history filtered while typing).
+                    if (textFieldState.text.isEmpty() && searchSuggestionsState.history.isNotEmpty()) {
+                        item(key = "history_header") {
+                            RecentSearchesHeader(
+                                onClearAll = { viewModel.clearHistory() },
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                    }
+
                     items(
                         items = searchSuggestionsState.history,
                         key = { "history_$it" }
@@ -508,6 +521,30 @@ fun SearchScreen(
 
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
         AddToPlaylistSheetHost(controller = addToPlaylistController)
+    }
+}
+
+@Composable
+internal fun RecentSearchesHeader(
+    onClearAll: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("searchRecentHeader")
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = stringResource(R.string.search_recent_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TextButton(onClick = onClearAll) {
+            Text(stringResource(R.string.search_clear_history))
+        }
     }
 }
 

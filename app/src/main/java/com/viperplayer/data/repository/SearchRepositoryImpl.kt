@@ -5,6 +5,7 @@ import com.viperplayer.data.local.entity.SearchHistoryEntity
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
+import com.viperplayer.domain.search.SearchHistoryLogic
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -20,10 +21,14 @@ class SearchRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveSearchHistory(query: String) {
-        if (query.isNotBlank()) {
-            val trimmedQuery = query.trim()
-            searchHistoryDao.insert(SearchHistoryEntity(query = trimmedQuery))
-        }
+        val normalized = SearchHistoryLogic.normalize(query)
+        if (normalized.isEmpty()) return
+        // Case-insensitive dedupe + cap enforcement live in the DAO transaction so re-searching an
+        // existing term (any case) moves it to the front instead of piling up duplicate rows.
+        searchHistoryDao.upsertCapped(
+            SearchHistoryEntity(query = normalized),
+            cap = SearchHistoryLogic.MAX_HISTORY,
+        )
     }
 
     override fun getRecentHistory(limit: Int): Flow<List<String>> {
@@ -39,6 +44,10 @@ class SearchRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeHistoryEntry(query: String) {
-        searchHistoryDao.deleteByQuery(query)
+        searchHistoryDao.deleteMatching(SearchHistoryLogic.normalize(query))
+    }
+
+    override suspend fun clearSearchHistory() {
+        searchHistoryDao.clearAll()
     }
 }
