@@ -72,6 +72,15 @@ class AccountCredentialStore @Inject constructor(
         }
     }
 
+    /** Updates just the stored user profile after a whoami/GetMe refresh, keeping the tokens. */
+    suspend fun updateUser(user: AccountUser) {
+        dataStore.edit { prefs ->
+            prefs[USER_ID_KEY] = user.id
+            prefs[EMAIL_KEY] = user.email
+            prefs[DISPLAY_NAME_KEY] = user.displayName
+        }
+    }
+
     /** Clears the entire stored session (logout). */
     suspend fun clear() {
         dataStore.edit { it.clear() }

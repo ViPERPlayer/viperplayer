@@ -1,0 +1,78 @@
+// VENDORED COPY — source of truth is the viper-backend repo at
+// api/proto/account/v1/account.proto (github.com/iscle/viper-backend). This is a
+// verbatim copy so the app can generate gRPC/protobuf stubs at build time without
+// a submodule (keeps CI simple — protoc auto-downloads). Re-sync on any change.
+//
+// The account service: ViPER user registration, login, and token refresh
+// (DESIGN §5.6, §5.5 Tier-3 "accounts"). A signed-in user obtains a short-lived
+// access JWT (used for API calls and the WebSocket upgrade) plus a refresh token.
+//
+// Transport: AccountService is served over gRPC (protobuf) — the primary
+// app↔backend transport (implemented in internal/grpcapi, DESIGN §2.7). The user
+// access token rides "authorization: Bearer <token>" gRPC metadata;
+// Register/Login/Refresh/Logout are public, GetMe requires it. Equivalent
+// REST+JSON /auth/* routes are kept alongside gRPC (non-breaking).
+syntax = "proto3";
+
+package account.v1;
+
+option go_package = "github.com/iscle/viper-backend/api/gen/account/v1;accountv1";
+
+import "common/v1/common.proto";
+
+// ---- Register ----
+message RegisterRequest {
+  string email = 1;
+  string password = 2;      // plaintext over TLS; server hashes with a memory-hard KDF
+  string display_name = 3;  // optional; defaults to the email local-part
+}
+
+message RegisterResponse {
+  common.v1.User user = 1;
+  common.v1.TokenPair tokens = 2;
+}
+
+// ---- Login ----
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  common.v1.User user = 1;
+  common.v1.TokenPair tokens = 2;
+}
+
+// ---- Refresh ----
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  common.v1.TokenPair tokens = 1;
+}
+
+// ---- Current user (whoami; requires a valid access token) ----
+message GetMeRequest {}
+
+message GetMeResponse {
+  common.v1.User user = 1;
+}
+
+// ---- Logout (revoke the presented refresh token) ----
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message LogoutResponse {}
+
+// Served over gRPC (internal/grpcapi); the RPC names mirror the REST handlers
+// 1:1. Register/Login/Refresh/Logout are public; GetMe requires a valid bearer
+// token in "authorization" metadata (auth interceptor, DESIGN §5.6).
+service AccountService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+}
