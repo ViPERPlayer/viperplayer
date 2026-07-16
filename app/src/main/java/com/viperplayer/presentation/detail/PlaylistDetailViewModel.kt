@@ -5,16 +5,19 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.R
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.autoplaylist.AutoPlaylistType
 import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.SortView
+import com.viperplayer.domain.radio.RadioPlaylist
 import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.RadioPlaylistRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.sort.MediaSorter
 import com.viperplayer.presentation.navigation.PlaylistDetail
@@ -77,6 +80,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val autoPlaylistRepository: AutoPlaylistRepository,
+    private val radioPlaylistRepository: RadioPlaylistRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -105,6 +109,14 @@ class PlaylistDetailViewModel @AssistedInject constructor(
      */
     private val autoPlaylistType: AutoPlaylistType? =
         if (AutoPlaylistType.isAutoPlaylist(playlistId)) AutoPlaylistType.fromId(playlistId.sourceId) else null
+
+    /**
+     * The seed song's [MediaId] this screen renders a "Song radio" for, or null when it is not a radio
+     * playlist. Radio playlists are virtual (issue #7): the queue is generated once from the seed's
+     * related songs and shown in the standard detail screen — no auto-play, the user plays from here.
+     */
+    private val radioSeedId: MediaId? =
+        if (RadioPlaylist.isRadioPlaylist(playlistId)) RadioPlaylist.parseSeedId(playlistId) else null
 
     // Minimal placeholder shown while the full playlist is (re)fetched by id.
     private val placeholderPlaylist = Playlist(
@@ -208,6 +220,14 @@ class PlaylistDetailViewModel @AssistedInject constructor(
             }
 
             try {
+                // Virtual "Song radio" (issue #7): generated once from the seed's related songs and
+                // rendered in this standard detail screen (no auto-play — the user plays from here).
+                if (radioSeedId != null) {
+                    val playlist = radioPlaylistRepository.getRadioPlaylist(radioSeedId)
+                    _uiState.value = successState(playlist, playlist.songs.orEmpty(), currentSortOrder)
+                    return@launch
+                }
+
                 // Virtual auto-playlists are computed live from library + play-history; observe the
                 // repository so the list re-renders as the library / history change.
                 if (autoPlaylistType != null) {

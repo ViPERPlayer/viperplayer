@@ -606,6 +606,9 @@ fun PlayerBottomSheetNavHost(
                         )
                     )
                 },
+                onNavigateToPlaylist = { playlistId, name, artworkUrl ->
+                    navigate(PlaylistDetail(playlistId, name, artworkUrl))
+                },
                 onNavigateToJoinSession = { navigate(JoinSession) },
                 onCollapse = onDismiss,
             )
