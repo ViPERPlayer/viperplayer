@@ -25,7 +25,8 @@ class LyricsStyleMappingTest {
 
     @Test
     fun activeFontSize_scalesBaseByFactor() {
-        // MEDIUM base is 17sp; scaling by the default 1.15 gives 19.55sp.
+        // MEDIUM base is 17sp; scaling by an example 1.15x factor gives 19.55sp.
+        // (The actual default scale is 20/17 ≈ 1.176 — see LyricsSettings.DEFAULT_ACTIVE_LINE_SCALE.)
         val active = LyricsStyleMapping.activeFontSize(LyricsFontSize.MEDIUM, 1.15f).value
         assertEquals(19.55f, active, 0.01f)
     }

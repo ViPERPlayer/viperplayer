@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.sort.MediaSorter
 import com.viperplayer.presentation.navigation.ArtistDetail as ArtistDetailRoute
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -29,8 +33,16 @@ import timber.log.Timber
  */
 sealed class ArtistDetailUiState {
     data class Loading(val initialArtist: ArtistDetail) : ArtistDetailUiState()
+
+    /**
+     * @param artist the loaded artist profile (its `topSongs` stay in the plugin's original order).
+     * @param songsSort the chosen order for the Top Songs list; [SortOrder.DEFAULT] keeps the original.
+     * @param sortedSongs [artist]'s `topSongs` after [songsSort] is applied.
+     */
     data class Success(
-        val artist: ArtistDetail
+        val artist: ArtistDetail,
+        val songsSort: SortOrder = SortOrder.DEFAULT,
+        val sortedSongs: List<Song> = artist.topSongs,
     ) : ArtistDetailUiState()
 
     data class Error(val message: String) : ArtistDetailUiState()
@@ -44,7 +56,8 @@ class ArtistDetailViewModel @AssistedInject constructor(
     @Assisted private val artistDetail: ArtistDetailRoute,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val playerRepository: PlayerRepository
+    private val playerRepository: PlayerRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     @AssistedFactory
@@ -78,8 +91,38 @@ class ArtistDetailViewModel @AssistedInject constructor(
             initialValue = false
         )
 
+    // Latest persisted Top Songs order, tracked even while Loading so a fresh load applies it.
+    private var currentSortOrder: SortOrder = SortOrder.DEFAULT
+
     init {
         loadArtistDetails()
+        observeSortOrder()
+    }
+
+    /** Re-apply the persisted Top Songs order whenever it changes (or on first load). */
+    private fun observeSortOrder() {
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.ARTIST_SONGS).collect { order ->
+                currentSortOrder = order
+                _uiState.update { state ->
+                    if (state is ArtistDetailUiState.Success) {
+                        state.copy(
+                            songsSort = order,
+                            sortedSongs = MediaSorter.sortSongs(state.artist.topSongs, order),
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
+
+    /** Persist a new Top Songs [order]; the observer re-sorts the visible list. */
+    fun setSortOrder(order: SortOrder) {
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(SortView.ARTIST_SONGS, order)
+        }
     }
 
     private fun loadArtistDetails() {
@@ -109,8 +152,12 @@ class ArtistDetailViewModel @AssistedInject constructor(
                 // the catalog through the dedicated paged endpoints, leaving the inline lists empty —
                 // which rendered as an empty profile. Backfill from getArtistSongs / getArtistAlbums
                 // when the inline lists are empty so the screen actually shows the artist's content.
+                val enriched = enrichArtistContent(artist)
+                val order = currentSortOrder
                 _uiState.value = ArtistDetailUiState.Success(
-                    artist = enrichArtistContent(artist)
+                    artist = enriched,
+                    songsSort = order,
+                    sortedSongs = MediaSorter.sortSongs(enriched.topSongs, order),
                 )
             } catch (e: Exception) {
                 _uiState.value = ArtistDetailUiState.Error(
@@ -145,7 +192,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
                 val state = _uiState.value
                 if (state !is ArtistDetailUiState.Success) return@launch
 
-                val songs = state.artist.topSongs
+                val songs = state.sortedSongs
 
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
@@ -169,7 +216,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 val state = _uiState.value as? ArtistDetailUiState.Success ?: return@launch
-                val songs = state.artist.topSongs
+                val songs = state.sortedSongs
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0, PlaybackContext.Artist(state.artist.id, state.artist.name))
                 }

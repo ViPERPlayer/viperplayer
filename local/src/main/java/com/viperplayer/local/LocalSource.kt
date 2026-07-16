@@ -3,6 +3,7 @@ package com.viperplayer.local
 import android.content.Context
 import com.viperplayer.local.data.LocalMediaScanner
 import com.viperplayer.local.mapper.LocalMapper
+import com.viperplayer.local.model.LocalSong
 import com.viperplayer.plugin.model.Album
 import com.viperplayer.plugin.model.Artist
 import com.viperplayer.plugin.model.MediaItem
@@ -39,6 +40,15 @@ class LocalSource(context: Context) : SourceProvider {
 
     /** Whether the audio permission is granted — drives the plugin's PERMISSION required action. */
     fun hasAudioPermission(): Boolean = mediaScanner.hasAudioPermission()
+
+    /**
+     * Resolve a song by its `content://` URI id (as used everywhere as the song id), scanning first
+     * if needed. Used by [LocalLyricsProvider] to recover the on-disk file path for sidecar lyrics.
+     */
+    suspend fun findSongByUri(uri: String): LocalSong? {
+        ensureScanned()
+        return mediaScanner.getAllSongs().find { it.contentUri.toString() == uri }
+    }
 
     override suspend fun search(request: SearchRequest): SearchResult {
         ensureScanned()

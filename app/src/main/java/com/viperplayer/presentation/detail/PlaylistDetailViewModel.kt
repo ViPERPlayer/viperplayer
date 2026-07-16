@@ -8,9 +8,13 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.sort.MediaSorter
 import com.viperplayer.presentation.navigation.PlaylistDetail
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -36,9 +40,19 @@ import timber.log.Timber
  */
 sealed class PlaylistDetailUiState {
     data class Loading(val initialPlaylist: Playlist) : PlaylistDetailUiState()
+
+    /**
+     * @param songs the playlist's songs in insertion order — the source of truth used by edit mode
+     *   (reorder / remove) and all mutations, which must never see a display-sorted order.
+     * @param sortOrder the chosen display order for view (non-edit) mode; [SortOrder.DEFAULT] keeps
+     *   insertion order.
+     * @param sortedSongs [songs] after [sortOrder] is applied — what the non-edit list renders.
+     */
     data class Success(
         val playlist: Playlist,
-        val songs: List<Song>
+        val songs: List<Song>,
+        val sortOrder: SortOrder = SortOrder.DEFAULT,
+        val sortedSongs: List<Song> = songs,
     ) : PlaylistDetailUiState()
 
     data class Error(val message: String) : PlaylistDetailUiState()
@@ -59,7 +73,8 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     @ApplicationContext private val context: Context,
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
-    private val mediaLibraryRepository: MediaLibraryRepository
+    private val mediaLibraryRepository: MediaLibraryRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     @AssistedFactory
@@ -120,8 +135,47 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     // These are perpetual DB collectors started once; a later refresh must not restart them.
     private var isObservingLocalPlaylist = false
 
+    // Latest persisted display order, tracked even while Loading so a fresh load applies it.
+    private var currentSortOrder: SortOrder = SortOrder.DEFAULT
+
     init {
         loadPlaylistDetails()
+        observeSortOrder()
+    }
+
+    /** Build a Success state with [order] applied to [songs] for the (non-edit) display list. */
+    private fun successState(playlist: Playlist, songs: List<Song>, order: SortOrder) =
+        PlaylistDetailUiState.Success(
+            playlist = playlist,
+            songs = songs,
+            sortOrder = order,
+            sortedSongs = MediaSorter.sortSongs(songs, order),
+        )
+
+    /** Re-apply the persisted display order whenever it changes (or on first load). */
+    private fun observeSortOrder() {
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.PLAYLIST_SONGS).collect { order ->
+                currentSortOrder = order
+                _uiState.update { state ->
+                    if (state is PlaylistDetailUiState.Success) {
+                        state.copy(
+                            sortOrder = order,
+                            sortedSongs = MediaSorter.sortSongs(state.songs, order),
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
+
+    /** Persist a new display [order]; the observer re-sorts the visible list. */
+    fun setSortOrder(order: SortOrder) {
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(SortView.PLAYLIST_SONGS, order)
+        }
     }
 
     private fun loadPlaylistDetails() {
@@ -162,10 +216,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                                 return@collect
                             }
                             val songs = playlist.songs ?: emptyList()
-                            _uiState.value = PlaylistDetailUiState.Success(
-                                playlist = playlist,
-                                songs = songs
-                            )
+                            _uiState.value = successState(playlist, songs, currentSortOrder)
                         }
                     }
                 } else {
@@ -189,10 +240,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                         songsResult.getOrNull()?.items.orEmpty()
                     }
 
-                    _uiState.value = PlaylistDetailUiState.Success(
-                        playlist = playlist,
-                        songs = songs
-                    )
+                    _uiState.value = successState(playlist, songs, currentSortOrder)
                 }
             } catch (e: Exception) {
                 _uiState.value = PlaylistDetailUiState.Error(
@@ -210,7 +258,8 @@ class PlaylistDetailViewModel @AssistedInject constructor(
                     val state = _uiState.value
                     if (state !is PlaylistDetailUiState.Success) return@launch
 
-                    val songs = state.songs.filter { it.isPlayable }
+                    // Play in the order the user sees (respects the chosen display sort).
+                    val songs = state.sortedSongs.filter { it.isPlayable }
 
                     if (songs.isNotEmpty()) {
                         val index = songs.indexOfFirst { it.id == song.id }
@@ -237,7 +286,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 val state = _uiState.value as? PlaylistDetailUiState.Success ?: return@launch
-                val songs = state.songs.filter { it.isPlayable }
+                val songs = state.sortedSongs.filter { it.isPlayable }
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0, PlaybackContext.Playlist(state.playlist.id, state.playlist.name))
                 }
@@ -308,7 +357,8 @@ class PlaylistDetailViewModel @AssistedInject constructor(
         val updatedSongs = state.songs.toMutableList().apply { removeAt(index) }
         _uiState.value = state.copy(
             playlist = state.playlist.copy(songCount = updatedSongs.size),
-            songs = updatedSongs
+            songs = updatedSongs,
+            sortedSongs = MediaSorter.sortSongs(updatedSongs, state.sortOrder)
         )
         viewModelScope.launch {
             try {
@@ -328,12 +378,33 @@ class PlaylistDetailViewModel @AssistedInject constructor(
         val state = _uiState.value as? PlaylistDetailUiState.Success ?: return
         if (fromIndex !in state.songs.indices || toIndex !in state.songs.indices) return
         val updatedSongs = state.songs.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
-        _uiState.value = state.copy(songs = updatedSongs)
+        _uiState.value = state.copy(
+            songs = updatedSongs,
+            sortedSongs = MediaSorter.sortSongs(updatedSongs, state.sortOrder)
+        )
         viewModelScope.launch {
             try {
                 mediaLibraryRepository.reorderPlaylistSongs(playlistId, fromIndex, toIndex)
             } catch (e: Exception) {
                 Timber.w(e, "Failed to reorder playlist songs")
+            }
+        }
+    }
+
+    /**
+     * Rename this playlist to [newName], persisting the change. Only valid for editable local
+     * playlists; a blank name is ignored. The Room-backed reactive flow re-emits the new name, so the
+     * UI updates without an optimistic write here.
+     */
+    fun rename(newName: String) {
+        if (!isEditable) return
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            try {
+                mediaLibraryRepository.renamePlaylist(playlistId, trimmed)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to rename playlist")
             }
         }
     }

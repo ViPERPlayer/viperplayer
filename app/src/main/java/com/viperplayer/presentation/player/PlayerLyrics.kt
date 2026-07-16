@@ -16,8 +16,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Abc
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +49,7 @@ import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsAlignment
 import com.viperplayer.domain.model.LyricsBehavior
 import com.viperplayer.domain.model.LyricsHighlightColor
+import com.viperplayer.domain.model.LyricsSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -118,6 +119,7 @@ fun LyricsSheet(
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val translatedLines by viewModel.translatedLines.collectAsStateWithLifecycle()
     val romanizationEnabled by viewModel.romanizationEnabled.collectAsStateWithLifecycle()
+    val romanizedLines by viewModel.romanizedLines.collectAsStateWithLifecycle()
     val settings by viewModel.lyricsSettings.collectAsStateWithLifecycle()
 
     var position by remember { mutableLongStateOf(0L) }
@@ -129,6 +131,40 @@ fun LyricsSheet(
         }
     }
 
+    LyricsSheetContent(
+        lyrics = lyrics,
+        position = position,
+        translationEnabled = translationEnabled,
+        translatedLines = translatedLines,
+        romanizationEnabled = romanizationEnabled,
+        romanizedLines = romanizedLines,
+        settings = settings,
+        onToggleTranslation = viewModel::toggleTranslation,
+        onToggleRomanization = viewModel::toggleRomanization,
+        onSeek = onSeek,
+    )
+}
+
+/**
+ * Stateless body of the lyrics sheet — renders the header (title + translate/romanize toggles) and
+ * the lyric lines (synced with active-line highlight, or plain scroll). Per line it shows, beneath
+ * the original text, the romanization ([romanizedLines]) when [romanizationEnabled] and the
+ * translation ([translatedLines]) when [translationEnabled]. Kept free of ViewModel/data access so
+ * it can be exercised in Compose UI tests.
+ */
+@Composable
+fun LyricsSheetContent(
+    lyrics: Lyrics?,
+    position: Long,
+    translationEnabled: Boolean,
+    translatedLines: List<String>?,
+    romanizationEnabled: Boolean,
+    romanizedLines: List<String?>?,
+    onToggleTranslation: () -> Unit,
+    onToggleRomanization: () -> Unit,
+    onSeek: (Long) -> Unit,
+    settings: LyricsSettings = LyricsSettings(),
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -146,9 +182,9 @@ fun LyricsSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = { viewModel.toggleRomanization() }) {
+            IconButton(onClick = onToggleRomanization) {
                 Icon(
-                    imageVector = Icons.Filled.Spellcheck,
+                    imageVector = Icons.Filled.Abc,
                     contentDescription = stringResource(R.string.lyrics_romanize),
                     tint = if (romanizationEnabled) {
                         MaterialTheme.colorScheme.primary
@@ -157,7 +193,7 @@ fun LyricsSheet(
                     }
                 )
             }
-            IconButton(onClick = { viewModel.toggleTranslation() }) {
+            IconButton(onClick = onToggleTranslation) {
                 Icon(
                     imageVector = Icons.Filled.Translate,
                     contentDescription = stringResource(R.string.lyrics_translate),
@@ -170,9 +206,8 @@ fun LyricsSheet(
             }
         }
 
-        val current = lyrics
         when {
-            current == null || current.isEmpty -> {
+            lyrics == null || lyrics.isEmpty -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -187,14 +222,14 @@ fun LyricsSheet(
                 }
             }
 
-            current.synced && current.lines.isNotEmpty() -> {
-                val activeIndex = current.currentLineIndex(position)
+            lyrics.synced && lyrics.lines.isNotEmpty() -> {
+                val activeIndex = lyrics.currentLineIndex(position)
                 val listState = rememberLazyListState()
                 LaunchedEffect(activeIndex, settings.autoScroll) {
                     // Auto-scroll honors its toggle; when off, the user scrolls freely.
                     if (settings.autoScroll && activeIndex >= 0) {
                         listState.animateScrollToItem(
-                            index = activeIndex.coerceAtMost(current.lines.lastIndex),
+                            index = activeIndex.coerceAtMost(lyrics.lines.lastIndex),
                             scrollOffset = -200
                         )
                     }
@@ -204,8 +239,8 @@ fun LyricsSheet(
                 // Inactive lines dim only when the "dim inactive lines" behavior is on.
                 val dimmedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                 val undimmedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
-                val translationColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                val translations = translatedLines
+                // Romanization + translation sub-lines share the secondary (dimmer) color.
+                val secondaryColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 val lineAlign = LyricsStyleMapping.textAlign(settings.alignment)
                 val columnAlignment = when (settings.alignment) {
                     LyricsAlignment.CENTER -> Alignment.CenterHorizontally
@@ -217,7 +252,7 @@ fun LyricsSheet(
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    itemsIndexed(current.lines) { index, line ->
+                    itemsIndexed(lyrics.lines) { index, line ->
                         val active = index == activeIndex
                         // On the active line with word timings, reveal it word-by-word: words already
                         // sung take the accent color, upcoming words stay dim. Otherwise the whole
@@ -235,7 +270,8 @@ fun LyricsSheet(
                             AnnotatedString(line.text)
                         }
                         val dimmed = LyricsBehavior.shouldDimLine(index, activeIndex, settings.dimInactiveLines)
-                        val translation = translations?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        val romanization = romanizedLines?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        val translation = translatedLines?.getOrNull(index)?.takeIf { it.isNotBlank() }
                         val rowModifier = Modifier
                             .fillMaxWidth()
                             .let { if (settings.tapToSeek) it.clickable { onSeek(line.startMs) } else it }
@@ -264,11 +300,23 @@ fun LyricsSheet(
                                     LyricsStyleMapping.inactiveFontWeight(settings.fontWeight)
                                 },
                             )
+                            // Per-line romanization: shown directly under the original (read-along),
+                            // smaller and dimmer, never cropped (wraps freely).
+                            if (romanization != null) {
+                                Text(
+                                    text = romanization,
+                                    color = secondaryColor,
+                                    textAlign = lineAlign,
+                                    fontSize = LyricsStyleMapping.subLineFontSize(settings.fontSize, active),
+                                    fontWeight = FontWeight.Normal,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+                            }
                             // Per-line translation: smaller and dimmer, never cropped (wraps freely).
                             if (translation != null) {
                                 Text(
                                     text = translation,
-                                    color = translationColor,
+                                    color = secondaryColor,
                                     textAlign = lineAlign,
                                     fontSize = LyricsStyleMapping.subLineFontSize(settings.fontSize, active),
                                     fontStyle = FontStyle.Italic,
@@ -283,7 +331,7 @@ fun LyricsSheet(
 
             else -> {
                 Text(
-                    text = current.plainText.orEmpty(),
+                    text = lyrics.plainText.orEmpty(),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier

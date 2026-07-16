@@ -5,6 +5,8 @@ import com.viperplayer.domain.model.LyricsFontSize
 import com.viperplayer.domain.model.LyricsFontWeight
 import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsSettings
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import kotlinx.coroutines.flow.Flow
 
 enum class AudioQuality {
@@ -34,6 +36,42 @@ enum class DynamicThemeMode {
     DYNAMIC,
     SYSTEM
 }
+
+/**
+ * ReplayGain track/album gain selection.
+ * - [TRACK]: always per-track gain.
+ * - [ALBUM]: always per-album gain.
+ * - [SMART]: album gain when playing a sequential album, track gain when shuffling/mixed queues.
+ */
+enum class ReplayGainMode {
+    TRACK,
+    ALBUM,
+    SMART
+}
+
+/**
+ * Derives the effective [ReplayGainMode] from persisted settings, preserving back-compat with the
+ * legacy `replay_gain_album_mode` boolean while defaulting fresh installs to [ReplayGainMode.SMART].
+ *
+ * Pure and Android-free so it can be unit-tested directly.
+ *
+ * @param explicit the value of the new `replay_gain_mode` key, or `null` if it was never written.
+ * @param legacyAlbumMode the value of the legacy `replay_gain_album_mode` key, or `null` if that key
+ *   was never written (i.e. a fresh install that predates neither key).
+ *
+ * Precedence:
+ * 1. [explicit] non-null → use it (the user picked a mode explicitly).
+ * 2. else [legacyAlbumMode] non-null → honor the legacy toggle both ways: `true` → [ReplayGainMode.ALBUM],
+ *    `false` → [ReplayGainMode.TRACK]. This keeps existing users on their prior behavior instead of
+ *    silently flipping per-track normalization to SMART on upgrade.
+ * 3. else (neither key ever written = fresh install) → [ReplayGainMode.SMART] (the new default).
+ */
+fun deriveReplayGainMode(explicit: ReplayGainMode?, legacyAlbumMode: Boolean?): ReplayGainMode =
+    when {
+        explicit != null -> explicit
+        legacyAlbumMode != null -> if (legacyAlbumMode) ReplayGainMode.ALBUM else ReplayGainMode.TRACK
+        else -> ReplayGainMode.SMART
+    }
 
 interface SettingsRepository {
     // Appearance
@@ -65,6 +103,22 @@ interface SettingsRepository {
     /** When ReplayGain is on, prefer album gain over track gain (preserves intra-album loudness). */
     val replayGainAlbumMode: Flow<Boolean>
     suspend fun setReplayGainAlbumMode(enabled: Boolean)
+
+    /** ReplayGain track/album gain selection (track / album / smart). Supersedes [replayGainAlbumMode]. */
+    val replayGainMode: Flow<ReplayGainMode>
+    suspend fun setReplayGainMode(mode: ReplayGainMode)
+
+    /** Preamp (dB) applied to tracks with NO ReplayGain tags, independent of the tagged preamp. */
+    val replayGainUntaggedPreampDb: Flow<Float>
+    suspend fun setReplayGainUntaggedPreampDb(preampDb: Float)
+
+    /** Dynamic-range compression / clipping protection: limit gain so peak * gain never clips. */
+    val replayGainDrcEnabled: Flow<Boolean>
+    suspend fun setReplayGainDrcEnabled(enabled: Boolean)
+
+    /** Global post-amp (dB) applied AFTER ReplayGain and DRC, to trim the overall level. */
+    val replayGainPostAmpDb: Flow<Float>
+    suspend fun setReplayGainPostAmpDb(postAmpDb: Float)
 
     /** Bypass all app-side DSP (the ViPER processor + ReplayGain) for a clean/untouched signal path. */
     val dspBypass: Flow<Boolean>
@@ -122,5 +176,10 @@ interface SettingsRepository {
 
     /** All lyrics settings combined into one snapshot for the renderer/ViewModel. */
     val lyricsSettings: Flow<LyricsSettings>
+
+    // Library / detail list sort order, persisted independently per [SortView].
+    /** The persisted [SortOrder] for [view]. Defaults to [SortOrder.DEFAULT] (original order). */
+    fun sortOrder(view: SortView): Flow<SortOrder>
+    suspend fun setSortOrder(view: SortView, order: SortOrder)
 }
 

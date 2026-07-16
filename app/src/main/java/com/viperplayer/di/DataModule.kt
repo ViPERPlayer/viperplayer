@@ -2,6 +2,7 @@ package com.viperplayer.di
 
 import com.viperplayer.data.repository.CacheRepositoryImpl
 import com.viperplayer.data.repository.ListenTogetherRepositoryImpl
+import com.viperplayer.data.source.AndroidTagDetailsReader
 import com.viperplayer.data.repository.MediaLibraryRepositoryImpl
 import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
@@ -15,6 +16,7 @@ import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.TagDetailsReader
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.Binds
 import dagger.Module
@@ -76,5 +78,11 @@ abstract class DataModule {
     abstract fun bindListenTogetherRepository(
         impl: ListenTogetherRepositoryImpl
     ): ListenTogetherRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTagDetailsReader(
+        impl: AndroidTagDetailsReader
+    ): TagDetailsReader
 }
 

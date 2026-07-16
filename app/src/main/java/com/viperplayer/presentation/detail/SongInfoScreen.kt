@@ -1,8 +1,12 @@
 package com.viperplayer.presentation.detail
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
@@ -35,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -43,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,9 +63,13 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import java.util.concurrent.TimeUnit
+
+/** The embedded local-files plugin id — the only source whose files carry an on-disk tag set. */
+private const val LOCAL_PLUGIN_ID = "local"
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -67,12 +78,26 @@ fun SongInfoScreen(
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToTagDetails: (MediaId, String) -> Unit,
     viewModel: SongInfoViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val audioFormat by viewModel.audioFormat.collectAsStateWithLifecycle()
+    val bluetoothCodec by viewModel.bluetoothCodec.collectAsStateWithLifecycle()
+    val bluetoothPermissionNeeded by viewModel.bluetoothPermissionNeeded.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val song = state.song ?: return
+
+    // Request BLUETOOTH_CONNECT only when it's actually needed (missing + on a BT A2DP route), so we
+    // don't prompt on wired/speaker playback. On grant, the ViewModel re-reads the codec.
+    val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) viewModel.onBluetoothPermissionGranted() }
+    LaunchedEffect(bluetoothPermissionNeeded) {
+        if (bluetoothPermissionNeeded) {
+            bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -167,11 +192,39 @@ fun SongInfoScreen(
                 )
             }
 
+            // Tag / metadata detail viewer — local files only (the full on-disk tag set).
+            if (song.id.pluginId == LOCAL_PLUGIN_ID) {
+                item {
+                    SectionLabel(stringResource(R.string.tag_details_section_metadata), top = 20.dp)
+                    NavTile(
+                        icon = Icons.Filled.Description,
+                        role = stringResource(R.string.tag_details_action_role),
+                        name = stringResource(R.string.tag_details_action_title),
+                        modifier = Modifier.fillMaxWidth().testTag("tagDetailsEntry"),
+                        onClick = { onNavigateToTagDetails(song.id, song.title) },
+                    )
+                }
+            }
+
             // Audio format (runtime — only for the playing track)
             audioFormat?.takeIf { it.hasAny() }?.let { fmt ->
                 item {
                     SectionLabel(stringResource(R.string.song_detail_audio_format), top = 20.dp)
                     AudioFormatGrid(fmt)
+                }
+            }
+
+            // Bluetooth output codec (runtime — only when the playing track is on a BT A2DP route)
+            bluetoothCodec?.let { codec ->
+                item {
+                    SectionLabel(stringResource(R.string.song_info_bluetooth_output), top = 20.dp)
+                    RowsCard {
+                        InfoRow(
+                            label = stringResource(R.string.song_info_bluetooth_codec),
+                            value = codec.label,
+                            divider = false,
+                        )
+                    }
                 }
             }
 
@@ -385,7 +438,7 @@ private fun formatDuration(ms: Long): String {
 private fun openPlugin(context: Context, pluginPackage: String) {
     val launch = context.packageManager.getLaunchIntentForPackage(pluginPackage)
     val intent = launch ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = android.net.Uri.fromParts("package", pluginPackage, null)
+        data = Uri.fromParts("package", pluginPackage, null)
     }
     runCatching { context.startActivity(intent) }
 }

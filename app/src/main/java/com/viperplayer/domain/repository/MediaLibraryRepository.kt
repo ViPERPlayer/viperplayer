@@ -96,6 +96,13 @@ interface MediaLibraryRepository {
     suspend fun createLocalPlaylist(name: String): MediaId
 
     /**
+     * Rename the user-created local playlist identified by [mediaId] to [newName] (trimmed). Only
+     * local playlists (`pluginId == "local"`, excluding the virtual "Liked Songs" list) can be
+     * renamed; any other [mediaId], or a blank [newName], is a no-op.
+     */
+    suspend fun renamePlaylist(mediaId: MediaId, newName: String)
+
+    /**
      * Append [song] to the end of the playlist identified by [playlistId]. Persists the song first so
      * a not-yet-saved song (e.g. a plugin track from the player) still lands in the playlist. A song
      * already present in the playlist is left untouched (its position is preserved). No-op if the
