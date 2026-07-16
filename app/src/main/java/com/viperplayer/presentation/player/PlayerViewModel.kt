@@ -6,6 +6,7 @@ import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.Playlist
@@ -15,6 +16,7 @@ import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,7 +41,16 @@ class PlayerViewModel @Inject constructor(
     private val sleepTimerManager: SleepTimerManager,
     private val lyricsTranslator: LyricsTranslator,
     private val downloadManager: DownloadManager,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
+
+    /** User-configured lyrics appearance + behavior, applied by the lyrics renderer. */
+    val lyricsSettings: StateFlow<LyricsSettings> = settingsRepository.lyricsSettings
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = LyricsSettings()
+        )
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
 
@@ -77,6 +88,33 @@ class PlayerViewModel @Inject constructor(
     /** Flip the lyrics-translation toggle. */
     fun toggleTranslation() {
         _translationEnabled.value = !_translationEnabled.value
+    }
+
+    private val _romanizationEnabled = MutableStateFlow(false)
+
+    /** Whether the user has toggled on romanized lyrics in the lyrics sheet. */
+    val romanizationEnabled: StateFlow<Boolean> = _romanizationEnabled.asStateFlow()
+
+    /** Flip the lyrics-romanization toggle. */
+    fun toggleRomanization() {
+        _romanizationEnabled.value = !_romanizationEnabled.value
+    }
+
+    init {
+        // Seed the per-session translation/romanization toggles from the persisted defaults whenever
+        // a new track's lyrics arrive, so each track starts in the user's preferred state.
+        viewModelScope.launch {
+            var lastSeededSong: MediaId? = null
+            combine(currentSong, settingsRepository.lyricsSettings) { song, settings -> song to settings }
+                .collect { (song, settings) ->
+                    val songId = song?.id
+                    if (songId != null && songId != lastSeededSong) {
+                        lastSeededSong = songId
+                        _translationEnabled.value = settings.showTranslationByDefault
+                        _romanizationEnabled.value = settings.showRomanizationByDefault
+                    }
+                }
+        }
     }
 
     private val _translationInProgress = MutableStateFlow(false)

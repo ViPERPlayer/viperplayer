@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,12 +39,16 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsAlignment
+import com.viperplayer.domain.model.LyricsBehavior
+import com.viperplayer.domain.model.LyricsHighlightColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -112,6 +117,8 @@ fun LyricsSheet(
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val translatedLines by viewModel.translatedLines.collectAsStateWithLifecycle()
+    val romanizationEnabled by viewModel.romanizationEnabled.collectAsStateWithLifecycle()
+    val settings by viewModel.lyricsSettings.collectAsStateWithLifecycle()
 
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
@@ -139,6 +146,17 @@ fun LyricsSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
+            IconButton(onClick = { viewModel.toggleRomanization() }) {
+                Icon(
+                    imageVector = Icons.Filled.Spellcheck,
+                    contentDescription = stringResource(R.string.lyrics_romanize),
+                    tint = if (romanizationEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
             IconButton(onClick = { viewModel.toggleTranslation() }) {
                 Icon(
                     imageVector = Icons.Filled.Translate,
@@ -172,19 +190,27 @@ fun LyricsSheet(
             current.synced && current.lines.isNotEmpty() -> {
                 val activeIndex = current.currentLineIndex(position)
                 val listState = rememberLazyListState()
-                LaunchedEffect(activeIndex) {
-                    if (activeIndex >= 0) {
+                LaunchedEffect(activeIndex, settings.autoScroll) {
+                    // Auto-scroll honors its toggle; when off, the user scrolls freely.
+                    if (settings.autoScroll && activeIndex >= 0) {
                         listState.animateScrollToItem(
                             index = activeIndex.coerceAtMost(current.lines.lastIndex),
                             scrollOffset = -200
                         )
                     }
                 }
-                val sungColor = MaterialTheme.colorScheme.primary
+                val sungColor = highlightColor(settings.highlightColor)
                 val pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                // Inactive lines dim only when the "dim inactive lines" behavior is on.
+                val dimmedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                val undimmedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
                 val translationColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 val translations = translatedLines
+                val lineAlign = LyricsStyleMapping.textAlign(settings.alignment)
+                val columnAlignment = when (settings.alignment) {
+                    LyricsAlignment.CENTER -> Alignment.CenterHorizontally
+                    else -> Alignment.Start
+                }
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.heightIn(max = 520.dp),
@@ -208,29 +234,43 @@ fun LyricsSheet(
                         } else {
                             AnnotatedString(line.text)
                         }
+                        val dimmed = LyricsBehavior.shouldDimLine(index, activeIndex, settings.dimInactiveLines)
                         val translation = translations?.getOrNull(index)?.takeIf { it.isNotBlank() }
+                        val rowModifier = Modifier
+                            .fillMaxWidth()
+                            .let { if (settings.tapToSeek) it.clickable { onSeek(line.startMs) } else it }
+                            .padding(vertical = 2.dp)
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSeek(line.startMs) }
-                                .padding(vertical = 2.dp)
+                            modifier = rowModifier,
+                            horizontalAlignment = columnAlignment
                         ) {
                             Text(
                                 text = lineText,
                                 color = when {
                                     active && line.words.isNotEmpty() -> Color.Unspecified
                                     active -> sungColor
-                                    else -> inactiveColor
+                                    dimmed -> dimmedColor
+                                    else -> undimmedColor
                                 },
-                                fontSize = if (active) 20.sp else 17.sp,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                textAlign = lineAlign,
+                                fontSize = if (active) {
+                                    LyricsStyleMapping.activeFontSize(settings.fontSize, settings.activeLineScale)
+                                } else {
+                                    LyricsStyleMapping.baseFontSize(settings.fontSize)
+                                },
+                                fontWeight = if (active) {
+                                    LyricsStyleMapping.activeFontWeight(settings.fontWeight)
+                                } else {
+                                    LyricsStyleMapping.inactiveFontWeight(settings.fontWeight)
+                                },
                             )
                             // Per-line translation: smaller and dimmer, never cropped (wraps freely).
                             if (translation != null) {
                                 Text(
                                     text = translation,
                                     color = translationColor,
-                                    fontSize = if (active) 15.sp else 13.sp,
+                                    textAlign = lineAlign,
+                                    fontSize = LyricsStyleMapping.subLineFontSize(settings.fontSize, active),
                                     fontStyle = FontStyle.Italic,
                                     fontWeight = FontWeight.Normal,
                                     modifier = Modifier.padding(top = 1.dp)
@@ -253,4 +293,12 @@ fun LyricsSheet(
             }
         }
     }
+}
+
+/** Resolve the configured active-line highlight to a concrete theme color. */
+@Composable
+private fun highlightColor(color: LyricsHighlightColor): Color = when (color) {
+    LyricsHighlightColor.PRIMARY -> MaterialTheme.colorScheme.primary
+    LyricsHighlightColor.SECONDARY -> MaterialTheme.colorScheme.secondary
+    LyricsHighlightColor.TERTIARY -> MaterialTheme.colorScheme.tertiary
 }

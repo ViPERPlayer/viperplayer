@@ -10,6 +10,12 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.viperplayer.domain.model.LyricsAlignment
+import com.viperplayer.domain.model.LyricsBehavior
+import com.viperplayer.domain.model.LyricsFontSize
+import com.viperplayer.domain.model.LyricsFontWeight
+import com.viperplayer.domain.model.LyricsHighlightColor
+import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
@@ -52,6 +58,18 @@ class SettingsRepositoryImpl @Inject constructor(
         // Storage
         private val MAX_SONG_CACHE_SIZE_KEY = longPreferencesKey("max_song_cache_size")
         private val MAX_IMAGE_CACHE_SIZE_KEY = longPreferencesKey("max_image_cache_size")
+
+        // Lyrics
+        private val LYRICS_FONT_SIZE_KEY = stringPreferencesKey("lyrics_font_size")
+        private val LYRICS_ALIGNMENT_KEY = stringPreferencesKey("lyrics_alignment")
+        private val LYRICS_FONT_WEIGHT_KEY = stringPreferencesKey("lyrics_font_weight")
+        private val LYRICS_HIGHLIGHT_COLOR_KEY = stringPreferencesKey("lyrics_highlight_color")
+        private val LYRICS_ACTIVE_LINE_SCALE_KEY = floatPreferencesKey("lyrics_active_line_scale")
+        private val LYRICS_AUTO_SCROLL_KEY = booleanPreferencesKey("lyrics_auto_scroll")
+        private val LYRICS_TAP_TO_SEEK_KEY = booleanPreferencesKey("lyrics_tap_to_seek")
+        private val LYRICS_DIM_INACTIVE_KEY = booleanPreferencesKey("lyrics_dim_inactive")
+        private val LYRICS_SHOW_TRANSLATION_KEY = booleanPreferencesKey("lyrics_show_translation")
+        private val LYRICS_SHOW_ROMANIZATION_KEY = booleanPreferencesKey("lyrics_show_romanization")
     }
 
     private val dataStore = context.settingsDataStore
@@ -235,6 +253,120 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setMaxImageCacheSize(size: Long) {
         dataStore.edit { preferences ->
             preferences[MAX_IMAGE_CACHE_SIZE_KEY] = size
+        }
+    }
+
+    // Lyrics (style + behavior)
+    private val defaultLyricsSettings = LyricsSettings()
+
+    override val lyricsFontSize: Flow<LyricsFontSize> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_FONT_SIZE_KEY].toEnum(defaultLyricsSettings.fontSize)
+    }
+
+    override suspend fun setLyricsFontSize(size: LyricsFontSize) {
+        dataStore.edit { it[LYRICS_FONT_SIZE_KEY] = size.name }
+    }
+
+    override val lyricsAlignment: Flow<LyricsAlignment> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_ALIGNMENT_KEY].toEnum(defaultLyricsSettings.alignment)
+    }
+
+    override suspend fun setLyricsAlignment(alignment: LyricsAlignment) {
+        dataStore.edit { it[LYRICS_ALIGNMENT_KEY] = alignment.name }
+    }
+
+    override val lyricsFontWeight: Flow<LyricsFontWeight> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_FONT_WEIGHT_KEY].toEnum(defaultLyricsSettings.fontWeight)
+    }
+
+    override suspend fun setLyricsFontWeight(weight: LyricsFontWeight) {
+        dataStore.edit { it[LYRICS_FONT_WEIGHT_KEY] = weight.name }
+    }
+
+    override val lyricsHighlightColor: Flow<LyricsHighlightColor> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_HIGHLIGHT_COLOR_KEY].toEnum(defaultLyricsSettings.highlightColor)
+    }
+
+    override suspend fun setLyricsHighlightColor(color: LyricsHighlightColor) {
+        dataStore.edit { it[LYRICS_HIGHLIGHT_COLOR_KEY] = color.name }
+    }
+
+    override val lyricsActiveLineScale: Flow<Float> = dataStore.data.mapDistinct { preferences ->
+        LyricsBehavior.clampActiveLineScale(
+            preferences[LYRICS_ACTIVE_LINE_SCALE_KEY] ?: defaultLyricsSettings.activeLineScale
+        )
+    }
+
+    override suspend fun setLyricsActiveLineScale(scale: Float) {
+        dataStore.edit { it[LYRICS_ACTIVE_LINE_SCALE_KEY] = LyricsBehavior.clampActiveLineScale(scale) }
+    }
+
+    override val lyricsAutoScroll: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_AUTO_SCROLL_KEY] ?: defaultLyricsSettings.autoScroll
+    }
+
+    override suspend fun setLyricsAutoScroll(enabled: Boolean) {
+        dataStore.edit { it[LYRICS_AUTO_SCROLL_KEY] = enabled }
+    }
+
+    override val lyricsTapToSeek: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_TAP_TO_SEEK_KEY] ?: defaultLyricsSettings.tapToSeek
+    }
+
+    override suspend fun setLyricsTapToSeek(enabled: Boolean) {
+        dataStore.edit { it[LYRICS_TAP_TO_SEEK_KEY] = enabled }
+    }
+
+    override val lyricsDimInactiveLines: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_DIM_INACTIVE_KEY] ?: defaultLyricsSettings.dimInactiveLines
+    }
+
+    override suspend fun setLyricsDimInactiveLines(enabled: Boolean) {
+        dataStore.edit { it[LYRICS_DIM_INACTIVE_KEY] = enabled }
+    }
+
+    override val lyricsShowTranslationByDefault: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_SHOW_TRANSLATION_KEY] ?: defaultLyricsSettings.showTranslationByDefault
+    }
+
+    override suspend fun setLyricsShowTranslationByDefault(enabled: Boolean) {
+        dataStore.edit { it[LYRICS_SHOW_TRANSLATION_KEY] = enabled }
+    }
+
+    override val lyricsShowRomanizationByDefault: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[LYRICS_SHOW_ROMANIZATION_KEY] ?: defaultLyricsSettings.showRomanizationByDefault
+    }
+
+    override suspend fun setLyricsShowRomanizationByDefault(enabled: Boolean) {
+        dataStore.edit { it[LYRICS_SHOW_ROMANIZATION_KEY] = enabled }
+    }
+
+    override val lyricsSettings: Flow<LyricsSettings> = dataStore.data.mapDistinct { preferences ->
+        LyricsSettings(
+            fontSize = preferences[LYRICS_FONT_SIZE_KEY].toEnum(defaultLyricsSettings.fontSize),
+            alignment = preferences[LYRICS_ALIGNMENT_KEY].toEnum(defaultLyricsSettings.alignment),
+            fontWeight = preferences[LYRICS_FONT_WEIGHT_KEY].toEnum(defaultLyricsSettings.fontWeight),
+            highlightColor = preferences[LYRICS_HIGHLIGHT_COLOR_KEY].toEnum(defaultLyricsSettings.highlightColor),
+            activeLineScale = LyricsBehavior.clampActiveLineScale(
+                preferences[LYRICS_ACTIVE_LINE_SCALE_KEY] ?: defaultLyricsSettings.activeLineScale
+            ),
+            autoScroll = preferences[LYRICS_AUTO_SCROLL_KEY] ?: defaultLyricsSettings.autoScroll,
+            tapToSeek = preferences[LYRICS_TAP_TO_SEEK_KEY] ?: defaultLyricsSettings.tapToSeek,
+            dimInactiveLines = preferences[LYRICS_DIM_INACTIVE_KEY] ?: defaultLyricsSettings.dimInactiveLines,
+            showTranslationByDefault = preferences[LYRICS_SHOW_TRANSLATION_KEY]
+                ?: defaultLyricsSettings.showTranslationByDefault,
+            showRomanizationByDefault = preferences[LYRICS_SHOW_ROMANIZATION_KEY]
+                ?: defaultLyricsSettings.showRomanizationByDefault,
+        )
+    }
+
+    /** Parse a stored enum name, falling back to [default] on null/unknown values. */
+    private inline fun <reified T : Enum<T>> String?.toEnum(default: T): T {
+        if (this == null) return default
+        return try {
+            enumValueOf<T>(this)
+        } catch (e: IllegalArgumentException) {
+            default
         }
     }
 }

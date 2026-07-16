@@ -525,7 +525,41 @@
     <!-- Lyrics -->
     <string name="lyrics_title">Lyrics</string>
     <string name="lyrics_translate">Translate lyrics</string>
+    <string name="lyrics_romanize">Romanize lyrics</string>
     <string name="lyrics_none">No lyrics available for this track</string>
+
+    <!-- Lyrics settings -->
+    <string name="settings_lyrics">Lyrics</string>
+    <string name="settings_lyrics_desc">Font, alignment, and lyric behavior</string>
+    <string name="lyrics_category_style">Style</string>
+    <string name="lyrics_category_behavior">Behavior</string>
+    <string name="lyrics_font_size">Font size</string>
+    <string name="lyrics_font_size_small">Small</string>
+    <string name="lyrics_font_size_medium">Medium</string>
+    <string name="lyrics_font_size_large">Large</string>
+    <string name="lyrics_alignment">Text alignment</string>
+    <string name="lyrics_alignment_left">Left</string>
+    <string name="lyrics_alignment_center">Center</string>
+    <string name="lyrics_font_weight">Font weight</string>
+    <string name="lyrics_font_weight_normal">Normal</string>
+    <string name="lyrics_font_weight_bold">Bold</string>
+    <string name="lyrics_highlight_color">Active line color</string>
+    <string name="lyrics_highlight_color_primary">Primary</string>
+    <string name="lyrics_highlight_color_secondary">Secondary</string>
+    <string name="lyrics_highlight_color_tertiary">Tertiary</string>
+    <string name="lyrics_active_line_scale">Active line size</string>
+    <string name="lyrics_active_line_scale_desc">How much larger the current line appears</string>
+    <string name="lyrics_active_line_scale_value">%1$.2fx</string>
+    <string name="lyrics_auto_scroll">Auto-scroll</string>
+    <string name="lyrics_auto_scroll_desc">Follow the current line automatically</string>
+    <string name="lyrics_tap_to_seek">Tap a line to seek</string>
+    <string name="lyrics_tap_to_seek_desc">Tap any line to jump to that point</string>
+    <string name="lyrics_dim_inactive">Dim inactive lines</string>
+    <string name="lyrics_dim_inactive_desc">Fade lines that aren\'t currently playing</string>
+    <string name="lyrics_show_translation_default">Show translation by default</string>
+    <string name="lyrics_show_translation_default_desc">Turn on translated lyrics when a song opens</string>
+    <string name="lyrics_show_romanization_default">Show romanization by default</string>
+    <string name="lyrics_show_romanization_default_desc">Turn on romanized lyrics when a song opens</string>
 
     <!-- Home-screen widget -->
     <string name="widget_nothing_playing">Nothing playing</string>
