@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.sort.MediaSorter
 import com.viperplayer.presentation.navigation.AlbumDetail
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -27,7 +31,19 @@ import timber.log.Timber
  */
 sealed class AlbumDetailUiState {
     data class Loading(val initialAlbum: Album) : AlbumDetailUiState()
-    data class Success(val album: Album) : AlbumDetailUiState()
+
+    /**
+     * @param album the loaded album (its `songs` remain in the plugin's original track order).
+     * @param sortOrder the chosen track order; [SortOrder.DEFAULT] keeps the disc/track grouping.
+     * @param sortedSongs the album's songs after [sortOrder] is applied. Equals `album.songs` when the
+     *   order is DEFAULT, so the screen can grade the disc grouping only in that case.
+     */
+    data class Success(
+        val album: Album,
+        val sortOrder: SortOrder = SortOrder.DEFAULT,
+        val sortedSongs: List<Song> = album.songs.orEmpty(),
+    ) : AlbumDetailUiState()
+
     data class Error(val message: String) : AlbumDetailUiState()
 }
 
@@ -39,7 +55,8 @@ class AlbumDetailViewModel @AssistedInject constructor(
     @Assisted private val albumDetail: AlbumDetail,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val playerRepository: PlayerRepository
+    private val playerRepository: PlayerRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     @AssistedFactory
@@ -73,8 +90,39 @@ class AlbumDetailViewModel @AssistedInject constructor(
             initialValue = false
         )
 
+    // The latest persisted track order, updated on every emission (even while Loading) so a fresh load
+    // that finishes before/after the first sort emission still applies the persisted order.
+    private var currentSortOrder: SortOrder = SortOrder.DEFAULT
+
     init {
         loadAlbumDetails()
+        observeSortOrder()
+    }
+
+    /** Re-apply the persisted track order to the loaded album whenever it changes (or on first load). */
+    private fun observeSortOrder() {
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.ALBUM_TRACKS).collect { order ->
+                currentSortOrder = order
+                _uiState.update { state ->
+                    if (state is AlbumDetailUiState.Success) {
+                        state.copy(
+                            sortOrder = order,
+                            sortedSongs = MediaSorter.sortSongs(state.album.songs.orEmpty(), order),
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
+
+    /** Persist a new track [order]; the observer re-sorts the visible list. */
+    fun setSortOrder(order: SortOrder) {
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(SortView.ALBUM_TRACKS, order)
+        }
     }
 
     private fun loadAlbumDetails() {
@@ -100,7 +148,13 @@ class AlbumDetailViewModel @AssistedInject constructor(
 
                 val album = albumResult.getOrThrow()
 
-                _uiState.value = AlbumDetailUiState.Success(album)
+                // Apply the persisted/selected track order (available even on a fresh load).
+                val order = currentSortOrder
+                _uiState.value = AlbumDetailUiState.Success(
+                    album = album,
+                    sortOrder = order,
+                    sortedSongs = MediaSorter.sortSongs(album.songs.orEmpty(), order),
+                )
             } catch (e: Exception) {
                 _uiState.value = AlbumDetailUiState.Error(
                     e.message ?: "Failed to load album details"
@@ -115,7 +169,8 @@ class AlbumDetailViewModel @AssistedInject constructor(
                 val state = _uiState.value
                 if (state !is AlbumDetailUiState.Success) return@launch
 
-                val songs = state.album.songs.orEmpty()
+                // Play in the order the user sees (respects the chosen sort).
+                val songs = state.sortedSongs
 
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
@@ -139,7 +194,7 @@ class AlbumDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 val state = _uiState.value as? AlbumDetailUiState.Success ?: return@launch
-                val songs = state.album.songs.orEmpty()
+                val songs = state.sortedSongs
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0, PlaybackContext.Album(state.album.id, state.album.name))
                 }

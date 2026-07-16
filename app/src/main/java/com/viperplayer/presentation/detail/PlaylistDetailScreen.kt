@@ -70,7 +70,10 @@ import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOption
+import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
+import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
@@ -86,6 +89,15 @@ import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+// Playlist song sort options. DEFAULT (insertion order) is first and selected initially.
+private val PLAYLIST_SONG_SORT_OPTIONS = listOf(
+    SortOption.DEFAULT,
+    SortOption.TITLE,
+    SortOption.ARTIST,
+    SortOption.ALBUM,
+    SortOption.DURATION,
+)
 
 @Composable
 fun PlaylistDetailScreen(
@@ -138,6 +150,7 @@ fun PlaylistDetailScreen(
         onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
         onRefresh = viewModel::refresh,
+        onSortOrderChange = viewModel::setSortOrder,
         onExport = { exportLauncher.launch(viewModel.suggestedExportFileName) },
         onPlayAll = viewModel::playAll,
         onShuffle = viewModel::shuffle,
@@ -168,6 +181,7 @@ internal fun PlaylistDetailScreenContent(
     onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
     onRefresh: () -> Unit,
+    onSortOrderChange: (SortOrder) -> Unit = {},
     onExport: () -> Unit = {},
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
@@ -199,6 +213,15 @@ internal fun PlaylistDetailScreenContent(
         title = title,
         onNavigateBack = onNavigateBack,
         actions = {
+            // Sorting is a view-mode concern only — hidden in edit mode, where insertion order is being
+            // reordered directly. Only offer it when there are songs to sort.
+            if (!editMode && uiState is PlaylistDetailUiState.Success && uiState.songs.isNotEmpty()) {
+                SortMenu(
+                    current = uiState.sortOrder,
+                    options = PLAYLIST_SONG_SORT_OPTIONS,
+                    onOrderChange = onSortOrderChange,
+                )
+            }
             if (isEditable && uiState is PlaylistDetailUiState.Success) {
                 IconButton(onClick = { editMode = !editMode }) {
                     if (editMode) {
@@ -305,8 +328,8 @@ internal fun PlaylistDetailScreenContent(
                             )
                         }
 
-                        // Songs list
-                        if (uiState.songs.isEmpty()) {
+                        // Songs list (view mode renders the chosen display order).
+                        if (uiState.sortedSongs.isEmpty()) {
                             item {
                                 Box(
                                     modifier = Modifier
@@ -322,7 +345,7 @@ internal fun PlaylistDetailScreenContent(
                                 }
                             }
                         } else {
-                            itemsIndexed(uiState.songs, key = { index, song -> "${song.id}-$index" }) { _, song ->
+                            itemsIndexed(uiState.sortedSongs, key = { index, song -> "${song.id}-$index" }) { _, song ->
                                 ListItem(
                                     title = song.title,
                                     badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
