@@ -570,7 +570,9 @@ fun PlayerBottomSheetNavHost(
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(Player)
-    val navigate: (NavKey) -> Unit = { backStack.add(it) }
+    // Single-top guard: a rapid double-tap must not push the same destination twice onto the sheet's
+    // nested stack.
+    val navigate: (NavKey) -> Unit = { if (NavigationLogic.shouldPush(backStack, it)) backStack.add(it) }
     val goBack: () -> Unit = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) }
 
     val entryProvider = entryProvider {

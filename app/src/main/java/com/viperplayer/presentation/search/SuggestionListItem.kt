@@ -13,7 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import com.viperplayer.R
 
 @Composable
 fun HistoryListItem(
@@ -36,12 +38,18 @@ fun HistoryListItem(
                 IconButton(
                     onClick = onRemove
                 ) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Remove")
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.search_remove_history_entry)
+                    )
                 }
                 IconButton(
                     onClick = onInsert
                 ) {
-                    Icon(Icons.Rounded.NorthWest, contentDescription = "Insert")
+                    Icon(
+                        Icons.Rounded.NorthWest,
+                        contentDescription = stringResource(R.string.search_insert_query)
+                    )
                 }
             }
         },

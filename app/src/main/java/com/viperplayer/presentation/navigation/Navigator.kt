@@ -13,7 +13,10 @@ class Navigator(val state: NavigationState) {
         } else {
             val currentStack = state.backStacks[state.topLevelRoute]
                 ?: error("Stack for ${state.topLevelRoute} not found")
-            currentStack.add(route)
+            // Single-top guard: a rapid double-tap must not push the same destination twice.
+            if (NavigationLogic.shouldPush(currentStack, route)) {
+                currentStack.add(route)
+            }
         }
     }
 

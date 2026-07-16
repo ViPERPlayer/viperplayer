@@ -20,6 +20,10 @@
     <string name="search_filter_albums">Albums</string>
     <string name="search_filter_playlists">Playlists</string>
     <string name="search_filter_artists">Artists</string>
+    <string name="search_recent_title">Recent searches</string>
+    <string name="search_clear_history">Clear all</string>
+    <string name="search_remove_history_entry">Remove</string>
+    <string name="search_insert_query">Insert query</string>
 
     <!-- ViPER effects -->
     <string name="viper_bass">ViPER bass</string>

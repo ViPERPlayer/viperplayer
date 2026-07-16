@@ -19,4 +19,7 @@ interface SearchRepository {
 
     // Removes a search history entry
     suspend fun removeHistoryEntry(query: String)
+
+    // Clears all search history
+    suspend fun clearSearchHistory()
 }

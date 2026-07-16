@@ -397,6 +397,12 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun clearHistory() {
+        viewModelScope.launch {
+            searchRepository.clearSearchHistory()
+        }
+    }
+
     fun playNext(song: Song) {
         viewModelScope.launch {
             playerRepository.playNext(song)
