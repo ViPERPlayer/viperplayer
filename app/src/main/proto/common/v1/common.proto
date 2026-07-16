@@ -1,0 +1,37 @@
+// VENDORED COPY — source of truth is the viper-backend repo at
+// api/proto/common/v1/common.proto (github.com/iscle/viper-backend). This is a
+// verbatim copy so the app can generate gRPC/protobuf stubs at build time without
+// a submodule (keeps CI simple — protoc auto-downloads). Re-sync on any change.
+//
+// Shared messages reused across the ViPER backend's bounded contexts (accounts,
+// library sync, and the realtime Jam/Connect wire). Keeping these in one place
+// avoids each service redefining User/Error/timestamp shapes.
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/iscle/viper-backend/api/gen/common/v1;commonv1";
+
+// A ViPER user account, as returned by the account service and referenced by
+// other services (library ownership, session membership).
+message User {
+  string id = 1;            // stable account id (UUID)
+  string email = 2;         // login identity; unique, lowercased
+  string display_name = 3;  // shown to other users
+  int64  created_at_ms = 4; // account creation, epoch millis (UTC)
+}
+
+// A structured API error. HTTP transports also set the status code; this body
+// carries a stable machine-readable code plus a human-readable message.
+message Error {
+  string code = 1;     // stable enum-like token, e.g. "EMAIL_TAKEN", "INVALID_CREDENTIALS"
+  string message = 2;  // human-readable, user-presentable
+}
+
+// A pair of tokens issued on register/login/refresh (DESIGN §5.6): a short-lived
+// access token for API/WS auth and a long-lived refresh token to mint new ones.
+message TokenPair {
+  string access_token = 1;       // JWT; carried as Authorization: Bearer
+  string refresh_token = 2;      // opaque; exchanged at /auth/refresh
+  int64  access_expires_at_ms = 3; // access-token expiry, epoch millis (UTC)
+}

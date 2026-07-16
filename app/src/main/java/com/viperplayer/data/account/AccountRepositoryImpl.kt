@@ -1,5 +1,6 @@
 package com.viperplayer.data.account
 
+import common.v1.Common
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
@@ -10,29 +11,38 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Default [AccountRepository]: stitches the [AccountApi] (network) and the
- * [AccountCredentialStore] (token persistence). The password is used transiently
- * for register/login and never stored; only the returned tokens are persisted.
+ * Default [AccountRepository]: stitches the gRPC [AccountGrpcClient] (network) and the
+ * [AccountCredentialStore] (token persistence). The password is used transiently for register/login
+ * and never stored; only the returned tokens are persisted.
+ *
+ * Transport is protobuf/gRPC (`account.v1.AccountService`); this layer is transport-agnostic — it
+ * consumes [AccountApiResult] and never sees a raw gRPC status. Token refresh is transparent:
+ * [validAccessToken] refreshes an about-to-expire access token, and [withAuth] retries an authed call
+ * once against a freshly-refreshed token when the server answers UNAUTHENTICATED.
  */
 @Singleton
 class AccountRepositoryImpl @Inject constructor(
-    private val api: AccountApi,
+    private val client: AccountGrpcClient,
     private val credentialStore: AccountCredentialStore,
 ) : AccountRepository {
 
     override val state: Flow<AccountState> = credentialStore.state
 
-    override val isConfigured: Boolean get() = api.isConfigured
+    override val isConfigured: Boolean get() = client.isConfigured
 
     override suspend fun register(email: String, password: String, displayName: String?): AuthResult =
-        persistAuth(api.register(email.trim(), password, displayName?.trim()))
+        persistAuth(client.register(email.trim(), password, displayName?.trim())) {
+            it.user to it.tokens
+        }
 
     override suspend fun login(email: String, password: String): AuthResult =
-        persistAuth(api.login(email.trim(), password))
+        persistAuth(client.login(email.trim(), password)) {
+            it.user to it.tokens
+        }
 
     override suspend fun logout() {
         val snapshot = credentialStore.snapshot()
-        snapshot.refreshToken?.let { api.logout(it) }
+        snapshot.refreshToken?.let { client.logout(it) }
         credentialStore.clear()
     }
 
@@ -43,19 +53,28 @@ class AccountRepositoryImpl @Inject constructor(
         if (snapshot.accessExpiresAtMs - System.currentTimeMillis() > EXPIRY_SKEW_MS) {
             return access
         }
-        val refresh = snapshot.refreshToken ?: return null
-        return when (val result = api.refresh(refresh)) {
+        return forceRefresh(snapshot.refreshToken)
+    }
+
+    /**
+     * Refreshes using the stored refresh token, persisting the new pair. Returns the new access token,
+     * or null when there is no refresh token or the server rejected it (session cleared on rejection).
+     */
+    private suspend fun forceRefresh(refreshToken: String?): String? {
+        val refresh = refreshToken ?: return null
+        return when (val result = client.refresh(refresh)) {
             is AccountApiResult.Success -> {
+                val tokens = result.value.tokens
                 credentialStore.updateTokens(
-                    accessToken = result.value.accessToken,
-                    refreshToken = result.value.refreshToken,
-                    accessExpiresAtMs = result.value.accessExpiresAtMs,
+                    accessToken = tokens.accessToken,
+                    refreshToken = tokens.refreshToken,
+                    accessExpiresAtMs = tokens.accessExpiresAtMs,
                 )
-                result.value.accessToken
+                tokens.accessToken
             }
-            is AccountApiResult.Rejected -> {
+            AccountApiResult.Unauthenticated, is AccountApiResult.Rejected -> {
                 // Refresh token rejected/expired → treat as signed out.
-                Timber.w("Token refresh rejected (${result.status}); clearing session")
+                Timber.w("Token refresh rejected; clearing session")
                 credentialStore.clear()
                 null
             }
@@ -66,24 +85,57 @@ class AccountRepositoryImpl @Inject constructor(
         }
     }
 
-    /** Maps an [AccountApiResult] carrying auth tokens into an [AuthResult], persisting on success. */
-    private suspend fun persistAuth(result: AccountApiResult<AuthDto>): AuthResult = when (result) {
+    /**
+     * Runs an authenticated RPC with the current access token attached, transparently refreshing and
+     * retrying ONCE if the server answers [AccountApiResult.Unauthenticated]. Returns
+     * [AccountApiResult.Unauthenticated] when there is no usable token or the retry also fails.
+     *
+     * Internal (not part of the public [AccountRepository] surface) — the seam behind authenticated
+     * calls such as [refreshProfile], reused by the later library-sync wiring. Kept testable.
+     */
+    internal suspend fun <T> withAuth(
+        call: suspend (accessToken: String) -> AccountApiResult<T>,
+    ): AccountApiResult<T> = runAuthenticated(
+        provideToken = { validAccessToken() },
+        forceRefresh = { forceRefresh(credentialStore.snapshot().refreshToken) },
+        call = call,
+    )
+
+    /**
+     * Refreshes the cached user profile from the backend (`GetMe`), persisting any change. Best-effort:
+     * returns the fresh [AccountUser] on success, null otherwise (offline, signed out, not configured).
+     * Not on the public interface — available for callers that want an up-to-date profile.
+     */
+    internal suspend fun refreshProfile(): AccountUser? {
+        val result = withAuth { token -> client.getMe(token) }
+        return when (result) {
+            is AccountApiResult.Success -> {
+                val user = result.value.user.toAccountUser()
+                credentialStore.updateUser(user)
+                user
+            }
+            else -> null
+        }
+    }
+
+    /** Maps a successful auth RPC (register/login) into an [AuthResult], persisting the session. */
+    private suspend fun <T> persistAuth(
+        result: AccountApiResult<T>,
+        extract: (T) -> Pair<Common.User, Common.TokenPair>,
+    ): AuthResult = when (result) {
         is AccountApiResult.Success -> {
-            val dto = result.value
-            val user = AccountUser(
-                id = dto.user.id,
-                email = dto.user.email,
-                displayName = dto.user.displayName.ifBlank { dto.user.email.substringBefore('@') },
-            )
+            val (protoUser, tokens) = extract(result.value)
+            val user = protoUser.toAccountUser()
             credentialStore.saveSession(
                 user = user,
-                accessToken = dto.tokens.accessToken,
-                refreshToken = dto.tokens.refreshToken,
-                accessExpiresAtMs = dto.tokens.accessExpiresAtMs,
+                accessToken = tokens.accessToken,
+                refreshToken = tokens.refreshToken,
+                accessExpiresAtMs = tokens.accessExpiresAtMs,
             )
             AuthResult.Success(user)
         }
         is AccountApiResult.Rejected -> AuthResult.Failed(result.message)
+        AccountApiResult.Unauthenticated -> AuthResult.Failed("Invalid email or password")
         AccountApiResult.NetworkError -> AuthResult.NetworkError
         AccountApiResult.NotConfigured -> AuthResult.NotConfigured
     }
@@ -92,3 +144,10 @@ class AccountRepositoryImpl @Inject constructor(
         const val EXPIRY_SKEW_MS = 30_000L
     }
 }
+
+/** Maps a protobuf [common.v1.User] into the domain [AccountUser], defaulting a blank display name. */
+private fun Common.User.toAccountUser(): AccountUser = AccountUser(
+    id = id,
+    email = email,
+    displayName = displayName.ifBlank { email.substringBefore('@') },
+)

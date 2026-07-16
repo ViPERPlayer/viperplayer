@@ -1,3 +1,4 @@
+import com.google.protobuf.gradle.id
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -6,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.protobuf)
     id("kotlin-parcelize")
 }
 
@@ -30,10 +32,16 @@ android {
         buildConfigField("String", "LASTFM_API_KEY", "\"REPLACE_WITH_REAL_VALUE\"")
         buildConfigField("String", "LASTFM_API_SECRET", "\"REPLACE_WITH_REAL_VALUE\"")
 
-        // ViPER backend base URL for account sign-in + library sync (github.com/iscle/viper-backend).
-        // PLACEHOLDER — account features stay disabled (AccountApi.isConfigured == false) until a real
-        // HTTPS URL is supplied here. Point it at your deployed viperd, e.g. "https://api.viper.player".
+        // ViPER backend base URL — kept for any REST features (library sync scaffolding, etc.).
+        // PLACEHOLDER — features that read it stay disabled until a real HTTPS URL is supplied.
         buildConfigField("String", "VIPER_BACKEND_URL", "\"REPLACE_WITH_REAL_VALUE\"")
+
+        // ViPER backend gRPC endpoint (account sign-in + library sync; github.com/iscle/viper-backend).
+        // The app talks gRPC/protobuf over HTTP/2. Format is "host:port" (e.g. "api.viper.player:9090").
+        // PLACEHOLDER — account features stay disabled (AccountBackendConfig.isConfigured == false) until
+        // a real host:port is supplied here. Transport defaults to TLS (prod); to target a dev h2c server
+        // with no TLS, prefix with "plaintext://" (e.g. "plaintext://10.0.2.2:9090").
+        buildConfigField("String", "VIPER_BACKEND_GRPC", "\"REPLACE_WITH_REAL_VALUE\"")
 
         externalNativeBuild {
             cmake {
@@ -110,6 +118,10 @@ android {
         // coroutine lambdas (where the @Composable stringResource() cannot be called, and several are
         // parameterized by the emitted event) — a legitimate pattern this check false-flags.
         disable += "LocalContextGetResourceValueCall"
+        // Generated gRPC/protobuf sources (build/generated/source/proto/**) are machine-generated and
+        // not our code to fix; lint skips generated sources by default, but keep this explicit so the
+        // codegen can never trip abortOnError with a NewApi/etc. warning we don't control.
+        checkGeneratedSources = false
     }
 }
 
@@ -117,6 +129,41 @@ android {
 // pairs with having dropped fallbackToDestructiveMigration.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// gRPC/protobuf codegen for the ViPER account + library backend transport.
+// The com.google.protobuf plugin auto-provisions the protoc compiler and the grpc-java/grpc-kotlin
+// codegen plugins from Maven Central (no manual protoc install — works on CI). Protos are vendored
+// under src/main/proto (source of truth: viper-backend). We generate the LITE runtime (javalite +
+// kotlin-lite) which is required on Android (small method count, no full protobuf-java reflection).
+protobuf {
+    protoc {
+        artifact = libs.protobuf.protoc.get().toString()
+    }
+    plugins {
+        // grpc-java: generates the service stubs (…Grpc.java)
+        id("grpc") {
+            artifact = libs.grpc.protoc.gen.java.get().toString()
+        }
+        // grpc-kotlin: generates the coroutine stubs (…GrpcKt.kt)
+        id("grpckt") {
+            artifact = "${libs.grpc.protoc.gen.kotlin.get()}:jdk8@jar"
+        }
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            // Emit the LITE Java + Kotlin message code…
+            task.builtins {
+                id("java") { option("lite") }
+                id("kotlin") { option("lite") }
+            }
+            // …plus the gRPC service + coroutine stubs (also lite).
+            task.plugins {
+                id("grpc") { option("lite") }
+                id("grpckt") { option("lite") }
+            }
+        }
+    }
 }
 
 // Dagger/Hilt (>= 2.57) unshades kotlin-metadata-jvm, so its Java annotation processor reads class
@@ -173,6 +220,18 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.serialization.json)
+
+    // gRPC / protobuf — ViPER account + library backend transport (LITE runtime for Android).
+    // grpc-okhttp is the Android-friendly HTTP/2 transport (minSdk 26 OK). protobuf-lite +
+    // grpc-protobuf-lite keep the generated message/marshaller code small. The kotlin + stub
+    // libraries back the generated coroutine stubs (…GrpcKt).
+    implementation(libs.grpc.okhttp)
+    implementation(libs.grpc.protobuf.lite)
+    implementation(libs.grpc.stub)
+    implementation(libs.grpc.kotlin.stub)
+    implementation(libs.protobuf.kotlin.lite)
+    // javax.annotation.Generated is referenced by grpc-java-generated stubs on Android.
+    compileOnly(libs.javax.annotation.api)
 
     // Room
     implementation(libs.room.runtime)

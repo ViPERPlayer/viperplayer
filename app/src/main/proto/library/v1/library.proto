@@ -1,0 +1,85 @@
+// VENDORED COPY — source of truth is the viper-backend repo at
+// api/proto/library/v1/library.proto (github.com/iscle/viper-backend). This is a
+// verbatim copy so the app can generate gRPC/protobuf stubs at build time without
+// a submodule (keeps CI simple — protoc auto-downloads). Re-sync on any change.
+//
+// The library service: sync a signed-in user's playlists and liked tracks
+// across devices (DESIGN §5.5 Tier-3 "durable rooms/accounts" neighbourhood).
+// A track is identified the same way as everywhere else in ViPER: a (plugin_id,
+// source_id) pair (mirrors wire.v1.MediaRef), so a synced library is portable
+// across devices that have the same plugins installed.
+//
+// Sync model: last-writer-wins per playlist, coordinated by a monotonically
+// increasing revision the server returns. Clients send their local changes with
+// the base revision they last saw; the server rejects stale writes so a client
+// can pull-merge-retry.
+syntax = "proto3";
+
+package library.v1;
+
+option go_package = "github.com/iscle/viper-backend/api/gen/library/v1;libraryv1";
+
+// A track reference, portable across devices via the plugin that resolves it.
+message TrackRef {
+  string plugin_id = 1;
+  string source_id = 2;
+  string title = 3;
+  string artist = 4;
+  string album = 5;
+  string artwork_url = 6;
+  int64  duration_ms = 7;
+}
+
+message Playlist {
+  string id = 1;             // stable server id
+  string name = 2;
+  repeated TrackRef tracks = 3;
+  int64  revision = 4;       // server-assigned; bumped on every accepted write
+  int64  updated_at_ms = 5;
+}
+
+// ---- Pull the whole library (playlists + likes) since a known revision ----
+message GetLibraryRequest {
+  int64 since_revision = 1;  // 0 = full snapshot
+}
+
+message GetLibraryResponse {
+  repeated Playlist playlists = 1;
+  repeated TrackRef liked_tracks = 2;
+  int64 revision = 3;        // the library-wide high-water revision
+}
+
+// ---- Upsert a playlist (create or replace) ----
+message UpsertPlaylistRequest {
+  Playlist playlist = 1;
+  int64 base_revision = 2;   // the revision the client based this edit on
+}
+
+message UpsertPlaylistResponse {
+  Playlist playlist = 1;     // echoed with the new server revision
+  bool conflict = 2;         // true if base_revision was stale; client should pull-merge-retry
+}
+
+// ---- Delete a playlist ----
+message DeletePlaylistRequest {
+  string playlist_id = 1;
+}
+
+message DeletePlaylistResponse {}
+
+// ---- Toggle a liked track ----
+message SetLikeRequest {
+  TrackRef track = 1;
+  bool liked = 2;
+}
+
+message SetLikeResponse {
+  int64 revision = 1;
+}
+
+service LibraryService {
+  rpc GetLibrary(GetLibraryRequest) returns (GetLibraryResponse);
+  rpc UpsertPlaylist(UpsertPlaylistRequest) returns (UpsertPlaylistResponse);
+  rpc DeletePlaylist(DeletePlaylistRequest) returns (DeletePlaylistResponse);
+  rpc SetLike(SetLikeRequest) returns (SetLikeResponse);
+}
