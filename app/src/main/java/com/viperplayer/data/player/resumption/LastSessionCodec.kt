@@ -16,6 +16,13 @@ object LastSessionCodec {
     /** Bump when the persisted schema changes incompatibly; older/newer versions decode to `null`. */
     const val VERSION = 1
 
+    /**
+     * Upper bound on how many queue items are persisted. A huge queue would otherwise serialize in
+     * full into the Preferences DataStore blob on every debounced write; capping keeps the blob
+     * bounded while still restoring the current track and enough neighbors to be useful.
+     */
+    const val MAX_PERSISTED_ITEMS = 500
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -108,6 +115,30 @@ object LastSessionCodec {
             playWhenReady = wire.playWhenReady,
             shuffleEnabled = wire.shuffleEnabled,
             repeatMode = wire.repeatMode,
+        )
+    }
+
+    /**
+     * Caps a session's queue to a bounded window of at most [max] items centered on the current
+     * item, adjusting [LastSession.currentIndex] so it still points at that item within the window.
+     * Returns the session unchanged when it already fits (the common case) or has no items.
+     *
+     * The window is centered on the (clamped) current index, then shifted to stay within
+     * `[0, size)` so exactly [max] items are kept and the current item is always inside — restore
+     * still works after capping. This is a pure transform so it can be unit-tested and round-tripped.
+     */
+    fun capForPersist(session: LastSession, max: Int = MAX_PERSISTED_ITEMS): LastSession {
+        val size = session.items.size
+        if (size <= max || size == 0) return session
+
+        val current = session.currentIndex.coerceIn(0, size - 1)
+        // Center the window on `current`, then clamp its start into [0, size - max].
+        val half = max / 2
+        val start = (current - half).coerceIn(0, size - max)
+        val windowed = session.items.subList(start, start + max).toList()
+        return session.copy(
+            items = windowed,
+            currentIndex = current - start, // guaranteed to land inside [0, max)
         )
     }
 

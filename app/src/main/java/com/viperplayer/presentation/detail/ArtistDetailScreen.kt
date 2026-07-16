@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.BottomSheetDefaults
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,8 +60,11 @@ import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOption
+import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
+import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.plugins.PluginActionsViewModel
 import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.presentation.common.ListItem
@@ -72,6 +78,14 @@ import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
+// Artist Top Songs sort options. DEFAULT (plugin order) is first and selected initially.
+private val ARTIST_SONG_SORT_OPTIONS = listOf(
+    SortOption.DEFAULT,
+    SortOption.TITLE,
+    SortOption.ALBUM,
+    SortOption.DURATION,
+)
+
 @Composable
 fun ArtistDetailScreen(
     rootPadding: PaddingValues,
@@ -84,6 +98,7 @@ fun ArtistDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val isFollowing by viewModel.isFollowing.collectAsStateWithLifecycle()
 
     // If this screen's plugin needs the user to act (sign in, verify...), offer it on errors.
     val actionsViewModel: PluginActionsViewModel = hiltViewModel()
@@ -96,6 +111,7 @@ fun ArtistDetailScreen(
         uiState = uiState,
         currentSong = currentSong,
         isPlaying = isPlaying,
+        isFollowing = isFollowing,
         pluginAction = pluginAction,
         onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
@@ -103,6 +119,8 @@ fun ArtistDetailScreen(
         onNavigateToPlaylist = onNavigateToPlaylist,
         onNavigateToArtist = onNavigateToArtist,
         onRefresh = viewModel::refresh,
+        onToggleFollow = viewModel::toggleFollow,
+        onSortOrderChange = viewModel::setSortOrder,
         onPlayAllSongs = viewModel::playAllSongs,
         onPlaySong = viewModel::playSong,
         onPlayNext = viewModel::playNext,
@@ -116,6 +134,7 @@ private fun ArtistDetailScreenContent(
     uiState: ArtistDetailUiState,
     currentSong: Song?,
     isPlaying: Boolean,
+    isFollowing: Boolean = false,
     pluginAction: PluginPendingAction? = null,
     onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -123,6 +142,8 @@ private fun ArtistDetailScreenContent(
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
+    onToggleFollow: () -> Unit = {},
+    onSortOrderChange: (SortOrder) -> Unit = {},
     onPlayAllSongs: () -> Unit,
     onPlaySong: (Song) -> Unit,
     onPlayNext: (Song) -> Unit,
@@ -142,6 +163,25 @@ private fun ArtistDetailScreenContent(
         title = title,
         onNavigateBack = onNavigateBack,
         actions = {
+            IconButton(
+                onClick = onToggleFollow,
+                modifier = Modifier.testTag("followToggle"),
+            ) {
+                Icon(
+                    imageVector = if (isFollowing) Icons.Default.PersonRemove else Icons.Default.PersonAddAlt1,
+                    contentDescription = stringResource(
+                        if (isFollowing) R.string.action_unfollow else R.string.action_follow
+                    ),
+                )
+            }
+            // Sort applies to the Top Songs list; only offer it once there are songs to sort.
+            if (uiState is ArtistDetailUiState.Success && uiState.artist.topSongs.isNotEmpty()) {
+                SortMenu(
+                    current = uiState.songsSort,
+                    options = ARTIST_SONG_SORT_OPTIONS,
+                    onOrderChange = onSortOrderChange,
+                )
+            }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }
@@ -195,13 +235,13 @@ private fun ArtistDetailScreenContent(
                         }
                     }
 
-                    // Top Songs section
-                    if (artistData.topSongs.isNotEmpty()) {
+                    // Top Songs section (rendered in the user-chosen sort order).
+                    if (state.sortedSongs.isNotEmpty()) {
                         item {
                             SectionHeader("Top Songs")
                         }
                         items(
-                            items = artistData.topSongs,
+                            items = state.sortedSongs,
                             key = { song -> song.id.toString() }
                         ) { song ->
                             ListItem(

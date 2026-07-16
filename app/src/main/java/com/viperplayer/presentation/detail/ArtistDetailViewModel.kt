@@ -5,9 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOrder
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.sort.MediaSorter
+import com.viperplayer.follows.data.FollowedArtistsRepository
+import com.viperplayer.follows.domain.FollowedArtist
 import com.viperplayer.presentation.navigation.ArtistDetail as ArtistDetailRoute
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -18,6 +24,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -29,8 +36,16 @@ import timber.log.Timber
  */
 sealed class ArtistDetailUiState {
     data class Loading(val initialArtist: ArtistDetail) : ArtistDetailUiState()
+
+    /**
+     * @param artist the loaded artist profile (its `topSongs` stay in the plugin's original order).
+     * @param songsSort the chosen order for the Top Songs list; [SortOrder.DEFAULT] keeps the original.
+     * @param sortedSongs [artist]'s `topSongs` after [songsSort] is applied.
+     */
     data class Success(
-        val artist: ArtistDetail
+        val artist: ArtistDetail,
+        val songsSort: SortOrder = SortOrder.DEFAULT,
+        val sortedSongs: List<Song> = artist.topSongs,
     ) : ArtistDetailUiState()
 
     data class Error(val message: String) : ArtistDetailUiState()
@@ -44,7 +59,9 @@ class ArtistDetailViewModel @AssistedInject constructor(
     @Assisted private val artistDetail: ArtistDetailRoute,
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val playerRepository: PlayerRepository
+    private val playerRepository: PlayerRepository,
+    private val settingsRepository: SettingsRepository,
+    private val followedArtistsRepository: FollowedArtistsRepository
 ) : ViewModel() {
 
     @AssistedFactory
@@ -78,8 +95,80 @@ class ArtistDetailViewModel @AssistedInject constructor(
             initialValue = false
         )
 
+    /** Whether this artist is currently followed — drives the Follow/Following toggle button. */
+    val isFollowing = followedArtistsRepository.isFollowing(artistId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    // Latest persisted Top Songs order, tracked even while Loading so a fresh load applies it.
+    private var currentSortOrder: SortOrder = SortOrder.DEFAULT
+
     init {
         loadArtistDetails()
+        observeSortOrder()
+    }
+
+    /** Re-apply the persisted Top Songs order whenever it changes (or on first load). */
+    private fun observeSortOrder() {
+        viewModelScope.launch {
+            settingsRepository.sortOrder(SortView.ARTIST_SONGS).collect { order ->
+                currentSortOrder = order
+                _uiState.update { state ->
+                    if (state is ArtistDetailUiState.Success) {
+                        state.copy(
+                            songsSort = order,
+                            sortedSongs = MediaSorter.sortSongs(state.artist.topSongs, order),
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
+
+    /** Persist a new Top Songs [order]; the observer re-sorts the visible list. */
+    fun setSortOrder(order: SortOrder) {
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(SortView.ARTIST_SONGS, order)
+        }
+    }
+
+    /**
+     * Follow the artist if not followed, unfollow otherwise. Reads the current persisted state (not
+     * the possibly-stale [isFollowing] snapshot) so a concurrent toggle can't flip the wrong way, and
+     * uses the latest loaded name/artwork so the Following list has something to render. Follow is
+     * idempotent at the repository level.
+     */
+    fun toggleFollow() {
+        viewModelScope.launch {
+            try {
+                if (followedArtistsRepository.isFollowing(artistId).first()) {
+                    followedArtistsRepository.unfollow(artistId)
+                } else {
+                    val artist = (_uiState.value as? ArtistDetailUiState.Success)?.artist
+                    val name = artist?.name ?: artistDetail.initialName
+                    // Never persist a nameless follow: only reachable if Follow is tapped while the
+                    // artist is still Loading AND the screen was opened with a blank initialName. The
+                    // name is available a moment later, so the tap simply no-ops until then. Unfollow
+                    // is unaffected (handled above).
+                    if (name.isBlank()) return@launch
+                    followedArtistsRepository.follow(
+                        FollowedArtist(
+                            mediaId = artistId,
+                            name = name,
+                            artworkUrl = artist?.imageUrl ?: artistDetail.initialImageUrl,
+                            followedAt = System.currentTimeMillis(),
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "ArtistDetail follow toggle failed")
+            }
+        }
     }
 
     private fun loadArtistDetails() {
@@ -109,8 +198,12 @@ class ArtistDetailViewModel @AssistedInject constructor(
                 // the catalog through the dedicated paged endpoints, leaving the inline lists empty —
                 // which rendered as an empty profile. Backfill from getArtistSongs / getArtistAlbums
                 // when the inline lists are empty so the screen actually shows the artist's content.
+                val enriched = enrichArtistContent(artist)
+                val order = currentSortOrder
                 _uiState.value = ArtistDetailUiState.Success(
-                    artist = enrichArtistContent(artist)
+                    artist = enriched,
+                    songsSort = order,
+                    sortedSongs = MediaSorter.sortSongs(enriched.topSongs, order),
                 )
             } catch (e: Exception) {
                 _uiState.value = ArtistDetailUiState.Error(
@@ -145,7 +238,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
                 val state = _uiState.value
                 if (state !is ArtistDetailUiState.Success) return@launch
 
-                val songs = state.artist.topSongs
+                val songs = state.sortedSongs
 
                 if (songs.isNotEmpty()) {
                     val index = songs.indexOfFirst { it.id == song.id }
@@ -169,7 +262,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 val state = _uiState.value as? ArtistDetailUiState.Success ?: return@launch
-                val songs = state.artist.topSongs
+                val songs = state.sortedSongs
                 if (songs.isNotEmpty()) {
                     playerRepository.playAll(songs, 0, PlaybackContext.Artist(state.artist.id, state.artist.name))
                 }

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,7 +57,10 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOption
+import com.viperplayer.domain.model.SortView
 import com.viperplayer.presentation.common.ListItem
+import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
@@ -66,6 +70,25 @@ import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 
+// Per-tab sort options. DEFAULT is always first (selected initially → order unchanged). Only fields the
+// domain models actually carry are offered, so every option produces a real ordering.
+private val SONG_SORT_OPTIONS = listOf(
+    SortOption.DEFAULT,
+    SortOption.TITLE,
+    SortOption.ARTIST,
+    SortOption.ALBUM,
+    SortOption.DURATION,
+    SortOption.TRACK_NUMBER,
+)
+private val ALBUM_SORT_OPTIONS = listOf(
+    SortOption.DEFAULT,
+    SortOption.TITLE,
+    SortOption.ALBUM_ARTIST,
+    SortOption.YEAR,
+)
+private val ARTIST_SORT_OPTIONS = listOf(SortOption.DEFAULT, SortOption.TITLE)
+private val PLAYLIST_SORT_OPTIONS = listOf(SortOption.DEFAULT, SortOption.TITLE)
+
 @Composable
 fun LibraryScreen(
     rootPadding: PaddingValues,
@@ -73,6 +96,7 @@ fun LibraryScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToDownloads: () -> Unit = {},
+    onNavigateToFollowing: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -127,6 +151,31 @@ fun LibraryScreen(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Per-tab sort menu — its options, current order, and target view follow the tab.
+                    when (uiState.selectedTab) {
+                        LibraryTab.SONGS -> SortMenu(
+                            current = uiState.songsSort,
+                            options = SONG_SORT_OPTIONS,
+                            onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_SONGS, it) },
+                        )
+                        LibraryTab.ALBUMS -> SortMenu(
+                            current = uiState.albumsSort,
+                            options = ALBUM_SORT_OPTIONS,
+                            onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ALBUMS, it) },
+                        )
+                        LibraryTab.ARTISTS -> SortMenu(
+                            current = uiState.artistsSort,
+                            options = ARTIST_SORT_OPTIONS,
+                            onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ARTISTS, it) },
+                            useNameLabel = true,
+                        )
+                        LibraryTab.PLAYLISTS -> SortMenu(
+                            current = uiState.playlistsSort,
+                            options = PLAYLIST_SORT_OPTIONS,
+                            onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_PLAYLISTS, it) },
+                            useNameLabel = true,
+                        )
+                    }
                     if (uiState.selectedTab == LibraryTab.PLAYLISTS) {
                         IconButton(onClick = {
                             importLauncher.launch(
@@ -143,6 +192,12 @@ fun LibraryScreen(
                                 contentDescription = stringResource(R.string.playlist_import)
                             )
                         }
+                    }
+                    IconButton(onClick = onNavigateToFollowing) {
+                        Icon(
+                            Icons.Default.People,
+                            contentDescription = stringResource(R.string.following_title)
+                        )
                     }
                     IconButton(onClick = onNavigateToDownloads) {
                         Icon(

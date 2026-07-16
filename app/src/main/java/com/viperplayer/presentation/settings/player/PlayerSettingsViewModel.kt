@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.HistoryDuration
+import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,11 @@ data class PlayerSettingsUiState(
     val autoLoadMore: Boolean = false,
     val dspBypass: Boolean = false,
     val replayGainAlbumMode: Boolean = false,
-    val crossfadeDurationSeconds: Int = 0
+    val crossfadeDurationSeconds: Int = 0,
+    val replayGainMode: ReplayGainMode = ReplayGainMode.SMART,
+    val replayGainUntaggedPreampDb: Float = 0f,
+    val replayGainDrcEnabled: Boolean = false,
+    val replayGainPostAmpDb: Float = 0f
 )
 
 @HiltViewModel
@@ -79,6 +84,26 @@ class PlayerSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(crossfadeDurationSeconds = seconds) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.replayGainMode.collect { mode ->
+                _uiState.update { it.copy(replayGainMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.replayGainUntaggedPreampDb.collect { preampDb ->
+                _uiState.update { it.copy(replayGainUntaggedPreampDb = preampDb) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.replayGainDrcEnabled.collect { enabled ->
+                _uiState.update { it.copy(replayGainDrcEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.replayGainPostAmpDb.collect { postAmpDb ->
+                _uiState.update { it.copy(replayGainPostAmpDb = postAmpDb) }
+            }
+        }
     }
 
     fun setAudioQuality(quality: AudioQuality) {
@@ -133,6 +158,30 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setCrossfadeDurationSeconds(seconds: Int) {
         viewModelScope.launch {
             settingsRepository.setCrossfadeDurationSeconds(seconds.coerceIn(0, 12))
+        }
+    }
+
+    fun setReplayGainMode(mode: ReplayGainMode) {
+        viewModelScope.launch {
+            settingsRepository.setReplayGainMode(mode)
+        }
+    }
+
+    fun setReplayGainUntaggedPreampDb(preampDb: Float) {
+        viewModelScope.launch {
+            settingsRepository.setReplayGainUntaggedPreampDb(preampDb.coerceIn(-12f, 6f))
+        }
+    }
+
+    fun setReplayGainDrcEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setReplayGainDrcEnabled(enabled)
+        }
+    }
+
+    fun setReplayGainPostAmpDb(postAmpDb: Float) {
+        viewModelScope.launch {
+            settingsRepository.setReplayGainPostAmpDb(postAmpDb.coerceIn(-12f, 12f))
         }
     }
 }

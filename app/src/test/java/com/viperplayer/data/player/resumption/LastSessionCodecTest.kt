@@ -182,6 +182,89 @@ class LastSessionCodecTest {
         assertNull(LastSessionCodec.selectRestore(session(items = emptyList(), currentIndex = 0)))
     }
 
+    // ---- capForPersist ----
+
+    @Test
+    fun capForPersist_underCap_returnsUnchanged() {
+        val original = session(
+            items = (1..5).map { item(sourceId = it.toString()) },
+            currentIndex = 3,
+        )
+        assertEquals(original, LastSessionCodec.capForPersist(original, max = 10))
+    }
+
+    @Test
+    fun capForPersist_atCap_returnsUnchanged() {
+        val original = session(
+            items = (1..4).map { item(sourceId = it.toString()) },
+            currentIndex = 2,
+        )
+        assertEquals(original, LastSessionCodec.capForPersist(original, max = 4))
+    }
+
+    @Test
+    fun capForPersist_overCap_keepsCurrentItemAndCapsCount() {
+        val current = 700
+        val original = session(
+            items = (0 until 1000).map { item(sourceId = it.toString(), title = "T$it") },
+            currentIndex = current,
+        )
+        val capped = LastSessionCodec.capForPersist(original, max = 500)
+
+        assertEquals(500, capped.items.size)
+        // The current item is preserved and the adjusted index still points at it.
+        assertEquals("T$current", capped.items[capped.currentIndex].title)
+        assertEquals(current.toString(), capped.items[capped.currentIndex].sourceId)
+        // Non-item state is untouched.
+        assertEquals(original.positionMs, capped.positionMs)
+        assertEquals(original.repeatMode, capped.repeatMode)
+    }
+
+    @Test
+    fun capForPersist_currentNearStart_windowStaysInBounds() {
+        val original = session(
+            items = (0 until 1000).map { item(sourceId = it.toString(), title = "T$it") },
+            currentIndex = 2,
+        )
+        val capped = LastSessionCodec.capForPersist(original, max = 500)
+        assertEquals(500, capped.items.size)
+        assertEquals(2, capped.currentIndex) // window starts at 0, index unchanged
+        assertEquals("T2", capped.items[capped.currentIndex].title)
+        assertEquals("T0", capped.items.first().title)
+    }
+
+    @Test
+    fun capForPersist_currentNearEnd_windowStaysInBounds() {
+        val original = session(
+            items = (0 until 1000).map { item(sourceId = it.toString(), title = "T$it") },
+            currentIndex = 999,
+        )
+        val capped = LastSessionCodec.capForPersist(original, max = 500)
+        assertEquals(500, capped.items.size)
+        assertEquals("T999", capped.items[capped.currentIndex].title)
+        assertEquals("T999", capped.items.last().title) // window ends at the last item
+        assertEquals(499, capped.currentIndex)
+    }
+
+    @Test
+    fun capForPersist_cappedForm_roundTripsAndSelectRestorePointsAtCurrent() {
+        val current = 800
+        val original = session(
+            items = (0 until 1000).map { item(sourceId = it.toString(), title = "T$it") },
+            currentIndex = current,
+            positionMs = 12_345L,
+        )
+        val capped = LastSessionCodec.capForPersist(original, max = 500)
+
+        val decoded = LastSessionCodec.decode(LastSessionCodec.encode(capped))!!
+        assertEquals(capped, decoded)
+
+        val sel = LastSessionCodec.selectRestore(decoded)!!
+        assertEquals(500, sel.items.size)
+        assertEquals("T$current", sel.items[sel.startIndex].title)
+        assertEquals(12_345L, sel.startPositionMs)
+    }
+
     @Test
     fun encode_decode_selectRestore_endToEnd() {
         val sel = LastSessionCodec.selectRestore(

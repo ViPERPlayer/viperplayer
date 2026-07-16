@@ -1,6 +1,10 @@
 package com.viperplayer.domain.model
 
 object IirEqualizerPresets {
+    /** Per-band gain range enforced by the equalizer UI and native DSP (dB). */
+    const val MIN_GAIN_DB = -12f
+    const val MAX_GAIN_DB = 12f
+
     // 10 Bands
     val FREQUENCIES_10_BANDS = listOf(
         31.0f, 62.0f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 16000.0f

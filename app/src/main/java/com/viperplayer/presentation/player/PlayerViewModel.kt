@@ -3,6 +3,8 @@ package com.viperplayer.presentation.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.data.download.DownloadManager
+import com.viperplayer.data.lyrics.IcuTransliterator
+import com.viperplayer.data.lyrics.LyricsRomanizer
 import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.domain.model.Lyrics
@@ -16,6 +18,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +30,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
 
@@ -38,8 +43,15 @@ class PlayerViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val sleepTimerManager: SleepTimerManager,
     private val lyricsTranslator: LyricsTranslator,
+    icuTransliterator: IcuTransliterator,
     private val downloadManager: DownloadManager,
 ) : ViewModel() {
+
+    // ICU engine for romanization (thread-safe singleton). A fresh [LyricsRomanizer] (with its own
+    // per-line cache) is built per song inside the romanization pipeline — see [romanizedLines] — so
+    // the cache is only ever touched from that single Default coroutine (no cross-coroutine race) and
+    // resets naturally on a track change without a separate clear() call.
+    private val romanizerEngine = icuTransliterator
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
 
@@ -100,6 +112,47 @@ class PlayerViewModel @Inject constructor(
         } finally {
             _translationInProgress.value = false
         }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    // --- Lyrics romanization (on-device, ICU transliteration) ---
+
+    private val _romanizationEnabled = MutableStateFlow(false)
+
+    /** Whether the user has toggled on romanized lyrics in the lyrics sheet. */
+    val romanizationEnabled: StateFlow<Boolean> = _romanizationEnabled.asStateFlow()
+
+    /** Flip the lyrics-romanization toggle. */
+    fun toggleRomanization() {
+        _romanizationEnabled.value = !_romanizationEnabled.value
+    }
+
+    // A fresh [LyricsRomanizer] per set of lyrics: pairing each distinct [Lyrics] with its own
+    // romanizer means the per-line cache is bounded to the current song (no stale cross-song entries)
+    // and — crucially — is only ever created and mutated from the single Default coroutine in
+    // [romanizedLines] below, eliminating the previous race with a Main-dispatcher clear(). Keyed by
+    // lyrics identity so toggling romanization on/off within a song reuses the same warm cache.
+    private val songRomanizer: Flow<Pair<Lyrics?, LyricsRomanizer>> = lyrics
+        .distinctUntilChanged { a, b -> a === b }
+        .map { it to LyricsRomanizer(romanizerEngine) }
+
+    /**
+     * Per-line romanizations aligned to [lyrics] `.lines` order, or null when romanization is off.
+     * Each entry is the romanized (Latin-script) form of the line, or null for lines that are already
+     * Latin / blank and need no romanization. Transliteration runs off the main thread on
+     * [Dispatchers.Default] and is cached per line by a [LyricsRomanizer] built fresh for the current
+     * song; recomputed when the song or the toggle changes (in-flight work cancelled by [mapLatest]).
+     */
+    val romanizedLines: StateFlow<List<String?>?> = combine(songRomanizer, romanizationEnabled) { (l, romanizer), enabled ->
+        (l to romanizer).takeIf { enabled }
+    }.mapLatest { current ->
+        val lines = current?.first?.lines?.map { it.text }
+        if (lines.isNullOrEmpty()) return@mapLatest null
+        val romanizer = current.second
+        withContext(Dispatchers.Default) { romanizer.romanize(lines) }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

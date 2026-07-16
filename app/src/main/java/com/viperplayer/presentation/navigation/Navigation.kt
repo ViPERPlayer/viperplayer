@@ -19,6 +19,7 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.viperplayer.alarm.ui.AlarmsScreen
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.analytics.AnalyticsScreen
@@ -30,11 +31,16 @@ import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailViewModel
 import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
+import com.viperplayer.presentation.detail.TagDetailsScreen
+import com.viperplayer.presentation.detail.TagDetailsViewModel
+import com.viperplayer.follows.ui.FollowingScreen
 import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
 import com.viperplayer.presentation.library.LibraryScreen
+import com.viperplayer.presentation.listeningstats.ListeningStatsScreen
+import com.viperplayer.presentation.listeningstats.WrappedScreen
 import com.viperplayer.presentation.plugins.PluginsScreen
 import com.viperplayer.presentation.search.SearchScreen
 import com.viperplayer.presentation.settings.SettingsScreen
@@ -87,13 +93,26 @@ object SettingsAbout : NavKey
 object SettingsUpdater : NavKey
 
 @Serializable
+object SettingsAlarms : NavKey
+
+@Serializable
 object History : NavKey
 
 @Serializable
 object Analytics : NavKey
 
 @Serializable
+object ListeningStats : NavKey
+
+@Serializable
+object Wrapped : NavKey
+
+@Serializable
 object Downloads : NavKey
+
+/** Followed / subscribed artists list. */
+@Serializable
+object Following : NavKey
 
 @Serializable
 data class AlbumDetail(
@@ -122,6 +141,13 @@ data class SongInfo(
     val initialTitle: String = "",
     val initialArtist: String = "",
     val initialArtworkUrl: String? = null,
+) : NavKey
+
+/** Full tag / metadata detail viewer for a local file (reached from [SongInfo]). Local songs only. */
+@Serializable
+data class TagDetails(
+    val mediaId: MediaId,
+    val initialTitle: String = "",
 ) : NavKey
 
 @Serializable
@@ -184,7 +210,18 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
-                onNavigateToDownloads = { navigator.navigate(Downloads) }
+                onNavigateToDownloads = { navigator.navigate(Downloads) },
+                onNavigateToFollowing = { navigator.navigate(Following) }
+            )
+        }
+
+        entry<Following> {
+            FollowingScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToArtist = { artist ->
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
+                }
             )
         }
 
@@ -211,7 +248,16 @@ fun ViperNavDisplay(
                 onNavigateToStorage = { navigator.navigate(SettingsStorage) },
                 onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToAbout = { navigator.navigate(SettingsAbout) },
-                onNavigateToUpdater = { navigator.navigate(SettingsUpdater) }
+                onNavigateToUpdater = { navigator.navigate(SettingsUpdater) },
+                onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
+                onNavigateToListeningStats = { navigator.navigate(ListeningStats) }
+            )
+        }
+
+        entry<SettingsAlarms> {
+            AlarmsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
             )
         }
 
@@ -267,6 +313,20 @@ fun ViperNavDisplay(
         entry<Analytics> {
             AnalyticsScreen(
                 rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<ListeningStats> {
+            ListeningStatsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToWrapped = { navigator.navigate(Wrapped) }
+            )
+        }
+
+        entry<Wrapped> {
+            WrappedScreen(
                 onNavigateBack = { navigator.goBack() }
             )
         }
@@ -412,7 +472,21 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
             onNavigateToAlbum = { album ->
                 navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
             },
+            onNavigateToTagDetails = { mediaId, title ->
+                navigate(TagDetails(mediaId = mediaId, initialTitle = title))
+            },
             viewModel = viewModel
+        )
+    }
+
+    entry<TagDetails> { key ->
+        val viewModel = hiltViewModel<TagDetailsViewModel, TagDetailsViewModel.Factory>(
+            creationCallback = { factory -> factory.create(key) }
+        )
+        TagDetailsScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            viewModel = viewModel,
         )
     }
 

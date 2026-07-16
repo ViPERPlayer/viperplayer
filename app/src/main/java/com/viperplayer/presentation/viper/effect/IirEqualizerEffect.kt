@@ -1,5 +1,7 @@
 package com.viperplayer.presentation.viper.effect
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,18 +10,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +45,7 @@ import com.viperplayer.domain.model.IirEqualizerState
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.EqualizerGraph
 import com.viperplayer.presentation.viper.component.VerticalSlider
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,8 +55,17 @@ fun IirEqualizerEffect(
     onBandCountChange: (Int) -> Unit,
     onPresetChange: (String) -> Unit,
     onBandGainChange: (Int, Float) -> Unit,
+    onImportAutoEq: (String) -> Unit,
     onReset: () -> Unit
 ) {
+    // AutoEq profiles are plain text; some providers hand them out as .txt (text/plain) and some as
+    // generic octet streams, so accept both.
+    val autoEqLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { onImportAutoEq(it.toString()) }
+    }
+
     Effect(
         icon = painterResource(R.drawable.ic_spectrum), // Used ic_spectrum as fallback
         title = stringResource(R.string.iir_equalizer),
@@ -120,7 +137,31 @@ fun IirEqualizerEffect(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Import AutoEq / GraphicEQ correction profile
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = {
+                    autoEqLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.FileUpload,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.iir_import_autoeq))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Graph
         EqualizerGraph(
@@ -156,29 +197,12 @@ fun IirEqualizerEffect(
                     modifier = Modifier.width(40.dp), // Fixed width for alignment
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Vertical Slider wrapper?
-                    // We don't have a specific VerticalSlider in the summary, assume standard Slider rotated or custom
-                    // Since I cannot implement a complex vertical slider easily without context, 
-                    // I will check if WSTSlider can be vertical OR use a custom layout.
-                    // For now, let's use a simplified representation or check WSTSlider source.
-                    // Actually, let's check `WSTSlider.kt` to see if it supports vertical.
-
-                    // Assuming we need to implement a Vertical Slider here. 
-                    // Compose Material3 doesn't have a VerticalSlider yet (experimental in 1.4?).
-                    // Let's assume standard Slider is horizontal.
-
-                    // Re-use WSTSlider? No, that looks horizontal.
-                    // Let's assume for now we use a vertical Column with Text + Slider (rotated?)
-
-                    // Let's implement a quick CustomVerticalSlider using standard Slider with rotate modifier
-
-                    // Range is -12dB to +12dB = 24dB span.
-                    // We want 0.1dB steps.
-                    // Total intervals = 24 / 0.1 = 240 intervals.
-                    // Steps parameter in Slider is (intervals - 1), so 239.
-
+                    // Range is -12dB to +12dB (24 dB span) at 0.1 dB steps => 240 intervals; the
+                    // Slider `steps` parameter is (intervals - 1), i.e. 239 (see VerticalSlider below).
+                    // Force Locale.US so the dB value renders "-5.0 dB", not "-5,0 dB" in
+                    // comma-decimal locales.
                     Text(
-                        text = "%.1f dB".format(state.bandGains.getOrElse(index) { 0f }),
+                        text = String.format(Locale.US, "%.1f dB", state.bandGains.getOrElse(index) { 0f }),
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.sp,
                         textAlign = TextAlign.Center
@@ -187,7 +211,7 @@ fun IirEqualizerEffect(
                     VerticalSlider(
                         value = state.bandGains.getOrElse(index) { 0f },
                         onValueChange = { onBandGainChange(index, it) },
-                        valueRange = -12f..12f,
+                        valueRange = IirEqualizerPresets.MIN_GAIN_DB..IirEqualizerPresets.MAX_GAIN_DB,
                         steps = 239,
                         modifier = Modifier
                             .height(200.dp)

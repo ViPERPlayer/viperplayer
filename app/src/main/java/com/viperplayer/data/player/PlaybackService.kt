@@ -44,12 +44,20 @@ import androidx.media3.session.MediaSession
 import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
 import com.viperplayer.data.player.resumption.LastSession
+import com.viperplayer.data.player.resumption.LastSessionCodec
+import com.viperplayer.data.player.resumption.LastSessionItem
 import com.viperplayer.data.player.resumption.LastSessionMediaMapper
 import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.data.stats.PlayHistoryRecorder
+import com.viperplayer.domain.audio.ReplayGainCalculator
+import com.viperplayer.domain.audio.ReplayGainMode as CalcReplayGainMode
+import com.viperplayer.domain.audio.ReplayGainSettings
+import com.viperplayer.domain.audio.ReplayGainTags
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.repository.MediaLibraryRepository
+import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
@@ -62,8 +70,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import javax.inject.Inject
-import kotlin.math.min
-import kotlin.math.pow
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
@@ -95,6 +101,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var lastSessionStore: LastSessionStore
+
+    @Inject
+    lateinit var playHistoryRecorder: PlayHistoryRecorder
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -479,23 +488,47 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     private fun buildLastSessionSnapshot(): LastSession? {
         val count = player.mediaItemCount
         if (count == 0) return null
-        val items = (0 until count).mapNotNull { i ->
-            LastSessionMediaMapper.fromMediaItem(player.getMediaItemAt(i))
+
+        // Map raw player indices to the surviving items. An entry is dropped when it lacks the
+        // plugin/source id extras (fromMediaItem returns null). Because entries can be dropped, the
+        // raw currentMediaItemIndex would point at the wrong surviving item if anything before it is
+        // dropped — so we track the current item's position AMONG THE KEPT items instead of reusing
+        // the raw index.
+        val playerCurrentIndex = player.currentMediaItemIndex
+        val items = ArrayList<LastSessionItem>(count)
+        var currentIndex = -1 // index of the current item within `items`, or -1 if it was dropped
+        var survivorsBeforeCurrent = 0 // kept items with a raw index < playerCurrentIndex
+        for (i in 0 until count) {
+            val mapped = LastSessionMediaMapper.fromMediaItem(player.getMediaItemAt(i)) ?: continue
+            if (i == playerCurrentIndex) currentIndex = items.size
+            if (i < playerCurrentIndex) survivorsBeforeCurrent++
+            items.add(mapped)
         }
         if (items.isEmpty()) return null
+
+        // If the current item itself was dropped, fall back to the nearest kept item that precedes it
+        // (the number of survivors before the raw index), clamped into range — 0 when nothing before
+        // it survived.
+        if (currentIndex < 0) {
+            currentIndex = survivorsBeforeCurrent.coerceIn(0, items.lastIndex)
+        }
+
         val repeatMode = when (player.repeatMode) {
             Player.REPEAT_MODE_ONE -> RepeatMode.ONE.name
             Player.REPEAT_MODE_ALL -> RepeatMode.ALL.name
             else -> RepeatMode.OFF.name
         }
-        return LastSession(
+        val snapshot = LastSession(
             items = items,
-            currentIndex = player.currentMediaItemIndex.coerceIn(0, items.lastIndex),
+            currentIndex = currentIndex,
             positionMs = player.currentPosition.coerceAtLeast(0L),
             playWhenReady = player.playWhenReady,
             shuffleEnabled = player.shuffleModeEnabled,
             repeatMode = repeatMode,
         )
+        // Cap the persisted queue to a bounded window around the current item so a huge queue does
+        // not serialize fully into the Preferences DataStore blob on every debounced write.
+        return LastSessionCodec.capForPersist(snapshot)
     }
 
     private fun observeAudioSettings() {
@@ -510,44 +543,81 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         lifecycleScope.launch {
             settingsRepository.dspBypass.collect { viperAudioProcessor.bypassed = it }
         }
-        // ReplayGain -> re-apply to the current track whenever the toggle / preamp / bypass changes
+        // ReplayGain -> re-apply to the current track whenever any RG setting / bypass changes
         // (track changes re-apply via onMediaItemTransition). The first emission applies the initial state.
         lifecycleScope.launch {
             combine(
                 settingsRepository.replayGainEnabled,
+                settingsRepository.replayGainMode,
                 settingsRepository.replayGainPreampDb,
+                settingsRepository.replayGainUntaggedPreampDb,
                 settingsRepository.dspBypass,
-                settingsRepository.replayGainAlbumMode,
-            ) { _, _, _, _ -> }.collect { applyReplayGain() }
+            ) { _, _, _, _, _ -> }.collect { applyReplayGain() }
+        }
+        lifecycleScope.launch {
+            combine(
+                settingsRepository.replayGainDrcEnabled,
+                settingsRepository.replayGainPostAmpDb,
+            ) { _, _ -> }.collect { applyReplayGain() }
         }
     }
 
-    /** Sets the player volume from the current track's ReplayGain tags + preamp (peak-limited). */
+    /**
+     * Sets the player volume from the current track's ReplayGain tags and the user's RG settings
+     * (tagged/untagged preamp, smart/album/track mode, DRC clip-guard, post-amp). All arithmetic lives
+     * in the pure [ReplayGainCalculator]; this method only gathers Android state and applies the result.
+     */
     private suspend fun applyReplayGain() {
         if (settingsRepository.dspBypass.first()) {
             player.volume = 1f // clean path: no ReplayGain scaling
             return
         }
-        val enabled = settingsRepository.replayGainEnabled.first()
-        val preampDb = settingsRepository.replayGainPreampDb.first()
-        val albumMode = settingsRepository.replayGainAlbumMode.first()
+        val settings = ReplayGainSettings(
+            enabled = settingsRepository.replayGainEnabled.first(),
+            mode = settingsRepository.replayGainMode.first().toCalcMode(),
+            preampDb = settingsRepository.replayGainPreampDb.first(),
+            untaggedPreampDb = settingsRepository.replayGainUntaggedPreampDb.first(),
+            drcEnabled = settingsRepository.replayGainDrcEnabled.first(),
+            postAmpDb = settingsRepository.replayGainPostAmpDb.first(),
+        )
         val extras = player.currentMediaItem?.mediaMetadata?.extras
-        // Album mode prefers album gain/peak when the source provided them (a plugin); otherwise (or for
-        // sources without album gain, e.g. a plugin) it falls back to the per-track values.
-        val albumGainDb = extras?.takeIf { it.containsKey("albumReplayGainDb") }?.getFloat("albumReplayGainDb")
-        val albumPeak = extras?.takeIf { it.containsKey("albumPeakAmplitude") }?.getFloat("albumPeakAmplitude")
-        val replayGainDb = (if (albumMode) albumGainDb else null) ?: extras?.getFloat("replayGainDb")
-        val peakAmplitude = (if (albumMode) albumPeak else null) ?: extras?.getFloat("peakAmplitude")
-        val volume = if (enabled && replayGainDb != null) {
-            val finalGainDb = replayGainDb + preampDb
-            val gain = if (finalGainDb == 0f) 1f else 10f.pow(finalGainDb / 20f)
-            if (peakAmplitude != null && peakAmplitude > 0f) min(gain, 1f / peakAmplitude) else gain
-        } else {
-            1f
-        }
-        Timber.d("applyReplayGain: volume=$volume (enabled=$enabled, replayGainDb=$replayGainDb, preampDb=$preampDb, peak=$peakAmplitude)")
-        player.volume = volume.coerceIn(0f, 1f)
+        val tags = ReplayGainTags(
+            trackGainDb = extras?.takeIf { it.containsKey("replayGainDb") }?.getFloat("replayGainDb"),
+            trackPeak = extras?.takeIf { it.containsKey("peakAmplitude") }?.getFloat("peakAmplitude"),
+            albumGainDb = extras?.takeIf { it.containsKey("albumReplayGainDb") }?.getFloat("albumReplayGainDb"),
+            albumPeak = extras?.takeIf { it.containsKey("albumPeakAmplitude") }?.getFloat("albumPeakAmplitude"),
+        )
+        val sequentialAlbum = isPlayingSequentialAlbum()
+        val volume = ReplayGainCalculator.computeVolume(tags, settings, sequentialAlbum)
+        Timber.d("applyReplayGain: volume=$volume (settings=$settings, tags=$tags, sequentialAlbum=$sequentialAlbum)")
+        player.volume = volume
     }
+
+    private fun ReplayGainMode.toCalcMode(): CalcReplayGainMode = when (this) {
+        ReplayGainMode.TRACK -> CalcReplayGainMode.TRACK
+        ReplayGainMode.ALBUM -> CalcReplayGainMode.ALBUM
+        ReplayGainMode.SMART -> CalcReplayGainMode.SMART
+    }
+
+    /**
+     * Whether the queue is currently playing an album in order: shuffle is off and the current track
+     * shares its album with the track immediately before or after it in the queue. Used by smart mode
+     * to choose album gain (sequential album) vs track gain (shuffle / mixed queue).
+     */
+    private fun isPlayingSequentialAlbum(): Boolean {
+        if (player.shuffleModeEnabled) return false
+        val count = player.mediaItemCount
+        if (count <= 1) return false
+        val index = player.currentMediaItemIndex
+        val currentAlbum = albumKeyOf(player.currentMediaItem) ?: return false
+        val prevAlbum = index.takeIf { it > 0 }?.let { albumKeyOf(player.getMediaItemAt(it - 1)) }
+        val nextAlbum = index.takeIf { it < count - 1 }?.let { albumKeyOf(player.getMediaItemAt(it + 1)) }
+        return currentAlbum == prevAlbum || currentAlbum == nextAlbum
+    }
+
+    /** Album identity for sequential-album detection: album name is the only album key in the extras. */
+    private fun albumKeyOf(item: MediaItem?): String? =
+        item?.mediaMetadata?.extras?.getString("albumName")?.takeIf { it.isNotBlank() }
 
     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
         Timber.d("onMediaMetadataChanged() called with: mediaMetadata = $mediaMetadata")
@@ -600,7 +670,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         if (timeline.isEmpty || eventTime.windowIndex >= timeline.windowCount) return
         val mediaItem = timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
 
-        MediaId.fromString(mediaItem.mediaId)?.let { mediaId ->
+        // Feed the dedicated listening-stats DB from this session-end signal FIRST and independently of
+        // the library-play recording below, so a failure in one can never skip the other. The recorder
+        // applies its own play threshold (>=30s or >=50% of the track) and de-dupes via this
+        // once-per-session callback, so scrubbing / brief skips aren't counted. It reads all metadata
+        // off the item's extras (streaming sources included) and writes off the main thread.
+        runCatching { playHistoryRecorder.onSessionEnded(mediaItem, listenedMs) }
+            .onFailure { Timber.e(it, "Failed to record listening-stats play") }
+
+        runCatching { MediaId.fromString(mediaItem.mediaId) }.getOrNull()?.let { mediaId ->
             lifecycleScope.launch {
                 runCatching { mediaLibraryRepository.recordListenedTime(mediaId, listenedMs) }
                     .onFailure { Timber.e(it, "Failed to record listened time for $mediaId") }
