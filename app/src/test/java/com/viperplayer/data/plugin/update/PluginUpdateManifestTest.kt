@@ -1,8 +1,10 @@
 package com.viperplayer.data.plugin.update
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Unit tests for parsing the plugin update manifest JSON: valid, malformed, and missing-field. */
@@ -107,5 +109,32 @@ class PluginUpdateManifestTest {
             { "versionCode": 0, "versionName": "1.1", "downloadUrl": "https://x/y.apk" }
         """.trimIndent()
         assertNull(PluginUpdateManifest.parse(json))
+    }
+
+    // ---- https enforcement seam: a manifest whose downloadUrl is not https yields no update ----
+
+    @Test
+    fun httpDownloadUrl_isRejectedByHttpsGate() {
+        // A manifest can parse fine (JSON is well-formed) yet still be refused by the manager's
+        // in-code https gate. This mirrors the check in PluginUpdateManager.checkInternal: a parsed
+        // manifest with a cleartext downloadUrl is treated as "no update" and never downloaded.
+        val json = """
+            { "versionCode": 2, "versionName": "1.1", "downloadUrl": "http://x/y.apk" }
+        """.trimIndent()
+
+        val manifest = PluginUpdateManifest.parse(json)
+        assertNotNull(manifest)
+        assertFalse(PluginUpdateLogic.isHttpsUrl(manifest!!.downloadUrl))
+    }
+
+    @Test
+    fun httpsDownloadUrl_passesHttpsGate() {
+        val json = """
+            { "versionCode": 2, "versionName": "1.1", "downloadUrl": "https://x/y.apk" }
+        """.trimIndent()
+
+        val manifest = PluginUpdateManifest.parse(json)
+        assertNotNull(manifest)
+        assertTrue(PluginUpdateLogic.isHttpsUrl(manifest!!.downloadUrl))
     }
 }

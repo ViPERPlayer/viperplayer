@@ -120,9 +120,29 @@ class PluginUpdateManager @Inject constructor(
         for (plugin in PluginDiscovery.discover(context)) {
             val pluginId = plugin.id
             val updateUrl = updateUrlFor(pluginId) ?: continue // no feed → skip gracefully
+            // Defense-in-depth: refuse a non-https feed URL in code before we ever fetch it, so a
+            // cleartext feed is rejected regardless of platform network-security settings.
+            if (!PluginUpdateLogic.isHttpsUrl(updateUrl)) {
+                Timber.w("Plugin %s update feed URL is not https; skipping", pluginId)
+                continue
+            }
             val installedCode = installedVersionCode(pluginId) ?: continue
 
             val manifest = fetchManifest(updateUrl) ?: continue
+            // Refuse a non-https download URL in code too — never hand a cleartext APK URL to the
+            // downloader even if the platform would otherwise permit it.
+            if (!PluginUpdateLogic.isHttpsUrl(manifest.downloadUrl)) {
+                Timber.w("Plugin %s update download URL is not https; treating as no update", pluginId)
+                continue
+            }
+            // Missing integrity hash is allowed (package + signature enforcement still protects the
+            // install), but make it visible so a feed silently dropping its sha256 is noticeable.
+            if (manifest.sha256.isNullOrBlank()) {
+                Timber.w(
+                    "Plugin %s update manifest has no sha256; relying on package+signature enforcement",
+                    pluginId,
+                )
+            }
             val evaluation = PluginUpdateLogic.evaluate(
                 installedVersionCode = installedCode,
                 hostVersionCode = hostVersion,

@@ -11,6 +11,17 @@ object PluginUpdateLogic {
     const val DEFAULT_CHECK_INTERVAL_MS: Long = 12L * 60L * 60L * 1000L
 
     /**
+     * True only for a non-blank `https://…` [url] (scheme match is case-insensitive). Everything
+     * else — `null`, blank, plain `http`, `ftp`, a scheme-less/relative path — is rejected.
+     *
+     * Defense-in-depth: the platform already blocks cleartext at targetSdk 37, but the manager
+     * enforces this in code too so a non-https feed or download URL is refused regardless of
+     * platform network-security settings (the manifest contract is https-only).
+     */
+    fun isHttpsUrl(url: String?): Boolean =
+        url != null && url.isNotBlank() && url.trim().startsWith("https://", ignoreCase = true)
+
+    /**
      * True when [manifestVersionCode] is strictly newer than the [installedVersionCode]. Equal or
      * older manifests are not updates (never offer a downgrade or a reinstall of the same build).
      */

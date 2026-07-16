@@ -125,6 +125,51 @@ class PluginUpdateLogicTest {
         assertFalse(PluginUpdateLogic.isDismissed(Long.MAX_VALUE, dismissedVersionCode = Long.MAX_VALUE - 1))
     }
 
+    // ---- isHttpsUrl: https-only enforcement (defense-in-depth) ----
+
+    @Test
+    fun isHttpsUrl_true_forHttpsUrl() {
+        assertTrue(PluginUpdateLogic.isHttpsUrl("https://example.com/p.apk"))
+    }
+
+    @Test
+    fun isHttpsUrl_caseInsensitiveScheme() {
+        assertTrue(PluginUpdateLogic.isHttpsUrl("HTTPS://example.com/p.apk"))
+        assertTrue(PluginUpdateLogic.isHttpsUrl("HtTpS://example.com/p.apk"))
+    }
+
+    @Test
+    fun isHttpsUrl_false_forHttp() {
+        assertFalse(PluginUpdateLogic.isHttpsUrl("http://example.com/p.apk"))
+        assertFalse(PluginUpdateLogic.isHttpsUrl("HTTP://example.com/p.apk"))
+    }
+
+    @Test
+    fun isHttpsUrl_false_forNull() {
+        assertFalse(PluginUpdateLogic.isHttpsUrl(null))
+    }
+
+    @Test
+    fun isHttpsUrl_false_forBlank() {
+        assertFalse(PluginUpdateLogic.isHttpsUrl(""))
+        assertFalse(PluginUpdateLogic.isHttpsUrl("   "))
+    }
+
+    @Test
+    fun isHttpsUrl_false_forOtherSchemes() {
+        assertFalse(PluginUpdateLogic.isHttpsUrl("ftp://example.com/p.apk"))
+        assertFalse(PluginUpdateLogic.isHttpsUrl("file:///data/p.apk"))
+        assertFalse(PluginUpdateLogic.isHttpsUrl("javascript:alert(1)"))
+    }
+
+    @Test
+    fun isHttpsUrl_false_forRelativeOrSchemeless() {
+        assertFalse(PluginUpdateLogic.isHttpsUrl("example.com/p.apk"))
+        assertFalse(PluginUpdateLogic.isHttpsUrl("/plugins/p.apk"))
+        // "httpsx://" is not the https scheme — the "://" delimiter must follow "https".
+        assertFalse(PluginUpdateLogic.isHttpsUrl("httpsx://example.com/p.apk"))
+    }
+
     // ---- evaluate: folds it all together ----
 
     @Test
