@@ -30,6 +30,11 @@ android {
         buildConfigField("String", "LASTFM_API_KEY", "\"REPLACE_WITH_REAL_VALUE\"")
         buildConfigField("String", "LASTFM_API_SECRET", "\"REPLACE_WITH_REAL_VALUE\"")
 
+        // ViPER backend base URL for account sign-in + library sync (github.com/iscle/viper-backend).
+        // PLACEHOLDER — account features stay disabled (AccountApi.isConfigured == false) until a real
+        // HTTPS URL is supplied here. Point it at your deployed viperd, e.g. "https://api.viper.player".
+        buildConfigField("String", "VIPER_BACKEND_URL", "\"REPLACE_WITH_REAL_VALUE\"")
+
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")

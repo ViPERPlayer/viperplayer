@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lyrics
@@ -58,6 +59,7 @@ fun SettingsScreen(
     onNavigateToAlarms: () -> Unit,
     onNavigateToListeningStats: () -> Unit,
     onNavigateToLastfm: () -> Unit,
+    onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -124,6 +126,14 @@ fun SettingsScreen(
                     description = stringResource(R.string.settings_alarms_desc),
                     icon = Icons.Default.Alarm,
                     onClick = onNavigateToAlarms
+                )
+            }
+            item {
+                SettingsSectionItem(
+                    title = stringResource(R.string.account_settings_entry),
+                    description = stringResource(R.string.account_settings_entry_desc_signed_out),
+                    icon = Icons.Default.AccountCircle,
+                    onClick = onNavigateToAccount
                 )
             }
             item {

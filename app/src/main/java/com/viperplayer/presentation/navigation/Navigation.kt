@@ -49,6 +49,7 @@ import com.viperplayer.presentation.settings.SettingsScreen
 import com.viperplayer.presentation.settings.about.AboutSettingsScreen
 import com.viperplayer.presentation.settings.appearance.AppearanceSettingsScreen
 import com.viperplayer.presentation.settings.content.ContentSettingsScreen
+import com.viperplayer.presentation.account.AccountScreen
 import com.viperplayer.presentation.settings.lastfm.LastfmSettingsScreen
 import com.viperplayer.presentation.settings.lyrics.LyricsSettingsScreen
 import com.viperplayer.presentation.settings.player.PlayerSettingsScreen
@@ -98,6 +99,9 @@ object SettingsAbout : NavKey
 
 @Serializable
 object SettingsUpdater : NavKey
+
+@Serializable
+object Account : NavKey
 
 @Serializable
 object SettingsAlarms : NavKey
@@ -295,12 +299,20 @@ fun ViperNavDisplay(
                 onNavigateToUpdater = { navigator.navigate(SettingsUpdater) },
                 onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
                 onNavigateToListeningStats = { navigator.navigate(ListeningStats) },
-                onNavigateToLastfm = { navigator.navigate(SettingsLastfm) }
+                onNavigateToLastfm = { navigator.navigate(SettingsLastfm) },
+                onNavigateToAccount = { navigator.navigate(Account) }
             )
         }
 
         entry<SettingsLastfm> {
             LastfmSettingsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Account> {
+            AccountScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() }
             )
