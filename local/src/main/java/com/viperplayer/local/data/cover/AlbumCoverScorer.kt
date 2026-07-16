@@ -110,7 +110,8 @@ object AlbumCoverScorer {
 
     /**
      * Ranks [candidates] best-first. Non-image extensions and images known to be below
-     * [MIN_DIMENSION_PX] are dropped entirely. Stable: ties keep the input order.
+     * [MIN_DIMENSION_PX] are dropped entirely. Deterministic: equal scores are broken by file name
+     * (case-insensitive) so the pick doesn't depend on the arbitrary [java.io.File.listFiles] order.
      */
     fun rank(candidates: List<CoverCandidate>): List<ScoredCandidate> =
         candidates
@@ -118,7 +119,10 @@ object AlbumCoverScorer {
             .filter { isSupportedImage(it.fileName) }
             .filterNot { isKnownTiny(it) }
             .map { ScoredCandidate(it, score(it)) }
-            .sortedByDescending { it.score }
+            .sortedWith(
+                compareByDescending<ScoredCandidate> { it.score }
+                    .thenBy { it.candidate.fileName.lowercase() },
+            )
             .toList()
 
     /**

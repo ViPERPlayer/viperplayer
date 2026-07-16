@@ -193,4 +193,14 @@ class AlbumCoverScorerTest {
         assertEquals("cover.jpg", ranked.first().candidate.fileName)
         assertNotNull(ranked)
     }
+
+    @Test
+    fun tieBreakIsDeterministicByFileName() {
+        // Two generic same-score images with no dimensions: the pick must not depend on input
+        // order (which, from File.listFiles(), is filesystem-arbitrary).
+        val a = CoverCandidate("img_alpha.jpg")
+        val b = CoverCandidate("img_zebra.jpg")
+        assertEquals("img_alpha.jpg", AlbumCoverScorer.pickBest(listOf(a, b))?.fileName)
+        assertEquals("img_alpha.jpg", AlbumCoverScorer.pickBest(listOf(b, a))?.fileName)
+    }
 }
