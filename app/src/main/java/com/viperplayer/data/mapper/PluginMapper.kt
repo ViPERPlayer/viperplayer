@@ -302,6 +302,7 @@ object PluginMapper {
         canSearch = source?.search ?: false,
         canBrowse = source?.browse ?: false,
         hasLibrary = source?.library ?: false,
+        hasLibraryWrite = source?.libraryWrite ?: false,
         hasPlaylists = source?.playlists ?: false,
         canSeek = source?.canSeek ?: false,
         hasLyrics = Capability.LYRICS in capabilities,

@@ -20,6 +20,8 @@ data class PluginCapabilities(
     val canSearch: Boolean = true,
     val canBrowse: Boolean = true,
     val hasLibrary: Boolean = true,
+    /** The plugin can PUSH local library changes up to the account (two-way sync write side). */
+    val hasLibraryWrite: Boolean = false,
     val hasPlaylists: Boolean = true,
     val canSeek: Boolean = true,
     val hasLyrics: Boolean = false,

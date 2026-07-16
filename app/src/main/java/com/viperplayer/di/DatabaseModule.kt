@@ -59,5 +59,8 @@ object DatabaseModule {
 
     @Provides
     fun provideViperPresetDao(database: ViperPlayerDatabase) = database.viperPresetDao()
+
+    @Provides
+    fun provideOutboxDao(database: ViperPlayerDatabase) = database.outboxDao()
 }
 

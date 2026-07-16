@@ -21,6 +21,8 @@ import com.viperplayer.data.local.mapper.EntityMapper.toRef
 import com.viperplayer.data.playlist.M3uSerializer
 import com.viperplayer.data.playlist.PlaylistOrdering
 import com.viperplayer.data.source.LocalMediaDataSource
+import com.viperplayer.data.sync.push.LibraryMutation
+import com.viperplayer.data.sync.push.LibraryPushOutbox
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistRef
@@ -69,7 +71,8 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val artworkDownloader: ArtworkDownloader,
     private val networkConnectivityChecker: NetworkConnectivityChecker,
-    private val localMediaDataSource: LocalMediaDataSource
+    private val localMediaDataSource: LocalMediaDataSource,
+    private val libraryPushOutbox: LibraryPushOutbox,
 ) : MediaLibraryRepository {
 
     // Scope for fire-and-forget background work (e.g. artwork caching) that must not block callers
@@ -657,6 +660,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             songDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
 
+            // Propagate the like/unlike up to the originating plugin account (two-way sync push).
+            libraryPushOutbox.enqueue(
+                LibraryMutation.SetLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+            )
+
             // Download artwork if song is being liked
             if (isLiked) {
                 val song = getSong(mediaId).first()
@@ -1096,6 +1104,15 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     position = nextPosition,
                 )
             )
+
+            // Push the membership change up to the plugin account when the playlist and the track
+            // both belong to the same plugin (a remote playlist). Cross-plugin adds and local-only
+            // playlists have no single remote target, so they are not pushed.
+            if (playlistId.pluginId != "local" && song.id.pluginId == playlistId.pluginId) {
+                libraryPushOutbox.enqueue(
+                    LibraryMutation.AddTrackToPlaylist(playlistId.pluginId, playlistId.sourceId, song.id.sourceId)
+                )
+            }
         }
 
     override suspend fun removeSongFromPlaylist(playlistId: MediaId, songId: MediaId): Unit =
@@ -1107,6 +1124,13 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             crossRefDao.removeSongFromPlaylist(playlistEntity.id, songEntity.id)
             // Compact positions so they stay contiguous (0..n-1) after the removal.
             rewritePlaylistPositions(playlistEntity.id, crossRefDao.getSongIdsForPlaylist(playlistEntity.id))
+
+            // Push the removal up to the plugin account for a remote playlist (see addSongToPlaylist).
+            if (playlistId.pluginId != "local" && songId.pluginId == playlistId.pluginId) {
+                libraryPushOutbox.enqueue(
+                    LibraryMutation.RemoveTrackFromPlaylist(playlistId.pluginId, playlistId.sourceId, songId.sourceId)
+                )
+            }
         }
 
     override suspend fun reorderPlaylistSongs(
