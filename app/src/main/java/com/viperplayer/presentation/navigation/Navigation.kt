@@ -30,6 +30,8 @@ import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailViewModel
 import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
+import com.viperplayer.presentation.detail.TagDetailsScreen
+import com.viperplayer.presentation.detail.TagDetailsViewModel
 import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
@@ -122,6 +124,13 @@ data class SongInfo(
     val initialTitle: String = "",
     val initialArtist: String = "",
     val initialArtworkUrl: String? = null,
+) : NavKey
+
+/** Full tag / metadata detail viewer for a local file (reached from [SongInfo]). Local songs only. */
+@Serializable
+data class TagDetails(
+    val mediaId: MediaId,
+    val initialTitle: String = "",
 ) : NavKey
 
 @Serializable
@@ -412,7 +421,21 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
             onNavigateToAlbum = { album ->
                 navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
             },
+            onNavigateToTagDetails = { mediaId, title ->
+                navigate(TagDetails(mediaId = mediaId, initialTitle = title))
+            },
             viewModel = viewModel
+        )
+    }
+
+    entry<TagDetails> { key ->
+        val viewModel = hiltViewModel<TagDetailsViewModel, TagDetailsViewModel.Factory>(
+            creationCallback = { factory -> factory.create(key) }
+        )
+        TagDetailsScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            viewModel = viewModel,
         )
     }
 

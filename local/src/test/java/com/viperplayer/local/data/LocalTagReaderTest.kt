@@ -206,7 +206,266 @@ class LocalTagReaderTest {
         assertEquals("stream lyrics", lyrics.plainText)
     }
 
+    // ---- Full text tags: ID3v2 ----------------------------------------------------------------
+
+    @Test
+    fun `id3v24 text frames map to AudioTags`() {
+        val tag = id3v24(
+            listOf(
+                "TIT2" to textFrame("Bohemian Rhapsody"),
+                "TPE1" to textFrame("Queen"),
+                "TALB" to textFrame("A Night at the Opera"),
+                "TPE2" to textFrame("Queen"),
+                "TCOM" to textFrame("Freddie Mercury"),
+                "TCON" to textFrame("Rock"),
+                "TRCK" to textFrame("11/12"),
+                "TPOS" to textFrame("1/1"),
+                "TDRC" to textFrame("1975"),
+                "TENC" to textFrame("LAME 3.100"),
+                "COMM" to commFrame(description = "", comment = "remastered"),
+            ),
+        )
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals("Bohemian Rhapsody", tags.title)
+        assertEquals(listOf("Queen"), tags.artists)
+        assertEquals("A Night at the Opera", tags.album)
+        assertEquals("Queen", tags.albumArtist)
+        assertEquals("Freddie Mercury", tags.composer)
+        assertEquals("Rock", tags.genre)
+        assertEquals("1975", tags.date)
+        assertEquals("LAME 3.100", tags.encoder)
+        assertEquals("remastered", tags.comment)
+        assertEquals(TrackPosition(11, 12), tags.track)
+        assertEquals(TrackPosition(1, 1), tags.disc)
+        assertTrue(tags.hasAny())
+    }
+
+    @Test
+    fun `id3 track number without a total leaves total null`() {
+        val tag = id3v24(listOf("TRCK" to textFrame("5")))
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals(TrackPosition(5, null), tags.track)
+    }
+
+    @Test
+    fun `id3 numeric genre reference resolves to name`() {
+        // "(17)" -> ID3v1 genre index 17 == "Rock".
+        val tag = id3v24(listOf("TCON" to textFrame("(17)")))
+        assertEquals("Rock", LocalTagReader.readTags(tag).genre)
+    }
+
+    @Test
+    fun `id3v24 multi-value artist frame (NUL-separated) yields multiple artists`() {
+        val tag = id3v24(listOf("TPE1" to textFrame("Simon\u0000Garfunkel")))
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals(listOf("Simon", "Garfunkel"), tags.artists)
+        assertEquals("Simon, Garfunkel", tags.artist)
+    }
+
+    @Test
+    fun `id3 slash inside a value is not split into multiple artists`() {
+        val tag = id3v24(listOf("TPE1" to textFrame("AC/DC")))
+        assertEquals(listOf("AC/DC"), LocalTagReader.readTags(tag).artists)
+    }
+
+    @Test
+    fun `id3 missing frames are omitted from AudioTags`() {
+        val tag = id3v24(listOf("TIT2" to textFrame("Only a Title")))
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals("Only a Title", tags.title)
+        assertTrue(tags.artists.isEmpty())
+        assertNull(tags.album)
+        assertNull(tags.albumArtist)
+        assertNull(tags.composer)
+        assertNull(tags.genre)
+        assertNull(tags.date)
+        assertNull(tags.track)
+        assertNull(tags.disc)
+        assertNull(tags.comment)
+        assertNull(tags.encoder)
+    }
+
+    @Test
+    fun `id3 COMM with a non-empty description keeps only the comment text`() {
+        val tag = id3v24(
+            listOf("COMM" to commFrame(description = "iTunNORM", comment = "the real comment")),
+        )
+        assertEquals("the real comment", LocalTagReader.readTags(tag).comment)
+    }
+
+    @Test
+    fun `id3 TCOM multi-value composers are joined`() {
+        // Two NUL-separated composer values collapse into one comma-joined field.
+        val tag = id3v24(listOf("TCOM" to textFrame("Lennon\u0000McCartney")))
+        assertEquals("Lennon, McCartney", LocalTagReader.readTags(tag).composer)
+    }
+
+    @Test
+    fun `id3v23 text frames (BE sizes) are read`() {
+        val tag = id3(
+            versionMajor = 3,
+            frames = listOf(
+                "TIT2" to textFrame("v2.3 Title"),
+                "TYER" to textFrame("2001"),
+            ),
+        )
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals("v2.3 Title", tags.title)
+        assertEquals("2001", tags.date)
+    }
+
+    @Test
+    fun `id3v23 TDAT does not shadow the TYER year`() {
+        // In ID3v2.3, TDAT is a 4-char DDMM (day+month) string, NOT a year or ISO date; the year lives
+        // in TYER. A file carrying both must resolve to the TYER year, never the DDMM value.
+        val tag = id3(
+            versionMajor = 3,
+            frames = listOf(
+                "TYER" to textFrame("1975"),
+                "TDAT" to textFrame("0112"), // DD=01, MM=12 — must not become the date
+            ),
+        )
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals("1975", tags.date)
+    }
+
+    @Test
+    fun `id3v24 TDRC full timestamp takes precedence for the date`() {
+        val tag = id3v24(listOf("TDRC" to textFrame("1994-08-15")))
+        assertEquals("1994-08-15", LocalTagReader.readTags(tag).date)
+    }
+
+    @Test
+    fun `id3v22 three-char text frames map to AudioTags`() {
+        val tag = id3v22(
+            listOf(
+                "TT2" to textFrame("v2.2 Title"),
+                "TP1" to textFrame("v2.2 Artist"),
+                "TAL" to textFrame("v2.2 Album"),
+            ),
+        )
+        val tags = LocalTagReader.readTags(tag)
+        assertEquals("v2.2 Title", tags.title)
+        assertEquals(listOf("v2.2 Artist"), tags.artists)
+        assertEquals("v2.2 Album", tags.album)
+    }
+
+    @Test
+    fun `id3 UTF-16 text frame decodes`() {
+        val tag = id3v24(listOf("TIT2" to textFrame("café ☕", encoding = 1)))
+        assertEquals("café ☕", LocalTagReader.readTags(tag).title)
+    }
+
+    // ---- Full text tags: FLAC / Vorbis --------------------------------------------------------
+
+    @Test
+    fun `flac vorbis comments map to AudioTags`() {
+        val flac = flacWithComments(
+            listOf(
+                "TITLE=Money",
+                "ARTIST=Pink Floyd",
+                "ALBUM=The Dark Side of the Moon",
+                "ALBUMARTIST=Pink Floyd",
+                "COMPOSER=Roger Waters",
+                "GENRE=Progressive Rock",
+                "DATE=1973",
+                "DISCNUMBER=1",
+                "DISCTOTAL=1",
+                "TRACKNUMBER=6",
+                "TRACKTOTAL=10",
+                "COMMENT=classic",
+                "ENCODER=libFLAC 1.4",
+            ),
+        )
+        val tags = LocalTagReader.readTags(flac)
+        assertEquals("Money", tags.title)
+        assertEquals(listOf("Pink Floyd"), tags.artists)
+        assertEquals("The Dark Side of the Moon", tags.album)
+        assertEquals("Pink Floyd", tags.albumArtist)
+        assertEquals("Roger Waters", tags.composer)
+        assertEquals("Progressive Rock", tags.genre)
+        assertEquals("1973", tags.date)
+        assertEquals("classic", tags.comment)
+        assertEquals("libFLAC 1.4", tags.encoder)
+        assertEquals(TrackPosition(6, 10), tags.track)
+        assertEquals(TrackPosition(1, 1), tags.disc)
+    }
+
+    @Test
+    fun `flac repeated ARTIST fields accumulate`() {
+        val flac = flacWithComments(listOf("ARTIST=Daft Punk", "ARTIST=The Weeknd"))
+        assertEquals(listOf("Daft Punk", "The Weeknd"), LocalTagReader.readTags(flac).artists)
+    }
+
+    @Test
+    fun `flac TRACKNUMBER holding n-of-total is parsed without a TRACKTOTAL field`() {
+        val flac = flacWithComments(listOf("TRACKNUMBER=3/9"))
+        assertEquals(TrackPosition(3, 9), LocalTagReader.readTags(flac).track)
+    }
+
+    @Test
+    fun `flac with only a title omits every other tag`() {
+        val flac = flacWithComments(listOf("TITLE=Lonely Field"))
+        val tags = LocalTagReader.readTags(flac)
+        assertEquals("Lonely Field", tags.title)
+        assertTrue(tags.artists.isEmpty())
+        assertNull(tags.album)
+        assertNull(tags.track)
+    }
+
+    @Test
+    fun `flac tags are read from a stream past a large PICTURE block`() {
+        val flac = flacWithPictureThenComments(
+            pictureSize = 3 * 1024 * 1024,
+            comments = listOf("TITLE=Behind Cover", "ARTIST=Streamed"),
+        )
+        val tags = LocalTagReader.readTags(flac.inputStream())
+        assertEquals("Behind Cover", tags.title)
+        assertEquals(listOf("Streamed"), tags.artists)
+    }
+
+    @Test
+    fun `ogg vorbis comments map to AudioTags`() {
+        val ogg = oggWithVorbisComments(listOf("TITLE=Ogg Track", "ARTIST=Ogg Artist"))
+        val tags = LocalTagReader.readTags(ogg)
+        assertEquals("Ogg Track", tags.title)
+        assertEquals(listOf("Ogg Artist"), tags.artists)
+    }
+
+    @Test
+    fun `unknown container yields empty AudioTags`() {
+        val tags = LocalTagReader.readTags(byteArrayOf(0, 1, 2, 3, 4, 5))
+        assertFalse(tags.hasAny())
+        assertEquals(AudioTags.EMPTY, tags)
+    }
+
+    @Test
+    fun `TrackPosition parse handles blanks and malformed input`() {
+        assertNull(TrackPosition.parse(null))
+        assertNull(TrackPosition.parse("   "))
+        assertNull(TrackPosition.parse("abc"))
+        assertEquals(TrackPosition(7, null), TrackPosition.parse("7"))
+        assertEquals(TrackPosition(7, null), TrackPosition.parse("7/"))
+        assertEquals(TrackPosition(2, 5), TrackPosition.parse(" 2 / 5 "))
+    }
+
     // ---- byte builders ------------------------------------------------------------------------
+
+    /** A plain ID3 text frame body: `encoding(1) | text` (text encoded per [encoding]). */
+    private fun textFrame(text: String, encoding: Int = 3): ByteArray =
+        byteArrayOf(encoding.toByte()) + textBytes(encoding, text)
+
+    /** A COMM frame body: `encoding(1) | language(3) | description(text+term) | comment(text)`. */
+    private fun commFrame(description: String, comment: String, encoding: Int = 3): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write(encoding)
+        out.write("eng".toByteArray(Charsets.ISO_8859_1))
+        out.write(textBytes(encoding, description))
+        out.write(terminator(encoding))
+        out.write(textBytes(encoding, comment))
+        return out.toByteArray()
+    }
+
 
     private fun textBytes(encoding: Int, s: String): ByteArray = when (encoding) {
         1 -> s.toByteArray(Charsets.UTF_16) // with BOM

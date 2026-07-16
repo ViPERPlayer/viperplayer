@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
@@ -48,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,9 +63,13 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import java.util.concurrent.TimeUnit
+
+/** The embedded local-files plugin id — the only source whose files carry an on-disk tag set. */
+private const val LOCAL_PLUGIN_ID = "local"
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +78,7 @@ fun SongInfoScreen(
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToTagDetails: (MediaId, String) -> Unit,
     viewModel: SongInfoViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -183,6 +190,20 @@ fun SongInfoScreen(
                     pluginName = state.pluginName ?: state.pluginPackage,
                     onClick = { openPlugin(context, state.pluginPackage) },
                 )
+            }
+
+            // Tag / metadata detail viewer — local files only (the full on-disk tag set).
+            if (song.id.pluginId == LOCAL_PLUGIN_ID) {
+                item {
+                    SectionLabel(stringResource(R.string.tag_details_section_metadata), top = 20.dp)
+                    NavTile(
+                        icon = Icons.Filled.Description,
+                        role = stringResource(R.string.tag_details_action_role),
+                        name = stringResource(R.string.tag_details_action_title),
+                        modifier = Modifier.fillMaxWidth().testTag("tagDetailsEntry"),
+                        onClick = { onNavigateToTagDetails(song.id, song.title) },
+                    )
+                }
             }
 
             // Audio format (runtime — only for the playing track)
