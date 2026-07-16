@@ -101,6 +101,10 @@ android {
 
     lint {
         disable += "UnsafeOptInUsageError"
+        // Toast/event messages are resolved via context.getString(...) inside LaunchedEffect+collect
+        // coroutine lambdas (where the @Composable stringResource() cannot be called, and several are
+        // parameterized by the emitted event) — a legitimate pattern this check false-flags.
+        disable += "LocalContextGetResourceValueCall"
     }
 }
 

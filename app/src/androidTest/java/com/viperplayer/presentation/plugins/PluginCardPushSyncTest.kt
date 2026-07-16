@@ -2,6 +2,7 @@ package com.viperplayer.presentation.plugins
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -78,7 +79,7 @@ class PluginCardPushSyncTest {
     fun togglingPushSync_forwardsNewState() {
         var lastToggle: Boolean? = null
         composeRule.setContent {
-            var enabled by mutableStateOf(false)
+            var enabled by remember { mutableStateOf(false) }
             PluginCard(
                 plugin = info(),
                 isEnabled = true,
