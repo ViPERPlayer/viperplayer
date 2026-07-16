@@ -98,12 +98,14 @@ data class AutoEqProfile(
             val steps = 256
             val startF = 20.0
             val endF = 20000.0
+            // Precompute each filter's coefficients once (they don't depend on the eval frequency).
+            val evaluators = filters.map { it.magnitudeEvaluator(sampleRate) }
             val points = ArrayList<Point>(steps)
             for (i in 0 until steps) {
                 val f = startF * (endF / startF).pow(i.toDouble() / (steps - 1))
                 var db = 0.0
-                for (filter in filters) {
-                    db += filter.magnitudeDbAt(f, sampleRate)
+                for (eval in evaluators) {
+                    db += eval(f)
                 }
                 points.add(Point(f, db))
             }
@@ -139,8 +141,20 @@ data class ParametricFilter(
      * shared digital `|H(e^jw)|` evaluator at [sampleRate]. Used to convert a set of parametric
      * filters into a resamplable curve.
      */
-    fun magnitudeDbAt(frequencyHz: Double, sampleRate: Int): Double {
+    fun magnitudeDbAt(frequencyHz: Double, sampleRate: Int): Double =
+        magnitudeDbFrom(coefficients(sampleRate), frequencyHz, sampleRate)
+
+    /**
+     * Returns a magnitude(dB)-at-frequency function with this filter's (frequency-independent)
+     * coefficients computed ONCE. Callers evaluating the response over many grid frequencies should
+     * use this instead of [magnitudeDbAt] so the coefficients aren't recomputed per frequency.
+     */
+    fun magnitudeEvaluator(sampleRate: Int): (Double) -> Double {
         val coeffs = coefficients(sampleRate)
+        return { frequencyHz -> magnitudeDbFrom(coeffs, frequencyHz, sampleRate) }
+    }
+
+    private fun magnitudeDbFrom(coeffs: Biquad, frequencyHz: Double, sampleRate: Int): Double {
         val mag = magnitudeAt(coeffs, frequencyHz, sampleRate)
         if (mag <= 0.0) return 0.0
         return if (mag > 1e-9) 20.0 * log10(mag) else -120.0
@@ -168,7 +182,10 @@ data class ParametricFilter(
 
             FilterType.LOW_SHELF -> {
                 // alpha uses the shelf form: sin(w0)/2 * sqrt((A + 1/A)(1/Q - 1) + 2).
-                val alpha = sinW0 / 2.0 * sqrt((a + 1.0 / a) * (1.0 / qq - 1.0) + 2.0)
+                // Clamp the radicand: for very high-Q shelves (Q well above real AutoEq exports)
+                // (A + 1/A)(1/Q - 1) + 2 can go negative, which would yield sqrt(NaN) and poison
+                // the whole summed curve. Real shelves use Q ~= 0.7 so this is a safety net.
+                val alpha = sinW0 / 2.0 * sqrt(((a + 1.0 / a) * (1.0 / qq - 1.0) + 2.0).coerceAtLeast(0.0))
                 val twoSqrtAAlpha = 2.0 * sqrt(a) * alpha
                 Biquad(
                     b0 = a * ((a + 1.0) - (a - 1.0) * cosW0 + twoSqrtAAlpha),
@@ -181,7 +198,10 @@ data class ParametricFilter(
             }
 
             FilterType.HIGH_SHELF -> {
-                val alpha = sinW0 / 2.0 * sqrt((a + 1.0 / a) * (1.0 / qq - 1.0) + 2.0)
+                // Clamp the radicand: for very high-Q shelves (Q well above real AutoEq exports)
+                // (A + 1/A)(1/Q - 1) + 2 can go negative, which would yield sqrt(NaN) and poison
+                // the whole summed curve. Real shelves use Q ~= 0.7 so this is a safety net.
+                val alpha = sinW0 / 2.0 * sqrt(((a + 1.0 / a) * (1.0 / qq - 1.0) + 2.0).coerceAtLeast(0.0))
                 val twoSqrtAAlpha = 2.0 * sqrt(a) * alpha
                 Biquad(
                     b0 = a * ((a + 1.0) + (a - 1.0) * cosW0 + twoSqrtAAlpha),
