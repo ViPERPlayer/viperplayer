@@ -53,11 +53,14 @@ import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PluginPendingAction
+import com.viperplayer.domain.model.SortOption
+import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.isNavigable
 import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
+import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.plugins.PluginActionsViewModel
 import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.presentation.common.ListItem
@@ -77,6 +80,15 @@ private sealed class DiscItem {
     data class HeaderItem(val discNumber: Int) : DiscItem()
     data class SongItem(val song: Song) : DiscItem()
 }
+
+// Album track sort options. DEFAULT (disc/track order) is first and selected initially.
+private val ALBUM_TRACK_SORT_OPTIONS = listOf(
+    SortOption.DEFAULT,
+    SortOption.TITLE,
+    SortOption.ARTIST,
+    SortOption.DURATION,
+    SortOption.TRACK_NUMBER,
+)
 
 /**
  * Screen that displays the details of an album, including its artwork, metadata, and song list.
@@ -113,6 +125,7 @@ fun AlbumDetailScreen(
         onNavigateBack = onNavigateBack,
         onNavigateToArtist = onNavigateToArtist,
         onRefresh = viewModel::refresh,
+        onSortOrderChange = viewModel::setSortOrder,
         onPlayAlbum = viewModel::playAlbum,
         onShuffle = viewModel::shuffle,
         onPlaySong = viewModel::playSong,
@@ -138,6 +151,7 @@ private fun AlbumDetailScreenContent(
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
+    onSortOrderChange: (SortOrder) -> Unit = {},
     onPlayAlbum: () -> Unit,
     onShuffle: () -> Unit,
     onPlaySong: (Song) -> Unit,
@@ -159,6 +173,13 @@ private fun AlbumDetailScreenContent(
         title = title,
         onNavigateBack = onNavigateBack,
         actions = {
+            if (uiState is AlbumDetailUiState.Success) {
+                SortMenu(
+                    current = uiState.sortOrder,
+                    options = ALBUM_TRACK_SORT_OPTIONS,
+                    onOrderChange = onSortOrderChange,
+                )
+            }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, contentDescription = "Refresh")
             }
@@ -208,7 +229,7 @@ private fun AlbumDetailScreenContent(
                     }
 
                     // Songs list
-                    if (uiState.album.songs.orEmpty().isEmpty()) {
+                    if (uiState.sortedSongs.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -224,14 +245,20 @@ private fun AlbumDetailScreenContent(
                             }
                         }
                     } else {
-                        // Group songs by disc number and check if we have multiple discs
-                        val sortedSongs = uiState.album.songs.orEmpty().sortedWith(
-                            compareBy(
-                                { it.discNumber ?: 1 },
-                                { it.trackNumber ?: 0 }
-                            ))
+                        // In DEFAULT order, group by disc (disc/track order); in any explicit sort, keep
+                        // the flat sorted order the ViewModel produced (disc grouping no longer applies).
+                        val sortedSongs = if (uiState.sortOrder.isDefault) {
+                            uiState.sortedSongs.sortedWith(
+                                compareBy(
+                                    { it.discNumber ?: 1 },
+                                    { it.trackNumber ?: 0 }
+                                )
+                            )
+                        } else {
+                            uiState.sortedSongs
+                        }
                         val songsByDisc = sortedSongs.groupBy { it.discNumber ?: 1 }
-                        val hasMultipleDiscs = songsByDisc.size > 1
+                        val hasMultipleDiscs = uiState.sortOrder.isDefault && songsByDisc.size > 1
 
                         if (hasMultipleDiscs) {
                             val discItems = buildList {

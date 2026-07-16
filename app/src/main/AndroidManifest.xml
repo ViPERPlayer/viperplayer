@@ -19,6 +19,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"
         android:minSdkVersion="33" />
 
+    <!-- Alarm clock: exact scheduling, re-arm on boot, hold a short wakelock to start playback -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Scan a Jam invite QR to join a listen-together session -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
@@ -76,6 +82,24 @@
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
             </intent-filter>
         </service>
+
+        <!-- Alarm clock: fires playback + posts the ringing notification -->
+        <receiver
+            android:name=".alarm.scheduling.AlarmReceiver"
+            android:exported="false" />
+
+        <!-- Re-arm enabled alarms after reboot / time change -->
+        <receiver
+            android:name=".alarm.scheduling.BootReceiver"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Home-screen player widget -->
         <receiver

@@ -1,7 +1,10 @@
 package com.viperplayer.presentation.detail
 
+import android.Manifest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.audio.BluetoothCodecReader
+import com.viperplayer.domain.audio.BluetoothCodecInfo
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistRef
@@ -19,13 +22,17 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
 /**
  * State for the Song-info detail screen. Every field mirrors what a plugin can provide; the screen
@@ -51,6 +58,7 @@ class SongInfoViewModel @AssistedInject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository,
     private val pluginRepository: PluginRepository,
+    private val bluetoothCodecReader: BluetoothCodecReader,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -111,4 +119,64 @@ class SongInfoViewModel @AssistedInject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = null,
         )
+
+    /**
+     * Bumped after the runtime BLUETOOTH_CONNECT permission is granted so the reactive codec/permission
+     * flows re-evaluate immediately instead of waiting for the next route/codec broadcast.
+     */
+    private val permissionRefresh = MutableStateFlow(0)
+
+    /** True only while this track is the one playing. Drives every runtime-format flow below. */
+    private val isCurrentSong: StateFlow<Boolean> = playerRepository.currentSong
+        .map { it?.id == mediaId }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false,
+        )
+
+    /**
+     * The active Bluetooth A2DP codec (e.g. "LDAC 990kbps", "aptX HD"), only when this track is the
+     * one playing and audio is actually routing to a BT device. Re-reads reactively when the route,
+     * active device, or LDAC quality changes while the screen is open. Null on wired/speaker routes,
+     * when the platform can't report it, or when [Manifest.permission.BLUETOOTH_CONNECT] isn't
+     * granted — the reader degrades gracefully.
+     */
+    val bluetoothCodec: StateFlow<BluetoothCodecInfo?> =
+        combine(isCurrentSong, permissionRefresh) { isCurrent, _ -> isCurrent }
+            .flatMapLatest { isCurrent ->
+                if (isCurrent) bluetoothCodecReader.codecFlow() else flowOf(null)
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = null,
+            )
+
+    /**
+     * True when the BLUETOOTH_CONNECT permission is missing AND we're actually on a BT A2DP route for
+     * the playing track — i.e. requesting it would let us show the codec. The screen only prompts when
+     * this is true, so users aren't asked for a permission they don't currently need.
+     */
+    val bluetoothPermissionNeeded: StateFlow<Boolean> =
+        combine(isCurrentSong, permissionRefresh) { isCurrent, _ -> isCurrent }
+            .mapLatest { isCurrent ->
+                BluetoothCodecInfo.shouldPromptForBluetoothPermission(
+                    isCurrentSong = isCurrent,
+                    permissionMissing = bluetoothCodecReader.needsBluetoothConnectPermission(),
+                    onBluetoothRoute = bluetoothCodecReader.isBluetoothA2dpRoute(),
+                )
+            }
+            .distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = false,
+            )
+
+    /** Called by the screen once the BLUETOOTH_CONNECT permission is granted, to refresh the codec. */
+    fun onBluetoothPermissionGranted() {
+        permissionRefresh.update { it + 1 }
+    }
 }

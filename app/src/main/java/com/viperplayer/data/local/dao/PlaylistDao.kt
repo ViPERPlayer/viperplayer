@@ -54,6 +54,9 @@ interface PlaylistDao {
     @Update
     suspend fun update(playlist: PlaylistEntity)
 
+    @Query("UPDATE playlists SET name = :name WHERE pluginId = :pluginId AND sourceId = :sourceId")
+    suspend fun updateName(pluginId: String, sourceId: String, name: String)
+
     @Query("UPDATE playlists SET isLiked = :isLiked WHERE pluginId = :pluginId AND sourceId = :sourceId")
     suspend fun updateLiked(pluginId: String, sourceId: String, isLiked: Boolean)
 

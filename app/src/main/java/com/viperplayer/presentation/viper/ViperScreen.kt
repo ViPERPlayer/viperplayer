@@ -163,6 +163,7 @@ fun ViperScreen(
                                 gain
                             )
                         },
+                        onImportAutoEq = { viewModel.importAutoEqProfile(it) },
                         onReset = { viewModel.resetIirEqualizer() }
                     )
                     ConvolverEffect(

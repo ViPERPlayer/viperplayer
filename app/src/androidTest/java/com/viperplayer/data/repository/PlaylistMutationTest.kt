@@ -208,6 +208,54 @@ class PlaylistMutationTest {
     }
 
     @Test
+    fun renamePlaylist_persistsNewName() = runBlocking {
+        val playlistId = repository.createLocalPlaylist("Old Name")
+
+        repository.renamePlaylist(playlistId, "New Name")
+
+        // The renamed name must be reflected both on the single-playlist flow and the local list, and
+        // renaming must not disturb the playlist's songs.
+        repository.addSongToPlaylist(playlistId, song("a"))
+        val playlist = repository.getPlaylist(playlistId).first()
+        assertNotNull(playlist)
+        assertEquals("New Name", playlist!!.name)
+        assertEquals(listOf("a"), playlist.songs?.map { it.id.sourceId })
+
+        val listed = repository.getLocalPlaylists().first().first { it.id == playlistId }
+        assertEquals("New Name", listed.name)
+    }
+
+    @Test
+    fun renamePlaylist_trimsWhitespace() = runBlocking {
+        val playlistId = repository.createLocalPlaylist("Original")
+
+        repository.renamePlaylist(playlistId, "  Padded Name  ")
+
+        assertEquals("Padded Name", repository.getPlaylist(playlistId).first()?.name)
+    }
+
+    @Test
+    fun renamePlaylist_blankName_isNoOp() = runBlocking {
+        val playlistId = repository.createLocalPlaylist("Keep Me")
+
+        repository.renamePlaylist(playlistId, "   ")
+
+        // A blank name must not clobber the existing name.
+        assertEquals("Keep Me", repository.getPlaylist(playlistId).first()?.name)
+    }
+
+    @Test
+    fun renamePlaylist_nonLocalPlaylist_isNoOp() = runBlocking {
+        // Guard: only local playlists are renameable. A remote plugin playlist id has no local row,
+        // so the update simply affects nothing (and never throws).
+        repository.renamePlaylist(MediaId("testsource", "remote123"), "Hacked")
+        // Sanity: an unrelated local playlist is untouched.
+        val local = repository.createLocalPlaylist("Safe")
+        repository.renamePlaylist(MediaId("testsource", "remote123"), "Again")
+        assertEquals("Safe", repository.getPlaylist(local).first()?.name)
+    }
+
+    @Test
     fun getLocalPlaylists_reflectsCreatedPlaylistsWithCounts() = runBlocking {
         val playlistId = repository.createLocalPlaylist("Road Trip")
         repository.addSongToPlaylist(playlistId, song("a"))

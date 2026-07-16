@@ -60,8 +60,11 @@ import com.viperplayer.domain.model.PluginPendingAction
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.model.SortOption
+import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.presentation.common.CollapsingArtworkScaffold
 import com.viperplayer.presentation.common.ErrorState
+import com.viperplayer.presentation.common.SortMenu
 import com.viperplayer.presentation.plugins.PluginActionsViewModel
 import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.presentation.common.ListItem
@@ -74,6 +77,14 @@ import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
+
+// Artist Top Songs sort options. DEFAULT (plugin order) is first and selected initially.
+private val ARTIST_SONG_SORT_OPTIONS = listOf(
+    SortOption.DEFAULT,
+    SortOption.TITLE,
+    SortOption.ALBUM,
+    SortOption.DURATION,
+)
 
 @Composable
 fun ArtistDetailScreen(
@@ -109,6 +120,7 @@ fun ArtistDetailScreen(
         onNavigateToArtist = onNavigateToArtist,
         onRefresh = viewModel::refresh,
         onToggleFollow = viewModel::toggleFollow,
+        onSortOrderChange = viewModel::setSortOrder,
         onPlayAllSongs = viewModel::playAllSongs,
         onPlaySong = viewModel::playSong,
         onPlayNext = viewModel::playNext,
@@ -131,6 +143,7 @@ private fun ArtistDetailScreenContent(
     onNavigateToArtist: (Artist) -> Unit,
     onRefresh: () -> Unit,
     onToggleFollow: () -> Unit = {},
+    onSortOrderChange: (SortOrder) -> Unit = {},
     onPlayAllSongs: () -> Unit,
     onPlaySong: (Song) -> Unit,
     onPlayNext: (Song) -> Unit,
@@ -159,6 +172,14 @@ private fun ArtistDetailScreenContent(
                     contentDescription = stringResource(
                         if (isFollowing) R.string.action_unfollow else R.string.action_follow
                     ),
+                )
+            }
+            // Sort applies to the Top Songs list; only offer it once there are songs to sort.
+            if (uiState is ArtistDetailUiState.Success && uiState.artist.topSongs.isNotEmpty()) {
+                SortMenu(
+                    current = uiState.songsSort,
+                    options = ARTIST_SONG_SORT_OPTIONS,
+                    onOrderChange = onSortOrderChange,
                 )
             }
             IconButton(onClick = onRefresh) {
@@ -214,13 +235,13 @@ private fun ArtistDetailScreenContent(
                         }
                     }
 
-                    // Top Songs section
-                    if (artistData.topSongs.isNotEmpty()) {
+                    // Top Songs section (rendered in the user-chosen sort order).
+                    if (state.sortedSongs.isNotEmpty()) {
                         item {
                             SectionHeader("Top Songs")
                         }
                         items(
-                            items = artistData.topSongs,
+                            items = state.sortedSongs,
                             key = { song -> song.id.toString() }
                         ) { song ->
                             ListItem(
