@@ -85,6 +85,14 @@ interface SettingsRepository {
     val pureBlack: Flow<Boolean>
     suspend fun setPureBlack(enabled: Boolean)
 
+    /**
+     * User-picked accent/seed color as a packed ARGB [Int], or `null` when unset (use the app's
+     * brand default). Only takes effect when dynamic color is OFF; on Android 12+ Material You and
+     * color-from-album-art take precedence when their modes are selected.
+     */
+    val accentColor: Flow<Int?>
+    suspend fun setAccentColor(argb: Int?)
+
     // Player/Audio
     val audioQuality: Flow<AudioQuality>
     suspend fun setAudioQuality(quality: AudioQuality)

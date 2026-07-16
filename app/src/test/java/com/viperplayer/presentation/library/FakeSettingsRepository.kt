@@ -55,6 +55,8 @@ class FakeSettingsRepository(
     override suspend fun setThemeMode(mode: ThemeMode) = unused()
     override val pureBlack: Flow<Boolean> get() = unused()
     override suspend fun setPureBlack(enabled: Boolean) = unused()
+    override val accentColor: Flow<Int?> get() = unused()
+    override suspend fun setAccentColor(argb: Int?) = unused()
     override val audioQuality: Flow<AudioQuality> get() = unused()
     override suspend fun setAudioQuality(quality: AudioQuality) = unused()
     override val historyDuration: Flow<HistoryDuration> get() = unused()

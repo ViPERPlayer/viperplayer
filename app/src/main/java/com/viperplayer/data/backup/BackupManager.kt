@@ -215,6 +215,7 @@ class BackupManager @Inject constructor(
         showExplicitContent = settingsRepository.showExplicitContent.first(),
         maxSongCacheSize = settingsRepository.maxSongCacheSize.first(),
         maxImageCacheSize = settingsRepository.maxImageCacheSize.first(),
+        accentColor = settingsRepository.accentColor.first(),
     )
 
     private suspend fun restoreSettings(settings: BackupSettings) {
@@ -225,6 +226,7 @@ class BackupManager @Inject constructor(
             runCatching { settingsRepository.setDynamicThemeMode(DynamicThemeMode.valueOf(name)) }
         }
         settings.pureBlack?.let { runCatching { settingsRepository.setPureBlack(it) } }
+        settings.accentColor?.let { runCatching { settingsRepository.setAccentColor(it) } }
         settings.audioQuality?.let { name ->
             runCatching { settingsRepository.setAudioQuality(AudioQuality.valueOf(name)) }
         }
