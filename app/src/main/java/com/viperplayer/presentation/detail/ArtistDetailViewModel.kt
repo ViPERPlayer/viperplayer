@@ -107,10 +107,16 @@ class ArtistDetailViewModel @AssistedInject constructor(
                     followedArtistsRepository.unfollow(artistId)
                 } else {
                     val artist = (_uiState.value as? ArtistDetailUiState.Success)?.artist
+                    val name = artist?.name ?: artistDetail.initialName
+                    // Never persist a nameless follow: only reachable if Follow is tapped while the
+                    // artist is still Loading AND the screen was opened with a blank initialName. The
+                    // name is available a moment later, so the tap simply no-ops until then. Unfollow
+                    // is unaffected (handled above).
+                    if (name.isBlank()) return@launch
                     followedArtistsRepository.follow(
                         FollowedArtist(
                             mediaId = artistId,
-                            name = artist?.name ?: artistDetail.initialName,
+                            name = name,
                             artworkUrl = artist?.imageUrl ?: artistDetail.initialImageUrl,
                             followedAt = System.currentTimeMillis(),
                         )
