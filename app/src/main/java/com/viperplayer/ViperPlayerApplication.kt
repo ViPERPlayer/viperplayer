@@ -15,6 +15,7 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import com.viperplayer.BuildConfig
+import com.viperplayer.data.plugin.update.PluginUpdateManager
 import com.viperplayer.data.sync.push.PushSyncManager
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -46,6 +47,9 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var pluginRepository: PluginRepository
 
+    @Inject
+    lateinit var pluginUpdateManager: PluginUpdateManager
+
     override fun onCreate() {
         super.onCreate()
         setupCrashHandler()
@@ -59,6 +63,8 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
         initializeTimber()
         pruneHistory()
         drainPushOutboxOnConnect()
+        // Throttled: runs a real plugin-update check only when the cadence says one is due.
+        pluginUpdateManager.checkOnStartThrottled()
     }
 
     /**

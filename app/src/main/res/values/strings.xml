@@ -485,6 +485,23 @@
     <!-- Two-way sync: push local library changes (likes, playlists, follows) up to the account. -->
     <string name="plugins_push_sync">Push changes to account</string>
 
+    <!-- Plugin updates -->
+    <string name="plugins_check_updates">Check for updates</string>
+    <string name="plugins_checking_updates">Checking for updates…</string>
+    <string name="plugins_update_available">Update available</string>
+    <!-- Version transition, e.g. "1.0 → 1.3.0" -->
+    <string name="plugins_update_versions">%1$s → %2$s</string>
+    <string name="plugins_update_action">Update</string>
+    <string name="plugins_update_dismiss">Dismiss</string>
+    <string name="plugins_update_changelog">What\'s new</string>
+    <string name="plugins_update_downloading">Downloading…</string>
+    <string name="plugins_update_installing">Installing…</string>
+    <string name="plugins_update_confirm">Confirm the install to finish updating</string>
+    <string name="plugins_update_succeeded">Plugin updated</string>
+    <string name="plugins_update_failed">Update failed: %1$s</string>
+    <string name="plugins_updates_none">All plugins are up to date</string>
+    <string name="plugins_updates_badge_cd">Updates available</string>
+
     <!-- Listen-together / social sheets -->
     <string name="social_share_subtitle">Share what you\'re listening to so friends can follow along.</string>
     <string name="social_share_invite">Share invite</string>

@@ -31,7 +31,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,7 +43,9 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -59,12 +64,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.viperplayer.R
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.viperplayer.data.plugin.update.PluginUpdate
+import com.viperplayer.data.plugin.update.PluginUpdateProgress
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.PluginPendingAction
@@ -83,6 +92,8 @@ fun PluginsScreen(
     val context = LocalContext.current
     var menuPluginId by remember { mutableStateOf<String?>(null) }
     var showInfoDialog by remember { mutableStateOf<PluginInfo?>(null) }
+    var showChangelog by remember { mutableStateOf<PluginUpdate?>(null) }
+    val updatesBadgeDescription = stringResource(R.string.plugins_updates_badge_cd)
 
     // Surface library-sync outcomes as a Toast.
     LaunchedEffect(Unit) {
@@ -101,6 +112,20 @@ fun PluginsScreen(
                         )
                     }
                 is LibrarySyncEvent.Failure -> context.getString(R.string.plugins_sync_failed)
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Surface update download/install outcomes as a Toast.
+    LaunchedEffect(Unit) {
+        viewModel.updateEvents.collect { event ->
+            val message = when (event) {
+                is PluginUpdateProgress.Succeeded ->
+                    context.getString(R.string.plugins_update_succeeded)
+                is PluginUpdateProgress.Failed ->
+                    context.getString(R.string.plugins_update_failed, event.message)
+                else -> return@collect
             }
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
@@ -128,6 +153,38 @@ fun PluginsScreen(
                         imageVector = Icons.AutoMirrored.Default.ArrowBack,
                         contentDescription = stringResource(R.string.action_back)
                     )
+                }
+            },
+            actions = {
+                IconButton(
+                    onClick = { viewModel.checkForUpdates() },
+                    enabled = !uiState.isCheckingUpdates,
+                ) {
+                    if (uiState.isCheckingUpdates) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        // A badge dot signals the global "updates available" indicator.
+                        BadgedBox(
+                            badge = {
+                                if (uiState.hasUpdates) {
+                                    Badge(
+                                        modifier = Modifier.semantics {
+                                            contentDescription =
+                                                updatesBadgeDescription
+                                        }
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = stringResource(R.string.plugins_check_updates),
+                            )
+                        }
+                    }
                 }
             }
         )
@@ -243,6 +300,11 @@ fun PluginsScreen(
                             isSyncing = plugin.id in syncing,
                             canPushSync = viewModel.hasLibraryWrite(plugin.id),
                             pushSyncEnabled = plugin.id in uiState.pushSyncEnabled,
+                            update = uiState.availableUpdates[plugin.id],
+                            updateProgress = uiState.updateProgress[plugin.id],
+                            onInstallUpdate = { viewModel.installUpdate(plugin.id) },
+                            onDismissUpdate = { viewModel.dismissUpdate(plugin.id) },
+                            onShowChangelog = { showChangelog = uiState.availableUpdates[plugin.id] },
                             onToggle = { viewModel.togglePlugin(plugin.id) },
                             onLongPress = { menuPluginId = plugin.id },
                             onDismissMenu = { menuPluginId = null },
@@ -332,6 +394,47 @@ fun PluginsScreen(
             }
         )
     }
+
+    // Changelog dialog for an available update.
+    showChangelog?.let { update ->
+        AlertDialog(
+            onDismissRequest = { showChangelog = null },
+            title = { Text(text = stringResource(R.string.plugins_update_changelog)) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(
+                            R.string.plugins_update_versions,
+                            update.installedVersionName,
+                            update.availableVersionName,
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    if (!update.changelog.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = update.changelog,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.installUpdate(update.pluginId)
+                    showChangelog = null
+                }) {
+                    Text(stringResource(R.string.plugins_update_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showChangelog = null }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -349,6 +452,11 @@ fun PluginCard(
     isSyncing: Boolean = false,
     canPushSync: Boolean = false,
     pushSyncEnabled: Boolean = false,
+    update: PluginUpdate? = null,
+    updateProgress: PluginUpdateProgress? = null,
+    onInstallUpdate: () -> Unit = {},
+    onDismissUpdate: () -> Unit = {},
+    onShowChangelog: () -> Unit = {},
     onToggle: () -> Unit,
     onLongPress: () -> Unit,
     onDismissMenu: () -> Unit,
@@ -368,6 +476,7 @@ fun PluginCard(
             ),
         shape = RoundedCornerShape(16.dp)
     ) {
+      Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -570,6 +679,130 @@ fun PluginCard(
                             )
                         }
                     )
+                }
+            }
+        }
+
+        // "Update available" banner + install/dismiss + progress, only when an update is offered.
+        if (update != null) {
+            PluginUpdateSection(
+                update = update,
+                progress = updateProgress,
+                onInstall = onInstallUpdate,
+                onDismiss = onDismissUpdate,
+                onShowChangelog = onShowChangelog,
+            )
+        }
+      }
+    }
+}
+
+/**
+ * The per-plugin "Update available" section shown at the bottom of a [PluginCard]. Render-only: it
+ * shows the version transition, optional changelog access, an Update / Dismiss control, and — while
+ * a download/install is in flight — a progress bar and status text. All logic lives in the ViewModel
+ * and [com.viperplayer.data.plugin.update.PluginUpdateManager].
+ */
+@Composable
+private fun PluginUpdateSection(
+    update: PluginUpdate,
+    progress: PluginUpdateProgress?,
+    onInstall: () -> Unit,
+    onDismiss: () -> Unit,
+    onShowChangelog: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.SystemUpdate,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.plugins_update_available),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.plugins_update_versions,
+                            update.installedVersionName,
+                            update.availableVersionName,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+
+            when (progress) {
+                is PluginUpdateProgress.Downloading -> {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (progress.fraction != null) {
+                        LinearProgressIndicator(
+                            progress = { progress.fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.plugins_update_downloading),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+
+                is PluginUpdateProgress.Installing,
+                is PluginUpdateProgress.AwaitingUserConfirmation -> {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(
+                            if (progress is PluginUpdateProgress.AwaitingUserConfirmation) {
+                                R.string.plugins_update_confirm
+                            } else {
+                                R.string.plugins_update_installing
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+
+                else -> {
+                    // Idle: offer the actions.
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (!update.changelog.isNullOrBlank()) {
+                            TextButton(onClick = onShowChangelog) {
+                                Text(stringResource(R.string.plugins_update_changelog))
+                            }
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        OutlinedButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.plugins_update_dismiss))
+                        }
+                        Button(onClick = onInstall) {
+                            Text(stringResource(R.string.plugins_update_action))
+                        }
+                    }
                 }
             }
         }

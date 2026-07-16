@@ -2,6 +2,9 @@ package com.viperplayer.presentation.plugins
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.data.plugin.update.PluginUpdate
+import com.viperplayer.data.plugin.update.PluginUpdateManager
+import com.viperplayer.data.plugin.update.PluginUpdateProgress
 import com.viperplayer.data.preferences.PushSyncPreferences
 import com.viperplayer.data.sync.LibrarySyncManager
 import com.viperplayer.data.sync.SyncResult
@@ -33,8 +36,17 @@ data class PluginsUiState(
     /** Plugin ids the user has opted into PUSHING local library changes up to (two-way sync). */
     val pushSyncEnabled: Set<String> = emptySet(),
     val togglingPluginId: String? = null,
+    /** Available plugin updates, keyed by plugin id (from [PluginUpdateManager]). */
+    val availableUpdates: Map<String, PluginUpdate> = emptyMap(),
+    /** True while a check-for-updates pass is running. */
+    val isCheckingUpdates: Boolean = false,
+    /** In-flight download/install progress per plugin id (absent = idle). */
+    val updateProgress: Map<String, PluginUpdateProgress> = emptyMap(),
     val error: String? = null
-)
+) {
+    /** Whether any plugin currently has an update on offer (drives the global indicator). */
+    val hasUpdates: Boolean get() = availableUpdates.isNotEmpty()
+}
 
 /**
  * ViewModel for Plugins screen.
@@ -45,6 +57,7 @@ class PluginsViewModel @Inject constructor(
     private val librarySyncManager: LibrarySyncManager,
     private val pushSyncPreferences: PushSyncPreferences,
     private val pushSyncManager: PushSyncManager,
+    private val pluginUpdateManager: PluginUpdateManager,
 ) : ViewModel() {
     companion object {
         private const val TAG = "PluginsViewModel"
@@ -62,6 +75,13 @@ class PluginsViewModel @Inject constructor(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
     val syncEvents: SharedFlow<LibrarySyncEvent> = _syncEvents.asSharedFlow()
+
+    /** One-shot download/install progress events for the UI to surface as a Toast. */
+    private val _updateEvents = MutableSharedFlow<PluginUpdateProgress>(
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val updateEvents: SharedFlow<PluginUpdateProgress> = _updateEvents.asSharedFlow()
 
     init {
         Timber.d("ViewModel initialized")
@@ -98,6 +118,34 @@ class PluginsViewModel @Inject constructor(
         viewModelScope.launch {
             pushSyncPreferences.enabledPlugins.collect { enabled ->
                 _uiState.update { it.copy(pushSyncEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            pluginUpdateManager.availableUpdates.collect { updates ->
+                _uiState.update { it.copy(availableUpdates = updates) }
+            }
+        }
+
+        viewModelScope.launch {
+            pluginUpdateManager.isChecking.collect { checking ->
+                _uiState.update { it.copy(isCheckingUpdates = checking) }
+            }
+        }
+
+        viewModelScope.launch {
+            pluginUpdateManager.progress.collect { progress ->
+                _uiState.update { state ->
+                    val next = state.updateProgress.toMutableMap()
+                    when (progress) {
+                        // Terminal states clear the row's progress so the button returns to idle.
+                        is PluginUpdateProgress.Succeeded,
+                        is PluginUpdateProgress.Failed -> next.remove(progress.pluginId)
+                        else -> next[progress.pluginId] = progress
+                    }
+                    state.copy(updateProgress = next)
+                }
+                _updateEvents.emit(progress)
             }
         }
     }
@@ -210,6 +258,35 @@ class PluginsViewModel @Inject constructor(
             }
             _syncEvents.emit(event)
         }
+    }
+
+    /** The available update for [pluginId], or null if none is on offer. */
+    fun updateFor(pluginId: String): PluginUpdate? =
+        _uiState.value.availableUpdates[pluginId]
+
+    /** In-flight download/install progress for [pluginId], or null if idle. */
+    fun updateProgressFor(pluginId: String): PluginUpdateProgress? =
+        _uiState.value.updateProgress[pluginId]
+
+    /** Manual "Check for updates" action. */
+    fun checkForUpdates() {
+        Timber.d("checkForUpdates() called")
+        viewModelScope.launch {
+            runCatching { pluginUpdateManager.checkNow() }
+                .onFailure { Timber.e(it, "checkForUpdates() failed") }
+        }
+    }
+
+    /** Download + install the offered update for [pluginId] (user confirms in the system UI). */
+    fun installUpdate(pluginId: String) {
+        Timber.d("installUpdate() called for: $pluginId")
+        pluginUpdateManager.downloadAndInstall(pluginId)
+    }
+
+    /** Dismiss the offered update for [pluginId] until a newer version appears. */
+    fun dismissUpdate(pluginId: String) {
+        Timber.d("dismissUpdate() called for: $pluginId")
+        viewModelScope.launch { pluginUpdateManager.dismiss(pluginId) }
     }
 }
 
