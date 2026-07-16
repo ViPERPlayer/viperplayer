@@ -11,6 +11,7 @@ import com.viperplayer.follows.domain.FollowedArtistSort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -164,7 +165,7 @@ class FollowedArtistsRepositoryImplTest {
     /** Records enqueued mutations so the wiring from the repository to the outbox can be asserted. */
     private class CapturingOutbox : LibraryPushOutbox {
         val captured = mutableListOf<LibraryMutation>()
-        override val pendingCount = kotlinx.coroutines.flow.flowOf(0)
+        override val pendingCount = flowOf(0)
         override suspend fun enqueue(mutation: LibraryMutation) {
             captured += mutation
         }

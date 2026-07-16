@@ -48,6 +48,17 @@ sealed interface LibraryMutation {
      * Create a playlist on the account. [localPlaylistId] is the app's local playlist id; the drain
      * uses it to correlate the remote id the plugin returns so later add/remove mutations for the same
      * local playlist can be routed to the created remote playlist.
+     *
+     * NOT YET WIRED (future work): this mutation, together with [RenamePlaylist] and [DeletePlaylist],
+     * is fully modeled, coalesced, drained and tested but is NOT enqueued anywhere today — there is no
+     * remote-playlist create/rename/delete UI, and local-only playlists are dropped by the outbox. The
+     * future mutation site that enqueues these must also heed the id-space caveat below.
+     *
+     * ID-SPACE CAVEAT: this create keys coalescing on [localPlaylistId] (a LOCAL id), whereas
+     * [DeletePlaylist] keys on the plugin's REMOTE `playlistId`. The coalescer's create+delete
+     * "nets to nothing" cancellation therefore only fires when those ids match. Whoever wires these
+     * mutation sites must ensure a create and its later delete reference ids in the SAME id space (or
+     * key both on one consistent field) for the cancellation to work. See [MutationCoalescer].
      */
     data class CreatePlaylist(
         override val pluginId: String,
@@ -70,7 +81,13 @@ sealed interface LibraryMutation {
         override val target get() = Target(pluginId, KIND_PLAYLIST, playlistId)
     }
 
-    /** Delete a playlist. Supersedes every other pending mutation for the same playlist. */
+    /**
+     * Delete a playlist. Supersedes every other pending mutation for the same playlist.
+     *
+     * NOT YET WIRED (future work) — see [CreatePlaylist]. ID-SPACE CAVEAT: [playlistId] is the plugin's
+     * REMOTE id, but [CreatePlaylist] carries a LOCAL id, so the coalescer's create+delete cancellation
+     * only fires when the two ids coincide. A future wiring change must keep them in one id space.
+     */
     data class DeletePlaylist(
         override val pluginId: String,
         val playlistId: String,

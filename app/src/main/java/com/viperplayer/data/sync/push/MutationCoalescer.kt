@@ -47,6 +47,21 @@ object MutationCoalescer {
 
         // Playlists that are being deleted — any earlier work on them (rename, add/remove of tracks)
         // is pointless. A create followed later by a delete also nets to nothing.
+        //
+        // NOT-YET-WIRED (future work): no enqueue site produces CreatePlaylist/RenamePlaylist/
+        // DeletePlaylist today (remote-playlist create/rename/delete has no UI, and local playlists are
+        // dropped by the outbox). This branch is fully modeled + tested for when those mutation sites
+        // are added.
+        //
+        // ID-SPACE CAVEAT (read before wiring remote-playlist creation): DeletePlaylist keys on
+        // `playlistId` (the plugin's REMOTE id) while CreatePlaylist keys on `localPlaylistId` (the
+        // app's LOCAL id). These live in different id spaces, so the create+delete "nets to nothing"
+        // cancellation below only fires when those two ids happen to be equal. Whoever wires
+        // remote-playlist creation must ensure a create and its later delete carry ids in the SAME id
+        // space (e.g. key both on the local id until the remote id is known, or correlate them) or the
+        // pair will NOT cancel and an orphan create/delete round-trip will be pushed. Correcting this
+        // "by construction" needs a model change (a delete that also carries the local id), so it is
+        // deliberately left to the wiring change rather than done speculatively here.
         val deletedPlaylistKeys = sorted
             .mapNotNull { (it.mutation as? LibraryMutation.DeletePlaylist)?.let { d -> playlistKey(d.pluginId, d.playlistId) } }
             .toSet()

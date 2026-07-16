@@ -470,7 +470,17 @@ class PluginDataSource @Inject constructor(
         runCatching { source(pluginId).removeTrackFromPlaylist(playlistId, trackId) }
             .onFailure { Timber.e(it, "removeTrackFromPlaylist failed for $pluginId/$playlistId") }
 
-    /** First page of the account's liked/saved track source ids, for push reconciliation, or null. */
+    /**
+     * First page of the account's liked/saved track source ids, for push reconciliation, or null.
+     *
+     * PROXY / best-effort by design: the SDK has no distinct "liked-only" read, so we use the
+     * account's library-saved songs ([getLibrarySongs]) as a proxy for the remote liked set. On some
+     * services "saved to library" is not exactly the same as "liked", so this is a deliberate
+     * approximation of the remote set the reconciler diffs against, given the SDK read surface.
+     * Bounded consequence: a redundant like may be skipped as already-present, but real changes still
+     * push — an unlike (a removal off this set) is never suppressed by an over-broad set. Never assume
+     * this equals the true liked set exactly.
+     */
     override suspend fun likedTrackIds(pluginId: String, limit: Int): RemoteSet? =
         runCatching {
             val page = source(pluginId).getLibrarySongs(PageRequest(null, limit))
@@ -478,7 +488,16 @@ class PluginDataSource @Inject constructor(
             RemoteSet(page.items.map { it.id }.toSet(), complete = page.nextCursor == null)
         }.getOrNull()
 
-    /** First page of the account's followed artist source ids, for push reconciliation, or null. */
+    /**
+     * First page of the account's followed artist source ids, for push reconciliation, or null.
+     *
+     * PROXY / best-effort by design: the SDK has no distinct "followed-only" read, so we use the
+     * account's library-saved artists ([getLibraryArtists]) as a proxy for the remote followed set. On
+     * some services "saved to library" is not exactly the same as "followed", so this is a deliberate
+     * approximation of the remote set the reconciler diffs against, given the SDK read surface.
+     * Bounded consequence: a redundant follow may be skipped as already-present, but real changes still
+     * push — an unfollow (a removal off this set) is never suppressed by an over-broad set.
+     */
     override suspend fun followedArtistIds(pluginId: String, limit: Int): RemoteSet? =
         runCatching {
             val page = source(pluginId).getLibraryArtists(PageRequest(null, limit))
