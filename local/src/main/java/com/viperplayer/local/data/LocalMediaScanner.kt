@@ -230,7 +230,8 @@ class LocalMediaScanner(
                             dateAdded = dateAdded,
                             dateModified = dateModified,
                             albumArtUri = getAlbumArtUri(albumId),
-                            folderPath = folderPath
+                            folderPath = folderPath,
+                            filePath = filePath
                         )
                     )
                 }
