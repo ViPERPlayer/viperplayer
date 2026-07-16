@@ -168,40 +168,49 @@ class LibraryViewModel @Inject constructor(
 
     init {
         // Seed the persisted sort orders BEFORE the first content load so the first Success state is
-        // already correctly ordered (no DEFAULT-then-flip). Then start loading and observing. The
-        // seed + load run in one coroutine so the prefetch is guaranteed to complete first; the
-        // per-tab observers below keep re-sorting on later changes.
+        // already correctly ordered (no DEFAULT-then-flip), then let the tabs-config observer drive the
+        // FIRST content load for the resolved initial tab. Running the seed and starting the observer in
+        // one coroutine guarantees the prefetch completes before that first load; the per-tab observers
+        // below keep re-sorting on later changes. The config observer — not a hardcoded loadContent(SONGS)
+        // in init — owns the cold-start load, so the right tab loads exactly once (no redundant SONGS load
+        // that would otherwise be immediately cancelled when the initial tab isn't SONGS).
         viewModelScope.launch {
             seedSortOrders()
-            loadContent(LibraryTab.SONGS)
+            observeTabsConfig()
         }
         observeSortOrders()
         observeAutoPlaylists()
-        observeTabsConfig()
     }
 
     /**
      * Collect the persisted library-tabs config, reconcile it into the ordered visible [LibraryTab]s,
-     * and keep the [LibraryUiState.selectedTab] valid: if the currently-selected tab was just hidden (or
-     * removed), fall back to the first visible tab and load its content. The perpetual collector keeps
-     * the TabRow in sync as the user edits the config on the Customize-tabs screen.
+     * keep the [LibraryUiState.selectedTab] valid, and drive content loading. On the FIRST emission this
+     * seeds the initial selected tab and loads its content exactly once (the cold-start load). On later
+     * emissions, if the currently-selected tab was just hidden (or removed), it falls back to the first
+     * visible tab and loads that. The perpetual collector keeps the TabRow in sync as the user edits the
+     * config on the Customize-tabs screen.
      */
-    private fun observeTabsConfig() {
-        viewModelScope.launch {
-            settingsRepository.libraryTabsConfig.collect { config ->
-                val visible = resolveVisibleTabs(config)
-                // Reconcile against the CURRENT selection atomically inside update(): if the selected
-                // tab was just hidden/removed, fall back to the first visible tab. Reading selectedTab
-                // from the update's own `it` (not a pre-read snapshot) avoids clobbering a concurrent
-                // selectTab(). `changedTo` captures the fallback we need to load content for, if any.
-                var changedTo: LibraryTab? = null
-                _uiState.update {
-                    val next = if (it.selectedTab in visible) it.selectedTab else visible.first()
-                    changedTo = if (next != it.selectedTab) next else null
-                    it.copy(visibleTabs = visible, selectedTab = next)
-                }
-                // The selected tab changed because its previous value is no longer visible — load the
-                // fallback tab's content so the screen doesn't show a stale/hidden tab's list.
+    private suspend fun observeTabsConfig() {
+        var firstEmission = true
+        settingsRepository.libraryTabsConfig.collect { config ->
+            val visible = resolveVisibleTabs(config)
+            // Reconcile against the CURRENT selection atomically inside update(): if the selected
+            // tab was just hidden/removed, fall back to the first visible tab. Reading selectedTab
+            // from the update's own `it` (not a pre-read snapshot) avoids clobbering a concurrent
+            // selectTab(). `changedTo` captures the fallback we need to load content for, if any.
+            var changedTo: LibraryTab? = null
+            _uiState.update {
+                val next = if (it.selectedTab in visible) it.selectedTab else visible.first()
+                changedTo = if (next != it.selectedTab) next else null
+                it.copy(visibleTabs = visible, selectedTab = next)
+            }
+            // Cold start: load the resolved initial tab exactly once. Afterwards, only load when the
+            // selection actually changed because its previous value is no longer visible, so the screen
+            // never shows a stale/hidden tab's list.
+            if (firstEmission) {
+                firstEmission = false
+                loadContent(_uiState.value.selectedTab)
+            } else {
                 changedTo?.let { loadContent(it) }
             }
         }
