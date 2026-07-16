@@ -83,6 +83,20 @@
             </intent-filter>
         </service>
 
+        <!--
+            Media button + resumption. media3's MediaButtonReceiver handles MEDIA_BUTTON intents and
+            is what lets the system (Android 11+) recognize the app for the resume media control:
+            tapping the resume card wakes PlaybackService, which serves the last session via
+            MediaSession.Callback.onPlaybackResumption(...).
+        -->
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Alarm clock: fires playback + posts the ringing notification -->
         <receiver
             android:name=".alarm.scheduling.AlarmReceiver"

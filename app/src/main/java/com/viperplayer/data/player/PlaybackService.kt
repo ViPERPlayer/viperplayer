@@ -43,6 +43,11 @@ import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
+import com.viperplayer.data.player.resumption.LastSession
+import com.viperplayer.data.player.resumption.LastSessionCodec
+import com.viperplayer.data.player.resumption.LastSessionItem
+import com.viperplayer.data.player.resumption.LastSessionMediaMapper
+import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.data.stats.PlayHistoryRecorder
 import com.viperplayer.domain.audio.ReplayGainCalculator
@@ -56,11 +61,13 @@ import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -93,6 +100,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     lateinit var mediaLibraryRepository: MediaLibraryRepository
 
     @Inject
+    lateinit var lastSessionStore: LastSessionStore
+
+    @Inject
     lateinit var playHistoryRecorder: PlayHistoryRecorder
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
@@ -103,6 +113,18 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     private lateinit var mediaLibrarySession: MediaLibrarySession
 
     private val mediaMetadata = MutableStateFlow(MediaMetadata.EMPTY)
+
+    /**
+     * Ticks whenever the last-session state meaningfully changes (item transition, play/pause,
+     * timeline change). Debounced and collected in [observeAndPersistLastSession]; the snapshot is
+     * taken on the player (main) thread, the write happens on IO inside [LastSessionStore].
+     *
+     * A [MutableSharedFlow] (not a seeded [MutableStateFlow]): a StateFlow would replay its initial
+     * value to the collector immediately on start, firing a spurious empty snapshot before restore
+     * populates the queue and clearing a previously-persisted resume card. This flow only emits on
+     * real player events.
+     */
+    private val lastSessionTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     private var isAudioEffectControlSessionOpen = false
 
@@ -132,6 +154,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
         // Wire audio settings (skip-silence + ReplayGain) reactively to the player.
         observeAudioSettings()
+
+        // Persist the last playback state (for Android 11+ media resumption), debounced.
+        observeAndPersistLastSession()
 
         // Keep any home-screen widget in sync while the service is alive (no-op if no widget added).
         runCatching { PlayerWidgetUpdater.ensureStarted(this) }
@@ -209,6 +234,17 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     override fun onDestroy() {
         Timber.d("onDestroy() called")
         dispatcher.onServicePreSuperOnDestroy()
+        // Best-effort synchronous flush of the last session before releasing the player. The
+        // debounced observer may have a pending write that gets cancelled with lifecycleScope, so
+        // this guarantees the final position/queue is persisted for the resume card — the case that
+        // matters most (the app is being swept away). runBlocking is acceptable here: the service is
+        // dying and a single DataStore write is cheap.
+        runCatching {
+            val snapshot = buildLastSessionSnapshot()
+            runBlocking {
+                if (snapshot == null) lastSessionStore.clear() else lastSessionStore.save(snapshot)
+            }
+        }.onFailure { Timber.w(it, "Failed to flush last session on destroy") }
         // Close the global audio-effect session before releasing the player, otherwise it stays
         // registered with system equalizer apps (leak).
         closeAudioEffectControlSession()
@@ -354,6 +390,21 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 closeAudioEffectControlSession()
             }
         }
+
+        // Persist the last-session snapshot on any change that affects what a resume card restores:
+        // the queue/current item, play-when-ready, position jumps (seek/track boundary), and
+        // shuffle/repeat. The trigger is debounced in observeAndPersistLastSession().
+        if (events.containsAny(
+                Player.EVENT_TIMELINE_CHANGED,
+                Player.EVENT_MEDIA_ITEM_TRANSITION,
+                Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                Player.EVENT_POSITION_DISCONTINUITY,
+                Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED,
+                Player.EVENT_REPEAT_MODE_CHANGED
+            )
+        ) {
+            lastSessionTrigger.tryEmit(Unit)
+        }
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -411,6 +462,73 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 Timber.d("Auto Load More: appended ${toAdd.size} related tracks after ${current.mediaId}")
             }
         }
+    }
+
+    /**
+     * Collects debounced [lastSessionTrigger] ticks and persists a [LastSession] snapshot for media
+     * resumption. The snapshot is built on the player (main) thread; [LastSessionStore] does the
+     * actual write on IO. Clears the store when the queue is empty so no stale resume card lingers.
+     */
+    private fun observeAndPersistLastSession() {
+        lifecycleScope.launch {
+            lastSessionTrigger
+                .debounce(2000) // at most one write / 2s, matching the primary state persistence
+                .collect {
+                    val snapshot = buildLastSessionSnapshot()
+                    if (snapshot == null) {
+                        lastSessionStore.clear()
+                    } else {
+                        lastSessionStore.save(snapshot)
+                    }
+                }
+        }
+    }
+
+    /** Builds the current [LastSession] from the player, or `null` when the queue is empty. */
+    private fun buildLastSessionSnapshot(): LastSession? {
+        val count = player.mediaItemCount
+        if (count == 0) return null
+
+        // Map raw player indices to the surviving items. An entry is dropped when it lacks the
+        // plugin/source id extras (fromMediaItem returns null). Because entries can be dropped, the
+        // raw currentMediaItemIndex would point at the wrong surviving item if anything before it is
+        // dropped — so we track the current item's position AMONG THE KEPT items instead of reusing
+        // the raw index.
+        val playerCurrentIndex = player.currentMediaItemIndex
+        val items = ArrayList<LastSessionItem>(count)
+        var currentIndex = -1 // index of the current item within `items`, or -1 if it was dropped
+        var survivorsBeforeCurrent = 0 // kept items with a raw index < playerCurrentIndex
+        for (i in 0 until count) {
+            val mapped = LastSessionMediaMapper.fromMediaItem(player.getMediaItemAt(i)) ?: continue
+            if (i == playerCurrentIndex) currentIndex = items.size
+            if (i < playerCurrentIndex) survivorsBeforeCurrent++
+            items.add(mapped)
+        }
+        if (items.isEmpty()) return null
+
+        // If the current item itself was dropped, fall back to the nearest kept item that precedes it
+        // (the number of survivors before the raw index), clamped into range — 0 when nothing before
+        // it survived.
+        if (currentIndex < 0) {
+            currentIndex = survivorsBeforeCurrent.coerceIn(0, items.lastIndex)
+        }
+
+        val repeatMode = when (player.repeatMode) {
+            Player.REPEAT_MODE_ONE -> RepeatMode.ONE.name
+            Player.REPEAT_MODE_ALL -> RepeatMode.ALL.name
+            else -> RepeatMode.OFF.name
+        }
+        val snapshot = LastSession(
+            items = items,
+            currentIndex = currentIndex,
+            positionMs = player.currentPosition.coerceAtLeast(0L),
+            playWhenReady = player.playWhenReady,
+            shuffleEnabled = player.shuffleModeEnabled,
+            repeatMode = repeatMode,
+        )
+        // Cap the persisted queue to a bounded window around the current item so a huge queue does
+        // not serialize fully into the Preferences DataStore blob on every debounced write.
+        return LastSessionCodec.capForPersist(snapshot)
     }
 
     private fun observeAudioSettings() {
