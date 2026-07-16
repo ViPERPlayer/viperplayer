@@ -2,6 +2,7 @@ package com.viperplayer.data.player
 
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -10,11 +11,16 @@ import androidx.core.net.toUri
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
+import com.viperplayer.data.player.resumption.LastSessionCodec
+import com.viperplayer.data.player.resumption.LastSessionMediaMapper
+import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
@@ -32,7 +38,8 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val searchUseCase: SearchUseCase,
     private val playerRepository: PlayerRepository,
-    private val pluginRepository: PluginRepository
+    private val pluginRepository: PluginRepository,
+    private val lastSessionStore: LastSessionStore
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -47,6 +54,44 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         private const val PREFIX_ARTIST = "artist/"
         private const val PREFIX_ALBUM = "album/"
         private const val PREFIX_PLAYLIST = "playlist/"
+    }
+
+    /**
+     * Media resumption entry point (Android 11+ "resume" media controls). After a reboot or an app
+     * sweep the framework calls this to rebuild the last session; the returned
+     * [MediaItemsWithStartPosition] is used to prepare the player **paused** (the framework does not
+     * auto-start playback here). We load the persisted [com.viperplayer.data.player.resumption.LastSession],
+     * run the pure clamp/selection in [LastSessionCodec.selectRestore], rebuild playable
+     * [MediaItem]s (empty URI → stream re-resolved lazily on play, so expired URIs recover for free),
+     * and restore shuffle/repeat on the session player. Degrades to an empty result when there is
+     * nothing (valid) to restore, which the framework treats as "no resumable content".
+     */
+    override fun onPlaybackResumption(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo
+    ): ListenableFuture<MediaItemsWithStartPosition> {
+        return serviceScope.future {
+            // No (valid) last session: fail the future so the framework treats it as "nothing to
+            // resume" rather than applying an empty queue.
+            val selection = LastSessionCodec.selectRestore(lastSessionStore.load())
+                ?: throw IllegalStateException("No resumable session")
+
+            val mediaItems = selection.items.map { LastSessionMediaMapper.toMediaItem(it) }
+
+            // Restore shuffle/repeat on the session player. play-when-ready is intentionally left to
+            // the framework, which prepares paused per platform guidance.
+            runCatching {
+                mediaSession.player.shuffleModeEnabled = selection.shuffleEnabled
+                mediaSession.player.repeatMode = when (selection.repeatMode) {
+                    RepeatMode.ONE.name -> Player.REPEAT_MODE_ONE
+                    RepeatMode.ALL.name -> Player.REPEAT_MODE_ALL
+                    else -> Player.REPEAT_MODE_OFF
+                }
+            }.onFailure { Timber.w(it, "Failed to restore shuffle/repeat during resumption") }
+
+            Timber.d("onPlaybackResumption: restoring ${mediaItems.size} items at index=${selection.startIndex}, pos=${selection.startPositionMs}ms")
+            MediaItemsWithStartPosition(mediaItems, selection.startIndex, selection.startPositionMs)
+        }
     }
 
     override fun onGetLibraryRoot(
