@@ -7,6 +7,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortDirection
 import com.viperplayer.domain.model.SortOption
 import com.viperplayer.domain.model.SortOrder
+import java.util.Locale
 
 /**
  * Pure sorting for library/detail lists. Applies a [SortOrder] to a list of domain items, leaving the
@@ -21,7 +22,15 @@ import com.viperplayer.domain.model.SortOrder
  */
 object MediaSorter {
 
-    private val naturalComparator = NaturalOrderComparator.DEFAULT
+    /**
+     * A comparator bound to the **current** default locale, resolved per sort pass. Building it fresh
+     * each call (sorting is not hot) means a runtime per-app language change — which swaps
+     * [Locale.getDefault] without a process restart — takes effect immediately, instead of collating
+     * against a locale frozen at class-load. Each instance still caches its [java.text.Collator] in a
+     * ThreadLocal, so a single sort remains thread-safe.
+     */
+    private fun naturalComparator(): NaturalOrderComparator =
+        NaturalOrderComparator(Locale.getDefault())
 
     /**
      * Apply [order] to [songs]. Supported fields: TITLE, ARTIST, ALBUM, DURATION, TRACK_NUMBER.
@@ -29,6 +38,7 @@ object MediaSorter {
      */
     fun sortSongs(songs: List<Song>, order: SortOrder): List<Song> {
         if (order.isDefault) return songs
+        val naturalComparator = naturalComparator()
         val comparator: Comparator<Song> = when (order.option) {
             SortOption.TITLE -> compareBy(naturalComparator) { it.title }
             SortOption.ARTIST -> compareBy(naturalComparator) { it.artistNames }
@@ -49,6 +59,7 @@ object MediaSorter {
      */
     fun sortAlbums(albums: List<Album>, order: SortOrder): List<Album> {
         if (order.isDefault) return albums
+        val naturalComparator = naturalComparator()
         val comparator: Comparator<Album> = when (order.option) {
             SortOption.TITLE -> compareBy(naturalComparator) { it.name }
             SortOption.ARTIST, SortOption.ALBUM_ARTIST ->
@@ -65,6 +76,7 @@ object MediaSorter {
      */
     fun sortArtists(artists: List<Artist>, order: SortOrder): List<Artist> {
         if (order.isDefault) return artists
+        val naturalComparator = naturalComparator()
         val comparator: Comparator<Artist> = when (order.option) {
             SortOption.TITLE -> compareBy(naturalComparator) { it.name }
             else -> return artists
@@ -78,6 +90,7 @@ object MediaSorter {
      */
     fun sortPlaylists(playlists: List<Playlist>, order: SortOrder): List<Playlist> {
         if (order.isDefault) return playlists
+        val naturalComparator = naturalComparator()
         val comparator: Comparator<Playlist> = when (order.option) {
             SortOption.TITLE -> compareBy(naturalComparator) { it.name }
             else -> return playlists

@@ -97,6 +97,81 @@ class NaturalOrderComparatorTest {
         assertTrue(swedish.compare("z", "ä") < 0)
     }
 
+    @Test
+    fun locale_isHonoredPerInstance_swedishVsUsForAWithRing() {
+        // Issue #2: locale must be resolved per comparator instance, not frozen process-wide. In Swedish
+        // 'å' collates AFTER 'z'; in US English it folds near 'a' (before 'z'). Two instances built for
+        // different locales must therefore disagree on the same pair.
+        val swedish = NaturalOrderComparator(Locale.forLanguageTag("sv"))
+        val us = NaturalOrderComparator(Locale.US)
+        // Swedish: 'å' after 'z' → "z" < "å".
+        assertTrue(swedish.compare("z", "å") < 0)
+        // US: 'å' near 'a' → "z" > "å" (i.e. 'å' does NOT sort after 'z').
+        assertTrue(us.compare("z", "å") > 0)
+    }
+
+    // --- whole-run collation: contractions & astral code points (issue #1) ---
+
+    @Test
+    fun wholeRunCollation_germanEszettContractsWithSs_tiesOnPrimaryThenRawFallback() {
+        // "ß" ↔ "ss" is a locale contraction: as WHOLE strings the collator treats "straße" and
+        // "strasse" as equal at the primary level (a per-char compare would wrongly split them). The
+        // comparator must therefore tie on the primary key and defer to the deterministic raw-string
+        // fallback — never report them as differing on collation alone.
+        val german = NaturalOrderComparator(Locale.GERMAN)
+        // The primary key ties (contraction), so compare() must equal the raw-string fallback exactly.
+        // ('ß' U+00DF > 's' U+0073 at the 5th char, so the raw compare is positive — but we assert
+        // against the computed value so the test states the tie-break behaviour, not a magic sign.)
+        val raw = "straße".compareTo("strasse")
+        assertEquals(raw, german.compare("straße", "strasse"))
+        // And it is stable/total: the reverse call yields the negated result.
+        assertEquals(-raw, german.compare("strasse", "straße"))
+        // Both orderings are consistent — sorting the pair is deterministic regardless of input order.
+        assertEquals(
+            listOf("straße", "strasse").sortedWith(german),
+            listOf("strasse", "straße").sortedWith(german),
+        )
+    }
+
+    @Test
+    fun wholeRunCollation_astralEmojiOrdersDeterministicallyWithoutCrashing() {
+        // Astral code points (emoji) are surrogate pairs; a per-char collate would slice them into lone
+        // surrogates. Whole-run collation keeps them intact, so an emoji title pair orders deterministically.
+        val a = "Party 😀" // "Party 😀" (U+1F600)
+        val b = "Party 😁" // "Party 😁" (U+1F601)
+        val forward = comparator.compare(a, b)
+        val backward = comparator.compare(b, a)
+        // Deterministic and antisymmetric, and never zero for two distinct emoji.
+        assertTrue(forward != 0)
+        assertEquals(forward < 0, backward > 0)
+        // Sorting a list of astral-suffixed titles is stable regardless of input order.
+        assertEquals(sorted(a, b), sorted(b, a))
+    }
+
+    @Test
+    fun wholeRunCollation_reconfirmsNumericCasesStillHold() {
+        // Re-confirm the numeric-alignment invariants survive the run-based rewrite.
+        assertTrue(comparator.compare("Track 2", "Track 10") < 0)   // 2 < 10 by value
+        assertEquals(0, compareNaturalKey("007", "7"))              // leading zeros: value-equal
+        assertTrue(comparator.compare("2 Unlimited", "Two Door") < 0) // digits before letters
+        assertEquals(
+            listOf("Track 1", "Track 2", "Track 9", "Track 10", "Track 100"),
+            sorted("Track 10", "Track 1", "Track 100", "Track 9", "Track 2"),
+        )
+    }
+
+    /**
+     * True primary-key equality helper: two values whose only difference is the raw-string tie-break
+     * are "coll-equal". "007"/"7" are value-equal digit runs, so the comparator's non-zero result comes
+     * purely from the raw fallback; strip that to observe the collation verdict.
+     */
+    private fun compareNaturalKey(a: String, b: String): Int {
+        val full = comparator.compare(a, b)
+        val raw = a.compareTo(b)
+        // If the only signal is the raw fallback, the primary keys tied (return 0); else report full.
+        return if (full == raw && a != b) 0 else full
+    }
+
     // --- leading articles ---
 
     @Test

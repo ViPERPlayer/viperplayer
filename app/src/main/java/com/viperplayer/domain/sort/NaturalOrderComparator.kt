@@ -17,8 +17,10 @@ import java.util.Locale
  * Non-numeric text is compared with a [Collator] at [Collator.PRIMARY] strength, which is
  * case- and accent-insensitive and respects the supplied [locale]'s alphabet. Nulls sort first.
  *
- * [Collator] is not thread-safe, so each thread gets its own via a [ThreadLocal]. That makes the shared
- * [DEFAULT] instance safe to reuse concurrently from multiple ViewModels/threads.
+ * [Collator] is not thread-safe, so each thread gets its own via a [ThreadLocal]; a single instance is
+ * therefore safe to reuse concurrently from multiple ViewModels/threads. Bind [locale] to
+ * [Locale.getDefault] at construction (not at class-load) so a runtime per-app language change is
+ * honoured — [com.viperplayer.domain.sort.MediaSorter] builds a fresh comparator per sort pass.
  */
 class NaturalOrderComparator(
     private val locale: Locale = Locale.getDefault(),
@@ -51,11 +53,24 @@ class NaturalOrderComparator(
     }
 
     /**
-     * Compare two strings segment by segment, treating maximal runs of digits as a single number and
-     * everything else as collated text. `"a2"` < `"a10"` because the numeric run `2` < `10`.
+     * Compare two strings run by run, treating maximal runs of digits as a single number and each
+     * maximal run of non-digits as one collated substring. `"a2"` < `"a10"` because the numeric run
+     * `2` < `10`.
+     *
+     * Non-digit runs are handed to [Collator.compare] as **whole substrings**, never char by char, so:
+     *  - locale contractions collate correctly (e.g. German "ß" ↔ "ss": whole-string equal, which a
+     *    per-char compare would wrongly split apart), and
+     *  - astral code points (emoji) stay intact — a per-char loop would slice a surrogate pair into two
+     *    lone surrogates and compare garbage.
+     *
+     * Both cursors advance fully past a run only when that run compared equal, so the two strings stay
+     * aligned for the next run. The first non-zero run comparison wins; if every aligned run ties, the
+     * shorter string sorts first (any leftover run makes the longer string greater). Collation-equal but
+     * non-identical runs (e.g. "ß" ↔ "ss", or a case/accent-only difference) therefore tie here and are
+     * broken by the raw-string fallback in [compare], keeping the order total and deterministic.
      */
     private fun compareNatural(a: String, b: String): Int {
-        // Resolve the thread's collator once per call rather than per character.
+        // Resolve the thread's collator once per call rather than per run.
         val collator = this.collator
         var i = 0
         var j = 0
@@ -63,10 +78,8 @@ class NaturalOrderComparator(
         val lenB = b.length
 
         while (i < lenA && j < lenB) {
-            val ca = a[i]
-            val cb = b[j]
-            val aDigit = ca.isDigit()
-            val bDigit = cb.isDigit()
+            val aDigit = a[i].isDigit()
+            val bDigit = b[j].isDigit()
 
             if (aDigit && bDigit) {
                 // Consume both digit runs and compare them as numbers (via length + value, so this is
@@ -77,19 +90,28 @@ class NaturalOrderComparator(
                 while (j < lenB && b[j].isDigit()) j++
                 val cmp = compareNumericChunks(a, startA, i, b, startB, j)
                 if (cmp != 0) return cmp
+                // Equal-valued digit runs: both cursors already sit past their runs; continue aligned.
             } else if (aDigit != bDigit) {
                 // One side is a digit, the other text: order digits before letters so "2 Tracks" sorts
                 // ahead of "Two Tracks", matching typical natural-sort expectations.
                 return if (aDigit) -1 else 1
             } else {
-                // Both non-digit: compare the single characters with the collator.
-                val cmp = collator.compare(ca.toString(), cb.toString())
+                // Both non-digit: extract the maximal non-digit run from each side and collate them as
+                // whole substrings — never char by char — so locale contractions collate correctly and
+                // astral code points (emoji) are never split into lone surrogates.
+                val startA = i
+                val startB = j
+                while (i < lenA && !a[i].isDigit()) i++
+                while (j < lenB && !b[j].isDigit()) j++
+                val cmp = collator.compare(a.substring(startA, i), b.substring(startB, j))
                 if (cmp != 0) return cmp
-                i++
-                j++
+                // Runs are collation-equal: both cursors already sit past their (possibly
+                // different-length) runs, so the next digit run — if any — still lines up. Any residual
+                // difference (ß vs ss, case/accent) is deferred to compare()'s raw-string tie-break.
             }
         }
 
+        // All aligned runs tied: the string with remaining characters is greater (shorter sorts first).
         return (lenA - i) - (lenB - j)
     }
 
@@ -141,8 +163,5 @@ class NaturalOrderComparator(
     companion object {
         /** Leading articles stripped for the primary comparison (English; extend per locale if needed). */
         private val ARTICLES = listOf("The ", "A ", "An ")
-
-        /** Shared instance using the default locale, articles stripped. */
-        val DEFAULT = NaturalOrderComparator()
     }
 }

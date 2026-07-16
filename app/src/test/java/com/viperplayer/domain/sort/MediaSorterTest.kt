@@ -9,9 +9,12 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortDirection
 import com.viperplayer.domain.model.SortOption
 import com.viperplayer.domain.model.SortOrder
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 /**
  * Unit tests for [MediaSorter] — the pure sort-application logic. Covers the DEFAULT passthrough
@@ -50,6 +53,13 @@ class MediaSorterTest {
 
     private val asc = SortDirection.ASCENDING
     private val desc = SortDirection.DESCENDING
+
+    private val originalLocale: Locale = Locale.getDefault()
+
+    @After
+    fun restoreLocale() {
+        Locale.setDefault(originalLocale)
+    }
 
     // --- DEFAULT passthrough ---
 
@@ -178,5 +188,29 @@ class MediaSorterTest {
     @Test
     fun emptyList_returnsEmpty() {
         assertEquals(emptyList<Song>(), MediaSorter.sortSongs(emptyList(), SortOrder(SortOption.TITLE, asc)))
+    }
+
+    // --- per-call locale resolution (issue #2) ---
+
+    @Test
+    fun sort_resolvesCurrentDefaultLocalePerCall_notFrozenAtClassLoad() {
+        // MediaSorter must build its comparator from Locale.getDefault() on EACH call, so a runtime
+        // locale change is honored without a process restart. In Swedish 'å' collates after 'z'; in
+        // US English it folds near 'a'. The same input therefore sorts differently depending on the
+        // default locale in effect at call time.
+        val titles = listOf(album("Zeta"), album("Åska"))
+
+        Locale.setDefault(Locale.US)
+        val us = MediaSorter.sortAlbums(titles, SortOrder(SortOption.TITLE, asc)).map { it.name }
+        // US: "Åska" (Å near A) before "Zeta".
+        assertEquals(listOf("Åska", "Zeta"), us)
+
+        Locale.setDefault(Locale.forLanguageTag("sv"))
+        val swedish = MediaSorter.sortAlbums(titles, SortOrder(SortOption.TITLE, asc)).map { it.name }
+        // Swedish: "Åska" (Å after Z) after "Zeta" — proving the new locale took effect for this pass.
+        assertEquals(listOf("Zeta", "Åska"), swedish)
+
+        // Sanity: the two locales genuinely disagreed on the same input.
+        assertTrue(us != swedish)
     }
 }
