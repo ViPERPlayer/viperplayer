@@ -1,6 +1,7 @@
 package com.viperplayer.di
 
 import com.viperplayer.data.account.AccountRepositoryImpl
+import com.viperplayer.data.librarysync.LibrarySyncRepositoryImpl
 import com.viperplayer.data.repository.AutoPlaylistRepositoryImpl
 import com.viperplayer.data.repository.CacheRepositoryImpl
 import com.viperplayer.data.repository.ListenTogetherRepositoryImpl
@@ -15,6 +16,7 @@ import com.viperplayer.data.repository.ViperRepositoryImpl
 import com.viperplayer.data.sync.push.LibraryPushOutbox
 import com.viperplayer.data.sync.push.RoomLibraryPushOutbox
 import com.viperplayer.domain.account.AccountRepository
+import com.viperplayer.domain.librarysync.LibrarySyncRepository
 import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.CacheRepository
 import com.viperplayer.domain.repository.ListenTogetherRepository
@@ -44,6 +46,12 @@ abstract class DataModule {
     abstract fun bindAccountRepository(
         impl: AccountRepositoryImpl
     ): AccountRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLibrarySyncRepository(
+        impl: LibrarySyncRepositoryImpl
+    ): LibrarySyncRepository
 
     @Binds
     @Singleton

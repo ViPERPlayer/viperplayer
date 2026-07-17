@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.account
 
+import com.viperplayer.data.account.AccountApiResult
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
@@ -66,6 +67,10 @@ class AccountViewModelTest {
         }
 
         override suspend fun validAccessToken(): String? = null
+
+        override suspend fun <T> withBackendAuth(
+            call: suspend (accessToken: String) -> AccountApiResult<T>,
+        ): AccountApiResult<T> = AccountApiResult.Unauthenticated
     }
 
     @Test

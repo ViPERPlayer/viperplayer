@@ -101,6 +101,15 @@ class AccountRepositoryImpl @Inject constructor(
     )
 
     /**
+     * Public [AccountRepository] seam over [withAuth], so other backend transports (e.g. the
+     * library-sync client) can make authenticated calls through the shared refresh-and-retry policy
+     * without touching the token store or duplicating the retry logic.
+     */
+    override suspend fun <T> withBackendAuth(
+        call: suspend (accessToken: String) -> AccountApiResult<T>,
+    ): AccountApiResult<T> = withAuth(call)
+
+    /**
      * Refreshes the cached user profile from the backend (`GetMe`), persisting any change. Best-effort:
      * returns the fresh [AccountUser] on success, null otherwise (offline, signed out, not configured).
      * Not on the public interface — available for callers that want an up-to-date profile.

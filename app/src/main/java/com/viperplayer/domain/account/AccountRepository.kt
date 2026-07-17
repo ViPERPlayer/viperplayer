@@ -1,5 +1,6 @@
 package com.viperplayer.domain.account
 
+import com.viperplayer.data.account.AccountApiResult
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -37,4 +38,17 @@ interface AccountRepository {
      * that as signed-out). For use by other authenticated backend calls (library sync, WS upgrade).
      */
     suspend fun validAccessToken(): String?
+
+    /**
+     * Runs an authenticated backend [call] with the current access token attached, transparently
+     * refreshing and retrying ONCE if the server answers [AccountApiResult.Unauthenticated]. Returns
+     * [AccountApiResult.Unauthenticated] when there is no usable session or the retry also fails.
+     *
+     * The seam other backend transports (e.g. the library-sync client) use to make authenticated
+     * calls without duplicating the token refresh-and-retry policy. The [call] receives a valid
+     * access token and issues the actual HTTP request.
+     */
+    suspend fun <T> withBackendAuth(
+        call: suspend (accessToken: String) -> AccountApiResult<T>,
+    ): AccountApiResult<T>
 }
