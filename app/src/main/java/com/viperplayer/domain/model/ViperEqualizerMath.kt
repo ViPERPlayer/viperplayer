@@ -96,8 +96,10 @@ object ViperEqualizerMath {
             else -> 1.414
         }
 
-        // Single source of truth for band center frequencies — the same table the DSP presets use —
-        // so the rendered response curve lines up with the actual per-band frequencies.
+        // Draw the curve at the labeled band center frequencies (IirEqualizerPresets) so it lines up
+        // with the band sliders the user sees. These equal the native DSP centers exactly for the 15-
+        // and 31-band EQs; on the 10-band the DSP's internal centers are 31.25/62.5 Hz vs the labeled
+        // 31/62 Hz — a ≤0.5 Hz difference on the two lowest bands, imperceptible on the log plot.
         val frequencies = IirEqualizerPresets.getFrequencies(bandCount).map { it.toDouble() }
 
         // Generate pre-calculated coeffs for active bands

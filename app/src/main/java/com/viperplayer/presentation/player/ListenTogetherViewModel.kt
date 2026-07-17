@@ -34,6 +34,12 @@ class ListenTogetherViewModel @Inject constructor(
     private val _starting = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
 
+    // Whether the host currently wants a session. Written only on the (Main-confined) viewModelScope,
+    // so it needs no synchronization. Guards the create/leave race: on the real backend path
+    // startSession() is a suspending REST+WS call, so a user who dismisses the sheet before it returns
+    // would otherwise leak a session created after leaveHosting() already ran.
+    private var wantsSession = false
+
     /**
      * UI-facing host state: the session (if any) plus the in-flight/error flags for the sheet. Shared
      * eagerly (not WhileSubscribed) so the latest value is always available — the sheet subscribes and
@@ -54,11 +60,17 @@ class ListenTogetherViewModel @Inject constructor(
      */
     fun startHosting() {
         if (_starting.value || session.value != null) return
+        wantsSession = true
         viewModelScope.launch {
             _starting.value = true
             _error.value = null
             repository.startSession().fold(
-                onSuccess = { _starting.value = false },
+                onSuccess = {
+                    _starting.value = false
+                    // If the user dismissed the sheet while the create was in flight, tear the
+                    // just-created session down immediately (leaveSession is idempotent).
+                    if (!wantsSession) repository.leaveSession()
+                },
                 onFailure = { e ->
                     _starting.value = false
                     _error.value = e.message
@@ -69,6 +81,7 @@ class ListenTogetherViewModel @Inject constructor(
 
     /** Leave / end the current session (host closes the sheet). */
     fun leaveHosting() {
+        wantsSession = false
         viewModelScope.launch { repository.leaveSession() }
     }
 }

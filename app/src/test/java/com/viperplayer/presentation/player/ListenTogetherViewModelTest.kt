@@ -3,6 +3,7 @@ package com.viperplayer.presentation.player
 import com.viperplayer.domain.model.ListenSession
 import com.viperplayer.domain.model.SessionParticipant
 import com.viperplayer.domain.repository.ListenTogetherRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,8 +52,12 @@ class ListenTogetherViewModelTest {
         var startCalls = 0
         var leaveCalls = 0
 
+        /** When set, startSession suspends on this gate before creating — to script a slow backend. */
+        var startGate: CompletableDeferred<Unit>? = null
+
         override suspend fun startSession(): Result<ListenSession> {
             startCalls++
+            startGate?.await()
             failStart?.let { return Result.failure(IllegalStateException(it)) }
             val session = ListenSession(
                 code = "ABCD-EFG",
@@ -122,6 +127,30 @@ class ListenTogetherViewModelTest {
 
         assertEquals(1, repo.leaveCalls)
         assertNull(vm.session.value)
+    }
+
+    @Test
+    fun leaveWhileStartInFlight_tearsDownTheLateSession_noLeak() = runTest {
+        // Real backend: startSession is a slow REST+WS call. If the user dismisses the sheet before it
+        // returns, the session created afterwards must NOT leak — leaveHosting's intent must win.
+        val repo = FakeListenTogetherRepository()
+        val gate = CompletableDeferred<Unit>()
+        repo.startGate = gate
+        val vm = ListenTogetherViewModel(repo)
+
+        vm.startHosting()
+        advanceUntilIdle()            // start runs, then suspends on the gate — no session yet
+        assertNull(vm.session.value)
+
+        vm.leaveHosting()             // user leaves before the create returns
+        advanceUntilIdle()
+
+        gate.complete(Unit)           // the in-flight startSession now completes and creates the session
+        advanceUntilIdle()
+
+        assertEquals(1, repo.startCalls)
+        assertNull("session created after leave must be torn down, not leaked", vm.session.value)
+        assertTrue("the late session must be explicitly left", repo.leaveCalls >= 1)
     }
 
     @Test
