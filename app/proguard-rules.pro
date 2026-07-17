@@ -46,26 +46,11 @@
 # ---- Room ------------------------------------------------------------------
 -keep class * extends androidx.room.RoomDatabase { <init>(); }
 
-# ---- protobuf-lite: MessageSchema resolves generated message fields reflectively by name ----
-# protobuf-lite's MessageSchema reads each generated message's instance fields by their
-# exact source name at runtime (Class.getDeclaredField("id_") -> Unsafe.objectFieldOffset),
-# so R8 must NOT rename or strip them. The <fields> keep below is the load-bearing rule.
--keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
--keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
--dontwarn com.google.protobuf.**
-
-# ---- gRPC (generated stubs + runtime) --------------------------------------
-# Generated service/coroutine stubs live in the proto packages (no java_package
-# override on the vendored protos, so protoc uses the proto package directly).
--keep class io.grpc.** { *; }
--keep class account.v1.** { *; }
--keep class common.v1.** { *; }
--keep class library.v1.** { *; }
--dontwarn io.grpc.**
+# ---- Suppress warnings for optional transitive deps the app never links ----
+# errorprone/javax.annotation are referenced by guava-style annotations pulled in transitively
+# (e.g. via kotlinx-coroutines-guava); the classes aren't on the runtime path, so silence them.
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
-
-# ---- Suppress warnings for optional transitive deps the app never links ----
 -dontwarn kotlinx.atomicfu.**
 -dontwarn io.netty.**
 -dontwarn org.slf4j.**

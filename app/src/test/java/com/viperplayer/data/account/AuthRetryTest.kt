@@ -6,22 +6,15 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Unit tests for the authenticated-call policy ([runAuthenticated]) and the bearer metadata attach
- * ([bearerMetadata]) — the two pieces of the authed gRPC path (GetMe + later library RPCs):
+ * Unit tests for the authenticated-call policy ([runAuthenticated]) — the authed path behind GetMe
+ * (and later library calls):
  *
- *  - the access token is attached as `authorization: Bearer <token>`;
  *  - a call that succeeds first time is NOT retried;
  *  - an UNAUTHENTICATED response triggers exactly one force-refresh + retry with the new token;
  *  - if refresh fails, the result is UNAUTHENTICATED and the call is not retried;
- *  - a null token short-circuits to UNAUTHENTICATED without calling the RPC.
+ *  - a null token short-circuits to UNAUTHENTICATED without calling the request.
  */
 class AuthRetryTest {
-
-    @Test
-    fun bearerMetadata_attachesAuthorizationHeader() {
-        val md = bearerMetadata("abc.def.ghi")
-        assertEquals("Bearer abc.def.ghi", md.get(AUTHORIZATION_METADATA_KEY))
-    }
 
     @Test
     fun success_firstTry_doesNotRefreshOrRetry() = runTest {

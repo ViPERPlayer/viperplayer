@@ -2,8 +2,8 @@ package com.viperplayer.data.account
 
 /**
  * Transport-agnostic outcome of an account backend call. The repository maps this into the domain
- * [com.viperplayer.domain.account.AuthResult]; the gRPC client produces it from a completed RPC or a
- * caught [io.grpc.StatusException]/[io.grpc.StatusRuntimeException] (see [toAccountApiResult]).
+ * [com.viperplayer.domain.account.AuthResult]; the HTTP client ([AccountApi]) produces it from a
+ * decoded 2xx response or a non-2xx status (see [mapAccountHttpError]).
  */
 sealed interface AccountApiResult<out T> {
     data class Success<T>(val value: T) : AccountApiResult<T>

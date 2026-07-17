@@ -1,6 +1,5 @@
 package com.viperplayer.data.account
 
-import common.v1.Common
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
@@ -11,18 +10,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Default [AccountRepository]: stitches the gRPC [AccountGrpcClient] (network) and the
+ * Default [AccountRepository]: stitches the HTTP/JSON [AccountApi] (network) and the
  * [AccountCredentialStore] (token persistence). The password is used transiently for register/login
  * and never stored; only the returned tokens are persisted.
  *
- * Transport is protobuf/gRPC (`account.v1.AccountService`); this layer is transport-agnostic — it
- * consumes [AccountApiResult] and never sees a raw gRPC status. Token refresh is transparent:
+ * Transport is HTTP/JSON REST (`/auth/`); this layer is transport-agnostic — it consumes
+ * [AccountApiResult] and never sees a raw HTTP status. Token refresh is transparent:
  * [validAccessToken] refreshes an about-to-expire access token, and [withAuth] retries an authed call
- * once against a freshly-refreshed token when the server answers UNAUTHENTICATED.
+ * once against a freshly-refreshed token when the server answers 401/Unauthenticated.
  */
 @Singleton
 class AccountRepositoryImpl @Inject constructor(
-    private val client: AccountGrpcClient,
+    private val client: AccountApi,
     private val credentialStore: AccountCredentialStore,
 ) : AccountRepository {
 
@@ -64,7 +63,7 @@ class AccountRepositoryImpl @Inject constructor(
         val refresh = refreshToken ?: return null
         return when (val result = client.refresh(refresh)) {
             is AccountApiResult.Success -> {
-                val tokens = result.value.tokens
+                val tokens = result.value
                 credentialStore.updateTokens(
                     accessToken = tokens.accessToken,
                     refreshToken = tokens.refreshToken,
@@ -110,7 +109,7 @@ class AccountRepositoryImpl @Inject constructor(
         val result = withAuth { token -> client.getMe(token) }
         return when (result) {
             is AccountApiResult.Success -> {
-                val user = result.value.user.toAccountUser()
+                val user = result.value.toAccountUser()
                 credentialStore.updateUser(user)
                 user
             }
@@ -121,11 +120,11 @@ class AccountRepositoryImpl @Inject constructor(
     /** Maps a successful auth RPC (register/login) into an [AuthResult], persisting the session. */
     private suspend fun <T> persistAuth(
         result: AccountApiResult<T>,
-        extract: (T) -> Pair<Common.User, Common.TokenPair>,
+        extract: (T) -> Pair<UserDto, TokenPairDto>,
     ): AuthResult = when (result) {
         is AccountApiResult.Success -> {
-            val (protoUser, tokens) = extract(result.value)
-            val user = protoUser.toAccountUser()
+            val (dtoUser, tokens) = extract(result.value)
+            val user = dtoUser.toAccountUser()
             credentialStore.saveSession(
                 user = user,
                 accessToken = tokens.accessToken,
@@ -145,8 +144,8 @@ class AccountRepositoryImpl @Inject constructor(
     }
 }
 
-/** Maps a protobuf [common.v1.User] into the domain [AccountUser], defaulting a blank display name. */
-private fun Common.User.toAccountUser(): AccountUser = AccountUser(
+/** Maps a JSON [UserDto] into the domain [AccountUser], defaulting a blank display name. */
+private fun UserDto.toAccountUser(): AccountUser = AccountUser(
     id = id,
     email = email,
     displayName = displayName.ifBlank { email.substringBefore('@') },

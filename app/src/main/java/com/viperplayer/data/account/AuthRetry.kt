@@ -2,7 +2,7 @@ package com.viperplayer.data.account
 
 /**
  * Transport-agnostic "run an authenticated call, refresh-and-retry once on UNAUTHENTICATED" policy,
- * extracted as a pure suspend function so it can be unit-tested without a live gRPC channel or a real
+ * extracted as a pure suspend function so it can be unit-tested without a live HttpClient or a real
  * credential store.
  *
  * @param provideToken returns the current valid access token (already transparently refreshed if it
