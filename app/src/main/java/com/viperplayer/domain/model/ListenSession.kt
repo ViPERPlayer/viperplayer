@@ -13,6 +13,14 @@ data class ListenSession(
     val hostName: String,
     val isHost: Boolean,
     val participants: List<SessionParticipant>,
+    /**
+     * Whether the local member may issue transport commands (play/pause/seek/skip/track) on the shared
+     * playback. Derived from the local member's role + session permissions (mirrors the backend's
+     * `canControlTransport`): HOST/CONTROLLER always; MEMBER iff `guestsCanControl`; LISTENER never. The
+     * host implies true. UX gating only — the server is the real authority. Layer 2 reads this to decide
+     * whether local transport events steer the session or apply locally.
+     */
+    val canControl: Boolean = isHost,
 ) {
     /** "You + N listening" — N is everyone except the local user. */
     val othersCount: Int get() = (participants.size - 1).coerceAtLeast(0)

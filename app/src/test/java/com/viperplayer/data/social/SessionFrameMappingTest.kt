@@ -199,6 +199,29 @@ class SessionFrameMappingTest {
     }
 
     @Test
+    fun mapping_canControl_reflectsRoleAndPermissions() {
+        val host = member("host-dev", "Alice", role = "HOST")
+        val controller = member("ctrl-dev", "Carol", role = "CONTROLLER")
+        val guest = member("guest-dev", "Guest", role = "MEMBER")
+        val listener = member("lst-dev", "Lurker", role = "LISTENER")
+        val members = listOf(host, controller, guest, listener)
+
+        fun snap(guestsCanControl: Boolean) = SessionSnapshotDto(
+            sessionId = "s", mode = "JAM", host = host, members = members,
+            permissions = PermissionsDto(guestsCanControl = guestsCanControl),
+        )
+
+        // Host + Controller always control.
+        assertTrue(snap(false).toListenSession("host-dev", "C", "u").canControl)
+        assertTrue(snap(false).toListenSession("ctrl-dev", "C", "u").canControl)
+        // Listener never.
+        assertFalse(snap(true).toListenSession("lst-dev", "C", "u").canControl)
+        // Member gated on guestsCanControl.
+        assertFalse(snap(false).toListenSession("guest-dev", "C", "u").canControl)
+        assertTrue(snap(true).toListenSession("guest-dev", "C", "u").canControl)
+    }
+
+    @Test
     fun toWebSocketUrl_swapsSchemeAndAppendsWs() {
         assertEquals("wss://api.viper.player/ws", toWebSocketUrl("https://api.viper.player"))
         assertEquals("ws://10.0.2.2:8080/ws", toWebSocketUrl("http://10.0.2.2:8080/"))

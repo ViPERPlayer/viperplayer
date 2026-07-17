@@ -1,33 +1,40 @@
 package com.viperplayer.data.repository
 
 import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.data.social.CMD_PAUSE
+import com.viperplayer.data.social.CMD_PLAY
+import com.viperplayer.data.social.CMD_SEEK
+import com.viperplayer.data.social.CMD_TRACK
 import com.viperplayer.data.social.CreateSessionResponseDto
+import com.viperplayer.data.social.DELTA_MEMBER_JOINED
+import com.viperplayer.data.social.DELTA_PLAYBACK
 import com.viperplayer.data.social.DeviceIdProvider
+import com.viperplayer.data.social.FRAME_SESSION_DELTA
+import com.viperplayer.data.social.FRAME_SESSION_SNAPSHOT
+import com.viperplayer.data.social.FakeJamConnection
 import com.viperplayer.data.social.FakeJamSocketClient
 import com.viperplayer.data.social.FrameDto
-import com.viperplayer.data.social.JamSocketClient
-import com.viperplayer.data.social.JamSocketState
+import com.viperplayer.data.social.JamClientFrame
+import com.viperplayer.data.social.JamServerEvent
 import com.viperplayer.data.social.JoinSessionResponseDto
+import com.viperplayer.data.social.MediaRefDto
 import com.viperplayer.data.social.MemberDto
+import com.viperplayer.data.social.PermissionsDto
 import com.viperplayer.data.social.SessionApi
 import com.viperplayer.data.social.SessionApiResult
 import com.viperplayer.data.social.SessionDeltaDto
 import com.viperplayer.data.social.SessionSnapshotDto
-import com.viperplayer.data.social.DELTA_MEMBER_JOINED
-import com.viperplayer.data.social.DELTA_MEMBER_LEFT
-import com.viperplayer.data.social.FRAME_SESSION_DELTA
-import com.viperplayer.data.social.FRAME_SESSION_SNAPSHOT
+import com.viperplayer.data.social.TimelineDto
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
 import com.viperplayer.domain.account.AuthResult
+import com.viperplayer.domain.model.SessionTrack
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -39,16 +46,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Lifecycle tests for [RealListenTogetherRepositoryImpl] over a fake [SessionApi] result and a fake
- * [JamSocketClient]. Verifies: startSession publishes a mapped session and opens the socket with the
- * returned jwt; incoming membership frames update the participant list on `currentSession`; a
- * disconnect frame clears it; and leaveSession cancels the socket collector + clears the session.
+ * Lifecycle + sync-engine tests for [RealListenTogetherRepositoryImpl] over a fake [SessionApi] result
+ * and a fake [JamConnection]. Verifies: startSession publishes a mapped session and opens the connection
+ * with the returned jwt; membership frames update the participant list; a `playback` event folds into
+ * `playback`; the `control*` actions enqueue the right [com.viperplayer.data.social.CommandDto]; a
+ * disconnect clears state; and leaveSession closes the connection + clears playback.
  */
 class RealListenTogetherRepositoryImplTest {
 
     // --- Fakes ---
 
-    /** A [SessionApi] subclass whose create/join return scripted results (its HttpClient is never used). */
     private class FakeSessionApi(
         var createResult: SessionApiResult<CreateSessionResponseDto>,
         var joinResult: SessionApiResult<JoinSessionResponseDto>,
@@ -87,19 +94,21 @@ class RealListenTogetherRepositoryImplTest {
     private fun member(deviceId: String, name: String, role: String = "MEMBER") =
         MemberDto(userId = "u-$deviceId", deviceId = deviceId, name = name, role = role, presence = true)
 
-    private fun snapshotFrame(host: MemberDto, members: List<MemberDto>) = FrameDto(
+    private fun snapshotDto(
+        host: MemberDto,
+        members: List<MemberDto>,
+        permissions: PermissionsDto = PermissionsDto(),
+        playback: TimelineDto = TimelineDto(),
+    ) = SessionSnapshotDto(sessionId = "s-1", mode = "JAM", host = host, members = members, permissions = permissions, playback = playback)
+
+    private fun snapshotFrame(host: MemberDto, members: List<MemberDto>, permissions: PermissionsDto = PermissionsDto()) = FrameDto(
         type = FRAME_SESSION_SNAPSHOT,
-        sessionSnapshot = SessionSnapshotDto(sessionId = "s-1", mode = "JAM", host = host, members = members),
+        sessionSnapshot = snapshotDto(host, members, permissions),
     )
 
-    /**
-     * Builds the repo under test. The socket collector runs on an [UnconfinedTestDispatcher] tied to
-     * the test's scheduler so a launched flow starts eagerly (no lost background work), while
-     * [awaitCancellation]-style long-lived collectors still cancel deterministically on leave.
-     */
     private fun TestScope.repo(
         api: SessionApi,
-        socket: JamSocketClient,
+        socket: FakeJamSocketClient,
         deviceId: String = "me-dev",
         user: AccountUser? = null,
     ) = RealListenTogetherRepositoryImpl(
@@ -108,6 +117,9 @@ class RealListenTogetherRepositoryImplTest {
         deviceIdStore = FakeDeviceIdProvider(deviceId),
         accountRepository = FakeAccountRepository(user),
         scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        // Cap the clock loop so advanceUntilIdle terminates (no TimeResp is scripted → each ping just
+        // times out; without a cap the loop would ping forever in virtual time).
+        clockMaxPings = 1,
     )
 
     private fun createResponse(host: MemberDto, members: List<MemberDto>) = CreateSessionResponseDto(
@@ -115,19 +127,21 @@ class RealListenTogetherRepositoryImplTest {
         code = "ABCD-EFG",
         inviteUrl = "https://viper.player/jam/abcdefg",
         jwt = "host-jwt",
-        snapshot = SessionSnapshotDto(sessionId = "s-1", mode = "JAM", host = host, members = members),
+        snapshot = snapshotDto(host, members),
     )
 
-    // --- Tests ---
+    private fun hostApi(host: MemberDto, members: List<MemberDto>) = FakeSessionApi(
+        createResult = SessionApiResult.Success(createResponse(host, members)),
+        joinResult = SessionApiResult.Rejected("n/a"),
+    )
+
+    // --- Lifecycle tests ---
 
     @Test
-    fun startSession_publishesMappedSession_asHost_andOpensSocketWithJwt() = runTest {
+    fun startSession_publishesMappedSession_asHost_andOpensConnectionWithJwt() = runTest {
         val host = member("me-dev", "Alice", role = "HOST")
-        val api = FakeSessionApi(
-            createResult = SessionApiResult.Success(createResponse(host, listOf(host))),
-            joinResult = SessionApiResult.Rejected("n/a"),
-        )
-        val socket = FakeJamSocketClient(frames = emptyList())
+        val api = hostApi(host, listOf(host))
+        val socket = FakeJamSocketClient(FakeJamConnection())
         val repo = repo(api, socket, deviceId = "me-dev", user = AccountUser("me", "a@b.com", "Alice"))
 
         val result = repo.startSession()
@@ -136,58 +150,245 @@ class RealListenTogetherRepositoryImplTest {
         assertTrue(result.isSuccess)
         val session = repo.currentSession.value!!
         assertTrue(session.isHost)
+        assertTrue(session.canControl)
         assertEquals("ABCD-EFG", session.code)
         assertEquals("Alice", session.hostName)
         assertEquals(1, session.participants.size)
         assertTrue(session.participants.single().isSelf)
 
-        // Identity forwarded to the API; socket opened with the returned host jwt.
         assertEquals(Triple("me-dev", "me", "Alice"), api.lastCreate)
         assertEquals("host-jwt", socket.connectedJwt)
         assertEquals("wss://backend.test/ws", socket.connectedUrl)
     }
 
     @Test
-    fun startSession_deltaFromSocket_updatesParticipants() = runTest {
+    fun membershipEvent_updatesParticipants() = runTest {
         val host = member("me-dev", "Alice", role = "HOST")
-        val api = FakeSessionApi(
-            createResult = SessionApiResult.Success(createResponse(host, listOf(host))),
-            joinResult = SessionApiResult.Rejected("n/a"),
-        )
-        // Socket replays: initial snapshot (1 member) then a member_joined delta (2 members).
-        val socket = FakeJamSocketClient(
+        val api = hostApi(host, listOf(host))
+        val conn = FakeJamConnection(
             frames = listOf(
                 snapshotFrame(host, listOf(host)),
                 FrameDto(type = FRAME_SESSION_DELTA, sessionDelta = SessionDeltaDto(kind = DELTA_MEMBER_JOINED, memberJoined = member("bob-dev", "Bob"))),
             ),
         )
-        val repo = repo(api, socket, deviceId = "me-dev")
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
 
         repo.startSession()
+        advanceUntilIdle()
+        conn.emitScripted()
         advanceUntilIdle()
 
         val session = repo.currentSession.value!!
         assertEquals(2, session.participants.size)
         assertTrue(session.participants.any { it.name == "Bob" })
-        // Code + invite URL are carried over from the REST response onto the live snapshot.
         assertEquals("ABCD-EFG", session.code)
     }
 
     @Test
-    fun socketDisconnect_clearsCurrentSession() = runTest {
+    fun playbackEvent_foldsTimelineIntoPlayback() = runTest {
         val host = member("me-dev", "Alice", role = "HOST")
-        val api = FakeSessionApi(
-            createResult = SessionApiResult.Success(createResponse(host, listOf(host))),
-            joinResult = SessionApiResult.Rejected("n/a"),
+        val api = hostApi(host, listOf(host))
+        val timeline = TimelineDto(
+            epoch = 7,
+            track = MediaRefDto(pluginId = "testsource", sourceId = "42", title = "Song", artist = "Artist", durationMs = 200_000),
+            p0Us = 1_000_000,
+            t0Us = 5_000_000,
+            rate = 1.0f,
+            effectiveAtUs = 5_000_000,
+            controllerId = "me-dev",
         )
-        val socket = FakeJamSocketClient(frames = listOf(snapshotFrame(host, listOf(host))), disconnectAfter = true)
-        val repo = repo(api, socket, deviceId = "me-dev")
+        val conn = FakeJamConnection(
+            frames = listOf(
+                snapshotFrame(host, listOf(host)),
+                FrameDto(type = FRAME_SESSION_DELTA, sessionDelta = SessionDeltaDto(kind = DELTA_PLAYBACK, playback = timeline)),
+            ),
+        )
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.startSession()
+        advanceUntilIdle()
+        conn.emitScripted()
+        advanceUntilIdle()
+
+        val pb = repo.playback.value!!
+        assertEquals(7, pb.epoch)
+        assertEquals(1_000_000, pb.positionAnchorUs)
+        assertEquals(5_000_000, pb.anchorServerTimeUs)
+        assertEquals(1.0f, pb.rate)
+        val track = pb.track!!
+        assertEquals("testsource", track.pluginId)
+        assertEquals("42", track.sourceId)
+        // Extrapolation matches the backend formula: 1s past t0 → +1s of media.
+        assertEquals(2_000_000, pb.positionUsAt(6_000_000))
+    }
+
+    @Test
+    fun snapshotWithPlayback_seedsPlayback() = runTest {
+        val host = member("me-dev", "Alice", role = "HOST")
+        val api = hostApi(host, listOf(host))
+        val conn = FakeJamConnection(
+            frames = listOf(
+                FrameDto(
+                    type = FRAME_SESSION_SNAPSHOT,
+                    sessionSnapshot = snapshotDto(
+                        host, listOf(host),
+                        playback = TimelineDto(epoch = 1, track = MediaRefDto(pluginId = "p", sourceId = "s"), rate = 0f),
+                    ),
+                ),
+            ),
+        )
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.startSession()
+        advanceUntilIdle()
+        conn.emitScripted()
+        advanceUntilIdle()
+
+        val pb = repo.playback.value!!
+        assertEquals(1, pb.epoch)
+        assertEquals(0f, pb.rate)
+        assertEquals("p", pb.track!!.pluginId)
+    }
+
+    @Test
+    fun disconnectEvent_clearsSessionAndPlayback() = runTest {
+        val host = member("me-dev", "Alice", role = "HOST")
+        val api = hostApi(host, listOf(host))
+        val conn = FakeJamConnection(frames = listOf(snapshotFrame(host, listOf(host))), disconnectAfter = true)
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.startSession()
+        advanceUntilIdle()
+        conn.emitScripted()
+        advanceUntilIdle()
+
+        assertNull(repo.currentSession.value)
+        assertNull(repo.playback.value)
+    }
+
+    // --- canControl mapping ---
+
+    @Test
+    fun guestMember_canControl_reflectsPermission() = runTest {
+        val host = member("host-dev", "Host", role = "HOST")
+        val me = member("me-dev", "Guest", role = "MEMBER")
+        val api = FakeSessionApi(
+            createResult = SessionApiResult.Rejected("n/a"),
+            joinResult = SessionApiResult.Success(
+                JoinSessionResponseDto(
+                    sessionId = "s-9",
+                    jwt = "guest-jwt",
+                    snapshot = snapshotDto(host, listOf(host, me), permissions = PermissionsDto(guestsCanControl = false)),
+                ),
+            ),
+        )
+        val conn = FakeJamConnection()
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.joinSession("ABCDEF")
+        advanceUntilIdle()
+
+        // Guest with guestsCanControl=false → cannot control.
+        assertFalse(repo.currentSession.value!!.canControl)
+
+        // A permissions flip to true (via a fresh snapshot) grants control.
+        conn.emit(
+            JamServerEvent.Membership(
+                snapshotDto(host, listOf(host, me), permissions = PermissionsDto(guestsCanControl = true)),
+            ),
+        )
+        advanceUntilIdle()
+        assertTrue(repo.currentSession.value!!.canControl)
+    }
+
+    // --- Transport controls ---
+
+    @Test
+    fun controls_enqueueCorrectCommandFrames_whenPermitted() = runTest {
+        val host = member("me-dev", "Alice", role = "HOST")
+        val api = hostApi(host, listOf(host))
+        val conn = FakeJamConnection()
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
 
         repo.startSession()
         advanceUntilIdle()
 
-        assertNull(repo.currentSession.value)
+        repo.controlPlay()
+        repo.controlPause()
+        repo.controlSeek(123_456)
+        val track = SessionTrack("testsource", "42", "T", "A", "", "", 100)
+        repo.controlSetTrack(track, positionUs = 0)
+        advanceUntilIdle()
+
+        val commands = conn.sent.filterIsInstance<JamClientFrame.Command>().map { it.command }
+        assertEquals(listOf(CMD_PLAY, CMD_PAUSE, CMD_SEEK, CMD_TRACK), commands.map { it.kind })
+        assertEquals(123_456, commands.single { it.kind == CMD_SEEK }.seek!!.positionUs)
+        assertEquals("testsource", commands.single { it.kind == CMD_TRACK }.track!!.mediaRef.pluginId)
+        // forSeq is stamped and monotonically increasing across commands.
+        val seqs = commands.map { it.forSeq }
+        assertEquals(seqs.sorted(), seqs)
+        assertTrue(seqs.toSet().size == seqs.size) // all distinct
     }
+
+    @Test
+    fun controlSetTrack_withPosition_alsoSendsSeek() = runTest {
+        val host = member("me-dev", "Alice", role = "HOST")
+        val conn = FakeJamConnection()
+        val repo = repo(hostApi(host, listOf(host)), FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.startSession()
+        advanceUntilIdle()
+        repo.controlSetTrack(SessionTrack("p", "s", "T", "A", "", "", 100), positionUs = 5_000)
+        advanceUntilIdle()
+
+        val kinds = conn.sent.filterIsInstance<JamClientFrame.Command>().map { it.command.kind }
+        assertEquals(listOf(CMD_TRACK, CMD_SEEK), kinds)
+    }
+
+    @Test
+    fun controls_areNoOp_whenNotPermitted() = runTest {
+        val host = member("host-dev", "Host", role = "HOST")
+        val me = member("me-dev", "Listener", role = "LISTENER")
+        val api = FakeSessionApi(
+            createResult = SessionApiResult.Rejected("n/a"),
+            joinResult = SessionApiResult.Success(
+                JoinSessionResponseDto(
+                    sessionId = "s-9",
+                    jwt = "guest-jwt",
+                    snapshot = snapshotDto(host, listOf(host, me)),
+                ),
+            ),
+        )
+        val conn = FakeJamConnection()
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.joinSession("ABCDEF")
+        advanceUntilIdle()
+        assertFalse(repo.currentSession.value!!.canControl)
+
+        repo.controlPlay()
+        repo.controlSeek(1)
+        advanceUntilIdle()
+
+        // The clock may send TimeReqs; assert no *command* frames escaped for a listener.
+        assertTrue(
+            "listener's transport commands must not be sent",
+            conn.sent.filterIsInstance<JamClientFrame.Command>().isEmpty(),
+        )
+    }
+
+    @Test
+    fun controls_areNoOp_whenNotInSession() = runTest {
+        val api = hostApi(member("me-dev", "Alice", role = "HOST"), emptyList())
+        val conn = FakeJamConnection()
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
+
+        repo.controlPlay() // never started a session
+        advanceUntilIdle()
+        assertTrue(conn.sent.isEmpty())
+    }
+
+    // --- join / leave ---
 
     @Test
     fun joinSession_publishesGuestSession_andForwardsCode() = runTest {
@@ -199,11 +400,11 @@ class RealListenTogetherRepositoryImplTest {
                 JoinSessionResponseDto(
                     sessionId = "s-9",
                     jwt = "guest-jwt",
-                    snapshot = SessionSnapshotDto(sessionId = "s-9", mode = "JAM", host = host, members = listOf(host, me)),
+                    snapshot = snapshotDto(host, listOf(host, me)),
                 ),
             ),
         )
-        val socket = FakeJamSocketClient(frames = emptyList())
+        val socket = FakeJamSocketClient(FakeJamConnection())
         val repo = repo(api, socket, deviceId = "me-dev")
 
         val result = repo.joinSession("https://viper.player/jam/abcdef")
@@ -215,7 +416,6 @@ class RealListenTogetherRepositoryImplTest {
         assertEquals("Host", session.hostName)
         assertEquals(2, session.participants.size)
         assertTrue(session.participants.single { it.id == "me-dev" }.isSelf)
-        // parseCode normalised the pasted invite URL to the 6-char code before the REST call.
         assertEquals("ABCDEF", api.lastJoin?.first())
         assertEquals("guest-jwt", socket.connectedJwt)
     }
@@ -223,7 +423,7 @@ class RealListenTogetherRepositoryImplTest {
     @Test
     fun joinSession_invalidCode_failsWithoutHittingApi() = runTest {
         val api = FakeSessionApi(SessionApiResult.Rejected("n/a"), SessionApiResult.Rejected("n/a"))
-        val repo = repo(api, FakeJamSocketClient(emptyList()))
+        val repo = repo(api, FakeJamSocketClient(FakeJamConnection()))
 
         val result = repo.joinSession("!!")
         assertTrue(result.isFailure)
@@ -236,7 +436,7 @@ class RealListenTogetherRepositoryImplTest {
             createResult = SessionApiResult.Rejected("n/a"),
             joinResult = SessionApiResult.Rejected("session not found"),
         )
-        val repo = repo(api, FakeJamSocketClient(emptyList()))
+        val repo = repo(api, FakeJamSocketClient(FakeJamConnection()))
 
         val result = repo.joinSession("ABCDEF")
         advanceUntilIdle()
@@ -246,41 +446,23 @@ class RealListenTogetherRepositoryImplTest {
     }
 
     @Test
-    fun leaveSession_cancelsSocket_andClearsSession() = runTest {
+    fun leaveSession_closesConnection_andClearsSessionAndPlayback() = runTest {
         val host = member("me-dev", "Alice", role = "HOST")
-        val api = FakeSessionApi(
-            createResult = SessionApiResult.Success(createResponse(host, listOf(host))),
-            joinResult = SessionApiResult.Rejected("n/a"),
-        )
-        // A socket that stays "open" (never disconnects) so we can observe leaveSession tearing it down.
-        val socket = CountingSocketClient()
-        val repo = repo(api, socket, deviceId = "me-dev")
+        val api = hostApi(host, listOf(host))
+        val conn = FakeJamConnection(frames = listOf(snapshotFrame(host, listOf(host))))
+        val repo = repo(api, FakeJamSocketClient(conn), deviceId = "me-dev")
 
         repo.startSession()
         advanceUntilIdle()
-        assertTrue(socket.collecting)
-        assertNotNull(repo.currentSession.value)
+        conn.emitScripted()
+        advanceUntilIdle()
+        assertTrue(repo.currentSession.value != null)
 
         repo.leaveSession()
         advanceUntilIdle()
 
         assertNull(repo.currentSession.value)
-        assertFalse(socket.collecting) // collector cancelled → socket torn down (server treats as leave)
+        assertNull(repo.playback.value)
+        assertTrue("leave must close the connection (server treats as leave)", conn.closed)
     }
-
-    /** A socket client whose flow never completes, exposing whether a collector is currently active. */
-    private class CountingSocketClient : JamSocketClient {
-        @Volatile var collecting = false
-        override fun connect(httpBaseUrl: String, jwt: String): Flow<JamSocketState> =
-            flow {
-                collecting = true
-                try {
-                    awaitCancellation()
-                } finally {
-                    collecting = false
-                }
-            }
-    }
-
-    private fun assertNotNull(value: Any?) = assertTrue(value != null)
 }

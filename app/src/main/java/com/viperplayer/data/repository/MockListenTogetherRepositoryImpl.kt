@@ -3,8 +3,10 @@ package com.viperplayer.data.repository
 import com.viperplayer.data.social.JamCodeCodec
 import com.viperplayer.domain.model.ListenSession
 import com.viperplayer.domain.model.SessionParticipant
+import com.viperplayer.domain.model.SessionPlayback
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,15 +16,24 @@ import javax.inject.Singleton
  *
  * There is no realtime jam backend reachable, so this keeps a single in-memory session: starting hosts
  * a fresh session locally, and joining accepts any well-formed code/URL and drops you in as a guest.
- * Everything a real service would own — presence, queue sync, participant list — is faked here. The
- * real backend-backed implementation is [RealListenTogetherRepositoryImpl]; the DI module picks
- * between them based on whether `VIPER_BACKEND_URL` is configured.
+ * Everything a real service would own — presence, queue sync, participant list — is faked here.
+ *
+ * Membership-only: the sync engine ([playback], [serverNowUs], the `control*` actions) is inert — there
+ * is no server to be authoritative, so playback stays null, the clock never syncs, and controls no-op
+ * (all inherited from the interface's defaults / the stable inert flows below). The real backend-backed
+ * implementation is [RealListenTogetherRepositoryImpl]; the DI module picks between them based on
+ * whether `VIPER_BACKEND_URL` is configured.
  */
 @Singleton
 class MockListenTogetherRepositoryImpl @Inject constructor() : ListenTogetherRepository {
 
     private val _currentSession = MutableStateFlow<ListenSession?>(null)
     override val currentSession = _currentSession.asStateFlow()
+
+    // Sync engine is inert: stable never-changing flows (not the interface's per-access defaults).
+    override val playback: StateFlow<SessionPlayback?> = MutableStateFlow(null)
+    override val synced: StateFlow<Boolean> = MutableStateFlow(false)
+    override fun serverNowUs(): Long? = null
 
     override val codeLength: Int = JamCodeCodec.CODE_LENGTH
 
