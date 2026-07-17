@@ -227,8 +227,11 @@ class RealListenTogetherRepositoryImpl(
                     is JamServerEvent.TimeResp -> Unit // consumed by the clock via the filtered flow.
                     is JamServerEvent.Disconnected -> {
                         Timber.i("Jam session ended: ${event.cause ?: "socket closed"}")
-                        _playback.value = null
                         _currentSession.value = null
+                        // Route through the same cleanup as leaving: a server-initiated drop must also
+                        // stop the clock and clear `synced`, or serverNowUs() would keep returning stale
+                        // values from a dead clock (which the player-follower layer would trust).
+                        teardown()
                     }
                 }
             }

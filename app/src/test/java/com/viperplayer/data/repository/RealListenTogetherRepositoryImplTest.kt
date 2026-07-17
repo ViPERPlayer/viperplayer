@@ -1,8 +1,10 @@
 package com.viperplayer.data.repository
 
 import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.data.social.CMD_NEXT
 import com.viperplayer.data.social.CMD_PAUSE
 import com.viperplayer.data.social.CMD_PLAY
+import com.viperplayer.data.social.CMD_PREV
 import com.viperplayer.data.social.CMD_SEEK
 import com.viperplayer.data.social.CMD_TRACK
 import com.viperplayer.data.social.CreateSessionResponseDto
@@ -264,6 +266,10 @@ class RealListenTogetherRepositoryImplTest {
 
         assertNull(repo.currentSession.value)
         assertNull(repo.playback.value)
+        // A server-initiated drop must run the same cleanup as leaving: close the socket and clear
+        // sync, so nothing keeps extrapolating from a dead clock.
+        assertFalse(repo.synced.value)
+        assertTrue("server disconnect must tear down the connection", conn.closed)
     }
 
     // --- canControl mapping ---
@@ -316,12 +322,17 @@ class RealListenTogetherRepositoryImplTest {
         repo.controlPlay()
         repo.controlPause()
         repo.controlSeek(123_456)
+        repo.controlSkipNext()
+        repo.controlSkipPrevious()
         val track = SessionTrack("testsource", "42", "T", "A", "", "", 100)
         repo.controlSetTrack(track, positionUs = 0)
         advanceUntilIdle()
 
         val commands = conn.sent.filterIsInstance<JamClientFrame.Command>().map { it.command }
-        assertEquals(listOf(CMD_PLAY, CMD_PAUSE, CMD_SEEK, CMD_TRACK), commands.map { it.kind })
+        assertEquals(
+            listOf(CMD_PLAY, CMD_PAUSE, CMD_SEEK, CMD_NEXT, CMD_PREV, CMD_TRACK),
+            commands.map { it.kind },
+        )
         assertEquals(123_456, commands.single { it.kind == CMD_SEEK }.seek!!.positionUs)
         assertEquals("testsource", commands.single { it.kind == CMD_TRACK }.track!!.mediaRef.pluginId)
         // forSeq is stamped and monotonically increasing across commands.
