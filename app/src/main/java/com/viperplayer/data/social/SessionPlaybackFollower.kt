@@ -6,6 +6,9 @@ import com.viperplayer.domain.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -44,17 +47,17 @@ class SessionPlaybackFollower(
     /** The epoch we last attempted to load — guards against reload-storming a track that won't resolve. */
     private var lastLoadAttemptEpoch: Long? = null
 
+    private val _trackUnavailable = MutableStateFlow(false)
+
     /** True while the current track failed to resolve on this device (surfaced to the UI). */
-    @Volatile
-    var trackUnavailable: Boolean = false
-        private set
+    val trackUnavailable: StateFlow<Boolean> = _trackUnavailable.asStateFlow()
 
     /** Start the follower loop on [scope] (must be Main-dispatched — the controller is main-thread only). */
     fun start(scope: CoroutineScope) {
         if (loopJob?.isActive == true) return
         loaded = null
         lastLoadAttemptEpoch = null
-        trackUnavailable = false
+        _trackUnavailable.value = false
         playerRepository.setFollowerMode(true)
         loopJob = scope.launch {
             // Reset any residual correction speed when we take over.
@@ -81,7 +84,7 @@ class SessionPlaybackFollower(
         scope.launch { runCatching { playerRepository.setPlaybackSpeed(1f) } }
         loaded = null
         lastLoadAttemptEpoch = null
-        trackUnavailable = false
+        _trackUnavailable.value = false
     }
 
     /** One iteration of the follower loop. Kept small; the decision lives in [FollowerCorrection]. */
@@ -99,7 +102,7 @@ class SessionPlaybackFollower(
         // A track we already loaded (epoch matches) that later errored means the stream couldn't resolve
         // on this device — surface "can't play" but keep following (no reload; the guard below still holds).
         if (state.state == PlaybackState.ERROR && loaded?.epoch == pb?.epoch && pb?.track != null) {
-            trackUnavailable = true
+            _trackUnavailable.value = true
         }
         val localPosMs = runCatching { playerRepository.getCurrentPosition() }.getOrDefault(0L)
 
@@ -118,7 +121,7 @@ class SessionPlaybackFollower(
         if (load != null) {
             if (lastLoadAttemptEpoch != load.epoch) {
                 lastLoadAttemptEpoch = load.epoch
-                trackUnavailable = false
+                _trackUnavailable.value = false
                 runCatching {
                     playerRepository.playRemote(
                         mediaId = load.mediaId,
@@ -130,7 +133,7 @@ class SessionPlaybackFollower(
                     loaded = FollowerCorrection.LoadedTrack(epoch = load.epoch, mediaId = load.mediaId)
                 }.onFailure {
                     Timber.w(it, "Follower: failed to load remote track ${load.mediaId}")
-                    trackUnavailable = true
+                    _trackUnavailable.value = true
                 }
             }
             // We just (re)loaded / attempted this epoch: don't seek/speed this tick — the player is settling.

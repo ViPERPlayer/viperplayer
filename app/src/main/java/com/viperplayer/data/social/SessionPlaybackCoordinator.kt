@@ -6,6 +6,7 @@ import com.viperplayer.domain.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -96,6 +97,10 @@ class SessionPlaybackCoordinator @Inject constructor(
         role = next
     }
 
-    /** Whether the local player is currently being driven as a follower (for the UI's "can't play" state). */
-    val followerTrackUnavailable: Boolean get() = role == Role.FOLLOWER && follower.trackUnavailable
+    /**
+     * True while this follower can't resolve the host's current track on this device (for the UI's
+     * "can't play this track" state). Reactive; false whenever not following (the follower resets it on
+     * start/stop), so the ViewModel can observe it directly and gate on the follower role.
+     */
+    val followerTrackUnavailable: StateFlow<Boolean> get() = follower.trackUnavailable
 }

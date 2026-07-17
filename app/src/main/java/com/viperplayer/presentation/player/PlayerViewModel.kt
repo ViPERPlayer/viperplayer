@@ -16,6 +16,7 @@ import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.radio.RadioPlaylist
 import com.viperplayer.domain.repository.AudioFormat
+import com.viperplayer.data.social.SessionPlaybackCoordinator
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
@@ -52,6 +53,7 @@ class PlayerViewModel @Inject constructor(
     private val downloadManager: DownloadManager,
     private val settingsRepository: SettingsRepository,
     private val listenTogetherRepository: ListenTogetherRepository,
+    private val sessionPlaybackCoordinator: SessionPlaybackCoordinator,
 ) : ViewModel() {
 
     /** User-configured lyrics appearance + behavior, applied by the lyrics renderer. */
@@ -81,11 +83,14 @@ class PlayerViewModel @Inject constructor(
         combine(
             listenTogetherRepository.currentSession,
             listenTogetherRepository.synced,
-        ) { session, synced ->
+            sessionPlaybackCoordinator.followerTrackUnavailable,
+        ) { session, synced, trackUnavailable ->
+            val isFollower = session != null && !session.canControl
             SessionUiState(
                 inSession = session != null,
-                isFollower = session != null && !session.canControl,
+                isFollower = isFollower,
                 syncState = if (session == null || synced) SyncState.Synced else SyncState.Syncing,
+                trackUnavailable = isFollower && trackUnavailable,
             )
         }
             .distinctUntilChanged()
@@ -497,6 +502,8 @@ data class SessionUiState(
     val inSession: Boolean = false,
     val isFollower: Boolean = false,
     val syncState: SyncState = SyncState.Synced,
+    /** A follower whose device can't resolve the host's current track — surfaced as "can't play this". */
+    val trackUnavailable: Boolean = false,
 )
 
 /** Whether the shared session clock has synced (so the playhead can be placed) or is still syncing. */

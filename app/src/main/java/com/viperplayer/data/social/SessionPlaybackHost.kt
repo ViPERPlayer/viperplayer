@@ -1,5 +1,6 @@
 package com.viperplayer.data.social
 
+import com.viperplayer.domain.model.PlaybackState
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
@@ -124,6 +125,15 @@ class SessionPlaybackHost(
             // change itself is published by observeTrackChanges.
             if (trackId != lastTrackId) {
                 lastTrackId = trackId
+                lastPos = pos
+                lastWall = now
+                continue
+            }
+
+            // Buffering stalls the playhead while wall time keeps advancing — re-baseline and skip so a
+            // mid-track rebuffer isn't mistaken for a seek (which would spam controlSeek to every
+            // follower). Only PLAYING↔PLAYING intervals are checked; isPlaying alone is true for BUFFERING.
+            if (info.state != PlaybackState.PLAYING) {
                 lastPos = pos
                 lastWall = now
                 continue

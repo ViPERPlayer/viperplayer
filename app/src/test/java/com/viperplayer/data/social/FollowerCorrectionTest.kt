@@ -144,6 +144,32 @@ class FollowerCorrectionTest {
     }
 
     @Test
+    fun paused_alreadyAtAnchor_ready_doesNotReseek() {
+        // Dedup: a follower already sitting at the paused hold position must NOT re-seek every tick.
+        val loaded = FollowerCorrection.LoadedTrack(epoch = 1, mediaId = mediaId)
+        val d = FollowerCorrection.decide(
+            playback(epoch = 1, anchorUs = 8_000_000, rate = 0f, effectiveAtUs = 0),
+            serverNowUs = 10_000_000,
+            localPosMs = 8_000, loaded = loaded, ready = true, // already at the 8000ms anchor
+        )
+        assertNull("no re-seek when already at the paused hold position", d.seekMs)
+        assertFalse(d.play)
+    }
+
+    @Test
+    fun preRoll_alreadyAtAnchor_ready_doesNotReseek() {
+        // Same dedup for the pre-roll hold.
+        val loaded = FollowerCorrection.LoadedTrack(epoch = 1, mediaId = mediaId)
+        val d = FollowerCorrection.decide(
+            playback(epoch = 1, anchorUs = 5_000_000, anchorServerUs = 0, rate = 1f, effectiveAtUs = 2_000_000),
+            serverNowUs = 1_000_000, // before effectiveAt -> pre-roll
+            localPosMs = 5_000, loaded = loaded, ready = true, // already at the anchor
+        )
+        assertNull("no re-seek when already holding at the pre-roll anchor", d.seekMs)
+        assertFalse(d.play)
+    }
+
+    @Test
     fun playing_notReady_hardSeeksToTarget_speed1() {
         val loaded = FollowerCorrection.LoadedTrack(epoch = 1, mediaId = mediaId)
         val d = FollowerCorrection.decide(

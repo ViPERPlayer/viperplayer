@@ -2,6 +2,7 @@ package com.viperplayer.data.social
 
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.SessionPlayback
+import kotlin.math.abs
 
 /**
  * The pure, Android-free decision core of the Listen-together follower loop (layer 2, part A).
@@ -32,6 +33,13 @@ object FollowerCorrection {
 
     /** Below this absolute drift, run at exactly 1.0× — a deadband so the speed doesn't hunt (40ms). */
     const val DEADBAND_US = 40_000L
+
+    /**
+     * While paused / pre-roll (held at the anchor), only re-seek when the player is more than this far
+     * from the hold position. Without it the follower would issue seekTo(sameMs) every tick (~4 Hz),
+     * churning the player's state pipeline. Coarse (250ms) because a paused playhead needs no tight sync.
+     */
+    const val HOLD_SEEK_TOLERANCE_US = 250_000L
 
     /** Proportional gain mapping drift-seconds → speed offset before clamping. */
     const val CORRECTION_GAIN = 0.5
@@ -126,7 +134,7 @@ object FollowerCorrection {
         if (serverNowUs < pb.effectiveAtServerTimeUs) {
             return Decision(
                 loadTrack = loadTrack,
-                seekMs = pb.positionAnchorUs / 1000,
+                seekMs = holdSeekMsIfNeeded(pb.positionAnchorUs, localPosMs, ready, loadTrack != null),
                 speed = 1f,
                 play = false,
                 syncing = false,
@@ -140,7 +148,7 @@ object FollowerCorrection {
         if (!shouldPlay) {
             return Decision(
                 loadTrack = loadTrack,
-                seekMs = target / 1000,
+                seekMs = holdSeekMsIfNeeded(target, localPosMs, ready, loadTrack != null),
                 speed = 1f,
                 play = false,
                 syncing = false,
@@ -164,7 +172,7 @@ object FollowerCorrection {
         val driftUs = target - localPosMs * 1000
 
         // Large drift: hard seek and reset speed.
-        if (kotlin.math.abs(driftUs) > HARD_SEEK_THRESHOLD_US) {
+        if (abs(driftUs) > HARD_SEEK_THRESHOLD_US) {
             return Decision(
                 loadTrack = null,
                 seekMs = target / 1000,
@@ -176,7 +184,7 @@ object FollowerCorrection {
         }
 
         // Small drift: gentle pitch-preserving time-stretch, with a deadband around zero.
-        val speed = if (kotlin.math.abs(driftUs) < DEADBAND_US) {
+        val speed = if (abs(driftUs) < DEADBAND_US) {
             1f
         } else {
             val raw = 1.0 + (driftUs / 1_000_000.0) * CORRECTION_GAIN
@@ -191,5 +199,15 @@ object FollowerCorrection {
             syncing = false,
             idle = false,
         )
+    }
+
+    /**
+     * The hold-position seek to issue while paused / pre-roll, or null when the player is already within
+     * [HOLD_SEEK_TOLERANCE_US] of it — so the follower doesn't re-seek to the same spot every tick. Always
+     * seeks when a load was just requested or the player isn't ready (localPos can't be trusted yet).
+     */
+    private fun holdSeekMsIfNeeded(targetUs: Long, localPosMs: Long, ready: Boolean, loading: Boolean): Long? {
+        if (ready && !loading && abs(targetUs - localPosMs * 1000) <= HOLD_SEEK_TOLERANCE_US) return null
+        return targetUs / 1000
     }
 }

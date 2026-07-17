@@ -532,6 +532,7 @@ fun PlayerScreen(
                     ListeningTogetherIndicator(
                         syncState = sessionState.syncState,
                         isFollower = isFollower,
+                        trackUnavailable = sessionState.trackUnavailable,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 }
@@ -898,10 +899,14 @@ private const val ARTIST_TAG = "artist"
 private fun ListeningTogetherIndicator(
     syncState: SyncState,
     isFollower: Boolean,
+    trackUnavailable: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val syncing = syncState == SyncState.Syncing
     val label = when {
+        // A follower whose device can't resolve the host's track: explain it (takes priority over the
+        // generic "controlled by the host" so the user knows why nothing is playing).
+        trackUnavailable -> stringResource(R.string.sync_track_unavailable)
         syncing -> stringResource(R.string.sync_syncing)
         isFollower -> stringResource(R.string.sync_controlled_by_host)
         else -> stringResource(R.string.sync_in_sync)
