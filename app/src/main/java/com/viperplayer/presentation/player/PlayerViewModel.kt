@@ -16,6 +16,7 @@ import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.radio.RadioPlaylist
 import com.viperplayer.domain.repository.AudioFormat
+import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -50,6 +51,7 @@ class PlayerViewModel @Inject constructor(
     icuTransliterator: IcuTransliterator,
     private val downloadManager: DownloadManager,
     private val settingsRepository: SettingsRepository,
+    private val listenTogetherRepository: ListenTogetherRepository,
 ) : ViewModel() {
 
     /** User-configured lyrics appearance + behavior, applied by the lyrics renderer. */
@@ -68,9 +70,45 @@ class PlayerViewModel @Inject constructor(
     // Separate flows for optimal performance
     val playbackState: StateFlow<PlaybackInfo> = playerRepository.playbackState
 
+    // --- Listen-together (synced playback, layer 2) session state ---
+
+    /**
+     * The player's view of the current Jam session: whether we're in one, whether we're a follower
+     * (in a session but can't control — the follower loop owns playback), and the sync state. Kept
+     * entirely in the ViewModel; the screen only renders these flags (MVVM).
+     */
+    val sessionState: StateFlow<SessionUiState> =
+        combine(
+            listenTogetherRepository.currentSession,
+            listenTogetherRepository.synced,
+        ) { session, synced ->
+            SessionUiState(
+                inSession = session != null,
+                isFollower = session != null && !session.canControl,
+                syncState = if (session == null || synced) SyncState.Synced else SyncState.Syncing,
+            )
+        }
+            .distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = SessionUiState(),
+            )
+
+    /**
+     * Play/pause the player should reflect: for a follower it's the shared timeline's rate (the local
+     * player is driven by the follower loop and briefly lags), otherwise the local player's own state.
+     * While a follower is still syncing (no timeline yet, `pb == null`), fall back to the local state so
+     * the play icon doesn't flash "paused" in the gap before the first delta arrives.
+     */
     val isPlaying: StateFlow<Boolean> =
-        playbackState
-            .map { it.isPlaying }
+        combine(
+            playbackState.map { it.isPlaying }.distinctUntilChanged(),
+            sessionState,
+            listenTogetherRepository.playback,
+        ) { localPlaying, session, pb ->
+            if (session.isFollower && pb != null) pb.rate > 0f else localPlaying
+        }
             .distinctUntilChanged()
             .stateIn(
                 scope = viewModelScope,
@@ -264,25 +302,36 @@ class PlayerViewModel @Inject constructor(
             initialValue = false
         )
 
+    /**
+     * True when the local transport must be ignored: this device is a session FOLLOWER, so the follower
+     * loop owns playback. The host and non-session devices control the player normally (the host's
+     * player is mirrored into the session by the coordinator, not routed through commands).
+     */
+    private fun isFollower(): Boolean = sessionState.value.isFollower
+
     fun togglePlayPause() {
+        if (isFollower()) return
         viewModelScope.launch {
             playerRepository.togglePlayPause()
         }
     }
 
     fun skipToNext() {
+        if (isFollower()) return
         viewModelScope.launch {
             playerRepository.skipToNext()
         }
     }
 
     fun skipToPrevious() {
+        if (isFollower()) return
         viewModelScope.launch {
             playerRepository.skipToPrevious()
         }
     }
 
     fun seekTo(positionMs: Long) {
+        if (isFollower()) return
         viewModelScope.launch {
             playerRepository.seekTo(positionMs)
         }
@@ -330,6 +379,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun playFromQueue(index: Int) {
+        if (isFollower()) return
         viewModelScope.launch {
             playerRepository.playFromQueue(index)
         }
@@ -434,4 +484,21 @@ class PlayerViewModel @Inject constructor(
     /** Arm (or, with a non-positive value, cancel) the sleep timer. */
     fun setSleepTimer(minutes: Int) = sleepTimerManager.schedule(minutes)
 }
+
+/**
+ * The player's view of the current Listen-together (Jam) session, for the now-playing UI.
+ *
+ * @property inSession whether this device is in a session at all.
+ * @property isFollower in a session AND can't control — the follower loop drives playback, so the
+ *   local transport is disabled and reflects the shared timeline instead.
+ * @property syncState whether the session clock is still syncing or has synced.
+ */
+data class SessionUiState(
+    val inSession: Boolean = false,
+    val isFollower: Boolean = false,
+    val syncState: SyncState = SyncState.Synced,
+)
+
+/** Whether the shared session clock has synced (so the playhead can be placed) or is still syncing. */
+enum class SyncState { Syncing, Synced }
 

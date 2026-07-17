@@ -1,9 +1,12 @@
 package com.viperplayer.data.repository
 
+import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -134,6 +137,11 @@ class PlayerRepositoryImpl @Inject constructor(
     private val autoplaySeeds = mutableSetOf<String>()
     private var autoplayJob: Job? = null
 
+    // Follower mode (Listen-together): while true, the autoplay/radio queue-extension is suppressed so a
+    // follower's queue never auto-grows beyond the host's shared track (see maybeExtendQueue).
+    @Volatile
+    private var followerMode = false
+
     init {
         // Keep playback going: whenever the queue nears its end, append songs related to its tail.
         controllerStateFlow
@@ -195,6 +203,48 @@ class PlayerRepositoryImpl @Inject constructor(
         controller.play()
     }
 
+    override suspend fun playRemote(
+        mediaId: MediaId,
+        title: String,
+        artist: String,
+        artworkUrl: String,
+        playWhenReady: Boolean,
+    ) {
+        // A Listen-together follower loads the host's shared track. The stream is still resolved lazily
+        // by ViperMediaSource from the bare mediaId + isVideo extra, so we only need the identity + the
+        // display metadata (so the now-playing UI shows the remote track even if it's not in the local DB).
+        val extras = Bundle().apply {
+            putString("pluginId", mediaId.pluginId)
+            putString("sourceId", mediaId.sourceId)
+            putString("title", title)
+            putString("artistName", artist)
+            putString("artworkUrl", artworkUrl.ifBlank { null })
+            putBoolean("isVideo", false)
+        }
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist.ifBlank { null })
+            .setArtworkUri(artworkUrl.takeIf { it.isNotBlank() }?.toUri())
+            .setIsPlayable(true)
+            .setIsBrowsable(false)
+            .setExtras(extras)
+            .build()
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(mediaId.toString())
+            .setUri("") // required so ExoPlayer doesn't crash on an item with no direct URI
+            .setMediaMetadata(metadata)
+            .build()
+
+        val controller = mediaControllerManager.controllerFlow.first()
+        controller.setMediaItem(mediaItem)
+        controller.prepare()
+        controller.playWhenReady = playWhenReady
+    }
+
+    override fun setFollowerMode(enabled: Boolean) {
+        followerMode = enabled
+    }
+
     override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) {
         if (songs.isEmpty()) return
 
@@ -254,6 +304,8 @@ class PlayerRepositoryImpl @Inject constructor(
      * continues with similar songs. Skipped when repeat-all is on (the queue already loops).
      */
     private fun maybeExtendQueue(controller: Player) {
+        // Follower mode (Listen-together): the queue mirrors the host's single shared track — never grow it.
+        if (followerMode) return
         // Never run while playAll is still building the queue — appends would interleave with its
         // adds and skew the indices (tapping next would jump around).
         if (queueBuildJob?.isActive == true) return

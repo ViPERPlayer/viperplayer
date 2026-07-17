@@ -1,5 +1,6 @@
 package com.viperplayer.domain.repository
 
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.PlayerState
@@ -156,6 +157,27 @@ interface PlayerRepository {
      * Returns null if no track is playing or format information is not available.
      */
     suspend fun getAudioFormat(): AudioFormat?
+
+    /**
+     * Load a single remote track by its portable [mediaId] and play it (or just prepare it, per
+     * [playWhenReady]). Used by the Listen-together follower to load the host's shared track even when
+     * it isn't in the local DB: the [title]/[artist]/[artworkUrl] populate the now-playing UI, while the
+     * stream itself is still resolved lazily from the bare [mediaId] by the media source. Replaces the
+     * queue with just this item.
+     */
+    suspend fun playRemote(
+        mediaId: MediaId,
+        title: String,
+        artist: String,
+        artworkUrl: String,
+        playWhenReady: Boolean,
+    )
+
+    /**
+     * Enable/disable follower mode. While enabled, autoplay/radio queue-extension is suppressed so a
+     * Listen-together follower's queue never auto-grows beyond the host's shared track. Default off.
+     */
+    fun setFollowerMode(enabled: Boolean)
 }
 
 /**

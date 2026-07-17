@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LibraryAdd
@@ -81,6 +82,7 @@ import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -119,6 +121,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -186,6 +189,8 @@ fun PlayerScreen(
     val duration by viewModel.duration.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val queue by viewModel.queue.collectAsStateWithLifecycle()
+    val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
+    val isPlayingState by viewModel.isPlaying.collectAsStateWithLifecycle()
 
     // Poll position. Reset to 0 only when the song actually changes; while on the same song, ignore
     // transient 0 readings (the media controller briefly reports 0 as it re-syncs when the app returns
@@ -241,7 +246,10 @@ fun PlayerScreen(
         return
     }
 
-    val isPlaying = playbackState.isPlaying
+    // For a session follower, the play/pause state reflects the shared timeline (the follower loop
+    // drives the local player and briefly lags); otherwise it's the local player's own state.
+    val isPlaying = isPlayingState
+    val isFollower = sessionState.isFollower
 
     // Artwork pager over the queue: swipe to preview/switch tracks. Falls back to the single song
     // when the queue is empty so there's always exactly one page.
@@ -518,21 +526,42 @@ fun PlayerScreen(
                     ConnectedLikeButton(viewModel = viewModel)
                 }
 
+                // Listen-together (synced playback) indicator: shown whenever in a session. Reflects the
+                // sync state and, for a follower, that the host is in control.
+                if (sessionState.inSession) {
+                    ListeningTogetherIndicator(
+                        syncState = sessionState.syncState,
+                        isFollower = isFollower,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(18.dp))
+
+                // For a follower the transport cluster + seek bar are dimmed and inert — the follower
+                // loop owns playback; a subtle dim conveys "controlled by the host".
+                val transportEnabled = !isFollower
+                val transportAlpha by animateFloatAsState(
+                    if (transportEnabled) 1f else 0.45f,
+                    label = "transportAlpha"
+                )
 
                 WavySeekBar(
                     position = { currentPosition },
                     bufferedPosition = { bufferedPosition },
                     duration = duration,
                     isPlaying = isPlaying,
-                    onSeek = { viewModel.seekTo(it) }
+                    onSeek = { if (transportEnabled) viewModel.seekTo(it) },
+                    modifier = Modifier.graphicsLayer { alpha = transportAlpha }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Transport cluster
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = transportAlpha },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -540,21 +569,21 @@ fun PlayerScreen(
                         icon = Icons.Filled.Shuffle,
                         contentDescription = if (playbackState.shuffleEnabled) "Shuffle on" else "Shuffle off",
                         active = playbackState.shuffleEnabled,
-                        onClick = { viewModel.toggleShuffle() }
+                        onClick = { if (transportEnabled) viewModel.toggleShuffle() }
                     )
                     SkipPill(
                         icon = Icons.Filled.SkipPrevious,
                         contentDescription = stringResource(R.string.action_previous),
-                        onClick = { viewModel.skipToPrevious() }
+                        onClick = { if (transportEnabled) viewModel.skipToPrevious() }
                     )
                     MorphPlayButton(
                         isPlaying = isPlaying,
-                        onClick = { viewModel.togglePlayPause() }
+                        onClick = { if (transportEnabled) viewModel.togglePlayPause() }
                     )
                     SkipPill(
                         icon = Icons.Filled.SkipNext,
                         contentDescription = stringResource(R.string.action_next),
-                        onClick = { viewModel.skipToNext() }
+                        onClick = { if (transportEnabled) viewModel.skipToNext() }
                     )
                     ToggleIconButton(
                         icon = if (playbackState.repeatMode == RepeatMode.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
@@ -564,7 +593,7 @@ fun PlayerScreen(
                             RepeatMode.ALL -> stringResource(R.string.player_repeat_all)
                         },
                         active = playbackState.repeatMode != RepeatMode.OFF,
-                        onClick = { viewModel.cycleRepeatMode() }
+                        onClick = { if (transportEnabled) viewModel.cycleRepeatMode() }
                     )
                 }
 
@@ -859,6 +888,64 @@ private fun ArtistAlbumSubtitle(
 }
 
 private const val ARTIST_TAG = "artist"
+
+/**
+ * Subtle "Listening together" pill shown while in a Jam session. Reflects the sync state (a spinner +
+ * "Syncing…" until the clock syncs, then "In sync") and, for a follower, "Controlled by the host".
+ * Purely a status indicator — the transport itself is dimmed separately when following.
+ */
+@Composable
+private fun ListeningTogetherIndicator(
+    syncState: SyncState,
+    isFollower: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val syncing = syncState == SyncState.Syncing
+    val label = when {
+        syncing -> stringResource(R.string.sync_syncing)
+        isFollower -> stringResource(R.string.sync_controlled_by_host)
+        else -> stringResource(R.string.sync_in_sync)
+    }
+    Row(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.14f))
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (syncing) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(14.dp)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.Groups,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(15.dp)
+            )
+        }
+        Text(
+            text = stringResource(R.string.sync_listening_together),
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "· $label",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
 
 /**
  * Translucent source chip ("Playing from …"). Display-only; navigation lives in the overflow menu.

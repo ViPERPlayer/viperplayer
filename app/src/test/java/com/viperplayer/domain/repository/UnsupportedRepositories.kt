@@ -202,6 +202,14 @@ open class UnsupportedPlayerRepository : PlayerRepository {
     override suspend fun setPlaybackSpeed(speed: Float) = TODO()
     override suspend fun setPlaybackPitch(pitch: Float) = TODO()
     override suspend fun getAudioFormat(): AudioFormat? = TODO()
+    override suspend fun playRemote(
+        mediaId: MediaId,
+        title: String,
+        artist: String,
+        artworkUrl: String,
+        playWhenReady: Boolean,
+    ) = TODO()
+    override fun setFollowerMode(enabled: Boolean) = TODO()
 }
 
 open class UnsupportedSettingsRepository : SettingsRepository {

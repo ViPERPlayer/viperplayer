@@ -521,6 +521,13 @@
     <string name="social_starting_session">Starting session…</string>
     <string name="action_copy">Copy</string>
 
+    <!-- Synced playback (layer 2): the now-playing indicator + follower state -->
+    <string name="sync_listening_together">Listening together</string>
+    <string name="sync_in_sync">In sync</string>
+    <string name="sync_syncing">Syncing…</string>
+    <string name="sync_controlled_by_host">Controlled by the host</string>
+    <string name="sync_track_unavailable">Can\'t play this track on your device</string>
+
     <!-- ViPER effect: FET compressor (effect_* are generic labels reused by other effects) -->
     <string name="fet_compressor">FET compressor</string>
     <string name="effect_threshold">Threshold</string>
