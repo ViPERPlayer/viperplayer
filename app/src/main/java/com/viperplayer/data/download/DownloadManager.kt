@@ -34,10 +34,9 @@ import javax.inject.Singleton
  * Offline download engine for progressive HTTP(S) URL streams.
  *
  * A song is resolved through its plugin; only the [UrlStream] variant with an http(s) URL is
- * downloadable here. DASH / HLS / PCM (and DRM) streams are marked [State.UNSUPPORTED] — true
- * adaptive/DRM offline support needs a media3 `DownloadService`, which is out of scope for this pass.
- *
- * TODO: adaptive/DRM (DASH/HLS) downloads via media3 DownloadService + a CacheDataSource.
+ * downloadable here. DASH / HLS / PCM (and DRM) streams are deliberately marked
+ * [State.UNSUPPORTED]: true adaptive/DRM offline support would require a media3 `DownloadService`
+ * plus a `CacheDataSource` — a larger rearchitecture that is intentionally not implemented here.
  */
 @Singleton
 class DownloadManager @Inject constructor(
