@@ -112,6 +112,47 @@ class SessionFrameMappingTest {
     }
 
     @Test
+    fun applier_hostDelta_replacesHost_keepingMembers() {
+        // Host handoff: a `host` delta swaps the authoritative host without touching the member list.
+        val applier = SessionStateApplier()
+        val alice = member("host-dev", "Alice", role = "HOST")
+        val bob = member("bob-dev", "Bob")
+        applier.apply(snapshotFrame(alice, listOf(alice, bob)))
+
+        val hostDelta = FrameDto(
+            type = FRAME_SESSION_DELTA,
+            sessionDelta = SessionDeltaDto(seq = 3, kind = DELTA_HOST, host = member("bob-dev", "Bob", role = "HOST")),
+        )
+        val after = applier.apply(hostDelta)!!
+        assertEquals("bob-dev", after.host.deviceId)
+        assertEquals("Bob", after.host.name)
+        // Member list is unchanged by a host handoff.
+        assertEquals(2, after.members.size)
+        assertTrue(after.members.any { it.deviceId == "host-dev" })
+        assertTrue(after.members.any { it.deviceId == "bob-dev" })
+    }
+
+    @Test
+    fun applier_memberLeft_removesSelf_whenServerKicksYou() {
+        // The server can send member_left for your OWN deviceId (it kicked you); the applier must drop
+        // the SELF member like any other, leaving only the remaining participants.
+        val applier = SessionStateApplier()
+        val host = member("host-dev", "Alice", role = "HOST")
+        val self = member("me-dev", "Me")
+        applier.apply(snapshotFrame(host, listOf(host, self)))
+
+        val kicked = FrameDto(
+            type = FRAME_SESSION_DELTA,
+            sessionDelta = SessionDeltaDto(seq = 4, kind = DELTA_MEMBER_LEFT, memberLeft = "me-dev"),
+        )
+        val after = applier.apply(kicked)!!
+        assertEquals(1, after.members.size)
+        assertFalse(after.members.any { it.deviceId == "me-dev" })
+        // Host is untouched by a member leaving.
+        assertEquals("host-dev", after.host.deviceId)
+    }
+
+    @Test
     fun applier_presenceDelta_replacesWholeList() {
         val applier = SessionStateApplier()
         val host = member("host-dev", "Alice", role = "HOST")

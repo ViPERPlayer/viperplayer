@@ -464,10 +464,9 @@ fun LibraryScreen(
 }
 
 @Composable
-// TODO: hoist modifier for root padding
-fun EmptyLibraryContent(message: String) {
+fun EmptyLibraryContent(message: String, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(32.dp),
         contentAlignment = Alignment.Center

@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -232,6 +233,24 @@ class AlbumDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 playerRepository.addToQueue(song)
+            } catch (e: Exception) {
+                Timber.w(e, "AlbumDetail background operation failed")
+            }
+        }
+    }
+
+    /**
+     * Toggle the "liked" flag on [song] from its track-row options sheet. Persists the song first (a
+     * remote plugin track has no Room row yet), then flips its stored liked state; liking also adds it
+     * to the saved library. Mirrors [com.viperplayer.presentation.player.PlayerViewModel.toggleLike].
+     */
+    fun toggleSongLike(song: Song) {
+        viewModelScope.launch {
+            try {
+                mediaLibraryRepository.saveSong(song)
+                val newLiked = !(mediaLibraryRepository.getSong(song.id).first()?.isLiked ?: false)
+                mediaLibraryRepository.setSongLiked(song.id, newLiked)
+                if (newLiked) mediaLibraryRepository.setSongSaved(song.id, true)
             } catch (e: Exception) {
                 Timber.w(e, "AlbumDetail background operation failed")
             }

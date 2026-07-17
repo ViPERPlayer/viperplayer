@@ -225,9 +225,15 @@ fun CrashScreen(
                     }
                     Button(
                         onClick = {
-                            // TODO: Implement server upload
+                            // Uploading a crash report needs a configured crash-reporting endpoint
+                            // (there is no crash backend — no Sentry/Crashlytics, no BuildConfig URL).
+                            // Until one is wired, upload is unavailable; the local report above plus the
+                            // Copy / Email actions let the user share it manually.
                             scope.launch {
-                                snackbarHostState.showSnackbar("Upload not yet implemented")
+                                snackbarHostState.showSnackbar(
+                                    "Upload requires a configured crash-report server. " +
+                                        "Use Copy or Email to share this report."
+                                )
                             }
                         },
                         modifier = Modifier.weight(1f),

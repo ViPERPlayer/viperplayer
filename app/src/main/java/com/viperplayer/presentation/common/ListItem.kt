@@ -68,6 +68,12 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** Size of a list row's leading slot (artwork thumbnail / track-number cell). */
+private val LeadingContentSize = 48.dp
+
+/** Corner radius for non-circular (non-artist) leading artwork thumbnails. */
+private val ArtworkCornerRadius = 6.dp
+
 /**
  * Prebuilt leading content for artwork with play indicator overlay.
  */
@@ -80,7 +86,7 @@ fun ListItemLeadingArtwork(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.size(48.dp), // TODO: Do not hardcode this here!
+        modifier = modifier.size(LeadingContentSize),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
@@ -93,7 +99,7 @@ fun ListItemLeadingArtwork(
                     if (type == SearchItem.Type.ARTIST)
                         CircleShape
                     else
-                        RoundedCornerShape(6.dp) // TODO: Do not hardcode this here!
+                        RoundedCornerShape(ArtworkCornerRadius)
                 )
         )
 
@@ -135,7 +141,7 @@ fun ListItemLeadingTrackNumber(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.size(48.dp), // TODO: Do not hardcode this here!
+        modifier = modifier.size(LeadingContentSize),
         contentAlignment = Alignment.Center
     ) {
         if (isActive) {

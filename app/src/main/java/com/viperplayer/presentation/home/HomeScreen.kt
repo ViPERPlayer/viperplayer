@@ -376,7 +376,11 @@ private fun HomeScreenContent(
                                         CategoryCard(
                                             category = category,
                                             modifier = Modifier.revealOnAppear(index),
-                                            onClick = { /* TODO: Navigate to category */ }
+                                            // Deliberate no-op: there is no category-browse destination
+                                            // yet (no CategoryDetail screen; Search is a query-less top
+                                            // tab). Wire this to a category-contents screen — backed by
+                                            // PluginRepository.getCategoryContents — when one is added.
+                                            onClick = {}
                                         )
                                     }
                                 }

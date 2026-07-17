@@ -161,7 +161,7 @@ fun PlaylistDetailScreen(
         onRemoveSongAt = viewModel::removeSongAt,
         onMoveSong = viewModel::moveSong,
         onRename = viewModel::rename,
-        onToggleLike = { /* TODO: Implement toggle like */ },
+        onToggleLike = viewModel::toggleSongLike,
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToAlbum = onNavigateToAlbum,
     )

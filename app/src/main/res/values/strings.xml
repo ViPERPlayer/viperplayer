@@ -444,6 +444,8 @@
     <string name="updater_downloading_update">Downloading Update</string>
     <string name="updater_not_checked">Not Checked</string>
     <string name="updater_latest_version">Latest version: %1$s</string>
+    <string name="updater_not_configured">In-app updates aren\'t available in this build</string>
+    <string name="updater_not_configured_desc">Update manually from your app store.</string>
 
     <!-- Shared small labels -->
     <string name="status_connected">Connected</string>
@@ -516,6 +518,7 @@
     <string name="social_listen_together">Listen together</string>
     <string name="social_play_on_device">Play on device</string>
     <string name="social_invite_to_listen">Invite to listen</string>
+    <string name="social_starting_session">Starting session…</string>
     <string name="action_copy">Copy</string>
 
     <!-- ViPER effect: FET compressor (effect_* are generic labels reused by other effects) -->

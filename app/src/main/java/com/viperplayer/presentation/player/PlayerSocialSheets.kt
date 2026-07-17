@@ -39,13 +39,17 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,10 +76,10 @@ import com.viperplayer.domain.model.Song
  * Hosts the three "social" sheets reachable from the player's output bar: Listen-together / Devices,
  * Share invite, and the QR join screen.
  *
- * There is no realtime jam backend, so this is the honest single-host state: you can generate and
- * share an invite (real system share + clipboard + a scannable QR encoding the link), and "Play on
- * device" lists the real local output. The link carries a generated session code for when a backend
- * is added.
+ * The session (its real share `code` + `inviteUrl`) comes from [ListenTogetherViewModel], which starts
+ * a backend session — the real session service when `VIPER_BACKEND_URL` is configured, otherwise the
+ * in-memory mock so the feature still demos. The share/QR sheets encode that real code so a guest who
+ * scans/pastes it can actually join. "Play on device" lists the real local output.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -88,10 +92,22 @@ fun PlayerSocialSheets(
     onShowShareInvite: (Boolean) -> Unit,
     onShowQr: (Boolean) -> Unit,
     onJoinSession: () -> Unit = {},
+    viewModel: ListenTogetherViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val sessionCode = rememberSaveable { generateSessionCode() }
-    val inviteUrl = remember(sessionCode) { "https://viper.player/jam/$sessionCode" }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Start hosting when the Listen-together sheet first opens; leave when the whole social stack is
+    // dismissed (all three sheets closed). Re-opening the sheet reuses the already-created session.
+    LaunchedEffect(showListenTogether) {
+        if (showListenTogether) viewModel.startHosting()
+    }
+    LaunchedEffect(showListenTogether, showShareInvite, showQr) {
+        if (!showListenTogether && !showShareInvite && !showQr) viewModel.leaveHosting()
+    }
+
+    val session = uiState.session
+    val inviteUrl = session?.inviteUrl.orEmpty()
     val shareText = remember(song, inviteUrl) {
         "Listen with me: ${song.title}${song.artistNames?.let { " — $it" } ?: ""}\n$inviteUrl"
     }
@@ -106,8 +122,10 @@ fun PlayerSocialSheets(
         ) {
             ListenTogetherContent(
                 song = song,
+                state = uiState,
                 onShareInvite = { onShowShareInvite(true) },
                 onQr = { onShowQr(true) },
+                onRetry = viewModel::startHosting,
                 onJoinSession = onJoinSession
             )
         }
@@ -139,7 +157,7 @@ fun PlayerSocialSheets(
             QrJoinContent(
                 song = song,
                 inviteUrl = inviteUrl,
-                code = sessionCode,
+                code = session?.code.orEmpty(),
                 onCopy = { copyToClipboard(context, inviteUrl) },
                 onBack = { onShowQr(false) }
             )
@@ -150,8 +168,10 @@ fun PlayerSocialSheets(
 @Composable
 private fun ListenTogetherContent(
     song: Song,
+    state: ListenTogetherUiState,
     onShareInvite: () -> Unit,
     onQr: () -> Unit,
+    onRetry: () -> Unit,
     onJoinSession: () -> Unit = {}
 ) {
     Column(
@@ -179,14 +199,38 @@ private fun ListenTogetherContent(
         )
 
         Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FilledPillButton(
-                text = stringResource(R.string.social_share_invite),
-                icon = Icons.Filled.IosShare,
-                modifier = Modifier.weight(1f),
-                onClick = onShareInvite
-            )
-            TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = stringResource(R.string.social_show_qr), onClick = onQr)
+        // Share/QR need a real session code; gate them on the session being ready. While it's being
+        // created show a brief spinner, and surface any failure with a retry (so a host never shares a
+        // code that maps to no backend session).
+        when {
+            state.session == null && state.error != null -> {
+                SessionErrorRow(message = state.error, onRetry = onRetry)
+            }
+            state.session == null -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 13.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LoadingIndicator(modifier = Modifier.size(24.dp))
+                    Text(
+                        stringResource(R.string.social_starting_session),
+                        modifier = Modifier.padding(start = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            else -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FilledPillButton(
+                        text = stringResource(R.string.social_share_invite),
+                        icon = Icons.Filled.IosShare,
+                        modifier = Modifier.weight(1f),
+                        onClick = onShareInvite
+                    )
+                    TonalPillButton(icon = Icons.Filled.QrCode2, contentDescription = stringResource(R.string.social_show_qr), onClick = onQr)
+                }
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -572,10 +616,31 @@ private fun TonalPillButton(icon: ImageVector, contentDescription: String, onCli
     }
 }
 
-private fun generateSessionCode(): String {
-    val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    fun block(n: Int) = (1..n).map { chars.random() }.joinToString("")
-    return "${block(4)}-${block(3)}"
+@Composable
+private fun SessionErrorRow(message: String, onRetry: () -> Unit) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(
+                Icons.Filled.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        FilledPillButton(
+            text = stringResource(R.string.action_retry),
+            icon = Icons.Filled.QrCode2,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onRetry
+        )
+    }
 }
 
 private fun copyToClipboard(context: Context, text: String) {

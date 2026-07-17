@@ -96,64 +96,9 @@ object ViperEqualizerMath {
             else -> 1.414
         }
 
-        // TODO: Replace with shared frequency constant source if possible
-        // For now, mirroring C++ frequencies
-        val frequencies = when (bandCount) {
-            10 -> listOf(31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0)
-            15 -> listOf(
-                25.0,
-                40.0,
-                63.0,
-                100.0,
-                160.0,
-                250.0,
-                400.0,
-                630.0,
-                1000.0,
-                1600.0,
-                2500.0,
-                4000.0,
-                6300.0,
-                10000.0,
-                16000.0
-            )
-
-            31 -> listOf(
-                20.0,
-                25.0,
-                31.5,
-                40.0,
-                50.0,
-                63.0,
-                80.0,
-                100.0,
-                125.0,
-                160.0,
-                200.0,
-                250.0,
-                315.0,
-                400.0,
-                500.0,
-                630.0,
-                800.0,
-                1000.0,
-                1250.0,
-                1600.0,
-                2000.0,
-                2500.0,
-                3150.0,
-                4000.0,
-                5000.0,
-                6300.0,
-                8000.0,
-                10000.0,
-                12500.0,
-                16000.0,
-                20000.0
-            )
-
-            else -> listOf()
-        }
+        // Single source of truth for band center frequencies — the same table the DSP presets use —
+        // so the rendered response curve lines up with the actual per-band frequencies.
+        val frequencies = IirEqualizerPresets.getFrequencies(bandCount).map { it.toDouble() }
 
         // Generate pre-calculated coeffs for active bands
         val filters = gains.zip(frequencies).map { (gain, freq) ->

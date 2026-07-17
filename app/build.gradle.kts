@@ -37,6 +37,12 @@ android {
         // server reached from the emulator, use "http://10.0.2.2:8080".
         buildConfigField("String", "VIPER_BACKEND_URL", "\"REPLACE_WITH_REAL_VALUE\"")
 
+        // In-app updater manifest URL — a JSON endpoint (e.g. a GitHub Releases API URL or a
+        // self-hosted manifest) describing the latest version + changelog + APK download. PLACEHOLDER —
+        // the in-app updater stays disabled (UpdaterSettingsViewModel reports "not configured") until a
+        // real HTTPS URL is supplied here; users still update manually from their app store meanwhile.
+        buildConfigField("String", "UPDATE_MANIFEST_URL", "\"REPLACE_WITH_REAL_VALUE\"")
+
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")

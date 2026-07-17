@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -216,6 +217,15 @@ private fun UpdateStatusCard(
                             Icons.Default.Refresh,
                             stringResource(R.string.updater_status_checking),
                             stringResource(R.string.updater_please_wait),
+                            null
+                        )
+                    }
+
+                    is UpdateState.NotConfigured -> {
+                        Quadruple(
+                            Icons.Default.Info,
+                            stringResource(R.string.updater_not_configured),
+                            stringResource(R.string.updater_not_configured_desc),
                             null
                         )
                     }

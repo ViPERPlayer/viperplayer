@@ -131,7 +131,7 @@ fun AlbumDetailScreen(
         onPlaySong = viewModel::playSong,
         onPlayNext = viewModel::playNext,
         onAddToQueue = viewModel::addToQueue,
-        onToggleLike = { /* TODO: Implement toggle like */ }
+        onToggleLike = viewModel::toggleSongLike
     )
 }
 
