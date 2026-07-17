@@ -1,5 +1,6 @@
 package com.viperplayer.data.repository
 
+import com.viperplayer.data.social.JamCodeCodec
 import com.viperplayer.domain.model.ListenSession
 import com.viperplayer.domain.model.SessionParticipant
 import com.viperplayer.domain.repository.ListenTogetherRepository
@@ -9,25 +10,24 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * MOCK implementation of [ListenTogetherRepository].
+ * MOCK implementation of [ListenTogetherRepository], used when no backend URL is configured.
  *
- * There is no realtime jam backend yet, so this keeps a single in-memory session: starting hosts a
- * fresh session locally, and joining accepts any well-formed code/URL and drops you in as a guest.
- * Everything a real service would own — presence, queue sync, participant list — is faked here.
- *
- * To make it real, replace the bodies below with calls to the backend (create/join/leave + a presence
- * stream feeding [_currentSession]); no caller changes required.
+ * There is no realtime jam backend reachable, so this keeps a single in-memory session: starting hosts
+ * a fresh session locally, and joining accepts any well-formed code/URL and drops you in as a guest.
+ * Everything a real service would own — presence, queue sync, participant list — is faked here. The
+ * real backend-backed implementation is [RealListenTogetherRepositoryImpl]; the DI module picks
+ * between them based on whether `VIPER_BACKEND_URL` is configured.
  */
 @Singleton
-class ListenTogetherRepositoryImpl @Inject constructor() : ListenTogetherRepository {
+class MockListenTogetherRepositoryImpl @Inject constructor() : ListenTogetherRepository {
 
     private val _currentSession = MutableStateFlow<ListenSession?>(null)
     override val currentSession = _currentSession.asStateFlow()
 
-    override val codeLength: Int = CODE_LENGTH
+    override val codeLength: Int = JamCodeCodec.CODE_LENGTH
 
     override suspend fun startSession(): Result<ListenSession> {
-        val code = generateCode()
+        val code = JamCodeCodec.generateCode()
         val session = ListenSession(
             code = code,
             inviteUrl = inviteUrlFor(code),
@@ -61,24 +61,7 @@ class ListenTogetherRepositoryImpl @Inject constructor() : ListenTogetherReposit
         _currentSession.value = null
     }
 
-    override fun inviteUrlFor(code: String): String = "$INVITE_BASE/${code.lowercase()}"
+    override fun inviteUrlFor(code: String): String = JamCodeCodec.inviteUrlFor(code)
 
-    override fun parseCode(input: String): String? {
-        // Accept either a raw code ("8KX29QT" / "8KX2-9QT") or an invite URL (…/jam/8kx29qt).
-        val tail = input.substringAfterLast('/').substringBefore('?').trim()
-        val cleaned = tail.uppercase().filter { it in CODE_ALPHABET }
-        return if (cleaned.length >= CODE_LENGTH) cleaned.take(CODE_LENGTH) else null
-    }
-
-    private fun generateCode(): String {
-        fun block(n: Int) = (1..n).map { CODE_ALPHABET.random() }.joinToString("")
-        return "${block(4)}-${block(3)}"
-    }
-
-    companion object {
-        // Unambiguous alphabet (no O/0, I/1) — matches the codes shared by the QR/invite sheets.
-        private const val CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        private const val CODE_LENGTH = 6
-        private const val INVITE_BASE = "https://viper.player/jam"
-    }
+    override fun parseCode(input: String): String? = JamCodeCodec.parseCode(input)
 }

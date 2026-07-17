@@ -6,9 +6,11 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * "Listen together" / Jam sessions.
  *
- * Currently MOCK-backed (no realtime service) — see [com.viperplayer.data.repository.ListenTogetherRepositoryImpl].
- * This interface is the single seam a real backend plugs into: the UI (player social sheets, the
- * Join-a-session screen) only ever talks to these methods and observes [currentSession].
+ * Two implementations back this: [com.viperplayer.data.repository.RealListenTogetherRepositoryImpl]
+ * (the ViPER backend session service — REST create/join + a membership WebSocket) when a backend URL
+ * is configured, otherwise the in-memory [com.viperplayer.data.repository.MockListenTogetherRepositoryImpl].
+ * `DataModule` picks between them. This interface is the single seam the UI (player social sheets, the
+ * Join-a-session screen) talks to; it only ever calls these methods and observes [currentSession].
  */
 interface ListenTogetherRepository {
     /** The active session, or null when not in one. */

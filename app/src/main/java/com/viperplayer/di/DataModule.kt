@@ -4,7 +4,11 @@ import com.viperplayer.data.account.AccountRepositoryImpl
 import com.viperplayer.data.librarysync.LibrarySyncRepositoryImpl
 import com.viperplayer.data.repository.AutoPlaylistRepositoryImpl
 import com.viperplayer.data.repository.CacheRepositoryImpl
-import com.viperplayer.data.repository.ListenTogetherRepositoryImpl
+import com.viperplayer.data.repository.MockListenTogetherRepositoryImpl
+import com.viperplayer.data.repository.RealListenTogetherRepositoryImpl
+import com.viperplayer.data.social.DeviceIdStore
+import com.viperplayer.data.social.KtorJamSocketClient
+import com.viperplayer.data.social.SessionApi
 import com.viperplayer.data.source.AndroidTagDetailsReader
 import com.viperplayer.data.repository.MediaLibraryRepositoryImpl
 import com.viperplayer.data.repository.PlayerRepositoryImpl
@@ -30,6 +34,7 @@ import com.viperplayer.domain.repository.TagDetailsReader
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -109,12 +114,6 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindListenTogetherRepository(
-        impl: ListenTogetherRepositoryImpl
-    ): ListenTogetherRepository
-
-    @Binds
-    @Singleton
     abstract fun bindTagDetailsReader(
         impl: AndroidTagDetailsReader
     ): TagDetailsReader
@@ -124,5 +123,33 @@ abstract class DataModule {
     abstract fun bindLibraryPushOutbox(
         impl: RoomLibraryPushOutbox
     ): LibraryPushOutbox
+
+    companion object {
+        /**
+         * Picks the Listen-Together backend at wiring time: the REAL backend-backed implementation when
+         * a `VIPER_BACKEND_URL` is configured, otherwise the in-memory [MockListenTogetherRepositoryImpl]
+         * so the feature still demos with no server. `@Provides` (not `@Binds`) because the choice is a
+         * runtime branch, not a fixed type binding.
+         */
+        @Provides
+        @Singleton
+        fun provideListenTogetherRepository(
+            sessionApi: SessionApi,
+            socketClient: KtorJamSocketClient,
+            deviceIdStore: DeviceIdStore,
+            accountRepository: AccountRepository,
+            mock: MockListenTogetherRepositoryImpl,
+        ): ListenTogetherRepository =
+            if (sessionApi.isConfigured) {
+                RealListenTogetherRepositoryImpl(
+                    sessionApi = sessionApi,
+                    socketClient = socketClient,
+                    deviceIdStore = deviceIdStore,
+                    accountRepository = accountRepository,
+                )
+            } else {
+                mock
+            }
+    }
 }
 

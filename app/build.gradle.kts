@@ -171,9 +171,11 @@ dependencies {
     // Reorderable — drag-to-reorder for the playlist edit-mode list
     implementation(libs.reorderable)
 
-    // Ktor Client — also carries the ViPER account + library backend transport (HTTP/JSON REST).
+    // Ktor Client — also carries the ViPER account + library backend transport (HTTP/JSON REST),
+    // plus the Listen-Together (Jam) session WebSocket.
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.websockets)
     implementation(libs.ktor.serialization.json)
 
     // Room

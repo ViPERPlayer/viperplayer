@@ -3,10 +3,9 @@ package com.viperplayer.domain.model
 /**
  * A "Listen together" (Jam) session.
  *
- * MOCK-BACKED for now — there is no realtime jam backend, so these are produced locally by
- * [com.viperplayer.domain.repository.ListenTogetherRepository]. The shape mirrors what a real backend
- * would return (host, participants, share code + invite URL), so adding a real service later is a
- * repository-only change; nothing in the UI needs to move.
+ * Produced by [com.viperplayer.domain.repository.ListenTogetherRepository] — either mapped from the
+ * ViPER backend session snapshot (real) or synthesised locally (mock). The shape mirrors what the
+ * backend returns (host, participants, share code + invite URL), so the UI is backend-agnostic.
  */
 data class ListenSession(
     val code: String,
