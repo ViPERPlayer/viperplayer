@@ -122,16 +122,6 @@
     <string name="library_customize_tabs_reset">Reset to default</string>
     <string name="library_customize_tabs_show">Show %1$s</string>
     <string name="library_customize_tabs_hide">Hide %1$s</string>
-    <!-- Explore / discovery -->
-    <string name="explore_title">Explore</string>
-    <string name="explore_open">Explore</string>
-    <string name="explore_moods">Moods &amp; genres</string>
-    <string name="explore_categories">Browse</string>
-    <string name="explore_error_title">Couldn\'t load Explore</string>
-    <string name="explore_empty_title">Nothing to explore yet</string>
-    <string name="explore_empty_body">Your connected sources aren\'t offering discovery content right now. Pull to refresh to try again.</string>
-    <string name="explore_no_plugins_title">No sources connected</string>
-    <string name="explore_no_plugins_body">Connect a music source to discover charts, new releases and more.</string>
     <!-- Player -->
     <string name="player_no_song">No song playing</string>
     <string name="player_collapse">Collapse player</string>

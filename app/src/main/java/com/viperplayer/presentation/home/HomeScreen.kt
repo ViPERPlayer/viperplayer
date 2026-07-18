@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
@@ -110,7 +109,6 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
-    onNavigateToExplore: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -162,7 +160,6 @@ fun HomeScreen(
         onNavigateToSettings = onNavigateToSettings,
         onNavigateToHistory = onNavigateToHistory,
         onNavigateToAnalytics = onNavigateToAnalytics,
-        onNavigateToExplore = onNavigateToExplore,
         onRefresh = viewModel::refresh,
         onPlaySongFromQuickPicks = viewModel::playSongFromQuickPicks,
         onPlaySongFromSection = viewModel::playSongFromSection,
@@ -184,7 +181,6 @@ private fun HomeScreenContent(
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
-    onNavigateToExplore: () -> Unit = {},
     onRefresh: () -> Unit,
     onPlaySongFromQuickPicks: (Song) -> Unit,
     onPlaySongFromSection: (Song, String) -> Unit,
@@ -230,12 +226,6 @@ private fun HomeScreenContent(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToExplore) {
-                        Icon(
-                            imageVector = Icons.Rounded.Explore,
-                            contentDescription = stringResource(R.string.explore_open),
-                        )
-                    }
                     IconButton(onClick = { showActionsSheet = true }) {
                         BadgedBox(
                             badge = {
