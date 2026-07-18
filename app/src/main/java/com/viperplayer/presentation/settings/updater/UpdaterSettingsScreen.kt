@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.plus
 
 @Composable
 fun UpdaterSettingsScreen(
@@ -89,7 +91,8 @@ fun UpdaterSettingsScreen(
             modifier = modifier
                 .fillMaxWidth()
                 .fillMaxSize(),
-            contentPadding = contentPadding
+            // Combine the scaffold top inset with the mini-player/nav bottom inset so the last item clears it.
+            contentPadding = contentPadding + rootPadding.bottom()
         ) {
             item {
                 SettingsCategory(stringResource(R.string.updater_category_status))

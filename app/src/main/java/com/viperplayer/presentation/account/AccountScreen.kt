@@ -104,7 +104,8 @@ private fun AccountContent(
                 .padding(innerPadding)
                 .padding(top = rootPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                // Bottom inset (applied INSIDE the scroll region) so the last control clears the mini player.
+                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 8.dp + rootPadding.calculateBottomPadding()),
         ) {
             when {
                 !state.isConfigured -> NotConfiguredCard()
