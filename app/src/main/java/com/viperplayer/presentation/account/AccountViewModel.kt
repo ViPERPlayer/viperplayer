@@ -87,6 +87,10 @@ class AccountViewModel @Inject constructor(
     private val _changePasswordSucceeded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val changePasswordSucceeded: SharedFlow<Unit> = _changePasswordSucceeded.asSharedFlow()
 
+    /** One-shot signal emitted when setting the @handle succeeds, so the screen can close the dialog. */
+    private val _setHandleSucceeded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val setHandleSucceeded: SharedFlow<Unit> = _setHandleSucceeded.asSharedFlow()
+
     init {
         viewModelScope.launch {
             accountRepository.state.collect { account ->
@@ -139,6 +143,21 @@ class AccountViewModel @Inject constructor(
 
     fun deleteAccount(password: String) {
         submit { accountRepository.deleteAccount(password) }
+    }
+
+    /**
+     * Claims / changes the signed-in user's public `@handle` (no leading `@`). On success refreshes the
+     * cached profile so the new handle is reflected, and signals the screen to close the dialog. An
+     * invalid (400) or already-taken (409) handle surfaces via [AccountUiState.error].
+     */
+    fun setHandle(handle: String) {
+        submit(
+            action = { accountRepository.setHandle(handle) },
+            onSuccess = {
+                viewModelScope.launch { accountRepository.refreshProfile() }
+                _setHandleSucceeded.tryEmit(Unit)
+            },
+        )
     }
 
     fun setSyncEnabled(enabled: Boolean) {

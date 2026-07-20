@@ -980,6 +980,14 @@
     <string name="account_change_password_new">New password</string>
     <string name="account_change_password_confirm">Change password</string>
     <string name="account_change_password_success">Password changed</string>
+    <!-- Set / change public @handle (username) -->
+    <string name="account_set_handle">Set username</string>
+    <!-- e.g. "@albert" — the current handle shown on the username row -->
+    <string name="account_handle_value">@%1$s</string>
+    <string name="account_set_handle_body">Pick a public @username so friends can find and follow you. 3–20 characters: lowercase letters, numbers or underscores.</string>
+    <string name="account_handle_hint">username</string>
+    <string name="account_set_handle_confirm">Save</string>
+    <string name="account_set_handle_success">Username updated</string>
     <!-- Delete account -->
     <string name="account_delete">Delete account</string>
     <string name="account_delete_confirm_title">Delete account?</string>
@@ -1016,6 +1024,8 @@
     <string name="you_friend_activity_subtitle">Playlists, likes and listening now</string>
     <string name="you_friend_activity_listening_now">%1$s and %2$d others listening now</string>
     <string name="you_friend_activity_one_listening">%1$s is listening now</string>
+    <string name="you_following_users">Following</string>
+    <string name="you_following_users_subtitle">People you follow</string>
     <string name="you_shared_with_you">Shared with you</string>
     <string name="you_shared_with_you_subtitle">Playlists friends sent you</string>
     <string name="you_join_a_jam">Join a Jam</string>

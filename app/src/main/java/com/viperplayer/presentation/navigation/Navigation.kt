@@ -337,6 +337,7 @@ fun ViperNavDisplay(
                 onNavigateToRegister = { navigator.navigate(Register) },
                 onNavigateToFriendActivity = { navigator.navigate(FriendActivity) },
                 onNavigateToSharedWithYou = { navigator.navigate(SharedWithYou) },
+                onNavigateToFollowingUsers = { navigator.navigate(FollowingUsers) },
                 onNavigateToJoinSession = { navigator.navigate(JoinSession()) },
                 onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToHistory = { navigator.navigate(History) },

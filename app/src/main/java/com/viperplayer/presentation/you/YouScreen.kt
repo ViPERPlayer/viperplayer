@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Podcasts
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Settings
@@ -85,6 +86,7 @@ fun YouScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToFriendActivity: () -> Unit,
     onNavigateToSharedWithYou: () -> Unit,
+    onNavigateToFollowingUsers: () -> Unit,
     onNavigateToJoinSession: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -106,6 +108,7 @@ fun YouScreen(
         onNavigateToRegister = onNavigateToRegister,
         onNavigateToFriendActivity = onNavigateToFriendActivity,
         onNavigateToSharedWithYou = onNavigateToSharedWithYou,
+        onNavigateToFollowingUsers = onNavigateToFollowingUsers,
         onNavigateToJoinSession = onNavigateToJoinSession,
         onNavigateToPlugins = onNavigateToPlugins,
         onNavigateToHistory = onNavigateToHistory,
@@ -129,6 +132,7 @@ private fun YouContent(
     onNavigateToRegister: () -> Unit,
     onNavigateToFriendActivity: () -> Unit,
     onNavigateToSharedWithYou: () -> Unit,
+    onNavigateToFollowingUsers: () -> Unit,
     onNavigateToJoinSession: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -196,6 +200,7 @@ private fun YouContent(
                         signedIn = signedIn,
                         onFriendActivity = onNavigateToFriendActivity,
                         onSharedWithYou = onNavigateToSharedWithYou,
+                        onFollowing = onNavigateToFollowingUsers,
                         onJoinJam = onNavigateToJoinSession,
                         onSignIn = onNavigateToSignIn,
                     )
@@ -391,6 +396,7 @@ private fun SocialCard(
     signedIn: Boolean,
     onFriendActivity: () -> Unit,
     onSharedWithYou: () -> Unit,
+    onFollowing: () -> Unit,
     onJoinJam: () -> Unit,
     onSignIn: () -> Unit,
 ) {
@@ -408,6 +414,13 @@ private fun SocialCard(
             )
             InsetDivider()
             SurfaceCardRow(
+                title = stringResource(R.string.you_following_users),
+                subtitle = stringResource(R.string.you_following_users_subtitle),
+                leadingIcon = Icons.Rounded.PersonAdd,
+                onClick = onFollowing,
+            )
+            InsetDivider()
+            SurfaceCardRow(
                 title = stringResource(R.string.you_shared_with_you),
                 subtitle = stringResource(R.string.you_shared_with_you_subtitle),
                 leadingIcon = Icons.Rounded.Inbox,
@@ -421,6 +434,12 @@ private fun SocialCard(
             LockedRow(
                 title = stringResource(R.string.you_friend_activity),
                 leadingIcon = Icons.Rounded.Group,
+                onClick = onSignIn,
+            )
+            InsetDivider()
+            LockedRow(
+                title = stringResource(R.string.you_following_users),
+                leadingIcon = Icons.Rounded.PersonAdd,
                 onClick = onSignIn,
             )
             InsetDivider()

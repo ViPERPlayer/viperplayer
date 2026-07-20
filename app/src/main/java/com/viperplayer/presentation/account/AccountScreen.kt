@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.AlternateEmail
 import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CloudDone
@@ -89,13 +90,21 @@ fun AccountScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val changePasswordSuccessMessage = stringResource(R.string.account_change_password_success)
+    val setHandleSuccessMessage = stringResource(R.string.account_set_handle_success)
     var showChangePassword by remember { mutableStateOf(false) }
     var showDeleteAccount by remember { mutableStateOf(false) }
+    var showSetHandle by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.changePasswordSucceeded.collect {
             showChangePassword = false
             snackbarHostState.showSnackbar(changePasswordSuccessMessage)
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.setHandleSucceeded.collect {
+            showSetHandle = false
+            snackbarHostState.showSnackbar(setHandleSuccessMessage)
         }
     }
     Scaffold(
@@ -132,14 +141,17 @@ fun AccountScreen(
                     uiState = uiState,
                     showChangePassword = showChangePassword,
                     showDeleteAccount = showDeleteAccount,
+                    showSetHandle = showSetHandle,
                     onShowChangePassword = { showChangePassword = it },
                     onShowDeleteAccount = { showDeleteAccount = it },
+                    onShowSetHandle = { showSetHandle = it },
                     onClearError = viewModel::clearError,
                     onSignOut = viewModel::signOut,
                     onSyncToggle = viewModel::setSyncEnabled,
                     onSyncNow = viewModel::syncNow,
                     onChangePassword = viewModel::changePassword,
                     onDeleteAccount = viewModel::deleteAccount,
+                    onSetHandle = viewModel::setHandle,
                 )
                 else -> SignedOutPrompt(onNavigateToSignIn)
             }
@@ -168,14 +180,17 @@ private fun SignedInContent(
     uiState: AccountUiState,
     showChangePassword: Boolean,
     showDeleteAccount: Boolean,
+    showSetHandle: Boolean,
     onShowChangePassword: (Boolean) -> Unit,
     onShowDeleteAccount: (Boolean) -> Unit,
+    onShowSetHandle: (Boolean) -> Unit,
     onClearError: () -> Unit,
     onSignOut: () -> Unit,
     onSyncToggle: (Boolean) -> Unit,
     onSyncNow: () -> Unit,
     onChangePassword: (current: String, new: String) -> Unit,
     onDeleteAccount: (password: String) -> Unit,
+    onSetHandle: (handle: String) -> Unit,
 ) {
     val account = uiState.account
     val user = account.user ?: return
@@ -215,6 +230,17 @@ private fun SignedInContent(
             value = user.displayName.ifBlank { stringResource(R.string.account_display_name_unset) },
         )
         InsetDivider()
+        ActionRow(
+            leadingIcon = Icons.Rounded.AlternateEmail,
+            title = user.handle
+                ?.let { stringResource(R.string.account_handle_value, it) }
+                ?: stringResource(R.string.account_set_handle),
+            onClick = {
+                onClearError()
+                onShowSetHandle(true)
+            },
+        )
+        InsetDivider()
         FieldRow(
             leadingIcon = Icons.Rounded.Email,
             label = stringResource(R.string.account_email),
@@ -248,6 +274,18 @@ private fun SignedInContent(
         onShowDeleteAccount(true)
     })
 
+    if (showSetHandle) {
+        SetHandleDialog(
+            currentHandle = user.handle,
+            isSubmitting = uiState.isSubmitting,
+            error = uiState.error,
+            onConfirm = onSetHandle,
+            onDismiss = {
+                onShowSetHandle(false)
+                onClearError()
+            },
+        )
+    }
     if (showChangePassword) {
         ChangePasswordDialog(
             isSubmitting = uiState.isSubmitting,
@@ -517,6 +555,67 @@ private fun DeleteAccountLink(onClick: () -> Unit) {
             textDecoration = TextDecoration.Underline,
         )
     }
+}
+
+/**
+ * In-place set / change `@handle` dialog (no nav route): a single handle field with an `@` prefix,
+ * seeded with the [currentHandle]. Gated on a non-empty entry; the backend enforces the full
+ * `^[a-z0-9_]{3,20}$` shape and rejects invalid (400) / taken (409) handles, surfaced via [error].
+ * Confirming forwards the handle (no leading `@`) to [onConfirm].
+ */
+@Composable
+private fun SetHandleDialog(
+    currentHandle: String?,
+    isSubmitting: Boolean,
+    error: String?,
+    onConfirm: (handle: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var handle by remember { mutableStateOf(currentHandle.orEmpty()) }
+    val canSubmit = handle.isNotBlank() && !isSubmitting
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Rounded.AlternateEmail, contentDescription = null) },
+        title = { Text(stringResource(R.string.account_set_handle)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.account_set_handle_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                AuthTextField(
+                    // Accept an optionally-pasted leading "@" and normalise to lower case; the "@" is
+                    // shown as a fixed prefix via the label, and stripped again below on submit.
+                    value = handle,
+                    onValueChange = { handle = it.removePrefix("@").lowercase() },
+                    label = stringResource(R.string.account_handle_hint),
+                    leadingIcon = Icons.Rounded.AlternateEmail,
+                    keyboardType = KeyboardType.Ascii,
+                )
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(handle.removePrefix("@").trim()) },
+                enabled = canSubmit,
+            ) {
+                Text(stringResource(R.string.account_set_handle_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.account_action_cancel))
+            }
+        },
+    )
 }
 
 /**
