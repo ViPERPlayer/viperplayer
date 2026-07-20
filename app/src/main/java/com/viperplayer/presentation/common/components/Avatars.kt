@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -62,33 +62,39 @@ fun AvatarRing(
     modifier: Modifier = Modifier,
     size: Dp = DefaultAvatarSize,
     hasLiveActivity: Boolean = false,
+    showRing: Boolean = hasLiveActivity,
     content: @Composable () -> Unit,
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val tertiary = MaterialTheme.colorScheme.tertiary
     val liveDescription = stringResource(R.string.cd_avatar_live)
-    val ringModifier = if (hasLiveActivity) {
+    // Draw the gradient identity ring whenever [showRing] — always for profile / signed-in avatars,
+    // and also when live. The "live" a11y label is only announced when [hasLiveActivity].
+    val ringModifier = if (showRing) {
+        Modifier.drawBehind {
+            // A true stroked ring hugging the frame edge, so the gradient shows only as a ring
+            // (never as a disc behind transparent/non-circular slot content).
+            val stroke = RingThickness.toPx()
+            drawCircle(
+                brush = Brush.sweepGradient(listOf(primary, tertiary, primary)),
+                radius = (this.size.minDimension - stroke) / 2f,
+                style = Stroke(width = stroke),
+            )
+        }
+    } else {
         Modifier
-            // Merge the inner avatar's own contentDescription into this node so a screen reader
-            // announces one element ("<name>, live") instead of two separate focus stops.
-            .semantics(mergeDescendants = true) { contentDescription = liveDescription }
-            .drawBehind {
-                // A true stroked ring hugging the frame edge, so the gradient shows only as a ring
-                // (never as a disc behind transparent/non-circular slot content).
-                val stroke = RingThickness.toPx()
-                drawCircle(
-                    brush = Brush.sweepGradient(listOf(primary, tertiary, primary)),
-                    radius = (this.size.minDimension - stroke) / 2f,
-                    style = Stroke(width = stroke),
-                )
-            }
+    }
+    val liveSemantics = if (hasLiveActivity) {
+        // Merge the inner avatar's own contentDescription into this node so a screen reader
+        // announces one element ("<name>, live") instead of two separate focus stops.
+        Modifier.semantics(mergeDescendants = true) { contentDescription = liveDescription }
     } else {
         Modifier
     }
     // Inset the content by ring + gap only when the ring is drawn, leaving a real gap around it.
-    val inset = if (hasLiveActivity) RingThickness + RingGap else 0.dp
+    val inset = if (showRing) RingThickness + RingGap else 0.dp
     Box(
-        modifier = modifier.size(size).then(ringModifier),
+        modifier = modifier.size(size).then(liveSemantics).then(ringModifier),
         contentAlignment = Alignment.Center,
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(inset)) {
@@ -155,7 +161,7 @@ fun PersonGlyphAvatar(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Rounded.Person,
+            imageVector = Icons.Filled.Person,
             contentDescription = stringResource(R.string.cd_avatar),
             tint = contentColor,
             modifier = Modifier.fillMaxSize(),

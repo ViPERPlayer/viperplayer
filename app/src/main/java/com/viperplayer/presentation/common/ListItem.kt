@@ -382,7 +382,7 @@ fun ListItem(
                                 Text(
                                     subtitle,
                                     modifier = Modifier.infiniteBasicMarquee(),
-                                    color = MaterialTheme.colorScheme.secondary,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 12.sp
                                 )
                             }
