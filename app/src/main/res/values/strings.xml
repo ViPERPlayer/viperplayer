@@ -681,6 +681,13 @@
     <string name="downloads_state_running">Downloading… %1$d%%</string>
     <string name="downloads_state_failed">Download failed</string>
     <string name="downloads_state_unsupported">Not available for offline download</string>
+    <!-- Storage summary: "412 MB used" -->
+    <string name="downloads_storage_used">%1$s used</string>
+    <!-- In-progress row detail: "64%% · 2.1 MB/s · FLAC" (parts joined by the app with " · ") -->
+    <string name="downloads_progress_percent">%1$d%%</string>
+    <string name="downloads_progress_speed">%1$s/s</string>
+    <!-- Middle dot separator joining subtitle parts (percent · speed · codec, artist · size · format) -->
+    <string name="downloads_detail_separator"> · </string>
 
     <!-- Sleep timer -->
     <string name="sleep_timer_off">Off</string>
