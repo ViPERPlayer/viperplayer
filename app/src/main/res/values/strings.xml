@@ -894,6 +894,12 @@
     <string name="account_need_account">Don\'t have an account? Create one</string>
     <string name="account_have_account">Already have an account? Sign in</string>
     <string name="account_not_configured">Accounts aren\'t available in this build. A ViPER backend URL must be configured.</string>
+    <!-- Account &amp; sync detail (mockup 5e) -->
+    <string name="account_section_sync">Sync</string>
+    <string name="account_section_details">Details</string>
+    <string name="account_sync_subtitle">Your library is backed up to your account</string>
+    <string name="account_display_name_label">Display name</string>
+    <string name="account_display_name_unset">Not set</string>
 
     <!-- Visual-language primitives (design foundation) -->
     <string name="cd_avatar">Avatar</string>
