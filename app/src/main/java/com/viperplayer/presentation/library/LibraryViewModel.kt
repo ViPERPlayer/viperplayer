@@ -222,6 +222,7 @@ class LibraryViewModel @Inject constructor(
     private fun rebuildUnifiedFeed() {
         _uiState.update {
             it.copy(
+                isLoading = false,
                 unified = buildUnifiedRecencyFeed(
                     songs = rawSongs,
                     albums = rawAlbums,
@@ -371,7 +372,8 @@ class LibraryViewModel @Inject constructor(
                     // it arrives. The songs/playlists loaders collect perpetual flows, so they must run
                     // as independent children rather than sequentially.
                     null -> {
-                        _uiState.update { it.copy(isLoading = false) }
+                        // Keep isLoading = true until the first loader publishes and rebuildUnifiedFeed
+                        // runs; clearing it here would flash the empty state for a frame on cold start.
                         launch { loadSongs(rebuildUnified = true) }
                         launch { loadAlbums(rebuildUnified = true) }
                         launch { loadArtists(rebuildUnified = true) }

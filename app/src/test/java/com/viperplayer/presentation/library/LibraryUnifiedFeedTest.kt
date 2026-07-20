@@ -24,8 +24,10 @@ class LibraryUnifiedFeedTest {
     private fun song(source: String, albumId: MediaId? = null, artistId: MediaId? = null) = Song(
         id = id(source),
         title = source,
-        album = albumId?.let { Album(id = it, name = "album-$it") },
-        artists = artistId?.let { listOf(ArtistRef(name = "artist-$it", id = it)) } ?: emptyList(),
+        // Use the plain `source` string for names — interpolating a MediaId would call
+        // MediaId.toString() -> android.net.Uri.encode, which isn't mocked in a plain JVM test.
+        album = albumId?.let { Album(id = it, name = "album-$source") },
+        artists = artistId?.let { listOf(ArtistRef(name = "artist-$source", id = it)) } ?: emptyList(),
     )
 
     private fun history(song: Song, playedAt: Long) = HistoryEntry(song = song, playedAt = playedAt)
