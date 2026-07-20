@@ -3,6 +3,7 @@ package com.viperplayer.data.librarysync
 import com.viperplayer.data.account.AccountApiResult
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
+import com.viperplayer.domain.account.AccountUser
 import com.viperplayer.domain.librarysync.LibrarySyncResult
 import com.viperplayer.domain.librarysync.SyncedPlaylist
 import com.viperplayer.domain.librarysync.SyncedTrack
