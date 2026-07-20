@@ -38,6 +38,7 @@ import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.FriendActivityScreen
+import com.viperplayer.presentation.social.HostSessionScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
 import com.viperplayer.presentation.social.SharedWithYouScreen
 import com.viperplayer.presentation.you.YouScreen
@@ -195,6 +196,10 @@ data class TagDetails(
 
 @Serializable
 object JoinSession : NavKey
+
+/** "Host a Jam" sheet — start hosting a listen-together session (reached from [JoinSession]). */
+@Serializable
+object HostSession : NavKey
 
 /** The full player. Only ever hosted inside the player bottom sheet's own nested nav stack. */
 @Serializable
@@ -523,9 +528,9 @@ fun ViperNavDisplay(
 }
 
 /**
- * Registers the media-detail destinations (album / artist / playlist / song-info / join-session)
- * shared by the main nav display and the player sheet's nested nav. [navigate] pushes a destination
- * and [goBack] pops the current one — each host supplies its own back stack.
+ * Registers the media-detail destinations (album / artist / playlist / song-info / join-session /
+ * host-session) shared by the main nav display and the player sheet's nested nav. [navigate] pushes a
+ * destination and [goBack] pops the current one — each host supplies its own back stack.
  */
 fun EntryProviderScope<NavKey>.mediaDetailEntries(
     rootPadding: PaddingValues,
@@ -618,6 +623,15 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
         JoinSessionScreen(
             rootPadding = rootPadding,
             onNavigateBack = goBack,
+            onNavigateToHost = { navigate(HostSession) },
+        )
+    }
+
+    entry<HostSession> {
+        HostSessionScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            onNavigateToJoin = { navigate(JoinSession) },
         )
     }
 }
