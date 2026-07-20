@@ -169,7 +169,9 @@ private fun HistoryScreenContent(
                     Column(modifier = Modifier.animateItem()) {
                         if (bucket != prevBucket) {
                             SectionLabel(
-                                text = bucket.label().uppercase(Locale.getDefault()),
+                                // Locale-invariant uppercase for the short section labels; avoids the
+                                // NonObservableLocale lint from reading Locale.getDefault() in composition.
+                                text = bucket.label().uppercase(),
                                 modifier = Modifier.padding(
                                     start = 16.dp,
                                     end = 16.dp,
