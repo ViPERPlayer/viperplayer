@@ -56,6 +56,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.R
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.social.FriendActivityItem
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.AvatarRing
@@ -65,6 +66,7 @@ import com.viperplayer.presentation.common.components.InsetDivider
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.common.components.SurfaceCard
+import com.viperplayer.presentation.common.components.avatarTonesFor
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 
@@ -85,6 +87,7 @@ private val FeedRowDividerInset = 74.dp
 fun FriendActivityScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
+    onJoin: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FriendActivityViewModel = hiltViewModel(),
 ) {
@@ -125,6 +128,7 @@ fun FriendActivityScreen(
             )
             else -> FriendActivityFeed(
                 state = state,
+                onJoin = onJoin,
                 innerPadding = innerPadding,
                 rootPadding = rootPadding,
             )
@@ -135,6 +139,7 @@ fun FriendActivityScreen(
 @Composable
 private fun FriendActivityFeed(
     state: FriendActivityUiState,
+    onJoin: (String) -> Unit,
     innerPadding: PaddingValues,
     rootPadding: PaddingValues,
 ) {
@@ -156,7 +161,7 @@ private fun FriendActivityFeed(
                 SurfaceCard {
                     state.listeningNow.forEachIndexed { index, item ->
                         if (index > 0) InsetDivider(startInset = FeedRowDividerInset)
-                        ListeningNowRow(item = item)
+                        ListeningNowRow(item = item, onJoin = onJoin)
                     }
                 }
             }
@@ -182,7 +187,7 @@ private fun FriendActivityFeed(
 
 /** A "listening now" row: live avatar, name (+ Jam badge), track, and Join pill or play affordance. */
 @Composable
-private fun ListeningNowRow(item: FriendActivityItem.ListeningNow) {
+private fun ListeningNowRow(item: FriendActivityItem.ListeningNow, onJoin: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -218,9 +223,14 @@ private fun ListeningNowRow(item: FriendActivityItem.ListeningNow) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (item.isHosting) {
-            FilledPill(text = stringResource(R.string.friend_activity_join), onClick = {})
-        } else {
+        val joinCode = item.sessionCode
+        if (item.isHosting && joinCode != null) {
+            // Join their Jam — prefills the Join-a-Jam flow with this session's code.
+            FilledPill(
+                text = stringResource(R.string.friend_activity_join),
+                onClick = { onJoin(joinCode) },
+            )
+        } else if (!item.isHosting) {
             ArtworkThumb(
                 artworkUrl = item.track.artworkUrl,
                 contentDescription = null,
@@ -321,7 +331,7 @@ private fun EarlierTrailing(item: FriendActivityItem) {
             )
         is FriendActivityItem.FollowedArtist ->
             ArtworkThumb(
-                artworkUrl = item.friend.avatarUrl,
+                artworkUrl = item.artistArtworkUrl,
                 contentDescription = null,
                 size = 40.dp,
                 shape = CircleShape,
@@ -341,6 +351,7 @@ private fun EarlierTrailing(item: FriendActivityItem) {
 fun SharedWithYouScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
+    onPreview: (MediaId) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SharedWithYouViewModel = hiltViewModel(),
 ) {
@@ -374,6 +385,7 @@ fun SharedWithYouScreen(
                 state = state,
                 onSave = viewModel::save,
                 onDismiss = viewModel::dismiss,
+                onPreview = onPreview,
                 innerPadding = innerPadding,
                 rootPadding = rootPadding,
             )
@@ -386,6 +398,7 @@ private fun SharedWithYouInbox(
     state: SharedWithYouUiState,
     onSave: (String) -> Unit,
     onDismiss: (String) -> Unit,
+    onPreview: (MediaId) -> Unit,
     innerPadding: PaddingValues,
     rootPadding: PaddingValues,
 ) {
@@ -408,6 +421,7 @@ private fun SharedWithYouInbox(
                     inviteUi = inviteUi,
                     onSave = { onSave(inviteUi.invite.id) },
                     onDismiss = { onDismiss(inviteUi.invite.id) },
+                    onPreview = { inviteUi.invite.playlistMediaId?.let(onPreview) },
                 )
             }
         }
@@ -436,6 +450,7 @@ private fun NewInviteCard(
     inviteUi: InviteUi,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
+    onPreview: () -> Unit,
 ) {
     val invite = inviteUi.invite
     SurfaceCard(contentPadding = PaddingValues(14.dp)) {
@@ -460,7 +475,11 @@ private fun NewInviteCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SharerAvatar(name = invite.sharerName, avatarUrl = invite.sharerAvatarUrl)
+                    SharerAvatar(
+                        id = invite.sharerId,
+                        name = invite.sharerName,
+                        avatarUrl = invite.sharerAvatarUrl,
+                    )
                     Text(
                         text = stringResource(
                             R.string.shared_with_you_from_meta,
@@ -505,7 +524,7 @@ private fun NewInviteCard(
             )
             CompactActionPill(
                 text = stringResource(R.string.shared_with_you_preview),
-                onClick = {},
+                onClick = onPreview,
                 filled = false,
             )
             IconButton(onClick = onDismiss) {
@@ -596,9 +615,13 @@ private fun FriendAvatar(name: String, live: Boolean) {
     }
 }
 
-/** A small 18dp identity avatar for the sharer meta line. */
+/**
+ * A small 18dp identity avatar for the sharer meta line. The initials fallback is tinted
+ * deterministically from [id] (via [avatarTonesFor]) so each sharer keeps a stable, distinct tone;
+ * [id] falls back to [name] when the backend supplies no stable friend id.
+ */
 @Composable
-private fun SharerAvatar(name: String, avatarUrl: String?) {
+private fun SharerAvatar(id: String, name: String, avatarUrl: String?) {
     val initial = name.firstOrNull()?.uppercase().orEmpty()
     if (avatarUrl != null) {
         AsyncImage(
@@ -612,11 +635,12 @@ private fun SharerAvatar(name: String, avatarUrl: String?) {
     } else if (initial.isEmpty()) {
         PersonGlyphAvatar(size = 18.dp)
     } else {
+        val (container, content) = avatarTonesFor(id.ifBlank { name }, MaterialTheme.colorScheme)
         InitialsAvatar(
             text = initial,
             size = 18.dp,
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            containerColor = container,
+            contentColor = content,
         )
     }
 }

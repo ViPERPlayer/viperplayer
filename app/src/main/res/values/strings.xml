@@ -894,6 +894,10 @@
     <!-- Accessibility label for the per-artist Following chip; %1$s is the artist name. -->
     <string name="following_unfollow_cd">Unfollow %1$s</string>
     <string name="following_empty">You\'re not following any artists yet. Open an artist and tap Follow.</string>
+    <!-- Best-effort "latest release" line under a followed artist; %1$s album name, %2$d release year. -->
+    <string name="following_latest_release">%1$s · %2$d</string>
+    <!-- Latest-release line when the release year is unknown; %1$s is the album name. -->
+    <string name="following_latest_release_no_year">%1$s</string>
 
     <!-- Dynamic (smart) auto-playlists -->
     <string name="auto_playlists_section">Auto-playlists</string>

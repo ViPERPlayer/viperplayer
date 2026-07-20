@@ -58,6 +58,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -66,11 +67,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.google.zxing.qrcode.encoder.Encoder
 import com.viperplayer.R
 import com.viperplayer.domain.model.SessionParticipant
 import com.viperplayer.presentation.common.components.InitialsAvatar
+import com.viperplayer.presentation.common.components.avatarTonesFor
 
 /**
  * "Host a Jam" — the host counterpart to [JoinSessionScreen]. Renders as a bottom sheet over a dimmed
@@ -189,7 +192,11 @@ private fun HostSheet(
         if (session == null) {
             StartingState()
         } else {
-            NowPlayingCard()
+            NowPlayingCard(
+                title = state.nowPlaying?.title,
+                artist = state.nowPlaying?.artist,
+                artworkUrl = state.nowPlaying?.artworkUrl?.ifBlank { null },
+            )
             Spacer(Modifier.height(14.dp))
             ListenersRow(participants = session.participants)
             Spacer(Modifier.height(14.dp))
@@ -356,10 +363,16 @@ private fun StartingState() {
 /**
  * The now-playing card + HOSTING badge. When a shared track exists ([title] non-null) it shows the
  * artwork slot with a two-line title/artist layout; otherwise it falls back to the placeholder (the
- * sync engine seeds a track only once the host plays into the session).
+ * sync engine seeds a track only once the host plays into the session). [artworkUrl] renders in the
+ * artwork slot when present, falling back to the MusicNote placeholder when null (mock/offline builds
+ * leave the shared playback — and so the artwork — null).
  */
 @Composable
-private fun NowPlayingCard(title: String? = null, artist: String? = null) {
+private fun NowPlayingCard(
+    title: String? = null,
+    artist: String? = null,
+    artworkUrl: String? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -376,12 +389,21 @@ private fun NowPlayingCard(title: String? = null, artist: String? = null) {
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
+            if (artworkUrl != null) {
+                AsyncImage(
+                    model = artworkUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
         if (title == null) {
             Text(
@@ -436,19 +458,15 @@ private fun NowPlayingCard(title: String? = null, artist: String? = null) {
 private fun ListenersRow(participants: List<SessionParticipant>) {
     // Everyone except the local host, in the mockup's overlapping-avatar cluster.
     val others = participants.filterNot { it.isSelf }
-    // A small rotating palette so overlapping avatars read as distinct people rather than one repeated
-    // tone. Cycled by index — mirrors the mockup's rose / lilac / neutral trio.
-    val avatarTones = listOf(
-        MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer,
-        MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer,
-        MaterialTheme.colorScheme.surfaceContainerHighest to MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    // Per-person deterministic tint (keyed on the participant id) so the same listener always reads as
+    // the same tone rather than shifting with list position.
+    val scheme = MaterialTheme.colorScheme
     val and = stringResource(R.string.list_conjunction_and)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         if (others.isNotEmpty()) {
             Row {
                 others.take(3).forEachIndexed { index, participant ->
-                    val (container, content) = avatarTones[index % avatarTones.size]
+                    val (container, content) = avatarTonesFor(participant.id, scheme)
                     // Overlap each avatar onto its left neighbour by 10dp, matching the mockup cluster.
                     Box(
                         modifier = Modifier

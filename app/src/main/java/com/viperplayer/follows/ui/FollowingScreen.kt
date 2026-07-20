@@ -77,7 +77,7 @@ fun FollowingScreen(
     modifier: Modifier = Modifier,
     viewModel: FollowingViewModel = hiltViewModel(),
 ) {
-    val artists by viewModel.followedArtists.collectAsStateWithLifecycle()
+    val artists by viewModel.uiModels.collectAsStateWithLifecycle()
 
     FollowingScreenContent(
         artists = artists,
@@ -100,7 +100,7 @@ fun FollowingScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FollowingScreenContent(
-    artists: List<FollowedArtist>,
+    artists: List<FollowingUiModel>,
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onArtistClick: (FollowedArtist) -> Unit,
@@ -154,12 +154,12 @@ fun FollowingScreenContent(
                 }
                 items(
                     items = artists,
-                    key = { artist -> artist.mediaId.toString() },
-                ) { artist ->
+                    key = { model -> model.artist.mediaId.toString() },
+                ) { model ->
                     FollowedArtistRow(
-                        artist = artist,
-                        onClick = { onArtistClick(artist) },
-                        onUnfollow = { onUnfollow(artist.mediaId) },
+                        model = model,
+                        onClick = { onArtistClick(model.artist) },
+                        onUnfollow = { onUnfollow(model.artist.mediaId) },
                     )
                 }
             }
@@ -168,17 +168,18 @@ fun FollowingScreenContent(
 }
 
 /**
- * A single followed-artist row: circular avatar, name, and a "Following" chip. Tapping the row body
- * opens the artist; tapping the chip (or long-pressing the row) opens the unfollow menu, preserving
- * the original screen's affordances.
+ * A single followed-artist row: circular avatar, name (plus an optional best-effort latest-release
+ * line), and a "Following" chip. Tapping the row body opens the artist; tapping the chip (or
+ * long-pressing the row) opens the unfollow menu, preserving the original screen's affordances.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FollowedArtistRow(
-    artist: FollowedArtist,
+    model: FollowingUiModel,
     onClick: () -> Unit,
     onUnfollow: () -> Unit,
 ) {
+    val artist = model.artist
     var menuExpanded by remember { mutableStateOf(false) }
 
     Row(
@@ -193,15 +194,31 @@ private fun FollowedArtistRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ArtistAvatar(name = artist.name, artworkUrl = artist.artworkUrl)
-        Text(
-            text = artist.name,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = artist.name,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val release = model.latestRelease
+            if (release != null) {
+                Text(
+                    text = if (release.year != null) {
+                        stringResource(R.string.following_latest_release, release.albumName, release.year)
+                    } else {
+                        stringResource(R.string.following_latest_release_no_year, release.albumName)
+                    },
+                    modifier = Modifier.padding(top = 2.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Box {
             FollowingChip(
                 onClick = { menuExpanded = true },

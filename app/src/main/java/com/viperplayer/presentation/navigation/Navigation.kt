@@ -40,6 +40,7 @@ import com.viperplayer.presentation.home.HomeScreen
 import com.viperplayer.presentation.social.FriendActivityScreen
 import com.viperplayer.presentation.social.HostSessionScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
+import com.viperplayer.presentation.social.JoinSessionViewModel
 import com.viperplayer.presentation.social.SharedWithYouScreen
 import com.viperplayer.presentation.you.YouScreen
 import com.viperplayer.presentation.library.CustomizeTabsScreen
@@ -194,8 +195,12 @@ data class TagDetails(
     val initialTitle: String = "",
 ) : NavKey
 
+/**
+ * "Join a Jam" — the guest join flow. [prefillCode] seeds the manual code field (e.g. when arriving
+ * from a friend's "Join" affordance); null means an empty field (the normal scan/type entry).
+ */
 @Serializable
-object JoinSession : NavKey
+data class JoinSession(val prefillCode: String? = null) : NavKey
 
 /** "Host a Jam" sheet — start hosting a listen-together session (reached from [JoinSession]). */
 @Serializable
@@ -319,7 +324,7 @@ fun ViperNavDisplay(
                 onNavigateToRegister = { navigator.navigate(Register) },
                 onNavigateToFriendActivity = { navigator.navigate(FriendActivity) },
                 onNavigateToSharedWithYou = { navigator.navigate(SharedWithYou) },
-                onNavigateToJoinSession = { navigator.navigate(JoinSession) },
+                onNavigateToJoinSession = { navigator.navigate(JoinSession()) },
                 onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToHistory = { navigator.navigate(History) },
                 onNavigateToListeningStats = { navigator.navigate(ListeningStats) },
@@ -351,6 +356,7 @@ fun ViperNavDisplay(
             FriendActivityScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
+                onJoin = { code -> navigator.navigate(JoinSession(prefillCode = code)) },
             )
         }
 
@@ -358,6 +364,7 @@ fun ViperNavDisplay(
             SharedWithYouScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
+                onPreview = { mediaId -> navigator.navigate(PlaylistDetail(playlistId = mediaId)) },
             )
         }
 
@@ -619,11 +626,15 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
         )
     }
 
-    entry<JoinSession> {
+    entry<JoinSession> { key ->
+        val viewModel = hiltViewModel<JoinSessionViewModel, JoinSessionViewModel.Factory>(
+            creationCallback = { factory -> factory.create(key) }
+        )
         JoinSessionScreen(
             rootPadding = rootPadding,
             onNavigateBack = goBack,
             onNavigateToHost = { navigate(HostSession) },
+            viewModel = viewModel,
         )
     }
 
@@ -631,7 +642,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
         HostSessionScreen(
             rootPadding = rootPadding,
             onNavigateBack = goBack,
-            onNavigateToJoin = { navigate(JoinSession) },
+            onNavigateToJoin = { navigate(JoinSession()) },
         )
     }
 }
@@ -676,7 +687,7 @@ fun PlayerBottomSheetNavHost(
                 onNavigateToPlaylist = { playlistId, name, artworkUrl ->
                     navigate(PlaylistDetail(playlistId, name, artworkUrl))
                 },
-                onNavigateToJoinSession = { navigate(JoinSession) },
+                onNavigateToJoinSession = { navigate(JoinSession()) },
                 onCollapse = onDismiss,
             )
         }
