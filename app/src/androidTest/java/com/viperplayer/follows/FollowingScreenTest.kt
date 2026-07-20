@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.follows.domain.FollowedArtist
 import com.viperplayer.follows.ui.FollowingScreenContent
+import com.viperplayer.follows.ui.FollowingUiModel
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -27,11 +28,14 @@ class FollowingScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private fun artist(sourceId: String, name: String) = FollowedArtist(
-        mediaId = MediaId("plugin", sourceId),
-        name = name,
-        artworkUrl = null,
-        followedAt = sourceId.toLong(),
+    private fun artist(sourceId: String, name: String) = FollowingUiModel(
+        artist = FollowedArtist(
+            mediaId = MediaId("plugin", sourceId),
+            name = name,
+            artworkUrl = null,
+            followedAt = sourceId.toLong(),
+        ),
+        latestRelease = null,
     )
 
     @Test
@@ -96,7 +100,7 @@ class FollowingScreenTest {
                 onArtistClick = {},
                 onUnfollow = { id ->
                     unfollowed = id
-                    artists = artists.filterNot { it.mediaId == id }
+                    artists = artists.filterNot { it.artist.mediaId == id }
                 },
             )
         }

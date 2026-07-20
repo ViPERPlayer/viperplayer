@@ -3,6 +3,7 @@ package com.viperplayer.presentation.social
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.ListenSession
+import com.viperplayer.domain.model.SessionTrack
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,8 +44,20 @@ class HostSessionViewModel @Inject constructor(
      * flags. Shared while subscribed so the sheet gets the latest value when it opens.
      */
     val state: StateFlow<HostSessionUiState> =
-        combine(repository.currentSession, _starting, _error, _ended) { session, starting, error, ended ->
-            HostSessionUiState(session = session, starting = starting, error = error, ended = ended)
+        combine(
+            repository.currentSession,
+            repository.playback,
+            _starting,
+            _error,
+            _ended,
+        ) { session, playback, starting, error, ended ->
+            HostSessionUiState(
+                session = session,
+                nowPlaying = playback?.track,
+                starting = starting,
+                error = error,
+                ended = ended,
+            )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -94,6 +107,12 @@ class HostSessionViewModel @Inject constructor(
 /** Host-side UI state for the [HostSessionScreen] sheet. */
 data class HostSessionUiState(
     val session: ListenSession? = null,
+    /**
+     * The track currently shared into the session (from the sync engine's playback state), or null
+     * when nothing is loaded yet — the now-playing card then shows its placeholder. Always null on the
+     * mock/offline path (the mock leaves [ListenTogetherRepository.playback] null).
+     */
+    val nowPlaying: SessionTrack? = null,
     val starting: Boolean = false,
     val error: String? = null,
     /** Set once the host ends the session — the screen observes this to navigate away. */

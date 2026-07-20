@@ -4,13 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.ListenSession
 import com.viperplayer.domain.repository.ListenTogetherRepository
+import com.viperplayer.presentation.navigation.JoinSession
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class JoinSessionUiState(
     val code: String = "",
@@ -23,13 +26,29 @@ data class JoinSessionUiState(
     val isComplete: Boolean get() = code.length >= codeLength
 }
 
-@HiltViewModel
-class JoinSessionViewModel @Inject constructor(
+@HiltViewModel(assistedFactory = JoinSessionViewModel.Factory::class)
+class JoinSessionViewModel @AssistedInject constructor(
+    @Assisted private val route: JoinSession,
     private val repository: ListenTogetherRepository,
 ) : ViewModel() {
 
+    @AssistedFactory
+    interface Factory {
+        fun create(route: JoinSession): JoinSessionViewModel
+    }
+
     private val _state = MutableStateFlow(JoinSessionUiState(codeLength = repository.codeLength))
     val state: StateFlow<JoinSessionUiState> = _state.asStateFlow()
+
+    init {
+        // Seed the manual code from a prefill (e.g. arriving from a friend's "Join" affordance),
+        // normalising it the same way as a scan. Does NOT auto-join — the guest still taps Join.
+        route.prefillCode?.let { prefill ->
+            val code = repository.parseCode(prefill) ?: prefill
+            val cleaned = code.uppercase().filter { it.isLetterOrDigit() }.take(repository.codeLength)
+            if (cleaned.isNotEmpty()) _state.update { it.copy(code = cleaned) }
+        }
+    }
 
     /** User typed/edited the manual code — keep only allowed characters, cap at the code length. */
     fun onCodeChange(raw: String) {
