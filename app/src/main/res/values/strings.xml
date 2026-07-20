@@ -961,9 +961,41 @@
     <string name="auth_password_req_length">At least 8 characters</string>
     <string name="auth_register_footnote">Your library stays on-device until you turn on sync.</string>
 
-    <!-- Friend-activity / Shared-with-you placeholder screens -->
+    <!-- Friend-activity / Shared-with-you screens -->
     <string name="friend_activity_title">Friend activity</string>
     <string name="friend_activity_empty">No activity yet. When friends listen, like or share, it shows up here.</string>
     <string name="shared_with_you_title">Shared with you</string>
     <string name="shared_with_you_empty">Nothing shared yet. Playlists friends send you land here.</string>
+
+    <!-- Social feed: gated (backend off) state -->
+    <string name="social_disabled_title">Social is off</string>
+    <string name="social_disabled_body">Friend activity and shared playlists appear here once a ViPER account is connected.</string>
+
+    <!-- Friend-activity feed sections + rows -->
+    <string name="friend_activity_section_listening_now">LISTENING NOW</string>
+    <string name="friend_activity_section_earlier">EARLIER</string>
+    <string name="friend_activity_in_a_jam">In a Jam</string>
+    <string name="friend_activity_join">Join</string>
+    <string name="friend_activity_track_line">%1$s — %2$s</string>
+    <string name="friend_activity_shared_playlist">%1$s shared a playlist · %2$s</string>
+    <string name="friend_activity_liked_song">%1$s liked a song · %2$s</string>
+    <string name="friend_activity_followed_artist">%1$s followed an artist · %2$s</string>
+    <string name="friend_activity_invite">Invite friends</string>
+    <string name="friend_activity_cd_play">Play</string>
+    <string name="friend_activity_cd_liked">Liked</string>
+
+    <!-- Shared-with-you inbox sections + actions -->
+    <string name="shared_with_you_section_new">NEW</string>
+    <string name="shared_with_you_section_earlier">EARLIER</string>
+    <string name="shared_with_you_save_to_library">Save to library</string>
+    <string name="shared_with_you_preview">Preview</string>
+    <string name="shared_with_you_saved">Saved</string>
+    <string name="shared_with_you_cd_dismiss">Dismiss</string>
+    <string name="shared_with_you_from_meta">from %1$s · %2$s · %3$s</string>
+    <string name="shared_with_you_from_short">from %1$s · %2$s</string>
+    <string name="shared_with_you_note">\"%1$s\"</string>
+    <plurals name="shared_with_you_song_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
 </resources>
