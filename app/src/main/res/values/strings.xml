@@ -135,6 +135,29 @@
     <string name="library_customize_tabs_reset">Reset to default</string>
     <string name="library_customize_tabs_show">Show %1$s</string>
     <string name="library_customize_tabs_hide">Hide %1$s</string>
+    <string name="library_search">Search</string>
+    <string name="library_more_options">More options</string>
+    <string name="library_liked">Liked</string>
+    <string name="library_empty_songs">No songs in your library</string>
+    <string name="library_empty_albums">No albums in your library</string>
+    <string name="library_empty_artists">No artists in your library</string>
+    <string name="library_empty_playlists">No playlists in your library</string>
+    <plurals name="library_song_count">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+    <plurals name="library_album_count">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+    <plurals name="library_artist_count">
+        <item quantity="one">%d artist</item>
+        <item quantity="other">%d artists</item>
+    </plurals>
+    <plurals name="library_playlist_count">
+        <item quantity="one">%d playlist</item>
+        <item quantity="other">%d playlists</item>
+    </plurals>
     <!-- Player -->
     <string name="player_no_song">No song playing</string>
     <string name="player_collapse">Collapse player</string>
