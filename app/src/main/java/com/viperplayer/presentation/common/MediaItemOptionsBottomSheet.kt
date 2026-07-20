@@ -15,18 +15,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,18 +55,23 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.navigableAlbum
 import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.domain.model.toEntity
-import com.viperplayer.presentation.common.components.InsetDivider
-import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.player.PlayerViewModel
 
 private const val HeaderArtworkCorner = 14
 private const val TileCorner = 16
+private const val CardCorner = 20
 private const val LikeButtonSize = 44
 private const val NavThumbSize = 30
+private const val AlbumThumbCorner = 7
+
+/** Divider inset (mockup: `margin-left: 50px`) and alpha (mockup: `rgba(73,69,79,0.55)`). */
+private const val DividerStartInset = 50
+private const val DividerAlpha = 0.55f
 
 /**
  * Material 3 expressive bottom sheet showing options for a media item (mockup 6a): a rich header,
- * a row of quick-action tiles for the primary four actions, and grouped cards for the rest.
+ * a row of quick-action tiles for the primary four actions, and grouped cards for the rest. Cards
+ * and tiles sit one tone above the sheet background (surfaceContainerHigh over surfaceContainer).
  */
 @Composable
 fun MediaItemOptionsBottomSheet(
@@ -95,7 +100,7 @@ fun MediaItemOptionsBottomSheet(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         when (item) {
             is Song -> {
@@ -107,10 +112,10 @@ fun MediaItemOptionsBottomSheet(
                     onLike = onLike
                 )
                 QuickActionRow(
-                    QuickAction(Icons.Filled.SkipNext, stringResource(R.string.action_play_next), onPlayNext),
-                    QuickAction(Icons.Filled.Add, stringResource(R.string.action_add_to_queue), onAddToQueue),
-                    QuickAction(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.action_add_to_playlist), onAddToPlaylist),
-                    QuickAction(Icons.Filled.Share, stringResource(R.string.action_share), onShare),
+                    QuickAction(Icons.Rounded.SkipNext, stringResource(R.string.action_play_next), onPlayNext),
+                    QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, stringResource(R.string.options_tile_queue), onAddToQueue),
+                    QuickAction(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.options_tile_playlist), onAddToPlaylist),
+                    QuickAction(Icons.Rounded.IosShare, stringResource(R.string.action_share), onShare),
                 )
                 SongGroupedCards(
                     song = item,
@@ -125,10 +130,10 @@ fun MediaItemOptionsBottomSheet(
             is Album -> {
                 AlbumHeader(album = item)
                 QuickActionRow(
-                    QuickAction(Icons.Filled.PlayArrow, stringResource(R.string.action_play), onPlay),
-                    QuickAction(Icons.Filled.Shuffle, stringResource(R.string.action_shuffle), onShuffle),
-                    QuickAction(Icons.Filled.Add, stringResource(R.string.action_add_to_queue), onAddToQueue),
-                    QuickAction(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.action_add_to_playlist), onAddToPlaylist),
+                    QuickAction(Icons.Rounded.PlayArrow, stringResource(R.string.action_play), onPlay),
+                    QuickAction(Icons.Rounded.Shuffle, stringResource(R.string.action_shuffle), onShuffle),
+                    QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, stringResource(R.string.options_tile_queue), onAddToQueue),
+                    QuickAction(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.options_tile_playlist), onAddToPlaylist),
                 )
                 AlbumGroupedCards(
                     onStartRadio = onStartRadio,
@@ -141,13 +146,13 @@ fun MediaItemOptionsBottomSheet(
             is Artist -> {
                 ArtistHeader(artist = item)
                 QuickActionRow(
-                    QuickAction(Icons.Filled.Radio, stringResource(R.string.action_start_radio), onStartRadio),
-                    QuickAction(Icons.Filled.Share, stringResource(R.string.action_share), onShare),
+                    QuickAction(Icons.Rounded.Radio, stringResource(R.string.action_start_radio), onStartRadio),
+                    QuickAction(Icons.Rounded.IosShare, stringResource(R.string.action_share), onShare),
                 )
-                SurfaceCard {
+                GroupedCard {
                     NavigationRow(
                         title = stringResource(R.string.action_details),
-                        leadingIcon = Icons.Filled.Info,
+                        leadingIcon = Icons.Rounded.Info,
                         onClick = onViewDetails
                     )
                 }
@@ -162,10 +167,10 @@ fun MediaItemOptionsBottomSheet(
                     onLike = onLike
                 )
                 QuickActionRow(
-                    QuickAction(Icons.Filled.PlayArrow, stringResource(R.string.action_play), onPlay),
-                    QuickAction(Icons.Filled.Shuffle, stringResource(R.string.action_shuffle), onShuffle),
-                    QuickAction(Icons.Filled.Add, stringResource(R.string.action_add_to_queue), onAddToQueue),
-                    QuickAction(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.action_add_to_playlist), onAddToPlaylist),
+                    QuickAction(Icons.Rounded.PlayArrow, stringResource(R.string.action_play), onPlay),
+                    QuickAction(Icons.Rounded.Shuffle, stringResource(R.string.action_shuffle), onShuffle),
+                    QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, stringResource(R.string.options_tile_queue), onAddToQueue),
+                    QuickAction(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.options_tile_playlist), onAddToPlaylist),
                 )
                 PlaylistGroupedCards(
                     onStartRadio = onStartRadio,
@@ -252,8 +257,10 @@ private fun HeaderScaffold(
     trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
@@ -267,7 +274,7 @@ private fun HeaderScaffold(
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -275,9 +282,10 @@ private fun HeaderScaffold(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 2,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
@@ -288,7 +296,7 @@ private fun HeaderScaffold(
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -304,16 +312,16 @@ private fun HeaderScaffold(
 private fun ExplicitBadge() {
     Box(
         modifier = Modifier
-            .size(18.dp)
-            .clip(RoundedCornerShape(4.dp))
+            .size(15.dp)
+            .clip(RoundedCornerShape(3.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "E",
-            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            lineHeight = 10.sp,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -333,9 +341,10 @@ private fun LikeButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
             contentDescription = stringResource(R.string.action_like),
-            tint = if (isLiked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+            tint = if (isLiked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(21.dp)
         )
     }
 }
@@ -379,7 +388,7 @@ private data class QuickAction(
 private fun QuickActionRow(vararg actions: QuickAction) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         actions.forEach { action ->
             QuickActionTile(
@@ -401,23 +410,24 @@ private fun QuickActionTile(
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = action.onClick)
             .defaultMinSize(minHeight = 64.dp)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
+            .padding(vertical = 13.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
+        verticalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterVertically)
     ) {
         Icon(
             imageVector = action.icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(24.dp)
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp)
         )
         Text(
             text = action.label,
             fontSize = 11.5.sp,
             lineHeight = 13.sp,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }
@@ -426,6 +436,34 @@ private fun QuickActionTile(
 // ---------------------------------------------------------------------------------------------
 // Grouped cards
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * A grouped card in the mockup's visual language: rounded panel filled with surfaceContainerHigh
+ * (one tone above the sheet background), stacking rows separated by [RowDivider]s.
+ */
+@Composable
+private fun GroupedCard(content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(CardCorner.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        content()
+    }
+}
+
+/** A 1dp hairline between grouped-card rows: outlineVariant at ~55% alpha, inset 50dp from start. */
+@Composable
+private fun RowDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = DividerStartInset.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = DividerAlpha))
+    )
+}
 
 @Composable
 private fun SongGroupedCards(
@@ -437,17 +475,17 @@ private fun SongGroupedCards(
     onViewDetails: () -> Unit
 ) {
     // Utility card: Start radio + Download.
-    SurfaceCard {
+    GroupedCard {
         NavigationRow(
             title = stringResource(R.string.action_start_radio),
-            leadingIcon = Icons.Filled.Radio,
+            leadingIcon = Icons.Rounded.Radio,
             onClick = onStartRadio,
             chevron = false
         )
-        InsetDivider()
+        RowDivider()
         NavigationRow(
             title = stringResource(R.string.action_download),
-            leadingIcon = Icons.Filled.Download,
+            leadingIcon = Icons.Rounded.Download,
             onClick = onDownload,
             chevron = false,
             // Download size string when known, else no trailing. The domain Song exposes no byte
@@ -459,18 +497,21 @@ private fun SongGroupedCards(
     // Navigation card: only the rows that exist for this song.
     val navigableArtist = song.navigableArtist()
     val navigableAlbum = song.navigableAlbum()
-    SurfaceCard {
-        if (onViewArtist != null && navigableArtist != null) {
+    val hasArtist = onViewArtist != null && navigableArtist != null
+    val hasAlbum = onViewAlbum != null && navigableAlbum != null
+    GroupedCard {
+        if (hasArtist) {
             NavigationRow(
                 title = stringResource(R.string.action_view_artist),
+                // ArtistRef byline carries no image URL; the round thumb shows a placeholder.
                 thumbUrl = null,
                 thumbCircular = true,
                 onClick = onViewArtist,
                 trailingText = navigableArtist.name
             )
         }
-        if (onViewAlbum != null && navigableAlbum != null) {
-            if (onViewArtist != null && navigableArtist != null) InsetDivider()
+        if (hasAlbum) {
+            if (hasArtist) RowDivider()
             NavigationRow(
                 title = stringResource(R.string.action_view_album),
                 thumbUrl = navigableAlbum.artworkUrl,
@@ -479,12 +520,12 @@ private fun SongGroupedCards(
                 trailingText = navigableAlbum.name
             )
         }
-        if ((onViewArtist != null && navigableArtist != null) || (onViewAlbum != null && navigableAlbum != null)) {
-            InsetDivider()
+        if (hasArtist || hasAlbum) {
+            RowDivider()
         }
         NavigationRow(
             title = stringResource(R.string.action_details),
-            leadingIcon = Icons.Filled.Info,
+            leadingIcon = Icons.Rounded.Info,
             onClick = onViewDetails
         )
     }
@@ -498,24 +539,24 @@ private fun AlbumGroupedCards(
     onViewDetails: () -> Unit
 ) {
     // Utility card: Start radio + Share (the remaining non-tile actions).
-    SurfaceCard {
+    GroupedCard {
         NavigationRow(
             title = stringResource(R.string.action_start_radio),
-            leadingIcon = Icons.Filled.Radio,
+            leadingIcon = Icons.Rounded.Radio,
             onClick = onStartRadio,
             chevron = false
         )
-        InsetDivider()
+        RowDivider()
         NavigationRow(
             title = stringResource(R.string.action_share),
-            leadingIcon = Icons.Filled.Share,
+            leadingIcon = Icons.Rounded.IosShare,
             onClick = onShare,
             chevron = false
         )
     }
 
     // Navigation card: Go to artist (when linked) + Details.
-    SurfaceCard {
+    GroupedCard {
         if (onViewArtist != null) {
             NavigationRow(
                 title = stringResource(R.string.action_view_artist),
@@ -523,11 +564,11 @@ private fun AlbumGroupedCards(
                 thumbCircular = true,
                 onClick = onViewArtist
             )
-            InsetDivider()
+            RowDivider()
         }
         NavigationRow(
             title = stringResource(R.string.action_details),
-            leadingIcon = Icons.Filled.Info,
+            leadingIcon = Icons.Rounded.Info,
             onClick = onViewDetails
         )
     }
@@ -540,24 +581,24 @@ private fun PlaylistGroupedCards(
     onShare: () -> Unit
 ) {
     // Utility card: the remaining non-tile actions (Start radio, Play next, Share).
-    SurfaceCard {
+    GroupedCard {
         NavigationRow(
             title = stringResource(R.string.action_start_radio),
-            leadingIcon = Icons.Filled.Radio,
+            leadingIcon = Icons.Rounded.Radio,
             onClick = onStartRadio,
             chevron = false
         )
-        InsetDivider()
+        RowDivider()
         NavigationRow(
             title = stringResource(R.string.action_play_next),
-            leadingIcon = Icons.Filled.SkipNext,
+            leadingIcon = Icons.Rounded.SkipNext,
             onClick = onPlayNext,
             chevron = false
         )
-        InsetDivider()
+        RowDivider()
         NavigationRow(
             title = stringResource(R.string.action_share),
-            leadingIcon = Icons.Filled.Share,
+            leadingIcon = Icons.Rounded.IosShare,
             onClick = onShare,
             chevron = false
         )
@@ -565,8 +606,8 @@ private fun PlaylistGroupedCards(
 }
 
 /**
- * A single grouped-card row. Leads with either an icon or a 30dp thumb, ends with an optional
- * trailing label and/or a [ChevronRight] (chevron shown for navigation rows).
+ * A single grouped-card row. Leads with either a 21dp icon or a 30dp artwork thumb, ends with an
+ * optional trailing context label and/or a [ChevronRight] (chevron shown for navigation rows).
  */
 @Composable
 private fun NavigationRow(
@@ -584,7 +625,7 @@ private fun NavigationRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .defaultMinSize(minHeight = 44.dp)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -593,20 +634,21 @@ private fun NavigationRow(
                 imageVector = leadingIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(21.dp)
             )
             else -> AsyncImage(
                 model = thumbUrl,
                 contentDescription = null,
                 modifier = Modifier
                     .size(NavThumbSize.dp)
-                    .clip(if (thumbCircular) CircleShape else RoundedCornerShape(6.dp)),
+                    .clip(if (thumbCircular) CircleShape else RoundedCornerShape(AlbumThumbCorner.dp)),
                 contentScale = ContentScale.Crop
             )
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
+            fontSize = 14.5.sp,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -616,7 +658,7 @@ private fun NavigationRow(
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = trailingText,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.End,
                 maxLines = 1,
@@ -628,8 +670,8 @@ private fun NavigationRow(
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(20.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
