@@ -69,7 +69,9 @@ fun AvatarRing(
     val liveDescription = stringResource(R.string.cd_avatar_live)
     val ringModifier = if (hasLiveActivity) {
         Modifier
-            .semantics { contentDescription = liveDescription }
+            // Merge the inner avatar's own contentDescription into this node so a screen reader
+            // announces one element ("<name>, live") instead of two separate focus stops.
+            .semantics(mergeDescendants = true) { contentDescription = liveDescription }
             .drawBehind {
                 // A true stroked ring hugging the frame edge, so the gradient shows only as a ring
                 // (never as a disc behind transparent/non-circular slot content).
