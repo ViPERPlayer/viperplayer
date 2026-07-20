@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.downloads
 
+import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem as Material3ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -31,10 +33,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -74,11 +79,18 @@ fun DownloadsScreen(
 ) {
     val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
+    val storageBytes by viewModel.storageBytes.collectAsStateWithLifecycle()
+    val fileInfo by viewModel.fileInfo.collectAsStateWithLifecycle()
+    val inFlightTitles by viewModel.inFlightTitles.collectAsStateWithLifecycle()
 
     DownloadsScreenContent(
         rootPadding = rootPadding,
         downloadedSongs = downloadedSongs,
         downloads = downloads,
+        storageBytes = storageBytes,
+        totalStorageBytes = viewModel.totalStorageBytes,
+        fileInfo = fileInfo,
+        inFlightTitles = inFlightTitles,
         onNavigateBack = onNavigateBack,
         onRemove = viewModel::remove,
         // A failed in-progress row carries only its [MediaId]; re-queueing re-resolves the stream
@@ -94,6 +106,10 @@ private fun DownloadsScreenContent(
     rootPadding: PaddingValues,
     downloadedSongs: List<Song>,
     downloads: Map<MediaId, DownloadManager.DownloadProgress>,
+    storageBytes: Long,
+    totalStorageBytes: Long,
+    fileInfo: Map<MediaId, DownloadFileInfo>,
+    inFlightTitles: Map<MediaId, String>,
     onNavigateBack: () -> Unit,
     onRemove: (MediaId) -> Unit,
     onRetry: (MediaId) -> Unit,
@@ -144,6 +160,8 @@ private fun DownloadsScreenContent(
                 item(key = "storage_summary") {
                     StorageSummaryCard(
                         downloadedCount = downloadedSongs.size,
+                        storageBytes = storageBytes,
+                        totalStorageBytes = totalStorageBytes,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(start = 16.dp, end = 16.dp, top = 4.dp)
@@ -162,6 +180,7 @@ private fun DownloadsScreenContent(
                     items(inProgress, key = { "progress_${it.mediaId}" }) { progress ->
                         InProgressRow(
                             progress = progress,
+                            title = inFlightTitles[progress.mediaId] ?: progress.mediaId.sourceId,
                             onCancel = { onRemove(progress.mediaId) },
                             onRetry = { onRetry(progress.mediaId) },
                             modifier = Modifier
@@ -184,7 +203,7 @@ private fun DownloadsScreenContent(
                         ListItem(
                             title = song.title,
                             badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                            subtitle = song.artistNames,
+                            subtitle = completedSubtitle(song.artistNames, fileInfo[song.id]),
                             isActive = false,
                             leadingContent = {
                                 ListItemLeadingArtwork(
@@ -235,16 +254,29 @@ private val ProgressRingSize = 28.dp
 private val ProgressArtworkCorner = 6.dp
 
 /**
- * The storage-usage summary card at the top of the screen: an SD-card glyph, the count of songs
- * available offline. The count is derived from the already-loaded [downloadedCount]; no IO happens
- * here. The mockup's determinate "412 MB used" usage bar is intentionally omitted: the model
- * exposes no real used/total storage bytes, so a fabricated percentage would be misleading.
+ * The storage-usage summary card at the top of the screen: an SD-card glyph, the "available offline"
+ * label with the song count, a real "<size> used" figure (the sum of the downloaded files on disk),
+ * and a thin usage bar. The bar's fill is a genuine fraction — downloads used / total internal
+ * storage — so it never fabricates a percentage; when the total can't be read ([totalStorageBytes]
+ * == 0) the bar is shown empty (only the "<size> used" text carries the figure).
+ *
+ * All figures arrive pre-computed from the ViewModel; the only work here is formatting bytes for
+ * display (needs a Context/Locale), so no IO or business logic happens in the composable.
  */
 @Composable
 private fun StorageSummaryCard(
     downloadedCount: Int,
+    storageBytes: Long,
+    totalStorageBytes: Long,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val usedText = remember(storageBytes) {
+        Formatter.formatShortFileSize(context, storageBytes)
+    }
+    val fraction =
+        if (totalStorageBytes > 0) (storageBytes.toFloat() / totalStorageBytes).coerceIn(0f, 1f) else 0f
+
     SurfaceCard(
         modifier = modifier,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -273,6 +305,21 @@ private fun StorageSummaryCard(
                 fontSize = 12.sp,
             )
         }
+        Text(
+            text = stringResource(R.string.downloads_storage_used, usedText),
+            modifier = Modifier.padding(top = 10.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+        )
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.outlineVariant,
+        )
     }
 }
 
@@ -280,6 +327,45 @@ private fun StorageSummaryCard(
 @Composable
 private fun pluralSongCount(count: Int): String =
     pluralStringResource(R.plurals.library_song_count, count, count)
+
+/**
+ * The running in-progress detail line — "64% · 2.1 MB/s · FLAC" — built from the live progress
+ * snapshot: percent (always), the throttled transfer rate (only once known), and the codec label
+ * derived from the stream's MIME type (only when recognized). Parts are joined by a middle dot.
+ */
+@Composable
+private fun runningDetail(progress: DownloadManager.DownloadProgress): String {
+    val context = LocalContext.current
+    val separator = stringResource(R.string.downloads_detail_separator)
+    val parts = buildList {
+        add(stringResource(R.string.downloads_progress_percent, (progress.progress * 100).toInt()))
+        if (progress.bytesPerSec > 0) {
+            val speed = Formatter.formatShortFileSize(context, progress.bytesPerSec)
+            add(stringResource(R.string.downloads_progress_speed, speed))
+        }
+        DownloadManager.codecLabelFor(progress.mimeType)?.let { add(it) }
+    }
+    return parts.joinToString(separator)
+}
+
+/**
+ * The completed-row subtitle — "<artist> · <size> · <format>" — joining the artist byline with the
+ * per-file size + format facts (when the file's still on disk). Any missing part is simply dropped,
+ * so a song with no artist or a not-yet-derived [info] still renders cleanly.
+ */
+@Composable
+private fun completedSubtitle(artistNames: String?, info: DownloadFileInfo?): String? {
+    val context = LocalContext.current
+    val separator = stringResource(R.string.downloads_detail_separator)
+    val parts = buildList {
+        artistNames?.let { add(it) }
+        info?.let {
+            add(Formatter.formatShortFileSize(context, it.sizeBytes))
+            it.formatLabel?.let { label -> add(label) }
+        }
+    }
+    return parts.joinToString(separator).takeIf { it.isNotEmpty() }
+}
 
 /**
  * A single in-progress / failed / unsupported download row.
@@ -290,13 +376,14 @@ private fun pluralSongCount(count: Int): String =
  * unsupported the row dims to recede; a genuine failure additionally becomes tappable with a
  * trailing [Icons.Rounded.Refresh] to re-queue it via [onRetry], and its subtitle is error-tinted.
  *
- * The title is the song's [MediaId.sourceId]: a queued/failed row carries only a
- * [DownloadManager.DownloadProgress] (no Song, no real title), so the real title cannot be resolved
- * in the presentation layer here.
+ * [title] is the song's real title resolved locally by the ViewModel (falling back to the source id
+ * for a row whose song isn't in the library). While running, the subtitle is a compact
+ * "percent · speed · codec" detail line built from the live [DownloadManager.DownloadProgress].
  */
 @Composable
 private fun InProgressRow(
     progress: DownloadManager.DownloadProgress,
+    title: String,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
@@ -307,8 +394,7 @@ private fun InProgressRow(
 
     val subtitle = when (progress.state) {
         DownloadManager.State.QUEUED -> stringResource(R.string.downloads_state_queued)
-        DownloadManager.State.RUNNING ->
-            stringResource(R.string.downloads_state_running, (progress.progress * 100).toInt())
+        DownloadManager.State.RUNNING -> runningDetail(progress)
         DownloadManager.State.FAILED -> stringResource(R.string.downloads_failed_retry)
         DownloadManager.State.UNSUPPORTED -> stringResource(R.string.downloads_state_unsupported)
         DownloadManager.State.COMPLETED -> stringResource(R.string.downloads_completed)
@@ -323,7 +409,7 @@ private fun InProgressRow(
     Material3ListItem(
         headlineContent = {
             Text(
-                text = progress.mediaId.sourceId,
+                text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -412,6 +498,10 @@ private fun DownloadsScreenPreview() {
             rootPadding = PaddingValues(0.dp),
             downloadedSongs = emptyList(),
             downloads = emptyMap(),
+            storageBytes = 0L,
+            totalStorageBytes = 0L,
+            fileInfo = emptyMap(),
+            inFlightTitles = emptyMap(),
             onNavigateBack = {},
             onRemove = {},
             onRetry = {},

@@ -48,11 +48,21 @@ class DownloadManager @Inject constructor(
     /** State of a single download. */
     enum class State { QUEUED, RUNNING, COMPLETED, FAILED, UNSUPPORTED }
 
-    /** Progress snapshot for one song's download, keyed by [mediaId] in [downloads]. */
+    /**
+     * Progress snapshot for one song's download, keyed by [mediaId] in [downloads].
+     *
+     * [downloadedBytes]/[totalBytes] are the running byte counters ([totalBytes] is `-1` when the
+     * server sends no `Content-Length`); [bytesPerSec] is the most recent throttled transfer rate;
+     * [mimeType] is the resolved stream's MIME (drives the codec label in the UI).
+     */
     data class DownloadProgress(
         val mediaId: MediaId,
         val state: State,
         val progress: Float,
+        val downloadedBytes: Long = 0L,
+        val totalBytes: Long = -1L,
+        val bytesPerSec: Long = 0L,
+        val mimeType: String? = null,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -66,8 +76,32 @@ class DownloadManager @Inject constructor(
     private val downloadsDir: File
         get() = File(context.filesDir, "downloads").apply { mkdirs() }
 
-    private fun update(mediaId: MediaId, state: State, progress: Float) {
-        _downloads.update { it + (mediaId to DownloadProgress(mediaId, state, progress)) }
+    private fun update(mediaId: MediaId, state: State, progress: Float, mimeType: String? = null) {
+        _downloads.update {
+            it + (mediaId to DownloadProgress(mediaId, state, progress, mimeType = mimeType))
+        }
+    }
+
+    /** Running-progress update carrying live byte counters + transfer rate for the in-progress row. */
+    private fun updateRunning(
+        mediaId: MediaId,
+        progress: Float,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        bytesPerSec: Long,
+        mimeType: String?,
+    ) {
+        _downloads.update {
+            it + (mediaId to DownloadProgress(
+                mediaId = mediaId,
+                state = State.RUNNING,
+                progress = progress,
+                downloadedBytes = downloadedBytes,
+                totalBytes = totalBytes,
+                bytesPerSec = bytesPerSec,
+                mimeType = mimeType,
+            ))
+        }
     }
 
     /**
@@ -109,10 +143,11 @@ class DownloadManager @Inject constructor(
             return
         }
 
-        val target = File(downloadsDir, "${sanitize(mediaId)}.${extensionFor(urlStream.mimeType)}")
+        val mimeType = urlStream.mimeType
+        val target = File(downloadsDir, "${sanitize(mediaId)}.${extensionFor(mimeType)}")
         val result = runCatching {
-            streamToFile(url, urlStream.headers, target) { progress ->
-                update(mediaId, State.RUNNING, progress)
+            streamToFile(url, urlStream.headers, target) { progress, downloadedBytes, totalBytes, bytesPerSec ->
+                updateRunning(mediaId, progress, downloadedBytes, totalBytes, bytesPerSec, mimeType)
             }
         }
 
@@ -129,12 +164,17 @@ class DownloadManager @Inject constructor(
         }
     }
 
-    /** Stream [url] to [target], invoking [onProgress] with a 0..1 fraction (0 when length unknown). */
+    /**
+     * Stream [url] to [target], invoking [onProgress] with the 0..1 fraction (0 when length unknown),
+     * the running downloaded/total byte counters (total is `-1` when unknown) and the transfer rate
+     * in bytes/sec. Progress callbacks are throttled to [PROGRESS_THROTTLE_MS] to avoid flooding the
+     * download StateFlow (the final chunk always emits so the row settles on the true byte count).
+     */
     private suspend fun streamToFile(
         url: String,
         headers: Map<String, String>,
         target: File,
-        onProgress: (Float) -> Unit,
+        onProgress: (progress: Float, downloadedBytes: Long, totalBytes: Long, bytesPerSec: Long) -> Unit,
     ) {
         httpClient.prepareGet(url) {
             headers { headers.forEach { (name, value) -> append(name, value) } }
@@ -143,18 +183,40 @@ class DownloadManager @Inject constructor(
             val channel: ByteReadChannel = response.bodyAsChannel()
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             var readBytes = 0L
+
+            // Throttled speed sampling: measure bytes delta over a >=PROGRESS_THROTTLE_MS window.
+            var windowStartTs = System.currentTimeMillis()
+            var windowStartBytes = 0L
+            var lastEmitTs = windowStartTs
+            var bytesPerSec = 0L
+
             target.outputStream().use { output ->
                 while (!channel.isClosedForRead) {
                     val count = channel.readAvailable(buffer, 0, buffer.size)
                     if (count <= 0) continue
                     output.write(buffer, 0, count)
                     readBytes += count
-                    if (contentLength > 0) {
-                        onProgress((readBytes.toFloat() / contentLength).coerceIn(0f, 1f))
+
+                    val now = System.currentTimeMillis()
+                    if (now - lastEmitTs >= PROGRESS_THROTTLE_MS) {
+                        val elapsedMs = now - windowStartTs
+                        if (elapsedMs > 0) {
+                            bytesPerSec = (readBytes - windowStartBytes) * 1000L / elapsedMs
+                        }
+                        windowStartTs = now
+                        windowStartBytes = readBytes
+                        lastEmitTs = now
+                        val fraction =
+                            if (contentLength > 0) (readBytes.toFloat() / contentLength).coerceIn(0f, 1f) else 0f
+                        onProgress(fraction, readBytes, contentLength, bytesPerSec)
                     }
                 }
                 output.flush()
             }
+            // Final emit so the row reflects the true completed byte count / 100%.
+            val fraction =
+                if (contentLength > 0) (readBytes.toFloat() / contentLength).coerceIn(0f, 1f) else 0f
+            onProgress(fraction, readBytes, contentLength, bytesPerSec)
         }
     }
 
@@ -183,5 +245,30 @@ class DownloadManager @Inject constructor(
         mimeType.contains("ogg", ignoreCase = true) || mimeType.contains("opus", ignoreCase = true) -> "ogg"
         mimeType.contains("wav", ignoreCase = true) -> "wav"
         else -> "bin"
+    }
+
+    companion object {
+        /**
+         * Minimum spacing between running-progress emissions. Bounds the download StateFlow update
+         * rate (so a fast transfer doesn't spam the UI) and defines the window the transfer rate is
+         * sampled over.
+         */
+        private const val PROGRESS_THROTTLE_MS = 500L
+
+        /**
+         * A short, human-readable codec/container label for a stream's MIME type (e.g. `FLAC`, `M4A`,
+         * `MP3`), or `null` when unknown. Mirrors [extensionFor]'s mapping so the in-progress row's
+         * codec chip matches the file the download will land as.
+         */
+        fun codecLabelFor(mimeType: String?): String? = when {
+            mimeType == null -> null
+            mimeType.contains("flac", ignoreCase = true) -> "FLAC"
+            mimeType.contains("mp4", ignoreCase = true) || mimeType.contains("aac", ignoreCase = true) -> "M4A"
+            mimeType.contains("mpeg", ignoreCase = true) -> "MP3"
+            mimeType.contains("opus", ignoreCase = true) -> "OPUS"
+            mimeType.contains("ogg", ignoreCase = true) -> "OGG"
+            mimeType.contains("wav", ignoreCase = true) -> "WAV"
+            else -> null
+        }
     }
 }
