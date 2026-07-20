@@ -199,5 +199,13 @@ interface SettingsRepository {
      */
     val libraryTabsConfig: Flow<LibraryTabsConfig>
     suspend fun setLibraryTabsConfig(config: LibraryTabsConfig)
+
+    // Social (backend-gated UI)
+    /**
+     * Whether the user has dismissed the Home "sign in" promo card. Persists across process restarts so
+     * a dismissed card stays hidden. Defaults to `false` (not dismissed).
+     */
+    val homeSignInCardDismissed: Flow<Boolean>
+    suspend fun setHomeSignInCardDismissed(dismissed: Boolean)
 }
 

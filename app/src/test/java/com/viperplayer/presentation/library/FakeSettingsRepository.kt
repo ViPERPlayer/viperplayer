@@ -81,6 +81,8 @@ class FakeSettingsRepository(
     override suspend fun setDspBypass(enabled: Boolean) = unused()
     override val autoLoadMore: Flow<Boolean> get() = unused()
     override suspend fun setAutoLoadMore(enabled: Boolean) = unused()
+    override val homeSignInCardDismissed: Flow<Boolean> get() = unused()
+    override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) = unused()
     override val crossfadeDurationSeconds: Flow<Int> get() = unused()
     override suspend fun setCrossfadeDurationSeconds(seconds: Int) = unused()
     override val showExplicitContent: Flow<Boolean> get() = unused()

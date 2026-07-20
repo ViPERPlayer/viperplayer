@@ -1,6 +1,7 @@
 package com.viperplayer.data.account
 
 import com.viperplayer.BuildConfig
+import com.viperplayer.data.social.BackendConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -39,9 +40,7 @@ class AccountApi @Inject constructor(
 
     /** The configured backend base URL (no trailing slash), or null when not built in. */
     val baseUrl: String?
-        get() = BuildConfig.VIPER_BACKEND_URL
-            .trimEnd('/')
-            .takeIf { it.isNotBlank() && it != PLACEHOLDER }
+        get() = BackendConfig.baseUrlOf(BuildConfig.VIPER_BACKEND_URL)
 
     val isConfigured: Boolean get() = baseUrl != null
 
@@ -134,9 +133,5 @@ class AccountApi @Inject constructor(
         val mapped = runCatching { map(bodyText) }.getOrNull()
             ?: return AccountApiResult.Rejected("Malformed response")
         return AccountApiResult.Success(mapped)
-    }
-
-    private companion object {
-        const val PLACEHOLDER = "REPLACE_WITH_REAL_VALUE"
     }
 }

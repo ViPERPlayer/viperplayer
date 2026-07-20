@@ -278,4 +278,6 @@ open class UnsupportedSettingsRepository : SettingsRepository {
     override suspend fun setSortOrder(view: SortView, order: SortOrder) = TODO()
     override val libraryTabsConfig: Flow<LibraryTabsConfig> get() = TODO()
     override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) = TODO()
+    override val homeSignInCardDismissed: Flow<Boolean> get() = TODO()
+    override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) = TODO()
 }

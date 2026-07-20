@@ -36,9 +36,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class SettingsRepositoryImpl @Inject constructor(
-    @param:ApplicationContext private val context: Context
+class SettingsRepositoryImpl(
+    private val dataStore: DataStore<Preferences>,
 ) : SettingsRepository {
+
+    // Production entry point: Hilt injects the app Context and we open the file-backed "settings" store.
+    // The primary constructor takes a DataStore directly so unit tests can inject an in-memory one
+    // (PreferenceDataStoreFactory) and round-trip flags on the JVM without Android.
+    @Inject
+    constructor(@ApplicationContext context: Context) : this(context.settingsDataStore)
 
     companion object {
         private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -91,9 +97,10 @@ class SettingsRepositoryImpl @Inject constructor(
 
         // Custom accent/seed color (packed ARGB int), absent when unset. Appended at the end.
         private val ACCENT_COLOR_KEY = intPreferencesKey("accent_color")
-    }
 
-    private val dataStore = context.settingsDataStore
+        // Social (backend-gated UI)
+        private val HOME_SIGN_IN_CARD_DISMISSED_KEY = booleanPreferencesKey("home_sign_in_card_dismissed")
+    }
 
     /** map + distinctUntilChanged — DataStore emits the whole snapshot on any edit, so de-dupe each setting. */
     private fun <T> Flow<Preferences>.mapDistinct(transform: suspend (Preferences) -> T): Flow<T> =
@@ -482,6 +489,17 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) {
         dataStore.edit { preferences ->
             preferences[LIBRARY_TABS_CONFIG_KEY] = config.serialize()
+        }
+    }
+
+    // Social (backend-gated UI)
+    override val homeSignInCardDismissed: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[HOME_SIGN_IN_CARD_DISMISSED_KEY] ?: false // Default: card not dismissed
+    }
+
+    override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HOME_SIGN_IN_CARD_DISMISSED_KEY] = dismissed
         }
     }
 

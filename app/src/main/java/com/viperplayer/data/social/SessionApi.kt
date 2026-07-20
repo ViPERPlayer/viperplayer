@@ -68,9 +68,7 @@ open class SessionApi @Inject constructor(
 
     /** The configured backend base URL (no trailing slash), or null when not built in. */
     val baseUrl: String?
-        get() = rawBackendUrl()
-            .trimEnd('/')
-            .takeIf { it.isNotBlank() && it != PLACEHOLDER }
+        get() = BackendConfig.baseUrlOf(rawBackendUrl())
 
     val isConfigured: Boolean get() = baseUrl != null
 
@@ -142,9 +140,5 @@ open class SessionApi @Inject constructor(
         val mapped = runCatching { map(bodyText) }.getOrNull()
             ?: return SessionApiResult.Rejected("Malformed response")
         return SessionApiResult.Success(mapped)
-    }
-
-    private companion object {
-        const val PLACEHOLDER = "REPLACE_WITH_REAL_VALUE"
     }
 }
