@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -32,7 +33,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.InsetDivider
-import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.SurfaceCardRow
 import com.viperplayer.presentation.ktx.bottom
@@ -41,7 +41,7 @@ import com.viperplayer.presentation.ktx.plus
 /**
  * App-preferences settings (slimmed). Account, plugins, listening stats, Last.fm and social moved to
  * the You hub — their routes still exist and are reached from there. Rendered as grouped
- * [SurfaceCard]s with [SectionLabel] headers.
+ * [SurfaceCard]s.
  */
 @Composable
 fun SettingsScreen(
@@ -82,7 +82,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "preferences-card") {
-                SurfaceCard {
+                SurfaceCard(modifier = Modifier.padding(top = 8.dp)) {
                     SurfaceCardRow(
                         title = stringResource(R.string.settings_appearance),
                         subtitle = stringResource(R.string.settings_appearance_desc),
@@ -134,14 +134,8 @@ fun SettingsScreen(
                 }
             }
 
-            item(key = "system-label") {
-                SectionLabel(
-                    text = stringResource(R.string.settings_category_system),
-                    modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp),
-                )
-            }
             item(key = "system-card") {
-                SurfaceCard {
+                SurfaceCard(modifier = Modifier.padding(top = 4.dp)) {
                     SurfaceCardRow(
                         title = stringResource(R.string.settings_updater),
                         subtitle = stringResource(R.string.settings_updater_desc),
@@ -170,7 +164,7 @@ fun SettingsScreen(
                         imageVector = Icons.Rounded.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 0.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                     Text(
                         text = stringResource(R.string.settings_moved_to_you_hint),
