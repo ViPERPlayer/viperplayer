@@ -83,7 +83,7 @@ fun DownloadsScreen(
         onRemove = viewModel::remove,
         // A failed in-progress row carries only its [MediaId]; re-queueing re-resolves the stream
         // from the plugin by id, so a minimal Song carrier is enough to drive the retry.
-        onRetry = { mediaId -> viewModel.retry(Song(id = mediaId, title = mediaId.sourceId)) },
+        onRetry = viewModel::retry,
         modifier = modifier,
     )
 }

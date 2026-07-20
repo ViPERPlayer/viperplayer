@@ -8,6 +8,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -40,8 +41,16 @@ class DownloadsViewModel @Inject constructor(
         viewModelScope.launch { downloadManager.remove(mediaId) }
     }
 
-    /** Re-queue a song for download (e.g. after a failure). */
-    fun retry(song: Song) {
-        downloadManager.enqueue(song)
+    /**
+     * Re-queue a failed/removed download by id. Resolves the song's real metadata from the library
+     * first, so a successful retry never persists a placeholder title (falls back to a minimal Song
+     * only if the id isn't in the library).
+     */
+    fun retry(mediaId: MediaId) {
+        viewModelScope.launch {
+            val song = mediaLibraryRepository.getSong(mediaId).first()
+                ?: Song(id = mediaId, title = mediaId.sourceId)
+            downloadManager.enqueue(song)
+        }
     }
 }
