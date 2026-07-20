@@ -11,6 +11,7 @@ import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.repository.NetworkConnectivityChecker
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.LibraryTabSetting
 import com.viperplayer.domain.model.LibraryTabsConfig
 import com.viperplayer.domain.model.Playlist
@@ -26,6 +27,7 @@ import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.sort.MediaSorter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,7 +87,13 @@ fun resolveVisibleTabs(config: LibraryTabsConfig): List<LibraryTab> {
  * change never needs a reload.
  */
 data class LibraryUiState(
-    val selectedTab: LibraryTab = LibraryTab.SONGS,
+    /**
+     * The selected filter chip, or `null` for the default **unified feed** (no chip selected): all
+     * library items — songs, albums, artists and playlists — interleaved and ordered by
+     * most-recently-played. Tapping a chip selects that type; tapping the selected chip again returns
+     * here (`null`). Chips are toggleable and start unselected.
+     */
+    val selectedTab: LibraryTab? = null,
     /**
      * The tabs to show, in the user's configured order, already reconciled against the tabs the app
      * ships (hidden tabs omitted, new tabs appended, all-hidden guarded). Defaults to every tab in the
@@ -97,6 +105,12 @@ data class LibraryUiState(
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    /**
+     * The unified all-types feed shown when [selectedTab] is `null`: songs/albums/artists/playlists
+     * interleaved, sorted by most-recently-played (newest first). Built by [buildUnifiedRecencyFeed]
+     * from the four raw lists plus the listening history — never re-sorted by a per-type sort menu.
+     */
+    val unified: List<LibraryFeedItem> = emptyList(),
     /**
      * Dynamic auto-playlists (Recently Added / Most Played / …), computed live from the library and
      * play-history. Shown as their own section above the regular playlists and never re-sorted by the
@@ -134,11 +148,16 @@ class LibraryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
-    // Raw (default-ordered) lists as loaded, kept so a sort-menu change re-sorts without a reload.
+    // Raw (default-ordered) lists as loaded, kept so a sort-menu change re-sorts without a reload and
+    // so the unified feed can be rebuilt from all four types without a per-type reload.
     private var rawSongs: List<Song> = emptyList()
     private var rawAlbums: List<Album> = emptyList()
     private var rawArtists: List<Artist> = emptyList()
     private var rawPlaylists: List<Playlist> = emptyList()
+
+    // Newest-first listening history (the recency signal for the unified feed). Kept up to date by a
+    // perpetual observer so the unified order tracks new plays without a reload.
+    private var rawHistory: List<HistoryEntry> = emptyList()
 
     // The latest persisted sort order per tab, updated on every collector emission (even before the
     // first content load completes). Reading these — rather than the possibly-still-DEFAULT UI state —
@@ -180,38 +199,71 @@ class LibraryViewModel @Inject constructor(
         }
         observeSortOrders()
         observeAutoPlaylists()
+        observeHistory()
+    }
+
+    /**
+     * Perpetual collector of the listening history — the recency signal behind the unified feed. When
+     * the history changes (a new play is recorded) it re-derives the recency order in place, so the
+     * default all-types feed stays current without a reload. No-op for the ordering while a specific
+     * tab is selected (the feed isn't shown), but the raw history is still kept fresh for when the user
+     * deselects back to it.
+     */
+    private fun observeHistory() {
+        viewModelScope.launch {
+            mediaLibraryRepository.getHistory().collect { history ->
+                rawHistory = history
+                if (_uiState.value.selectedTab == null) rebuildUnifiedFeed()
+            }
+        }
+    }
+
+    /** Recompute the unified recency feed from the current raw lists + history and publish it. */
+    private fun rebuildUnifiedFeed() {
+        _uiState.update {
+            it.copy(
+                unified = buildUnifiedRecencyFeed(
+                    songs = rawSongs,
+                    albums = rawAlbums,
+                    artists = rawArtists,
+                    playlists = rawPlaylists,
+                    history = rawHistory,
+                )
+            )
+        }
     }
 
     /**
      * Collect the persisted library-tabs config, reconcile it into the ordered visible [LibraryTab]s,
      * keep the [LibraryUiState.selectedTab] valid, and drive content loading. On the FIRST emission this
-     * seeds the initial selected tab and loads its content exactly once (the cold-start load). On later
-     * emissions, if the currently-selected tab was just hidden (or removed), it falls back to the first
-     * visible tab and loads that. The perpetual collector keeps the TabRow in sync as the user edits the
-     * config on the Customize-tabs screen.
+     * loads the default **unified feed** (no chip selected — `selectedTab == null`) exactly once (the
+     * cold-start load). On later emissions, if a currently-selected non-null tab was just hidden (or
+     * removed), it deselects back to the unified feed. The unified default is always valid regardless of
+     * which chips are visible, so `null` is never reconciled away. The perpetual collector keeps the
+     * chip row in sync as the user edits the config on the Customize-tabs screen.
      */
     private suspend fun observeTabsConfig() {
         var firstEmission = true
         settingsRepository.libraryTabsConfig.collect { config ->
             val visible = resolveVisibleTabs(config)
-            // Reconcile against the CURRENT selection atomically inside update(): if the selected
-            // tab was just hidden/removed, fall back to the first visible tab. Reading selectedTab
+            // Reconcile against the CURRENT selection atomically inside update(): a selected tab that
+            // was just hidden/removed deselects back to the unified feed (null). Reading selectedTab
             // from the update's own `it` (not a pre-read snapshot) avoids clobbering a concurrent
-            // selectTab(). `changedTo` captures the fallback we need to load content for, if any.
-            var changedTo: LibraryTab? = null
+            // selectTab(). `deselected` records when we fell back so the cold path can reload the feed.
+            var deselected = false
             _uiState.update {
-                val next = if (it.selectedTab in visible) it.selectedTab else visible.first()
-                changedTo = if (next != it.selectedTab) next else null
+                val current = it.selectedTab
+                val next = if (current == null || current in visible) current else null
+                deselected = next == null && current != null
                 it.copy(visibleTabs = visible, selectedTab = next)
             }
-            // Cold start: load the resolved initial tab exactly once. Afterwards, only load when the
-            // selection actually changed because its previous value is no longer visible, so the screen
-            // never shows a stale/hidden tab's list.
+            // Cold start: load the default (unified) content exactly once. Afterwards, only reload when
+            // the selection was just deselected because its tab is no longer visible.
             if (firstEmission) {
                 firstEmission = false
                 loadContent(_uiState.value.selectedTab)
-            } else {
-                changedTo?.let { loadContent(it) }
+            } else if (deselected) {
+                loadContent(null)
             }
         }
     }
@@ -291,104 +343,44 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Toggle a filter chip. Selecting an unselected chip filters to that type; tapping the currently
+     * selected chip again **deselects** it, returning to the default unified all-types recency feed.
+     * Chips are toggleable and there is always a valid state (a selected type, or the unified feed).
+     */
     fun selectTab(tab: LibraryTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
-        loadContent(tab)
+        val next = if (_uiState.value.selectedTab == tab) null else tab
+        _uiState.update { it.copy(selectedTab = next) }
+        loadContent(next)
     }
 
-    private fun loadContent(tab: LibraryTab) {
+    /**
+     * Load the content for [tab], or the unified all-types recency feed when [tab] is `null` (no chip
+     * selected — the default). The unified path loads all four types concurrently and rebuilds the
+     * recency-ordered feed as each arrives; a single-type path loads just that type's list. Cancels any
+     * in-flight load first so re-selecting / refreshing never leaks a perpetual collector.
+     */
+    private fun loadContent(tab: LibraryTab?) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
                 when (tab) {
-                    LibraryTab.SONGS -> {
-                        val result = pluginRepository.getLibrarySongs(limit = 50)
-                        val songs = result.getOrNull()?.items.orEmpty()
-
-                        // Update playability based on plugin connection, download status, and internet availability
-                        // Combine with connected plugins and internet availability flows to make it reactive
-                        combine(
-                            flowOf(songs),
-                            pluginRepository.connectedPlugins,
-                            networkConnectivityChecker.isInternetAvailable
-                        ) { songsList, connectedPlugins, isInternetAvailable ->
-                            val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
-
-                            songsList.map { song ->
-                                val isPluginConnected = song.id.pluginId in connectedPluginIds
-                                // Song is playable if:
-                                // 1. Song is downloaded (can play offline), OR
-                                // 2. Plugin is connected AND (song doesn't require internet OR internet is available)
-                                val isPlayable = song.isDownloaded ||
-                                        (isPluginConnected && (!song.requiresInternet || isInternetAvailable))
-                                song.copy(isPlayable = isPlayable)
-                            }
-                        }.collect { songsWithPlayability ->
-                            rawSongs = songsWithPlayability
-                            // Sort with the seeded/current order (not the possibly-stale state value)
-                            // so the first Success frame already reflects the persisted order.
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    songs = MediaSorter.sortSongs(songsWithPlayability, currentSongsSort)
-                                )
-                            }
-                        }
+                    // Unified default: load every type concurrently, each rebuilding the recency feed as
+                    // it arrives. The songs/playlists loaders collect perpetual flows, so they must run
+                    // as independent children rather than sequentially.
+                    null -> {
+                        _uiState.update { it.copy(isLoading = false) }
+                        launch { loadSongs(rebuildUnified = true) }
+                        launch { loadAlbums(rebuildUnified = true) }
+                        launch { loadArtists(rebuildUnified = true) }
+                        launch { loadPlaylists(rebuildUnified = true) }
                     }
-
-                    LibraryTab.ALBUMS -> {
-                        val result = pluginRepository.getLibraryAlbums(limit = 50)
-                        rawAlbums = result.getOrNull()?.items.orEmpty()
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                albums = MediaSorter.sortAlbums(rawAlbums, currentAlbumsSort)
-                            )
-                        }
-                    }
-
-                    LibraryTab.ARTISTS -> {
-                        val result = pluginRepository.getLibraryArtists(limit = 50)
-                        rawArtists = result.getOrNull()?.items.orEmpty()
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                artists = MediaSorter.sortArtists(rawArtists, currentArtistsSort)
-                            )
-                        }
-                    }
-
-                    LibraryTab.PLAYLISTS -> {
-                        // Load plugin playlists once (they are network-backed and don't change locally).
-                        val result = pluginRepository.getLibraryPlaylists(limit = 50)
-                        val pluginPlaylists = result.getOrNull()?.items.orEmpty()
-
-                        // Observe the local (Room-backed) playlists reactively: the virtual "Liked
-                        // Songs" list plus the user-created local playlists. This makes newly created
-                        // playlists (e.g. from "Add to playlist -> New playlist") appear immediately
-                        // and be openable/editable in PlaylistDetailScreen.
-                        combine(
-                            mediaLibraryRepository.getLikedSongsPlaylist(),
-                            mediaLibraryRepository.getLocalPlaylists()
-                        ) { likedSongsPlaylist, localPlaylists ->
-                            // Order: Liked Songs (if any) -> user local playlists -> plugin playlists.
-                            buildList {
-                                if (likedSongsPlaylist.songCount > 0) add(likedSongsPlaylist)
-                                addAll(localPlaylists)
-                                addAll(pluginPlaylists)
-                            }
-                        }.collect { allPlaylists ->
-                            rawPlaylists = allPlaylists
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    playlists = MediaSorter.sortPlaylists(allPlaylists, currentPlaylistsSort)
-                                )
-                            }
-                        }
-                    }
+                    LibraryTab.SONGS -> loadSongs(rebuildUnified = false)
+                    LibraryTab.ALBUMS -> loadAlbums(rebuildUnified = false)
+                    LibraryTab.ARTISTS -> loadArtists(rebuildUnified = false)
+                    LibraryTab.PLAYLISTS -> loadPlaylists(rebuildUnified = false)
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -398,6 +390,150 @@ class LibraryViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Load the library songs (with reactive playability) into [LibraryUiState.songs]. When
+     * [rebuildUnified] is true it also feeds the unified recency feed as new emissions arrive rather
+     * than updating the per-type list. Collects a perpetual flow — runs until its coroutine is cancelled.
+     */
+    private suspend fun loadSongs(rebuildUnified: Boolean) {
+        try {
+            val result = pluginRepository.getLibrarySongs(limit = 50)
+            val songs = result.getOrNull()?.items.orEmpty()
+
+            // Update playability based on plugin connection, download status, and internet availability.
+            // Combine with connected plugins and internet availability flows to make it reactive.
+            combine(
+                flowOf(songs),
+                pluginRepository.connectedPlugins,
+                networkConnectivityChecker.isInternetAvailable
+            ) { songsList, connectedPlugins, isInternetAvailable ->
+                val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
+
+                songsList.map { song ->
+                    val isPluginConnected = song.id.pluginId in connectedPluginIds
+                    // Song is playable if:
+                    // 1. Song is downloaded (can play offline), OR
+                    // 2. Plugin is connected AND (song doesn't require internet OR internet is available)
+                    val isPlayable = song.isDownloaded ||
+                            (isPluginConnected && (!song.requiresInternet || isInternetAvailable))
+                    song.copy(isPlayable = isPlayable)
+                }
+            }.collect { songsWithPlayability ->
+                rawSongs = songsWithPlayability
+                if (rebuildUnified) {
+                    rebuildUnifiedFeed()
+                } else {
+                    // Sort with the seeded/current order (not the possibly-stale state value)
+                    // so the first Success frame already reflects the persisted order.
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            songs = MediaSorter.sortSongs(songsWithPlayability, currentSongsSort)
+                        )
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!rebuildUnified) reportLoadError(e)
+        }
+    }
+
+    /** Load the library albums into [LibraryUiState.albums] (or the unified feed). */
+    private suspend fun loadAlbums(rebuildUnified: Boolean) {
+        try {
+            val result = pluginRepository.getLibraryAlbums(limit = 50)
+            rawAlbums = result.getOrNull()?.items.orEmpty()
+            if (rebuildUnified) {
+                rebuildUnifiedFeed()
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        albums = MediaSorter.sortAlbums(rawAlbums, currentAlbumsSort)
+                    )
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!rebuildUnified) reportLoadError(e)
+        }
+    }
+
+    /** Load the library artists into [LibraryUiState.artists] (or the unified feed). */
+    private suspend fun loadArtists(rebuildUnified: Boolean) {
+        try {
+            val result = pluginRepository.getLibraryArtists(limit = 50)
+            rawArtists = result.getOrNull()?.items.orEmpty()
+            if (rebuildUnified) {
+                rebuildUnifiedFeed()
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        artists = MediaSorter.sortArtists(rawArtists, currentArtistsSort)
+                    )
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!rebuildUnified) reportLoadError(e)
+        }
+    }
+
+    /** Load the library playlists (plugin + reactive local) into [LibraryUiState.playlists] (or feed). */
+    private suspend fun loadPlaylists(rebuildUnified: Boolean) {
+        try {
+            // Load plugin playlists once (they are network-backed and don't change locally).
+            val result = pluginRepository.getLibraryPlaylists(limit = 50)
+            val pluginPlaylists = result.getOrNull()?.items.orEmpty()
+
+            // Observe the local (Room-backed) playlists reactively: the virtual "Liked Songs" list plus
+            // the user-created local playlists. This makes newly created playlists (e.g. from "Add to
+            // playlist -> New playlist") appear immediately and be openable/editable in PlaylistDetailScreen.
+            combine(
+                mediaLibraryRepository.getLikedSongsPlaylist(),
+                mediaLibraryRepository.getLocalPlaylists()
+            ) { likedSongsPlaylist, localPlaylists ->
+                // Order: Liked Songs (if any) -> user local playlists -> plugin playlists.
+                buildList {
+                    if (likedSongsPlaylist.songCount > 0) add(likedSongsPlaylist)
+                    addAll(localPlaylists)
+                    addAll(pluginPlaylists)
+                }
+            }.collect { allPlaylists ->
+                rawPlaylists = allPlaylists
+                if (rebuildUnified) {
+                    rebuildUnifiedFeed()
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            playlists = MediaSorter.sortPlaylists(allPlaylists, currentPlaylistsSort)
+                        )
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!rebuildUnified) reportLoadError(e)
+        }
+    }
+
+    /** Surface a per-type load failure to the UI (clears the loading spinner). */
+    private fun reportLoadError(e: Exception) {
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                error = e.message ?: "Failed to load library"
+            )
         }
     }
 

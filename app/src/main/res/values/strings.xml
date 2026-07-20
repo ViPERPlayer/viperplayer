@@ -170,6 +170,16 @@
         <item quantity="one">%d playlist</item>
         <item quantity="other">%d playlists</item>
     </plurals>
+    <plurals name="library_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <string name="library_empty_all">Your library is empty</string>
+    <string name="library_sort">Sort</string>
+    <string name="library_explicit">Explicit</string>
+    <!-- The single-letter "E" marker shown on explicit tracks; kept short for the tag. -->
+    <string name="library_explicit_short">E</string>
+    <string name="library_scroll_to_letter">Scroll to %1$s</string>
     <!-- Player -->
     <string name="player_no_song">No song playing</string>
     <string name="player_collapse">Collapse player</string>

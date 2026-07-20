@@ -3,7 +3,12 @@ package com.viperplayer.presentation.library
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,14 +16,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,26 +46,35 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -63,6 +82,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortOption
@@ -82,8 +102,8 @@ import com.viperplayer.presentation.common.components.SelectableChip
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.ktx.with
-import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import kotlinx.coroutines.launch
 
 // Per-tab sort options. DEFAULT is always first (selected initially → order unchanged). Only fields the
 // domain models actually carry are offered, so every option produces a real ordering.
@@ -108,10 +128,20 @@ private val PLAYLIST_SORT_OPTIONS = listOf(SortOption.DEFAULT, SortOption.TITLE)
 private val ShortcutTileCorner = 16.dp
 
 /**
- * Library screen (mockup 3a — "flat & fast"): a collapsed toolbar (title + search + overflow), a
- * filter-chip row in place of the old tab bar, pinned Liked / Downloads / Following tiles and a
- * count + sort header, all scrolling above the list. Behavior, navigation callbacks and the per-tab
- * sort/import logic are unchanged from the previous version — this is a presentation-only restyle.
+ * End padding reserved on list rows so their content clears the pinned A-Z rail when it is shown. The
+ * rail is only present for an alphabetically-sorted list, so this inset is applied conditionally.
+ */
+private val RailReservedWidth = 18.dp
+
+/**
+ * Library screen (mockup 3a — "flat & fast"): a collapsed toolbar (title + search + overflow) and a
+ * filter-chip row in place of the old tab bar.
+ *
+ * **Default (no chip selected):** a single unified feed of ALL library items — songs, albums, artists
+ * and playlists interleaved — ordered by most-recently-played (newest first). Tapping a chip filters to
+ * just that type (with its own sort menu); tapping the selected chip again deselects it, returning to
+ * the unified feed. All list-building and recency logic lives in [LibraryViewModel]; this screen only
+ * renders state and forwards events.
  *
  * [onNavigateToSearch] is additive (defaults to a no-op) so the toolbar's search affordance can be
  * wired from the navigation graph; Search is also reachable from the bottom bar.
@@ -182,7 +212,8 @@ fun LibraryScreen(
             )
 
             // Filter chips replace the old tab row — only the visible tabs, in the user's configured
-            // order. The selected chip fills (secondaryContainer + check); the rest are outlined.
+            // order. A chip fills (secondaryContainer + check) only when it is the selected type; with
+            // no selection (the unified default) every chip is outlined. Chips are toggleable.
             LibraryFilterChips(
                 tabs = uiState.visibleTabs,
                 selected = uiState.selectedTab,
@@ -202,62 +233,47 @@ fun LibraryScreen(
             } else {
                 val listContentPadding = PaddingValues(top = 8.dp) + rootPadding.bottom()
                 when (uiState.selectedTab) {
+                    // Default: unified, recency-sorted, all-types feed. No A-Z rail (a rail is
+                    // meaningless without alphabetical order) and no per-type sort control.
+                    null -> UnifiedLibraryList(
+                        items = uiState.unified,
+                        currentSongId = currentSong?.id,
+                        isPlaying = isPlaying,
+                        contentPadding = listContentPadding,
+                        onPlaySong = { viewModel.playSong(it) },
+                        onSongMore = { optionsController.show(it) },
+                        onSongPlayNext = { viewModel.playNext(it) },
+                        onSongAddToQueue = { viewModel.addToQueue(it) },
+                        onNavigateToAlbum = onNavigateToAlbum,
+                        onAlbumMore = { optionsController.show(it) },
+                        onNavigateToArtist = onNavigateToArtist,
+                        onArtistMore = { optionsController.show(it) },
+                        onNavigateToPlaylist = onNavigateToPlaylist,
+                        onPlaylistMore = { optionsController.show(it) },
+                        onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
+                        onNavigateToDownloads = onNavigateToDownloads,
+                        onNavigateToFollowing = onNavigateToFollowing,
+                    )
+
                     LibraryTab.SONGS -> {
                         if (uiState.songs.isEmpty()) {
                             EmptyLibraryContent(stringResource(R.string.library_empty_songs))
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listContentPadding
-                            ) {
-                                item(key = "songs_header") {
-                                    LibraryListHeader(
-                                        countLabel = pluralStringResource(
-                                            R.plurals.library_song_count,
-                                            uiState.songs.size,
-                                            uiState.songs.size
-                                        ),
-                                        sort = uiState.songsSort,
-                                        sortOptions = SONG_SORT_OPTIONS,
-                                        onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_SONGS, it) },
-                                        onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
-                                        onNavigateToDownloads = onNavigateToDownloads,
-                                        onNavigateToFollowing = onNavigateToFollowing,
-                                    )
-                                }
-                                itemsIndexed(uiState.songs, key = { index, song -> "${song.id}-$index" }) { index, song ->
-                                    ListItem(
-                                        type = SearchItem.Type.SONG,
-                                        title = song.title,
-                                        badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                                        subtitle = song.artistNames,
-                                        artworkUrl = song.artworkUrl,
-                                        isActive = currentSong?.id == song.id,
-                                        isPlaying = currentSong?.id == song.id && isPlaying,
-                                        onClick = if (song.isPlayable) {
-                                            { viewModel.playSong(song) }
-                                        } else null,
-                                        onMoreClick = { optionsController.show(song) },
-                                        onLongClick = { optionsController.show(song) },
-                                        onPlayNext = if (song.isPlayable) {
-                                            { viewModel.playNext(song) }
-                                        } else null,
-                                        onAddToQueue = if (song.isPlayable) {
-                                            { viewModel.addToQueue(song) }
-                                        } else null,
-                                        modifier = Modifier
-                                            .animateItem().revealOnAppear(index)
-                                            .fillMaxWidth()
-                                            .then(
-                                                if (!song.isPlayable) {
-                                                    Modifier.alpha(0.5f)
-                                                } else {
-                                                    Modifier
-                                                }
-                                            )
-                                    )
-                                }
-                            }
+                            SongsLibraryList(
+                                songs = uiState.songs,
+                                currentSongId = currentSong?.id,
+                                isPlaying = isPlaying,
+                                sort = uiState.songsSort,
+                                contentPadding = listContentPadding,
+                                onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_SONGS, it) },
+                                onPlaySong = { viewModel.playSong(it) },
+                                onSongMore = { optionsController.show(it) },
+                                onSongPlayNext = { viewModel.playNext(it) },
+                                onSongAddToQueue = { viewModel.addToQueue(it) },
+                                onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
+                                onNavigateToDownloads = onNavigateToDownloads,
+                                onNavigateToFollowing = onNavigateToFollowing,
+                            )
                         }
                     }
 
@@ -265,44 +281,17 @@ fun LibraryScreen(
                         if (uiState.albums.isEmpty()) {
                             EmptyLibraryContent(stringResource(R.string.library_empty_albums))
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listContentPadding
-                            ) {
-                                item(key = "albums_header") {
-                                    LibraryListHeader(
-                                        countLabel = pluralStringResource(
-                                            R.plurals.library_album_count,
-                                            uiState.albums.size,
-                                            uiState.albums.size
-                                        ),
-                                        sort = uiState.albumsSort,
-                                        sortOptions = ALBUM_SORT_OPTIONS,
-                                        onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ALBUMS, it) },
-                                        onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
-                                        onNavigateToDownloads = onNavigateToDownloads,
-                                        onNavigateToFollowing = onNavigateToFollowing,
-                                    )
-                                }
-                                itemsIndexed(uiState.albums, key = { index, album -> "${album.id}-$index" }) { index, album ->
-                                    ListItem(
-                                        type = SearchItem.Type.ALBUM,
-                                        title = album.name,
-                                        badges = emptyList(),
-                                        subtitle = album.artists.joinToString { it.name }
-                                            .takeIf { it.isNotEmpty() },
-                                        artworkUrl = album.artworkUrl,
-                                        isActive = false,
-                                        isPlaying = false,
-                                        onClick = { onNavigateToAlbum(album) },
-                                        onMoreClick = { optionsController.show(album) },
-                                        onLongClick = { optionsController.show(album) },
-                                        modifier = Modifier
-                                            .animateItem().revealOnAppear(index)
-                                            .fillMaxWidth()
-                                    )
-                                }
-                            }
+                            AlbumsLibraryList(
+                                albums = uiState.albums,
+                                sort = uiState.albumsSort,
+                                contentPadding = listContentPadding,
+                                onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ALBUMS, it) },
+                                onNavigateToAlbum = onNavigateToAlbum,
+                                onAlbumMore = { optionsController.show(it) },
+                                onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
+                                onNavigateToDownloads = onNavigateToDownloads,
+                                onNavigateToFollowing = onNavigateToFollowing,
+                            )
                         }
                     }
 
@@ -310,44 +299,17 @@ fun LibraryScreen(
                         if (uiState.artists.isEmpty()) {
                             EmptyLibraryContent(stringResource(R.string.library_empty_artists))
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listContentPadding
-                            ) {
-                                item(key = "artists_header") {
-                                    LibraryListHeader(
-                                        countLabel = pluralStringResource(
-                                            R.plurals.library_artist_count,
-                                            uiState.artists.size,
-                                            uiState.artists.size
-                                        ),
-                                        sort = uiState.artistsSort,
-                                        sortOptions = ARTIST_SORT_OPTIONS,
-                                        onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ARTISTS, it) },
-                                        useNameLabel = true,
-                                        onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
-                                        onNavigateToDownloads = onNavigateToDownloads,
-                                        onNavigateToFollowing = onNavigateToFollowing,
-                                    )
-                                }
-                                itemsIndexed(uiState.artists, key = { index, artist -> "${artist.id}-$index" }) { index, artist ->
-                                    ListItem(
-                                        type = SearchItem.Type.ARTIST,
-                                        title = artist.name,
-                                        badges = emptyList(),
-                                        subtitle = null,
-                                        artworkUrl = artist.imageUrl,
-                                        isActive = false,
-                                        isPlaying = false,
-                                        onClick = { onNavigateToArtist(artist) },
-                                        onMoreClick = { optionsController.show(artist) },
-                                        onLongClick = { optionsController.show(artist) },
-                                        modifier = Modifier
-                                            .animateItem().revealOnAppear(index)
-                                            .fillMaxWidth()
-                                    )
-                                }
-                            }
+                            ArtistsLibraryList(
+                                artists = uiState.artists,
+                                sort = uiState.artistsSort,
+                                contentPadding = listContentPadding,
+                                onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ARTISTS, it) },
+                                onNavigateToArtist = onNavigateToArtist,
+                                onArtistMore = { optionsController.show(it) },
+                                onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
+                                onNavigateToDownloads = onNavigateToDownloads,
+                                onNavigateToFollowing = onNavigateToFollowing,
+                            )
                         }
                     }
 
@@ -355,80 +317,18 @@ fun LibraryScreen(
                         if (uiState.playlists.isEmpty() && uiState.autoPlaylists.isEmpty()) {
                             EmptyLibraryContent(stringResource(R.string.library_empty_playlists))
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listContentPadding
-                            ) {
-                                item(key = "playlists_header") {
-                                    LibraryListHeader(
-                                        countLabel = pluralStringResource(
-                                            R.plurals.library_playlist_count,
-                                            uiState.playlists.size,
-                                            uiState.playlists.size
-                                        ),
-                                        sort = uiState.playlistsSort,
-                                        sortOptions = PLAYLIST_SORT_OPTIONS,
-                                        onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_PLAYLISTS, it) },
-                                        useNameLabel = true,
-                                        onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
-                                        onNavigateToDownloads = onNavigateToDownloads,
-                                        onNavigateToFollowing = onNavigateToFollowing,
-                                    )
-                                }
-                                // Dynamic auto-playlists (Recently Added / Most Played / …) in their
-                                // own section, above the regular playlists. Auto entries open the same
-                                // PlaylistDetail screen (their MediaId's plugin is "auto").
-                                if (uiState.autoPlaylists.isNotEmpty()) {
-                                    item(key = "auto_playlists_header") {
-                                        LibrarySectionHeader(
-                                            title = stringResource(R.string.auto_playlists_section),
-                                            modifier = Modifier.animateItem()
-                                        )
-                                    }
-                                    items(
-                                        uiState.autoPlaylists,
-                                        key = { playlist -> "auto-${playlist.id}" }
-                                    ) { playlist ->
-                                        AutoPlaylistRow(
-                                            playlist = playlist,
-                                            onClick = onNavigateToPlaylist,
-                                            modifier = Modifier
-                                                .animateItem()
-                                                .fillMaxWidth()
-                                        )
-                                    }
-                                }
-                                itemsIndexed(uiState.playlists, key = { index, playlist -> "${playlist.id}-$index" }) { index, playlist ->
-                                    ListItem(
-                                        type = SearchItem.Type.PLAYLIST,
-                                        title = playlist.name,
-                                        badges = emptyList(),
-                                        subtitle = playlist.ownerName?.let { owner ->
-                                            "$owner • ${
-                                                pluralStringResource(
-                                                    R.plurals.song_count,
-                                                    playlist.songCount,
-                                                    playlist.songCount
-                                                )
-                                            }"
-                                        }
-                                            ?: pluralStringResource(
-                                                R.plurals.song_count,
-                                                playlist.songCount,
-                                                playlist.songCount
-                                            ),
-                                        artworkUrl = playlist.artworkUrl,
-                                        isActive = false,
-                                        isPlaying = false,
-                                        onClick = { onNavigateToPlaylist(playlist) },
-                                        onMoreClick = { optionsController.show(playlist) },
-                                        onLongClick = { optionsController.show(playlist) },
-                                        modifier = Modifier
-                                            .animateItem().revealOnAppear(index)
-                                            .fillMaxWidth()
-                                    )
-                                }
-                            }
+                            PlaylistsLibraryList(
+                                playlists = uiState.playlists,
+                                autoPlaylists = uiState.autoPlaylists,
+                                sort = uiState.playlistsSort,
+                                contentPadding = listContentPadding,
+                                onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_PLAYLISTS, it) },
+                                onNavigateToPlaylist = onNavigateToPlaylist,
+                                onPlaylistMore = { optionsController.show(it) },
+                                onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
+                                onNavigateToDownloads = onNavigateToDownloads,
+                                onNavigateToFollowing = onNavigateToFollowing,
+                            )
                         }
                     }
                 }
@@ -489,6 +389,478 @@ fun LibraryScreen(
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
         AddToPlaylistSheetHost(controller = addToPlaylistController)
     }
+}
+
+/**
+ * The default unified feed: songs/albums/artists/playlists interleaved by most-recently-played. Rows
+ * tap to their natural destination (song → play, others → navigate). No A-Z rail (unordered
+ * alphabetically) and no sort control — the recency order is fixed.
+ */
+@Composable
+private fun UnifiedLibraryList(
+    items: List<LibraryFeedItem>,
+    currentSongId: MediaId?,
+    isPlaying: Boolean,
+    contentPadding: PaddingValues,
+    onPlaySong: (Song) -> Unit,
+    onSongMore: (Song) -> Unit,
+    onSongPlayNext: (Song) -> Unit,
+    onSongAddToQueue: (Song) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
+    onAlbumMore: (Album) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onArtistMore: (Artist) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
+    onPlaylistMore: (Playlist) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+) {
+    if (items.isEmpty()) {
+        EmptyLibraryContent(stringResource(R.string.library_empty_all))
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+    ) {
+        item(key = "unified_header") {
+            LibraryListHeader(
+                countLabel = pluralStringResource(
+                    R.plurals.library_item_count,
+                    items.size,
+                    items.size
+                ),
+                sort = null,
+                sortOptions = emptyList(),
+                onOrderChange = {},
+                onLiked = onLiked,
+                onNavigateToDownloads = onNavigateToDownloads,
+                onNavigateToFollowing = onNavigateToFollowing,
+            )
+        }
+        itemsIndexed(items, key = { _, item -> item.stableKey }) { index, item ->
+            val rowModifier = Modifier
+                .animateItem()
+                .revealOnAppear(index)
+                .fillMaxWidth()
+            when (item) {
+                is LibraryFeedItem.SongItem -> {
+                    val song = item.song
+                    SongRow(
+                        song = song,
+                        isActive = currentSongId == song.id,
+                        isPlaying = currentSongId == song.id && isPlaying,
+                        onPlay = onPlaySong,
+                        onMore = onSongMore,
+                        onPlayNext = onSongPlayNext,
+                        onAddToQueue = onSongAddToQueue,
+                        modifier = rowModifier,
+                    )
+                }
+                is LibraryFeedItem.AlbumItem -> AlbumRow(
+                    album = item.album,
+                    onClick = onNavigateToAlbum,
+                    onMore = onAlbumMore,
+                    modifier = rowModifier,
+                )
+                is LibraryFeedItem.ArtistItem -> ArtistRow(
+                    artist = item.artist,
+                    onClick = onNavigateToArtist,
+                    onMore = onArtistMore,
+                    modifier = rowModifier,
+                )
+                is LibraryFeedItem.PlaylistItem -> PlaylistRow(
+                    playlist = item.playlist,
+                    onClick = onNavigateToPlaylist,
+                    onMore = onPlaylistMore,
+                    modifier = rowModifier,
+                )
+            }
+        }
+    }
+}
+
+/** The Songs tab: a per-type list with a sort control and (when alphabetically sorted) an A-Z rail. */
+@Composable
+private fun SongsLibraryList(
+    songs: List<Song>,
+    currentSongId: MediaId?,
+    isPlaying: Boolean,
+    sort: SortOrder,
+    contentPadding: PaddingValues,
+    onOrderChange: (SortOrder) -> Unit,
+    onPlaySong: (Song) -> Unit,
+    onSongMore: (Song) -> Unit,
+    onSongPlayNext: (Song) -> Unit,
+    onSongAddToQueue: (Song) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+) {
+    TypeLibraryList(
+        itemCount = songs.size,
+        countLabel = pluralStringResource(R.plurals.library_song_count, songs.size, songs.size),
+        sort = sort,
+        sortOptions = SONG_SORT_OPTIONS,
+        useNameLabel = false,
+        letterAt = { songs[it].title.railLetter() },
+        contentPadding = contentPadding,
+        onOrderChange = onOrderChange,
+        onLiked = onLiked,
+        onNavigateToDownloads = onNavigateToDownloads,
+        onNavigateToFollowing = onNavigateToFollowing,
+    ) { rowEndPadding ->
+        itemsIndexed(songs, key = { index, song -> "${song.id}-$index" }) { index, song ->
+            SongRow(
+                song = song,
+                isActive = currentSongId == song.id,
+                isPlaying = currentSongId == song.id && isPlaying,
+                onPlay = onPlaySong,
+                onMore = onSongMore,
+                onPlayNext = onSongPlayNext,
+                onAddToQueue = onSongAddToQueue,
+                modifier = Modifier
+                    .animateItem()
+                    .revealOnAppear(index)
+                    .fillMaxWidth()
+                    .padding(end = rowEndPadding),
+            )
+        }
+    }
+}
+
+/** The Albums tab. */
+@Composable
+private fun AlbumsLibraryList(
+    albums: List<Album>,
+    sort: SortOrder,
+    contentPadding: PaddingValues,
+    onOrderChange: (SortOrder) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
+    onAlbumMore: (Album) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+) {
+    TypeLibraryList(
+        itemCount = albums.size,
+        countLabel = pluralStringResource(R.plurals.library_album_count, albums.size, albums.size),
+        sort = sort,
+        sortOptions = ALBUM_SORT_OPTIONS,
+        useNameLabel = false,
+        letterAt = { albums[it].name.railLetter() },
+        contentPadding = contentPadding,
+        onOrderChange = onOrderChange,
+        onLiked = onLiked,
+        onNavigateToDownloads = onNavigateToDownloads,
+        onNavigateToFollowing = onNavigateToFollowing,
+    ) { rowEndPadding ->
+        itemsIndexed(albums, key = { index, album -> "${album.id}-$index" }) { index, album ->
+            AlbumRow(
+                album = album,
+                onClick = onNavigateToAlbum,
+                onMore = onAlbumMore,
+                modifier = Modifier
+                    .animateItem()
+                    .revealOnAppear(index)
+                    .fillMaxWidth()
+                    .padding(end = rowEndPadding),
+            )
+        }
+    }
+}
+
+/** The Artists tab. */
+@Composable
+private fun ArtistsLibraryList(
+    artists: List<Artist>,
+    sort: SortOrder,
+    contentPadding: PaddingValues,
+    onOrderChange: (SortOrder) -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onArtistMore: (Artist) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+) {
+    TypeLibraryList(
+        itemCount = artists.size,
+        countLabel = pluralStringResource(R.plurals.library_artist_count, artists.size, artists.size),
+        sort = sort,
+        sortOptions = ARTIST_SORT_OPTIONS,
+        useNameLabel = true,
+        letterAt = { artists[it].name.railLetter() },
+        contentPadding = contentPadding,
+        onOrderChange = onOrderChange,
+        onLiked = onLiked,
+        onNavigateToDownloads = onNavigateToDownloads,
+        onNavigateToFollowing = onNavigateToFollowing,
+    ) { rowEndPadding ->
+        itemsIndexed(artists, key = { index, artist -> "${artist.id}-$index" }) { index, artist ->
+            ArtistRow(
+                artist = artist,
+                onClick = onNavigateToArtist,
+                onMore = onArtistMore,
+                modifier = Modifier
+                    .animateItem()
+                    .revealOnAppear(index)
+                    .fillMaxWidth()
+                    .padding(end = rowEndPadding),
+            )
+        }
+    }
+}
+
+/**
+ * The Playlists tab: regular playlists (with a sort menu + A-Z rail when sorted by name) preceded by the
+ * dynamic auto-playlists section. The auto section stays in its stable, meaningful order and does not
+ * participate in the alphabet rail.
+ */
+@Composable
+private fun PlaylistsLibraryList(
+    playlists: List<Playlist>,
+    autoPlaylists: List<Playlist>,
+    sort: SortOrder,
+    contentPadding: PaddingValues,
+    onOrderChange: (SortOrder) -> Unit,
+    onNavigateToPlaylist: (Playlist) -> Unit,
+    onPlaylistMore: (Playlist) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+) {
+    TypeLibraryList(
+        itemCount = playlists.size,
+        countLabel = pluralStringResource(R.plurals.library_playlist_count, playlists.size, playlists.size),
+        sort = sort,
+        sortOptions = PLAYLIST_SORT_OPTIONS,
+        useNameLabel = true,
+        // The rail only aligns with the regular playlists (they follow the auto section). Auto rows
+        // aren't alphabetized, so disable the rail while any exist to avoid misaligned jumps.
+        letterAt = if (autoPlaylists.isEmpty()) {
+            { playlists[it].name.railLetter() }
+        } else {
+            null
+        },
+        contentPadding = contentPadding,
+        onOrderChange = onOrderChange,
+        onLiked = onLiked,
+        onNavigateToDownloads = onNavigateToDownloads,
+        onNavigateToFollowing = onNavigateToFollowing,
+    ) { rowEndPadding ->
+        // Dynamic auto-playlists (Recently Added / Most Played / …) in their own section, above the
+        // regular playlists. Auto entries open the same PlaylistDetail screen (their MediaId is "auto").
+        if (autoPlaylists.isNotEmpty()) {
+            item(key = "auto_playlists_header") {
+                LibrarySectionHeader(
+                    title = stringResource(R.string.auto_playlists_section),
+                    modifier = Modifier.animateItem()
+                )
+            }
+            items(autoPlaylists, key = { playlist -> "auto-${playlist.id}" }) { playlist ->
+                AutoPlaylistRow(
+                    playlist = playlist,
+                    onClick = onNavigateToPlaylist,
+                    modifier = Modifier
+                        .animateItem()
+                        .fillMaxWidth()
+                        .padding(end = rowEndPadding)
+                )
+            }
+        }
+        itemsIndexed(playlists, key = { index, playlist -> "${playlist.id}-$index" }) { index, playlist ->
+            PlaylistRow(
+                playlist = playlist,
+                onClick = onNavigateToPlaylist,
+                onMore = onPlaylistMore,
+                modifier = Modifier
+                    .animateItem()
+                    .revealOnAppear(index)
+                    .fillMaxWidth()
+                    .padding(end = rowEndPadding),
+            )
+        }
+    }
+}
+
+/**
+ * Shared per-type list scaffold: a LazyColumn with the pinned Liked/Downloads/Following tiles + count +
+ * sort header, and an A-Z fast-scroll rail overlaid at the right edge when the list is alphabetically
+ * sorted. The rail is shown iff [letterAt] is non-null and the current [sort] is by title/name; then
+ * ~[RailReservedWidth] end padding is reserved on each row (passed to [content]) so text clears it.
+ *
+ * @param letterAt maps a data index (0-based, excluding the header) to its first-letter for the rail,
+ *   or `null` to force the rail off (e.g. a mixed/auto section that isn't alphabetized).
+ */
+@Composable
+private fun TypeLibraryList(
+    itemCount: Int,
+    countLabel: String,
+    sort: SortOrder,
+    sortOptions: List<SortOption>,
+    useNameLabel: Boolean,
+    letterAt: ((Int) -> Char)?,
+    contentPadding: PaddingValues,
+    onOrderChange: (SortOrder) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+    content: LazyListScope.(rowEndPadding: Dp) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    // The rail is meaningful only for an alphabetical order (by title/name). Recency / default / other
+    // orders have no letter structure, so hide it.
+    val railEnabled = letterAt != null && sort.option == SortOption.TITLE
+    val rowEndPadding = if (railEnabled) RailReservedWidth else 0.dp
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+        ) {
+            item(key = "type_header") {
+                LibraryListHeader(
+                    countLabel = countLabel,
+                    sort = sort,
+                    sortOptions = sortOptions,
+                    onOrderChange = onOrderChange,
+                    useNameLabel = useNameLabel,
+                    onLiked = onLiked,
+                    onNavigateToDownloads = onNavigateToDownloads,
+                    onNavigateToFollowing = onNavigateToFollowing,
+                )
+            }
+            content(rowEndPadding)
+        }
+
+        if (railEnabled && itemCount > 0 && letterAt != null) {
+            AlphabetRail(
+                listState = listState,
+                itemCount = itemCount,
+                // +1 for the header item that precedes the data rows in the LazyColumn.
+                dataStartIndex = 1,
+                letterAt = letterAt,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .padding(vertical = 8.dp, horizontal = 2.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The pinned right-edge A-Z fast-scroll rail (mockup 3a). Renders the distinct first-letters present in
+ * the list; the letter of the currently-visible section is highlighted as a filled secondaryContainer
+ * circle. Tapping or dragging a letter scrolls the [listState] to that letter's first item.
+ *
+ * @param dataStartIndex the LazyColumn index of the first data row (data indices are offset by the
+ *   preceding header item), so a rail letter for data index `i` scrolls to `dataStartIndex + i`.
+ */
+@Composable
+private fun AlphabetRail(
+    listState: LazyListState,
+    itemCount: Int,
+    dataStartIndex: Int,
+    letterAt: (Int) -> Char,
+    modifier: Modifier = Modifier,
+) {
+    val scope = rememberCoroutineScope()
+
+    // First data index for each distinct letter, in list order (so the rail letters are in order and
+    // each maps to where its section begins). Built from the actual data, so it reflects the real list.
+    val letterToFirstIndex = remember(itemCount, letterAt) {
+        val map = LinkedHashMap<Char, Int>()
+        for (i in 0 until itemCount) {
+            val c = letterAt(i)
+            if (c !in map) map[c] = i
+        }
+        map
+    }
+    val letters = remember(letterToFirstIndex) { letterToFirstIndex.keys.toList() }
+    if (letters.isEmpty()) return
+
+    // The letter of the currently top-most visible data row — highlighted in the rail.
+    val activeLetter by remember {
+        derivedStateOf {
+            val firstDataIndex = (listState.firstVisibleItemIndex - dataStartIndex).coerceIn(0, itemCount - 1)
+            letterAt(firstDataIndex)
+        }
+    }
+
+    var railHeightPx by remember { mutableStateOf(0) }
+    val scrollToLetterAt: (Float) -> Unit = { y ->
+        if (railHeightPx > 0 && letters.isNotEmpty()) {
+            val fraction = (y / railHeightPx).coerceIn(0f, 0.9999f)
+            val letter = letters[(fraction * letters.size).toInt().coerceIn(0, letters.size - 1)]
+            letterToFirstIndex[letter]?.let { dataIndex ->
+                scope.launch { listState.scrollToItem(dataStartIndex + dataIndex) }
+            }
+        }
+    }
+
+    val scrollDescription = stringResource(R.string.library_scroll_to_letter, activeLetter.toString())
+    Column(
+        modifier = modifier
+            .width(20.dp)
+            .onSizeChanged { railHeightPx = it.height }
+            .testTag("libraryAlphabetRail")
+            .semantics { contentDescription = scrollDescription }
+            .pointerInput(letters, railHeightPx) {
+                detectVerticalDragGestures(
+                    onDragStart = { offset -> scrollToLetterAt(offset.y) },
+                    onVerticalDrag = { change, _ -> scrollToLetterAt(change.position.y) },
+                )
+            }
+            .pointerInput(letters, railHeightPx) {
+                detectTapGestures { offset -> scrollToLetterAt(offset.y) }
+            },
+        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        letters.forEach { letter ->
+            val active = letter == activeLetter
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .then(
+                        if (active) {
+                            Modifier.background(
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                RoundedCornerShape(8.dp)
+                            )
+                        } else {
+                            Modifier
+                        }
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = letter.toString(),
+                    color = if (active) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * First-letter of a display string for the A-Z rail: the first non-blank character upper-cased, or '#'
+ * for names that don't start with a letter (digits, symbols, empty). Uses the no-arg `uppercaseChar()`
+ * to avoid the NonObservableLocale lint (no `Locale.getDefault()` in composition).
+ */
+private fun String.railLetter(): Char {
+    val c = trim().firstOrNull() ?: return '#'
+    val upper = c.uppercaseChar()
+    return if (upper.isLetter()) upper else '#'
 }
 
 /**
@@ -575,14 +947,15 @@ private fun LibraryToolbar(
 }
 
 /**
- * The horizontally-scrollable filter-chip row that replaces the old [androidx.compose.material3.PrimaryTabRow].
- * Renders one [SelectableChip] per visible tab, in the user's configured order; the selected chip fills
- * and shows a check. Each chip keeps the `libraryTab_<TAB>` test tag the old Tab carried.
+ * The horizontally-scrollable filter-chip row that replaces the old tab row. Renders one
+ * [SelectableChip] per visible tab, in the user's configured order. A chip fills (secondaryContainer +
+ * check) only when it is the [selected] type; with no selection (the unified default) every chip is
+ * outlined. Each chip keeps the `libraryTab_<TAB>` test tag the old Tab carried.
  */
 @Composable
 private fun LibraryFilterChips(
     tabs: List<LibraryTab>,
-    selected: LibraryTab,
+    selected: LibraryTab?,
     onSelect: (LibraryTab) -> Unit,
 ) {
     Row(
@@ -604,14 +977,14 @@ private fun LibraryFilterChips(
 }
 
 /**
- * The scroll-away header shown above each tab's list: the pinned Liked / Downloads / Following tiles
- * followed by a "N items" count and the sort control. [SortMenu] carries all the sort logic (and its
- * `sortMenuButton` test tag); the current order's label is shown beside it to match the mockup.
+ * The scroll-away header shown above a list: the pinned Liked / Downloads / Following tiles followed by
+ * a "N items" count and — when [sort] is non-null (a selected type) — the sort control. The unified
+ * feed passes `sort = null`, hiding the sort control since its recency order is fixed.
  */
 @Composable
 private fun LibraryListHeader(
     countLabel: String,
-    sort: SortOrder,
+    sort: SortOrder?,
     sortOptions: List<SortOption>,
     onOrderChange: (SortOrder) -> Unit,
     onLiked: () -> Unit,
@@ -649,7 +1022,7 @@ private fun LibraryListHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 4.dp, top = 8.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -658,21 +1031,61 @@ private fun LibraryListHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )
-            // Current-order label sits next to the sort control (which renders the sort glyph and owns
-            // the menu + all sort logic / test tag), matching the mockup's labelled sort affordance.
-            Text(
-                text = stringResource(sort.option.labelRes(useNameLabel)),
-                color = MaterialTheme.colorScheme.primary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            if (sort != null) {
+                SortPill(
+                    sort = sort,
+                    options = sortOptions,
+                    onOrderChange = onOrderChange,
+                    useNameLabel = useNameLabel,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The sort affordance as one outlined pill (mockup 3a): the sort glyph and the current-order label
+ * together inside a single outlined, [RoundedCornerShape] container, in primary content. The shared
+ * [SortMenu] supplies the glyph (its icon is the pill's sort glyph) and owns all the menu logic, its
+ * dropdown, and the `sortMenuButton` test tag — so tapping the glyph opens the menu. The label sits
+ * beside it, reading as one control. Primary tint is provided to the [SortMenu] icon via
+ * [LocalContentColor] so the whole pill is primary-coloured without changing the shared component.
+ */
+@Composable
+private fun SortPill(
+    sort: SortOrder,
+    options: List<SortOption>,
+    onOrderChange: (SortOrder) -> Unit,
+    useNameLabel: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                RoundedCornerShape(14.dp),
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides MaterialTheme.colorScheme.primary
+        ) {
             SortMenu(
                 current = sort,
-                options = sortOptions,
+                options = options,
                 onOrderChange = onOrderChange,
                 useNameLabel = useNameLabel,
+                modifier = Modifier.size(36.dp),
             )
         }
+        Text(
+            text = stringResource(sort.option.labelRes(useNameLabel)),
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(end = 12.dp),
+        )
     }
 }
 
