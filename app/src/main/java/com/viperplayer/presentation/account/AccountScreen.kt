@@ -176,7 +176,7 @@ private fun ProfileHeader(displayName: String, email: String, initials: String) 
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(8.dp))
-        AvatarRing(size = 92.dp) {
+        AvatarRing(size = 92.dp, showRing = true) {
             InitialsAvatar(text = initials)
         }
         Spacer(Modifier.height(12.dp))
