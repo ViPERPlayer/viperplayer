@@ -953,6 +953,29 @@
     <string name="account_sync_subtitle">Your library is backed up to your account</string>
     <string name="account_display_name_label">Display name</string>
     <string name="account_display_name_unset">Not set</string>
+    <string name="account_member_since_label">Member since</string>
+    <!-- Sync toggle + status + "Sync now" -->
+    <string name="account_sync_toggle_title">Sync library</string>
+    <string name="account_sync_toggle_subtitle">Keep your connected sources in sync on this device</string>
+    <string name="account_sync_now">Sync now</string>
+    <string name="account_sync_never">Not synced yet</string>
+    <string name="account_sync_in_progress">Syncing…</string>
+    <!-- e.g. "142 songs · 12 albums · synced 5 min ago" -->
+    <string name="account_sync_status_counts">%1$d songs · %2$d albums · synced %3$s</string>
+    <string name="account_sync_status_empty">Up to date · synced %1$s</string>
+    <!-- Change password -->
+    <string name="account_change_password">Change password</string>
+    <string name="account_change_password_current">Current password</string>
+    <string name="account_change_password_new">New password</string>
+    <string name="account_change_password_confirm">Change password</string>
+    <string name="account_change_password_success">Password changed</string>
+    <!-- Delete account -->
+    <string name="account_delete">Delete account</string>
+    <string name="account_delete_confirm_title">Delete account?</string>
+    <string name="account_delete_confirm_body">This permanently deletes your ViPER account and can\'t be undone. Enter your password to confirm.</string>
+    <string name="account_delete_password">Password</string>
+    <string name="account_delete_confirm">Delete account</string>
+    <string name="account_action_cancel">Cancel</string>
 
     <!-- Visual-language primitives (design foundation) -->
     <string name="cd_avatar">Avatar</string>
@@ -964,6 +987,10 @@
     <string name="you_manage_account">Manage account</string>
     <string name="you_library_synced">Library synced</string>
     <string name="you_library_sync_now">Sync now</string>
+    <!-- e.g. "142 songs · 12 albums · updated 5 min ago" -->
+    <string name="you_library_synced_status">%1$d songs · %2$d albums · updated %3$s</string>
+    <!-- e.g. "3h 20m this month" -->
+    <string name="you_listening_stats_this_month">%1$s this month</string>
     <!-- Sign-in hero -->
     <string name="you_hero_title">Sign in to ViPER</string>
     <string name="you_hero_body">Sync your library across devices, jam with friends, and share playlists.</string>

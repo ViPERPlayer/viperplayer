@@ -176,6 +176,7 @@ private fun YouContent(
                     SignedInHeader(
                         account = state.account,
                         friendsLive = state.socialEnabled && state.firstListeningFriendName != null,
+                        syncStatus = state.librarySyncStatus,
                         onManageAccount = onNavigateToAccount,
                         onSyncNow = onSyncNow,
                     )
@@ -237,6 +238,7 @@ private fun GroupLabel(text: String) {
 private fun SignedInHeader(
     account: AccountState,
     friendsLive: Boolean,
+    syncStatus: LibrarySyncStatusUi,
     onManageAccount: () -> Unit,
     onSyncNow: () -> Unit,
 ) {

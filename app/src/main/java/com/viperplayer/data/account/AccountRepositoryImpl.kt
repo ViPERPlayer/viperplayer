@@ -45,6 +45,42 @@ class AccountRepositoryImpl @Inject constructor(
         credentialStore.clear()
     }
 
+    override suspend fun changePassword(current: String, new: String): AuthResult {
+        val result = withAuth { token -> client.changePassword(token, current, new) }
+        // A 401 here (after the transparent refresh-and-retry) means the CURRENT password was wrong,
+        // not an expired token — surface it as a rejection rather than clearing the session.
+        return result.toAuthResult(unauthenticatedMessage = "Current password is incorrect")
+    }
+
+    override suspend fun deleteAccount(password: String): AuthResult {
+        val result = withAuth { token -> client.deleteAccount(token, password) }
+        return when (val authResult = result.toAuthResult(unauthenticatedMessage = "Password is incorrect")) {
+            is AuthResult.Success -> {
+                // Account gone server-side → drop the local session so the app returns signed-out.
+                credentialStore.clear()
+                authResult
+            }
+            else -> authResult
+        }
+    }
+
+    /**
+     * Maps a no-body authed result ([AccountApiResult] of [Unit]) into an [AuthResult]. There is no
+     * user payload, so [AuthResult.Success] carries the current cached user (or a blank placeholder);
+     * callers of change/delete ignore the user and only branch on success/failure.
+     */
+    private suspend fun AccountApiResult<Unit>.toAuthResult(unauthenticatedMessage: String): AuthResult =
+        when (this) {
+            is AccountApiResult.Success -> AuthResult.Success(
+                credentialStore.snapshot().state.user
+                    ?: AccountUser(id = "", email = "", displayName = ""),
+            )
+            is AccountApiResult.Rejected -> AuthResult.Failed(message)
+            AccountApiResult.Unauthenticated -> AuthResult.Failed(unauthenticatedMessage)
+            AccountApiResult.NetworkError -> AuthResult.NetworkError
+            AccountApiResult.NotConfigured -> AuthResult.NotConfigured
+        }
+
     override suspend fun validAccessToken(): String? {
         val snapshot = credentialStore.snapshot()
         val access = snapshot.accessToken ?: return null
@@ -112,9 +148,8 @@ class AccountRepositoryImpl @Inject constructor(
     /**
      * Refreshes the cached user profile from the backend (`GetMe`), persisting any change. Best-effort:
      * returns the fresh [AccountUser] on success, null otherwise (offline, signed out, not configured).
-     * Not on the public interface — available for callers that want an up-to-date profile.
      */
-    internal suspend fun refreshProfile(): AccountUser? {
+    override suspend fun refreshProfile(): AccountUser? {
         val result = withAuth { token -> client.getMe(token) }
         return when (result) {
             is AccountApiResult.Success -> {
@@ -158,4 +193,5 @@ private fun UserDto.toAccountUser(): AccountUser = AccountUser(
     id = id,
     email = email,
     displayName = displayName.ifBlank { email.substringBefore('@') },
+    createdAtMs = createdAtMs,
 )

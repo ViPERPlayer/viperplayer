@@ -33,6 +33,26 @@ interface AccountRepository {
     suspend fun logout()
 
     /**
+     * Changes the signed-in user's password. [current] is verified server-side; on success the
+     * session is kept (the backend does not rotate tokens). Returns an [AuthResult] — [AuthResult.Failed]
+     * for a wrong current password or a rejected new one.
+     */
+    suspend fun changePassword(current: String, new: String): AuthResult
+
+    /**
+     * Permanently deletes the signed-in account, confirming with [password]. On success the local
+     * session is cleared (the app returns to signed-out). Returns an [AuthResult].
+     */
+    suspend fun deleteAccount(password: String): AuthResult
+
+    /**
+     * Refreshes the cached user profile from the backend (`GetMe`), persisting any change. Best-effort:
+     * returns the fresh [AccountUser] on success, null otherwise (offline, signed out, not configured).
+     * Lets the UI populate newer profile fields (e.g. created-at) on pre-existing sessions.
+     */
+    suspend fun refreshProfile(): AccountUser?
+
+    /**
      * Returns a currently-valid access token, transparently refreshing it with the stored refresh
      * token if it has expired. Null when signed out or the refresh failed (the caller should treat
      * that as signed-out). For use by other authenticated backend calls (library sync, WS upgrade).

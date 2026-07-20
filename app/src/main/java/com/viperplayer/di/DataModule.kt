@@ -17,6 +17,8 @@ import com.viperplayer.data.repository.RadioPlaylistRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.repository.SettingsRepositoryImpl
 import com.viperplayer.data.repository.ViperRepositoryImpl
+import com.viperplayer.data.sync.LibrarySync
+import com.viperplayer.data.sync.LibrarySyncManager
 import com.viperplayer.data.sync.push.LibraryPushOutbox
 import com.viperplayer.data.sync.push.RoomLibraryPushOutbox
 import com.viperplayer.domain.account.AccountRepository
@@ -57,6 +59,12 @@ abstract class DataModule {
     abstract fun bindLibrarySyncRepository(
         impl: LibrarySyncRepositoryImpl
     ): LibrarySyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLibrarySync(
+        impl: LibrarySyncManager
+    ): LibrarySync
 
     @Binds
     @Singleton

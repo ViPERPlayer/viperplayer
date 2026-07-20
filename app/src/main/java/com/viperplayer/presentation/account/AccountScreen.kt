@@ -17,24 +17,37 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Password
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,14 +66,13 @@ import com.viperplayer.presentation.ktx.plus
 
 /**
  * The Account & sync screen (route `Account`, mockup 5e), reached from the You hub's "Manage
- * account" chip. Shows the signed-in identity, a library-sync status card, an account-details card
- * and the sign-out action. Sign-in / register live on their own [SignInScreen] / [RegisterScreen];
- * the signed-out fallback here just routes back to sign-in.
+ * account" chip. Shows the signed-in identity, a library-sync card (toggle + status + "Sync now"),
+ * an account-details card (with change-password + delete-account actions) and the sign-out action.
+ * Sign-in / register live on their own [SignInScreen] / [RegisterScreen]; the signed-out fallback
+ * here just routes back to sign-in.
  *
- * Render-only: all auth logic stays in [AccountViewModel]. The sync card is status-only — the
- * counts/timestamp, sync toggle and "Sync now" action from the mockup have no backing signal on
- * [AccountViewModel] (which exposes no sync API), so they are intentionally deferred rather than
- * faked; only the "library synced" status the app already surfaces on the You hub is shown here.
+ * Render-only: all auth + sync logic stays in [AccountViewModel]; the change-password and
+ * delete-account flows are in-place dialogs (no new nav route).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +113,14 @@ fun AccountScreen(
         ) {
             when {
                 !uiState.isConfigured -> NotConfiguredCard()
-                uiState.account.isSignedIn -> SignedInContent(uiState.account, viewModel::signOut)
+                uiState.account.isSignedIn -> SignedInContent(
+                    uiState = uiState,
+                    onSignOut = viewModel::signOut,
+                    onSyncToggle = viewModel::setSyncEnabled,
+                    onSyncNow = viewModel::syncNow,
+                    onChangePassword = viewModel::changePassword,
+                    onDeleteAccount = viewModel::deleteAccount,
+                )
                 else -> SignedOutPrompt(onNavigateToSignIn)
             }
         }
@@ -125,10 +144,21 @@ private fun NotConfiguredCard() {
 }
 
 @Composable
-private fun SignedInContent(account: AccountState, onSignOut: () -> Unit) {
+private fun SignedInContent(
+    uiState: AccountUiState,
+    onSignOut: () -> Unit,
+    onSyncToggle: (Boolean) -> Unit,
+    onSyncNow: () -> Unit,
+    onChangePassword: (current: String, new: String) -> Unit,
+    onDeleteAccount: (password: String) -> Unit,
+) {
+    val account = uiState.account
     val user = account.user ?: return
     val displayName = user.displayName.ifBlank { user.email }
     val initials = displayName.firstOrNull()?.uppercase().orEmpty()
+
+    var showChangePassword by remember { mutableStateOf(false) }
+    var showDeleteAccount by remember { mutableStateOf(false) }
 
     ProfileHeader(displayName = displayName, email = user.email, initials = initials)
 
@@ -138,10 +168,16 @@ private fun SignedInContent(account: AccountState, onSignOut: () -> Unit) {
         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
     )
     SurfaceCard {
-        InfoRow(
-            leadingIcon = Icons.Rounded.CloudDone,
-            title = stringResource(R.string.you_library_synced),
-            subtitle = stringResource(R.string.account_sync_subtitle),
+        SyncToggleRow(
+            enabled = uiState.syncEnabled,
+            statusSubtitle = syncStatusSubtitle(uiState),
+            onToggle = onSyncToggle,
+        )
+        InsetDivider()
+        SyncNowRow(
+            enabled = uiState.syncEnabled,
+            isSyncing = uiState.isSyncing,
+            onSyncNow = onSyncNow,
         )
     }
 
@@ -162,10 +198,44 @@ private fun SignedInContent(account: AccountState, onSignOut: () -> Unit) {
             label = stringResource(R.string.account_email),
             value = user.email,
         )
+        if (uiState.memberSince.isNotBlank()) {
+            InsetDivider()
+            FieldRow(
+                leadingIcon = Icons.Rounded.CalendarMonth,
+                label = stringResource(R.string.account_member_since_label),
+                value = uiState.memberSince,
+            )
+        }
+        InsetDivider()
+        ActionRow(
+            leadingIcon = Icons.Rounded.Password,
+            title = stringResource(R.string.account_change_password),
+            onClick = { showChangePassword = true },
+        )
     }
 
     Spacer(Modifier.height(20.dp))
     SignOutButton(onSignOut = onSignOut)
+
+    Spacer(Modifier.height(8.dp))
+    DeleteAccountLink(onClick = { showDeleteAccount = true })
+
+    if (showChangePassword) {
+        ChangePasswordDialog(
+            isSubmitting = uiState.isSubmitting,
+            error = uiState.error,
+            onConfirm = onChangePassword,
+            onDismiss = { showChangePassword = false },
+        )
+    }
+    if (showDeleteAccount) {
+        DeleteAccountDialog(
+            isSubmitting = uiState.isSubmitting,
+            error = uiState.error,
+            onConfirm = onDeleteAccount,
+            onDismiss = { showDeleteAccount = false },
+        )
+    }
 }
 
 /** Centered avatar + name + email block (mockup 5e header). */
@@ -194,12 +264,12 @@ private fun ProfileHeader(displayName: String, email: String, initials: String) 
     }
 }
 
-/** A status row inside a card: leading icon (primary-tinted), a title and a supporting subtitle. */
+/** Sync-library toggle row: title + live status subtitle, with a trailing Switch. */
 @Composable
-private fun InfoRow(
-    leadingIcon: ImageVector,
-    title: String,
-    subtitle: String,
+private fun SyncToggleRow(
+    enabled: Boolean,
+    statusSubtitle: String,
+    onToggle: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -209,14 +279,14 @@ private fun InfoRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = leadingIcon,
+            imageVector = Icons.Rounded.CloudDone,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(22.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title,
+                text = stringResource(R.string.account_sync_toggle_title),
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
@@ -224,11 +294,66 @@ private fun InfoRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = subtitle,
+                text = statusSubtitle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Switch(checked = enabled, onCheckedChange = onToggle)
+    }
+}
+
+/** "Sync now" row: shows a spinner while a run is in flight; disabled when sync is off. */
+@Composable
+private fun SyncNowRow(
+    enabled: Boolean,
+    isSyncing: Boolean,
+    onSyncNow: () -> Unit,
+) {
+    val clickable = enabled && !isSyncing
+    val contentColor = if (clickable) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        onClick = onSyncNow,
+        enabled = clickable,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isSyncing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.Sync,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Text(
+                text = if (isSyncing) {
+                    stringResource(R.string.account_sync_in_progress)
+                } else {
+                    stringResource(R.string.account_sync_now)
+                },
+                color = contentColor,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -274,6 +399,43 @@ private fun FieldRow(
     }
 }
 
+/** A tappable account-action row: leading icon + title (e.g. "Change password"). */
+@Composable
+private fun ActionRow(
+    leadingIcon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = leadingIcon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
 /** Full-width translucent-error "Sign out" action (mockup 5e). */
 @Composable
 private fun SignOutButton(onSignOut: () -> Unit) {
@@ -306,6 +468,164 @@ private fun SignOutButton(onSignOut: () -> Unit) {
     }
 }
 
+/** Destructive "Delete account" text link below Sign out (opens the confirm dialog). */
+@Composable
+private fun DeleteAccountLink(onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(R.string.account_delete),
+            color = MaterialTheme.colorScheme.error,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            textDecoration = TextDecoration.Underline,
+        )
+    }
+}
+
+/**
+ * In-place change-password dialog (no nav route): a current + new password field, gated on a minimum
+ * new-password length. Surfaces the ViewModel [error] inline; confirming forwards to [onConfirm].
+ */
+@Composable
+private fun ChangePasswordDialog(
+    isSubmitting: Boolean,
+    error: String?,
+    onConfirm: (current: String, new: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var current by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var currentVisible by remember { mutableStateOf(false) }
+    var newVisible by remember { mutableStateOf(false) }
+    val canSubmit = current.isNotBlank() && newPassword.length >= MinPasswordLength && !isSubmitting
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Rounded.Password, contentDescription = null) },
+        title = { Text(stringResource(R.string.account_change_password)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AuthTextField(
+                    value = current,
+                    onValueChange = { current = it },
+                    label = stringResource(R.string.account_change_password_current),
+                    leadingIcon = Icons.Rounded.Lock,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = passwordTransformation(currentVisible),
+                    trailing = {
+                        PasswordVisibilityToggle(currentVisible) { currentVisible = !currentVisible }
+                    },
+                )
+                AuthTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = stringResource(R.string.account_change_password_new),
+                    leadingIcon = Icons.Rounded.Password,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = passwordTransformation(newVisible),
+                    trailing = {
+                        PasswordVisibilityToggle(newVisible) { newVisible = !newVisible }
+                    },
+                )
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(current, newPassword) },
+                enabled = canSubmit,
+            ) {
+                Text(stringResource(R.string.account_change_password_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.account_action_cancel))
+            }
+        },
+    )
+}
+
+/**
+ * In-place delete-account confirm dialog (no nav route): requires the password, styled with the error
+ * colour. Confirming forwards to [onConfirm]; on success the ViewModel clears the session and the
+ * screen returns to signed-out (which unmounts this dialog).
+ */
+@Composable
+private fun DeleteAccountDialog(
+    isSubmitting: Boolean,
+    error: String?,
+    onConfirm: (password: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    var visible by remember { mutableStateOf(false) }
+    val canSubmit = password.isNotBlank() && !isSubmitting
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Rounded.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        title = { Text(stringResource(R.string.account_delete_confirm_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.account_delete_confirm_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                AuthTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = stringResource(R.string.account_delete_password),
+                    leadingIcon = Icons.Rounded.Lock,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = passwordTransformation(visible),
+                    trailing = {
+                        PasswordVisibilityToggle(visible) { visible = !visible }
+                    },
+                )
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(password) },
+                enabled = canSubmit,
+            ) {
+                Text(
+                    text = stringResource(R.string.account_delete_confirm),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.account_action_cancel))
+            }
+        },
+    )
+}
+
 /** Fallback when the detail is opened without a session (e.g. right after sign-out): route to sign-in. */
 @Composable
 private fun SignedOutPrompt(onNavigateToSignIn: () -> Unit) {
@@ -323,5 +643,21 @@ private fun SignedOutPrompt(onNavigateToSignIn: () -> Unit) {
             text = stringResource(R.string.you_hero_sign_in),
             onClick = onNavigateToSignIn,
         )
+    }
+}
+
+/** The sync-card status subtitle: "N songs · M albums · synced <rel>" / empty / "Not synced yet". */
+@Composable
+private fun syncStatusSubtitle(uiState: AccountUiState): String {
+    val status = uiState.syncStatus
+    return when {
+        !status.hasSynced -> stringResource(R.string.account_sync_never)
+        status.songs > 0 || status.albums > 0 -> stringResource(
+            R.string.account_sync_status_counts,
+            status.songs,
+            status.albums,
+            status.relativeTime,
+        )
+        else -> stringResource(R.string.account_sync_status_empty, status.relativeTime)
     }
 }
