@@ -1,15 +1,22 @@
 package com.viperplayer.presentation.history
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -28,23 +35,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
-import com.viperplayer.presentation.common.ListItem
-import com.viperplayer.presentation.common.ListItemLeadingArtwork
+import com.viperplayer.presentation.common.PlayingArtworkOverlay
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.ktx.with
-import com.viperplayer.presentation.search.model.ItemBadge
-import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import java.time.Instant
 import java.time.ZoneId
@@ -52,6 +63,13 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+
+/** Corner radius for the filled active-row container (mockup 5h, mirrors the Library/Search rows). */
+private val ActiveRowCorner = 14.dp
+
+/** Row artwork thumbnail size + corner radius (mockup 5h bumps the radius from the shared 6dp). */
+private val RowArtworkSize = 50.dp
+private val RowArtworkCorner = 10.dp
 
 /**
  * History screen: a chronological, date-grouped timeline of every recorded play. Tapping a song
@@ -181,25 +199,14 @@ private fun HistoryScreenContent(
                             )
                         }
 
-                        val isActive = currentSongId == entry.song.id
-                        ListItem(
-                            title = entry.song.title,
-                            badges = if (entry.song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                            subtitle = rowSubtitle(entry, timeFormatter),
-                            isActive = isActive,
-                            leadingContent = {
-                                ListItemLeadingArtwork(
-                                    artworkUrl = entry.song.artworkUrl,
-                                    type = SearchItem.Type.SONG,
-                                    isActive = isActive,
-                                    isPlaying = isActive && isPlaying
-                                )
-                            },
-                            trailingContent = {},
+                        HistoryRow(
+                            entry = entry,
+                            isActive = currentSongId == entry.song.id,
+                            isPlaying = isPlaying,
+                            timeFormatter = timeFormatter,
                             onClick = if (entry.song.isPlayable) {
                                 { onPlay(index) }
-                            } else null,
-                            modifier = Modifier.fillMaxWidth()
+                            } else null
                         )
                     }
                 }
@@ -225,6 +232,138 @@ private fun HistoryScreenContent(
                     Text(stringResource(R.string.action_cancel))
                 }
             }
+        )
+    }
+}
+
+/**
+ * A single history row, built locally (not via the shared `ListItem`) so it can carry the mockup-5h
+ * fidelity the shared row can't: the now-playing highlight (a filled [ActiveRowCorner]-rounded
+ * `surfaceContainerHigh` container with an 8dp horizontal inset + small vertical margin, a
+ * primary-tinted title, and a trailing `primary` graphic_eq glyph) and the small rounded-square "E"
+ * explicit tag after the title. The leading artwork ([HistoryRowArtwork]) stays visible — the eq
+ * lives beside the title, never over the thumbnail. There is no real per-row action beyond play, so
+ * no trailing more button is shown. Unplayable rows simply don't accept taps.
+ */
+@Composable
+private fun HistoryRow(
+    entry: HistoryEntry,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    timeFormatter: DateTimeFormatter,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            // The active row is inset + filled; the flat row uses the full 16dp edge padding.
+            .then(
+                if (isActive) {
+                    Modifier
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(ActiveRowCorner))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                } else {
+                    Modifier
+                }
+            )
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = if (isActive) 8.dp else 16.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        HistoryRowArtwork(
+            artworkUrl = entry.song.artworkUrl,
+            isActive = isActive,
+            isPlaying = isActive && isPlaying,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = entry.song.title,
+                    modifier = Modifier.weight(1f, fill = false).infiniteBasicMarquee(),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isActive) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                )
+                if (entry.song.isExplicit) ExplicitTag()
+            }
+            Text(
+                text = rowSubtitle(entry, timeFormatter),
+                modifier = Modifier.infiniteBasicMarquee(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (isActive) {
+            Icon(
+                imageVector = Icons.Rounded.GraphicEq,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The history row's leading artwork — a local thumbnail at [RowArtworkSize] (50dp) with
+ * [RowArtworkCorner] (10dp, up from the shared row's 6dp per mockup 5h) and the shared now-playing
+ * overlay centered on top. Built locally (like the Library rows) rather than reusing the shared
+ * artwork so the larger radius applies cleanly without changing shared UI.
+ */
+@Composable
+private fun HistoryRowArtwork(
+    artworkUrl: String?,
+    isActive: Boolean,
+    isPlaying: Boolean,
+) {
+    Box(
+        modifier = Modifier.size(RowArtworkSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        AsyncImage(
+            model = artworkUrl,
+            contentDescription = stringResource(R.string.cd_artwork),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(RowArtworkCorner)),
+        )
+        PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+    }
+}
+
+/**
+ * The small rounded-square "E" explicit tag (mockup 5h): a surfaceVariant-filled square with a bold
+ * onSurfaceVariant "E", replacing the Explicit vector icon. Shown right after a song title.
+ */
+@Composable
+private fun ExplicitTag() {
+    Box(
+        modifier = Modifier
+            .size(15.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.library_explicit_short),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
