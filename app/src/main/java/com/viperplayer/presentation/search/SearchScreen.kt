@@ -1,23 +1,32 @@
 package com.viperplayer.presentation.search
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,8 +43,16 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.AddToQueue
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Downloading
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.LibraryAddCheck
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.QueuePlayNext
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.HorizontalDivider
@@ -54,16 +71,25 @@ import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -87,8 +113,12 @@ import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.SelectableChip
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.infiniteBasicMarquee
+import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @SuppressLint("AutoboxingStateCreation")
 @Composable
@@ -511,17 +541,12 @@ private fun SearchResultsList(
                 key = { _, item -> "song_${item.id}" },
                 contentType = { _, item -> item.type },
             ) { index, item ->
-                ListItem(
-                    type = item.type,
-                    title = item.title,
-                    badges = item.badges,
-                    subtitle = item.subtitle,
-                    artworkUrl = item.artworkUrl,
+                SearchSongRow(
+                    item = item,
                     isActive = item.id == currentSongId,
                     isPlaying = isPlaying,
                     onClick = { onItemActivated(item) },
-                    onMoreClick = { onMore(item) },
-                    onLongClick = { onMore(item) },
+                    onMore = { onMore(item) },
                     onPlayNext = { onPlayNext(item) },
                     onAddToQueue = { onAddToQueue(item) },
                     modifier = Modifier
@@ -590,6 +615,282 @@ private fun SearchResultsList(
                 onLoadMore()
             }
         }
+    }
+}
+
+/** Corner radius for the filled active-row container (mockup 4a). */
+private val ActiveRowCorner = 14.dp
+
+/** Song-row artwork thumbnail size + corner radius (mockup 4a bumps the radius from the shared 6dp). */
+private val SearchRowArtworkSize = 50.dp
+private val SearchRowArtworkCorner = 10.dp
+
+/**
+ * A Search results song row built locally (not via the shared [ListItem]) so it can carry the mockup-4a
+ * fidelity the shared row can't: the now-playing highlight (filled [ActiveRowCorner]-rounded
+ * `surfaceContainerHigh` container with a small horizontal inset, primary-tinted title, and a trailing
+ * `primary` graphic_eq glyph before the more button) and the small rounded-square "E" explicit tag after
+ * the title. The artwork ([SearchRowArtwork], reusing the shared now-playing overlay) stays visible —
+ * the eq lives beside the title, never over the thumbnail. Keeps the swipe-left → play-next /
+ * swipe-right → add-to-queue gestures the shared row provided.
+ */
+@Composable
+private fun SearchSongRow(
+    item: SearchItem,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    onMore: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val addedToQueueMessage = stringResource(R.string.toast_added_to_queue)
+    val playingNextMessage = stringResource(R.string.toast_playing_next)
+
+    val maxOffset = with(density) { 112.dp.toPx() }
+    val threshold = maxOffset * 0.55f
+    val offset = remember { Animatable(0f) }
+
+    val draggableState = rememberDraggableState { delta ->
+        scope.launch {
+            val coerced = (offset.value + delta).coerceIn(-maxOffset, maxOffset)
+            val wasPast = abs(offset.value) >= threshold
+            val isPast = abs(coerced) >= threshold
+            if (isPast != wasPast) {
+                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            }
+            offset.snapTo(coerced)
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            // The active row is inset + filled; give the whole swipe box the container so the fill and
+            // the swipe reveals share the same rounded bounds.
+            .then(
+                if (isActive) {
+                    Modifier
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(ActiveRowCorner))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                } else {
+                    Modifier
+                }
+            )
+            .height(IntrinsicSize.Min)
+            .draggable(
+                state = draggableState,
+                orientation = Orientation.Horizontal,
+                onDragStopped = {
+                    scope.launch {
+                        when {
+                            offset.value < -threshold -> {
+                                onPlayNext()
+                                Toast.makeText(context, playingNextMessage, Toast.LENGTH_SHORT).show()
+                            }
+                            offset.value > threshold -> {
+                                onAddToQueue()
+                                Toast.makeText(context, addedToQueueMessage, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        offset.animateTo(0f)
+                    }
+                }
+            )
+    ) {
+        val absOffsetDp = with(density) { abs(offset.value).toDp() }
+        when {
+            // Dragged left → reveal play-next on the trailing edge.
+            offset.value < 0 -> SearchSwipeAffordance(
+                icon = Icons.Rounded.QueuePlayNext,
+                contentDescription = stringResource(R.string.action_play_next),
+                width = absOffsetDp,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+            // Dragged right → reveal add-to-queue on the leading edge.
+            offset.value > 0 -> SearchSwipeAffordance(
+                icon = Icons.Rounded.AddToQueue,
+                contentDescription = stringResource(R.string.action_add_to_queue),
+                width = absOffsetDp,
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(x = offset.value.roundToInt(), y = 0) }
+                .combinedClickable(onClick = onClick, onLongClick = onMore)
+                // Content sits ~16dp from the screen edge. The active row's container already adds an
+                // 8dp inset, so its inner padding is 8dp; the flat non-active row uses the full 16dp.
+                .padding(horizontal = if (isActive) 8.dp else 16.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SearchRowArtwork(
+                artworkUrl = item.artworkUrl,
+                isActive = isActive,
+                isPlaying = isPlaying,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = item.title,
+                        modifier = Modifier.weight(1f, fill = false).infiniteBasicMarquee(),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = if (isActive) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                    if (ItemBadge.EXPLICIT in item.badges) ExplicitTag()
+                }
+                // Non-explicit badges (favorite/library/download state) plus the subtitle, mirroring the
+                // shared row's secondary line — the explicit marker is promoted to the "E" tag above.
+                val otherBadges = item.badges.filter { it != ItemBadge.EXPLICIT }
+                if (otherBadges.isNotEmpty() || item.subtitle != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (otherBadges.isNotEmpty()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                otherBadges.forEach { badge ->
+                                    val icon = when (badge) {
+                                        ItemBadge.FAVORITE -> Icons.Rounded.Favorite
+                                        ItemBadge.LIBRARY -> Icons.Rounded.LibraryAddCheck
+                                        ItemBadge.DOWNLOADING -> Icons.Rounded.Downloading
+                                        ItemBadge.DOWNLOADED -> Icons.Rounded.Download
+                                        // EXPLICIT is promoted to the "E" tag above and filtered out here.
+                                        ItemBadge.EXPLICIT -> null
+                                    }
+                                    if (icon != null) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        item.subtitle?.let { subtitle ->
+                            Text(
+                                text = subtitle,
+                                modifier = Modifier.infiniteBasicMarquee(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+            if (isActive) {
+                Icon(
+                    imageVector = Icons.Rounded.GraphicEq,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            IconButton(onClick = onMore) {
+                Icon(
+                    Icons.Rounded.MoreVert,
+                    contentDescription = stringResource(R.string.action_more),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** The swipe-reveal affordance shown under a dragged song row (play-next trailing, queue leading). */
+@Composable
+private fun SearchSwipeAffordance(
+    icon: ImageVector,
+    contentDescription: String,
+    width: Dp,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(width)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .clipToBounds(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.requiredSize(24.dp),
+        )
+    }
+}
+
+/**
+ * The song row's leading artwork — a local thumbnail at [SearchRowArtworkCorner] (10dp, up from the
+ * shared row's 6dp per mockup 4a) with the shared now-playing overlay centered on top.
+ */
+@Composable
+private fun SearchRowArtwork(
+    artworkUrl: String?,
+    isActive: Boolean,
+    isPlaying: Boolean,
+) {
+    Box(
+        modifier = Modifier.size(SearchRowArtworkSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        AsyncImage(
+            model = artworkUrl,
+            contentDescription = stringResource(R.string.cd_artwork),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(SearchRowArtworkCorner))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        )
+        PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+    }
+}
+
+/**
+ * The small rounded-square "E" explicit tag (mockup 4a): a surfaceVariant-filled square with a bold
+ * onSurfaceVariant "E", replacing the Explicit vector icon. Shown right after a song title.
+ */
+@Composable
+private fun ExplicitTag() {
+    Box(
+        modifier = Modifier
+            .size(15.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.library_explicit_short),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
