@@ -159,7 +159,7 @@ class AccountViewModel @Inject constructor(
         _uiState.update { it.copy(error = null) }
     }
 
-    private fun submit(action: suspend () -> AuthResult, onSuccess: () -> Unit = {}) {
+    private fun submit(onSuccess: () -> Unit = {}, action: suspend () -> AuthResult) {
         if (_uiState.value.isSubmitting) return
         _uiState.update { it.copy(isSubmitting = true, error = null) }
         viewModelScope.launch {
