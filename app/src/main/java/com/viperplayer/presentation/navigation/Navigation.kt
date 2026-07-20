@@ -370,6 +370,7 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onJoin = { code -> navigator.navigate(JoinSession(prefillCode = code)) },
+                onFindPeople = { navigator.navigate(FindPeople) },
             )
         }
 
@@ -378,6 +379,21 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onPreview = { mediaId -> navigator.navigate(PlaylistDetail(playlistId = mediaId)) },
+            )
+        }
+
+        entry<FindPeople> {
+            FindPeopleScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+            )
+        }
+
+        entry<FollowingUsers> {
+            FollowingUsersScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToFindPeople = { navigator.navigate(FindPeople) },
             )
         }
 

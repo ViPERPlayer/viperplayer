@@ -1101,4 +1101,13 @@
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>
     </plurals>
+    <!-- Social: find people / follow (S1) -->
+    <string name="find_people_title">Find people</string>
+    <string name="find_people_search_hint">Search by @username</string>
+    <string name="find_people_prompt">Search for people to follow</string>
+    <string name="find_people_no_results">No one found</string>
+    <string name="follow_action_follow">Follow</string>
+    <string name="follow_action_following">Following</string>
+    <string name="following_users_title">Following</string>
+    <string name="following_users_empty">You\'re not following anyone yet</string>
 </resources>
