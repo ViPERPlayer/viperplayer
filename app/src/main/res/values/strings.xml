@@ -715,13 +715,30 @@
     <string name="tag_details_value_bit">%1$d-bit</string>
 
     <!-- Join a session -->
-    <string name="join_session_title">Join a session</string>
+    <string name="join_session_title">Join a Jam</string>
     <string name="join_session_subtitle">Scan a friend\'s Jam QR code</string>
-    <string name="join_session_flashlight">Tap for flashlight</string>
+    <string name="join_session_flashlight">Flashlight</string>
     <string name="join_session_or_enter_code">Or enter a code</string>
     <string name="join_session_paste">Paste invite link</string>
     <string name="join_session_join">Join session</string>
     <string name="join_session_joined">Joined session</string>
+    <string name="join_session_host_instead">Host a jam instead</string>
+
+    <!-- Host a Jam sheet -->
+    <string name="host_session_title">Listen together</string>
+    <string name="host_session_hosting_badge">Hosting</string>
+    <string name="host_session_now_playing_placeholder">Nothing playing yet</string>
+    <string name="host_session_listeners">%1$s are listening</string>
+    <string name="host_session_listeners_you_only">Just you so far</string>
+    <string name="host_session_code_label">Session code</string>
+    <string name="host_session_share_invite">Share invite</string>
+    <string name="host_session_show_qr">Show QR code</string>
+    <string name="host_session_join_instead">Join a session</string>
+    <string name="host_session_this_device">This device</string>
+    <string name="host_session_copy_code">Copy session code</string>
+    <string name="host_session_code_copied">Code copied</string>
+    <string name="host_session_starting">Starting your Jam…</string>
+    <string name="host_session_end">End Jam</string>
 
     <!-- Player context chip -->
     <string name="player_context_search">Search</string>

@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -45,10 +46,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FlashlightOff
 import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,7 +73,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -91,14 +91,18 @@ import com.google.zxing.common.HybridBinarizer
 import com.viperplayer.R
 
 /**
- * "Join a session" — the guest counterpart to the host's share/QR sheets. Scans a Jam invite QR with
- * the camera (decoded via zxing) or accepts a manually-entered code, then joins through the
- * (currently mock-backed) [com.viperplayer.domain.repository.ListenTogetherRepository].
+ * "Join a Jam" — the guest counterpart to the host's share/QR sheets. Scans a Jam invite QR with the
+ * camera (decoded via zxing) or accepts a manually-entered code, then joins through the (currently
+ * mock-backed) [com.viperplayer.domain.repository.ListenTogetherRepository].
+ *
+ * [onNavigateToHost] is the self-contained "Host a jam instead" affordance in the manual-entry sheet,
+ * which jumps the guest to the [com.viperplayer.presentation.social.HostSessionScreen] host flow.
  */
 @Composable
 fun JoinSessionScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
+    onNavigateToHost: () -> Unit = {},
     viewModel: JoinSessionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -130,7 +134,7 @@ fun JoinSessionScreen(
 
     var torchOn by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0B0E0D))) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceDim)) {
         // ---- Scanner area ----
         Box(modifier = Modifier.fillMaxWidth().fillMaxSize()) {
             if (hasCameraPermission) {
@@ -140,11 +144,11 @@ fun JoinSessionScreen(
                     modifier = Modifier.matchParentSize(),
                 )
             }
-            // Dim the lower part so the manual-entry sheet reads over the preview.
+            // Dim the preview so the overlaid controls + manual-entry sheet read over the camera feed.
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color(0xFF0B0E0D).copy(alpha = if (hasCameraPermission) 0.15f else 0.6f)),
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = if (hasCameraPermission) 0.15f else 0.6f)),
             )
         }
 
@@ -155,9 +159,15 @@ fun JoinSessionScreen(
         ) {
             // Close + title
             Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                IconButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp),
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 8.dp)
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
+                        .clickable(onClick = onNavigateBack),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Filled.Close, contentDescription = stringResourceSafe(R.string.action_close), tint = Color.White)
                 }
@@ -185,20 +195,21 @@ fun JoinSessionScreen(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(100))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
                     .clickable { torchOn = !torchOn }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
                     if (torchOn) Icons.Filled.FlashlightOn else Icons.Filled.FlashlightOff,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp),
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(19.dp),
                 )
                 Text(
                     stringResourceSafe(R.string.join_session_flashlight),
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = Color.White.copy(alpha = 0.85f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -217,6 +228,7 @@ fun JoinSessionScreen(
                 onCodeChange = viewModel::onCodeChange,
                 onPaste = viewModel::onPaste,
                 onJoin = viewModel::join,
+                onHostInstead = onNavigateToHost,
             )
         }
     }
@@ -272,6 +284,7 @@ private fun ManualEntry(
     onCodeChange: (String) -> Unit,
     onPaste: (String) -> Unit,
     onJoin: () -> Unit,
+    onHostInstead: () -> Unit,
 ) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
@@ -366,6 +379,31 @@ private fun ManualEntry(
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(start = 9.dp),
+            )
+        }
+
+        Spacer(Modifier.height(6.dp))
+        // Self-contained entry to the Host-a-Jam flow (5d) for guests who'd rather start their own.
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .clip(RoundedCornerShape(100))
+                .clickable(onClick = onHostInstead)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                Icons.Filled.Group,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(19.dp),
+            )
+            Text(
+                stringResourceSafe(R.string.join_session_host_instead),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
     }
