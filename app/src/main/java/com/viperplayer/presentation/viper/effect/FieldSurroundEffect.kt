@@ -20,6 +20,11 @@ fun FieldSurroundEffect(
     Effect(
         icon = painterResource(R.drawable.ic_field_surround),
         title = stringResource(R.string.field_surround),
+        summary = stringResource(
+            R.string.viper_summary_field_surround,
+            state.surroundStrength + 1,
+            state.midImageStrength + 1,
+        ),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

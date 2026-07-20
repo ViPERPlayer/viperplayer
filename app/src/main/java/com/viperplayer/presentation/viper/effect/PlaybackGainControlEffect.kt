@@ -19,9 +19,20 @@ fun PlaybackGainControlEffect(
     onOutputThresholdChange: (Float) -> Unit,
     onOutputThresholdReset: () -> Unit
 ) {
+    val strengthLabel = when (state.strength) {
+        1 -> stringResource(R.string.pgc_strength_slight)
+        2 -> stringResource(R.string.pgc_strength_moderate)
+        3 -> stringResource(R.string.pgc_strength_strong)
+        else -> state.strength.toString()
+    }
     Effect(
         icon = painterResource(R.drawable.ic_playback_gain),
         title = stringResource(R.string.playback_gain_control),
+        summary = stringResource(
+            R.string.viper_summary_playback_gain,
+            strengthLabel,
+            if (state.maxGain > 10) "∞" else "${state.maxGain}x",
+        ),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,11 +38,13 @@ import com.viperplayer.R
 fun Effect(
     icon: Painter,
     title: String,
+    summary: String? = null,
     content: (@Composable ColumnScope.() -> Unit)?,
 ) {
     Effect(
         icon = icon,
         title = title,
+        summary = summary,
         checked = null,
         onCheckedChange = null,
         content = content,
@@ -55,10 +57,12 @@ fun Effect(
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    summary: String? = null,
 ) {
     Effect(
         icon = icon,
         title = title,
+        summary = summary,
         checked = checked,
         onCheckedChange = onCheckedChange,
         content = null,
@@ -72,12 +76,15 @@ fun Effect(
     checked: Boolean?,
     onCheckedChange: ((Boolean) -> Unit)?,
     content: (@Composable ColumnScope.() -> Unit)?,
+    summary: String? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    // An effect with no enable toggle (checked == null) is always considered active (e.g. Master
+    // Limiter); otherwise the switch state drives the active styling.
+    val active = checked ?: true
     Column {
         Row(
             modifier = Modifier
-                .height(64.dp)
                 .fillMaxWidth()
                 .clickable(enabled = (content != null) || (checked != null && onCheckedChange != null)) {
                     if (content != null) {
@@ -86,24 +93,40 @@ fun Effect(
                         onCheckedChange.invoke(!checked)
                     }
                 }
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
                 painter = icon,
                 contentDescription = title,
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = if (active) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                fontSize = 18.sp,
-                letterSpacing = 0.5.sp,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 1,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                // Collapsed state-summary: a one-line, scannable derivation of the effect's live
+                // state. Hidden once the card is expanded so it doesn't duplicate the controls.
+                if (summary != null && !expanded) {
+                    Text(
+                        text = summary,
+                        fontSize = 11.5.sp,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             if (content != null) {
                 // Expand affordance: chevron rotates 0 -> 180 as the section opens.
                 val chevronRotation by animateFloatAsState(
@@ -146,6 +169,7 @@ private fun EffectPreview() {
         Effect(
             icon = painterResource(R.drawable.ic_protection),
             title = "Title",
+            summary = "Level 2 · 76 Hz",
             checked = true,
             onCheckedChange = {},
         ) {

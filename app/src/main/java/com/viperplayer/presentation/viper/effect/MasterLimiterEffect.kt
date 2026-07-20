@@ -54,9 +54,18 @@ fun MasterLimiterEffect(
     onThresholdLimitChange: (Int) -> Unit,
     onThresholdLimitReset: () -> Unit
 ) {
+    val outputGainLabel = outputGainSummaryValues.getOrElse(state.outputGain) { "" }
     Effect(
         icon = painterResource(R.drawable.ic_master_limiter),
         title = stringResource(R.string.master_limiter),
+        summary = stringResource(
+            R.string.viper_summary_output_gain,
+            if (outputGainLabel.startsWith("-") || outputGainLabel.isEmpty()) {
+                outputGainLabel
+            } else {
+                "+$outputGainLabel"
+            },
+        ),
     ) {
         ValueSlider(
             title = stringResource(R.string.master_limiter_output_gain),

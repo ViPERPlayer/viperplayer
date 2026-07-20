@@ -18,6 +18,7 @@ fun SpectrumExtensionEffect(
     Effect(
         icon = painterResource(R.drawable.ic_spectrum),
         title = stringResource(R.string.spectrum_extension),
+        summary = stringResource(R.string.viper_summary_spectrum, state.strength),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

@@ -62,6 +62,7 @@ fun FETCompressorEffect(
     Effect(
         icon = painterResource(R.drawable.ic_master_limiter),
         title = stringResource(R.string.fet_compressor),
+        summary = stringResource(R.string.viper_summary_fet, state.threshold, state.ratio),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

@@ -69,6 +69,8 @@ fun ConvolverEffect(
     Effect(
         icon = painterResource(R.drawable.ic_convolver),
         title = stringResource(R.string.convolver),
+        summary = state.impulseResponse?.let { File(it).name }
+            ?: stringResource(R.string.effect_not_set),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

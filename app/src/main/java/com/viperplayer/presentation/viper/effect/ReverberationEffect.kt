@@ -30,6 +30,7 @@ fun ReverberationEffect(
     Effect(
         icon = painterResource(R.drawable.ic_field_surround),
         title = stringResource(R.string.reverberation),
+        summary = stringResource(R.string.viper_summary_reverb, state.roomSize, state.wet),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

@@ -18,6 +18,7 @@ fun AnalogXEffect(
     Effect(
         icon = painterResource(R.drawable.ic_analogx),
         title = stringResource(R.string.analogx),
+        summary = stringResource(R.string.viper_summary_level, state.level),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

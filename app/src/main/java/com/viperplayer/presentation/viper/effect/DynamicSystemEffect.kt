@@ -21,6 +21,11 @@ fun DynamicSystemEffect(
     Effect(
         icon = painterResource(R.drawable.ic_dynamic),
         title = stringResource(R.string.dynamic_system),
+        summary = stringResource(
+            R.string.viper_summary_dynamic,
+            state.deviceType.name,
+            state.dynamicBassStrength,
+        ),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

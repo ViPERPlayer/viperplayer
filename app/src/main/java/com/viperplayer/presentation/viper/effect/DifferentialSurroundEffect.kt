@@ -18,6 +18,7 @@ fun DifferentialSurroundEffect(
     Effect(
         icon = painterResource(R.drawable.ic_diff_surround),
         title = stringResource(R.string.differential_surround),
+        summary = stringResource(R.string.viper_summary_differential, state.delay),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

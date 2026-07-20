@@ -31,19 +31,25 @@ fun ViPERClarityEffect(
     onGainChange: (Int) -> Unit,
     onGainReset: () -> Unit
 ) {
+    val modeNames = arrayOf(
+        stringResource(R.string.natural),
+        stringResource(R.string.ozone_plus),
+        stringResource(R.string.xhifi),
+    )
     Effect(
         icon = painterResource(R.drawable.ic_clarity),
         title = stringResource(R.string.viper_clarity),
+        summary = stringResource(
+            R.string.viper_summary_clarity,
+            modeNames.getOrElse(state.mode) { "" },
+            gainSummaryValues.getOrElse(state.gain) { "" },
+        ),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
         ValuePicker(
             title = stringResource(R.string.clarity_mode),
-            values = arrayOf(
-                stringResource(R.string.natural),
-                stringResource(R.string.ozone_plus),
-                stringResource(R.string.xhifi),
-            ),
+            values = modeNames,
             selectedIndex = state.mode,
             onSelectedIndexChange = onModeChange,
             onSelectedIndexReset = onModeReset

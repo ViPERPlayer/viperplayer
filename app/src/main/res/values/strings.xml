@@ -54,6 +54,19 @@
         <item quantity="other">%d effects active</item>
     </plurals>
     <string name="viper_fx_all_effects_off">No effects active</string>
+    <!-- ViPER FX collapsed-card state summaries (scannable subtitle per effect) -->
+    <string name="viper_summary_bass">%1$s · %2$d Hz · %3$s dB</string>
+    <string name="viper_summary_field_surround">Surround %1$d · Mid image %2$d</string>
+    <string name="viper_summary_iir">%1$d bands · %2$s preset</string>
+    <string name="viper_summary_spectrum">Strength %1$d%%</string>
+    <string name="viper_summary_clarity">%1$s · %2$s dB</string>
+    <string name="viper_summary_playback_gain">%1$s · %2$s</string>
+    <string name="viper_summary_fet">Threshold %1$d%% · Ratio %2$d%%</string>
+    <string name="viper_summary_reverb">Room %1$d%% · Wet %2$d%%</string>
+    <string name="viper_summary_dynamic">%1$s · Bass %2$d%%</string>
+    <string name="viper_summary_differential">Delay %1$d ms</string>
+    <string name="viper_summary_level">Level %1$d</string>
+    <string name="viper_summary_output_gain">Output %1$s dB</string>
     <string name="master_limiter">Master limiter</string>
     <string name="master_limiter_output_gain">Output gain</string>
     <string name="master_limiter_output_pan">Output pan</string>

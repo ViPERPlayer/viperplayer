@@ -18,6 +18,7 @@ fun AuditorySystemProtectionEffect(
     Effect(
         icon = painterResource(R.drawable.ic_protection),
         title = stringResource(R.string.auditory_system_protection),
+        summary = stringResource(R.string.viper_summary_level, state.level),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

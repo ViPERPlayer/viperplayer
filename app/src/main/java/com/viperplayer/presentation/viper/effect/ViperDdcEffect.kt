@@ -74,6 +74,7 @@ fun ViperDdcEffect(
     Effect(
         icon = painterResource(R.drawable.ic_ddc),
         title = stringResource(R.string.viper_ddc),
+        summary = state.selectedDdcFile ?: stringResource(R.string.effect_not_set),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

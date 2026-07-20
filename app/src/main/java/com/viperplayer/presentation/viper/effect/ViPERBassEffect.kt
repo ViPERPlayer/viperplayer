@@ -39,19 +39,27 @@ fun ViPERBassEffect(
     onGainChange: (Int) -> Unit,
     onGainReset: () -> Unit
 ) {
+    val modeNames = arrayOf(
+        stringResource(R.string.natural_bass),
+        stringResource(R.string.pure_bass_plus),
+        stringResource(R.string.subwoofer),
+    )
+    val gainLabel = gainSummaryValues.getOrElse(state.gain) { "" }
     Effect(
         icon = painterResource(R.drawable.ic_bass),
         title = stringResource(R.string.viper_bass),
+        summary = stringResource(
+            R.string.viper_summary_bass,
+            modeNames.getOrElse(state.mode) { "" },
+            state.frequency,
+            if (gainLabel.startsWith("-")) gainLabel else "+$gainLabel",
+        ),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
         ValuePicker(
             title = stringResource(R.string.bass_mode),
-            values = arrayOf(
-                stringResource(R.string.natural_bass),
-                stringResource(R.string.pure_bass_plus),
-                stringResource(R.string.subwoofer),
-            ),
+            values = modeNames,
             selectedIndex = state.mode,
             onSelectedIndexChange = onModeChange,
             onSelectedIndexReset = onModeReset

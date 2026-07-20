@@ -69,6 +69,7 @@ fun IirEqualizerEffect(
     Effect(
         icon = painterResource(R.drawable.ic_spectrum), // Used ic_spectrum as fallback
         title = stringResource(R.string.iir_equalizer),
+        summary = stringResource(R.string.viper_summary_iir, state.bandCount, state.preset),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {

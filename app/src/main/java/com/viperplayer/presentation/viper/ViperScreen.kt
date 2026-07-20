@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +71,9 @@ private val ScreenHorizontalPadding = 16.dp
 
 /** Gap between stacked effect cards in the mockup. */
 private val EffectCardSpacing = 10.dp
+
+/** Gap between the hero master pill and the first effect card (mockup margin-top: 14px). */
+private val HeroToFirstCardGap = 14.dp
 
 /** Opacity applied to an effect card whose effect is currently switched off (mockup dims them). */
 private const val OffEffectAlpha = 0.72f
@@ -110,7 +116,7 @@ fun ViperScreen(
                     modifier = Modifier.padding(horizontal = ScreenHorizontalPadding),
                     verticalArrangement = Arrangement.spacedBy(EffectCardSpacing),
                 ) {
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(HeroToFirstCardGap))
 
                     val effects = state.effectsState
 
@@ -336,16 +342,34 @@ private fun MasterHeroSwitch(
 ) {
     val checked = effects.enabled
     val activeCount = remember(effects) { effects.activeEffectCount() }
+    val heroShape = RoundedCornerShape(999.dp)
+
+    // Diagonal hero gradient (mockup #4F378B -> #332D41), mapped to theme roles. When disabled the
+    // pill flattens to a neutral surface so the "off" state reads as inert.
+    val colorScheme = MaterialTheme.colorScheme
+    val heroBrush = if (checked) {
+        Brush.linearGradient(
+            colors = listOf(
+                colorScheme.primaryContainer,
+                colorScheme.surfaceContainerHigh,
+            ),
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                colorScheme.surfaceContainerHighest,
+                colorScheme.surfaceContainerHighest,
+            ),
+        )
+    }
 
     Surface(
         onClick = { onCheckedChange(!checked) },
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(999.dp),
-        color = if (checked) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
+        modifier = modifier
+            .fillMaxWidth()
+            .background(heroBrush, heroShape),
+        shape = heroShape,
+        color = Color.Transparent,
     ) {
         Row(
             modifier = Modifier
@@ -359,15 +383,12 @@ private fun MasterHeroSwitch(
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
+            // Translucent icon wash: onPrimaryContainer at low alpha rather than an opaque disc.
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        color = if (checked) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                        },
+                        color = onContainer.copy(alpha = 0.14f),
                         shape = CircleShape,
                     ),
                 contentAlignment = Alignment.Center,
@@ -375,11 +396,7 @@ private fun MasterHeroSwitch(
                 Icon(
                     imageVector = Icons.Rounded.GraphicEq,
                     contentDescription = null,
-                    tint = if (checked) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    tint = onContainer,
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -414,8 +431,22 @@ private fun MasterHeroSwitch(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
+                thumbContent = if (checked) {
+                    {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                        )
+                    }
+                } else {
+                    null
+                },
                 colors = SwitchDefaults.colors().copy(
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    checkedIconColor = MaterialTheme.colorScheme.primaryContainer,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ),
             )
         }

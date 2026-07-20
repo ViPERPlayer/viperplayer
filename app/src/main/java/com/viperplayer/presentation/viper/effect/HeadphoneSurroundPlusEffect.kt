@@ -23,6 +23,7 @@ fun HeadphoneSurroundPlusEffect(
     Effect(
         icon = painterResource(R.drawable.ic_diff_surround),
         title = "Headphone surround+",
+        summary = stringResource(R.string.viper_summary_level, state.level + 1),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
