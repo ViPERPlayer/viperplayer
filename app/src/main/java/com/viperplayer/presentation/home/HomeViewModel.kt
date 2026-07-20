@@ -3,6 +3,7 @@ package com.viperplayer.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
 import com.viperplayer.domain.model.FilterState
@@ -13,11 +14,17 @@ import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.social.FriendActivityItem
+import com.viperplayer.domain.social.FriendActivityRepository
+import com.viperplayer.domain.social.FriendsRepository
+import com.viperplayer.domain.social.SharedPlaylistsRepository
+import com.viperplayer.domain.social.SocialFeatures
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -56,12 +63,29 @@ sealed interface HomeUiState {
 }
 
 /**
+ * State for the Home top bar's avatar + notification bell. Signed-in shows initials + a live ring when
+ * friends are listening; signed-out shows the generic person glyph. [notificationCount] drives the bell
+ * badge (social unread when the backend is configured, else 0).
+ */
+data class HomeTopBarState(
+    val signedIn: Boolean = false,
+    val initials: String = "",
+    val friendsLive: Boolean = false,
+    val notificationCount: Int = 0,
+)
+
+/**
  * ViewModel for Home screen.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
+    accountRepository: AccountRepository,
+    friendsRepository: FriendsRepository,
+    friendActivityRepository: FriendActivityRepository,
+    sharedPlaylistsRepository: SharedPlaylistsRepository,
+    socialFeatures: SocialFeatures,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
@@ -72,6 +96,33 @@ class HomeViewModel @Inject constructor(
     val isPlaying: StateFlow<Boolean> = playerRepository.playbackState
         .map { it.isPlaying }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private val socialEnabled = socialFeatures.enabled
+
+    /** Avatar + bell state for the top bar, folded from account + (backend-gated) social flows. */
+    val topBarState: StateFlow<HomeTopBarState> = combine(
+        accountRepository.state,
+        friendsRepository.liveJams,
+        friendActivityRepository.activity,
+        sharedPlaylistsRepository.unreadCount,
+    ) { account, liveJams, activity, sharedUnread ->
+        val name = account.user?.displayName?.takeIf { it.isNotBlank() }
+            ?: account.user?.email.orEmpty()
+        val friendsLive = socialEnabled &&
+            (liveJams.isNotEmpty() || activity.any { it is FriendActivityItem.ListeningNow })
+        // The bell = notifications feed; count the unread social signals when the backend is on.
+        val notifications = if (socialEnabled) {
+            sharedUnread + activity.count { it is FriendActivityItem.ListeningNow }
+        } else {
+            0
+        }
+        HomeTopBarState(
+            signedIn = account.isSignedIn,
+            initials = name.firstOrNull()?.uppercase().orEmpty(),
+            friendsLive = friendsLive,
+            notificationCount = notifications,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeTopBarState())
 
     private var lastConnectedPlugins: List<Plugin> = emptyList()
 

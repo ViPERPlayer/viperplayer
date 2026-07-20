@@ -854,4 +854,75 @@
     <string name="cd_avatar">Avatar</string>
     <string name="cd_avatar_live">Avatar with live activity</string>
     <string name="badge_overflow_count">%1$d+</string>
+
+    <!-- You hub -->
+    <string name="you_title">You</string>
+    <string name="you_open_cd">Open your profile</string>
+    <string name="you_open_settings">Settings</string>
+    <string name="you_manage_account">Manage account</string>
+    <string name="you_library_synced">Library synced</string>
+    <string name="you_library_sync_status">%1$d playlists · %2$d songs</string>
+    <string name="you_library_sync_now">Sync now</string>
+    <string name="you_signed_out_email">Not signed in</string>
+    <!-- Sign-in hero -->
+    <string name="you_hero_title">Sign in to ViPER</string>
+    <string name="you_hero_body">Sync your library across devices, jam with friends, and share playlists.</string>
+    <string name="you_hero_sign_in">Sign in</string>
+    <string name="you_hero_create_account">Create account</string>
+    <!-- Section labels -->
+    <string name="you_section_social">SOCIAL</string>
+    <string name="you_section_music">MUSIC</string>
+    <string name="you_section_setup">SETUP</string>
+    <!-- Social rows -->
+    <string name="you_friend_activity">Friend activity</string>
+    <string name="you_friend_activity_subtitle">Playlists, likes and listening now</string>
+    <string name="you_friend_activity_listening_now">%1$s and %2$d others listening now</string>
+    <string name="you_friend_activity_one_listening">%1$s is listening now</string>
+    <string name="you_shared_with_you">Shared with you</string>
+    <string name="you_shared_with_you_subtitle">Playlists friends sent you</string>
+    <string name="you_join_a_jam">Join a Jam</string>
+    <string name="you_join_a_jam_subtitle">Scan or enter an invite code</string>
+    <string name="you_locked_cd">Sign in to unlock</string>
+    <!-- Music rows -->
+    <string name="you_plugins">Plugins</string>
+    <string name="you_plugins_manage">Manage sources</string>
+    <string name="you_plugins_status">%1$d connected · %2$d updates</string>
+    <string name="you_history">History</string>
+    <string name="you_listening_stats">Listening stats</string>
+    <string name="you_downloads">Downloads</string>
+    <!-- Setup rows -->
+    <string name="you_lastfm">Last.fm</string>
+    <string name="you_lastfm_scrobbling_as">Scrobbling as %1$s</string>
+    <string name="you_lastfm_not_connected">Not connected</string>
+    <string name="you_alarms">Alarms</string>
+    <string name="you_app_settings">App settings</string>
+    <string name="you_app_settings_subtitle">Appearance, lyrics, audio, storage</string>
+
+    <!-- Settings slim-down hint -->
+    <string name="settings_moved_to_you_hint">Account, plugins, stats and social moved to your You hub.</string>
+
+    <!-- Auth (sign in / register) -->
+    <string name="auth_brand">ViPER Account</string>
+    <string name="auth_sign_in_title">Welcome back</string>
+    <string name="auth_sign_in_body">Sign in to sync your library, jam with friends, and share playlists.</string>
+    <string name="auth_register_title">Create your account</string>
+    <string name="auth_register_body">One account for library sync, Jams and shared playlists — free.</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_display_name_optional">Display name (optional)</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_show_password">Show password</string>
+    <string name="auth_hide_password">Hide password</string>
+    <string name="auth_forgot_password">Forgot password?</string>
+    <string name="auth_sign_in_cta">Sign in</string>
+    <string name="auth_register_cta">Create account</string>
+    <string name="auth_switch_to_register">Don\'t have an account? Create one</string>
+    <string name="auth_switch_to_sign_in">Already have an account? Sign in</string>
+    <string name="auth_password_req_length">At least 8 characters</string>
+    <string name="auth_register_footnote">Your library stays on-device until you turn on sync.</string>
+
+    <!-- Friend-activity / Shared-with-you placeholder screens -->
+    <string name="friend_activity_title">Friend activity</string>
+    <string name="friend_activity_empty">No activity yet. When friends listen, like or share, it shows up here.</string>
+    <string name="shared_with_you_title">Shared with you</string>
+    <string name="shared_with_you_empty">Nothing shared yet. Playlists friends send you land here.</string>
 </resources>

@@ -1,48 +1,47 @@
 package com.viperplayer.presentation.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lyrics
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.common.components.InsetDivider
+import com.viperplayer.presentation.common.components.SectionLabel
+import com.viperplayer.presentation.common.components.SurfaceCard
+import com.viperplayer.presentation.common.components.SurfaceCardRow
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.plus
 
 /**
- * Main settings screen with navigation to subsections.
+ * App-preferences settings (slimmed). Account, plugins, listening stats, Last.fm and social moved to
+ * the You hub — their routes still exist and are reached from there. Rendered as grouped
+ * [SurfaceCard]s with [SectionLabel] headers.
  */
 @Composable
 fun SettingsScreen(
@@ -53,13 +52,9 @@ fun SettingsScreen(
     onNavigateToPlayer: () -> Unit,
     onNavigateToContent: () -> Unit,
     onNavigateToStorage: () -> Unit,
-    onNavigateToPlugins: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdater: () -> Unit,
     onNavigateToAlarms: () -> Unit,
-    onNavigateToListeningStats: () -> Unit,
-    onNavigateToLastfm: () -> Unit,
-    onNavigateToAccount: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -70,7 +65,7 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.action_back)
                         )
                     }
@@ -83,184 +78,107 @@ fun SettingsScreen(
                 .padding(contentPadding)
                 .fillMaxWidth()
                 .fillMaxSize(),
-            contentPadding = rootPadding.bottom()
+            contentPadding = PaddingValues(horizontal = 16.dp) + rootPadding.bottom(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item {
-                SettingsCategory(stringResource(R.string.settings))
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_appearance),
-                    description = stringResource(R.string.settings_appearance_desc),
-                    icon = Icons.Default.Palette,
-                    onClick = onNavigateToAppearance
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_lyrics),
-                    description = stringResource(R.string.settings_lyrics_desc),
-                    icon = Icons.Default.Lyrics,
-                    onClick = onNavigateToLyrics
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_player_audio),
-                    description = stringResource(R.string.settings_player_audio_desc),
-                    icon = Icons.AutoMirrored.Default.VolumeUp,
-                    onClick = onNavigateToPlayer
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_content),
-                    description = stringResource(R.string.settings_content_desc),
-                    icon = Icons.Default.MusicNote,
-                    onClick = onNavigateToContent
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_alarms),
-                    description = stringResource(R.string.settings_alarms_desc),
-                    icon = Icons.Default.Alarm,
-                    onClick = onNavigateToAlarms
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.account_settings_entry),
-                    description = stringResource(R.string.account_settings_entry_desc_signed_out),
-                    icon = Icons.Default.AccountCircle,
-                    onClick = onNavigateToAccount
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.listening_stats),
-                    description = stringResource(R.string.listening_stats_desc),
-                    icon = Icons.Default.BarChart,
-                    onClick = onNavigateToListeningStats
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_lastfm),
-                    description = stringResource(R.string.settings_lastfm_desc),
-                    icon = Icons.Default.Podcasts,
-                    onClick = onNavigateToLastfm
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.storage_title),
-                    description = stringResource(R.string.settings_storage_desc),
-                    icon = Icons.Default.Storage,
-                    onClick = onNavigateToStorage
-                )
+            item(key = "preferences-card") {
+                SurfaceCard {
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_appearance),
+                        subtitle = stringResource(R.string.settings_appearance_desc),
+                        leadingIcon = Icons.Rounded.Palette,
+                        onClick = onNavigateToAppearance,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_lyrics),
+                        subtitle = stringResource(R.string.settings_lyrics_desc),
+                        leadingIcon = Icons.Rounded.Lyrics,
+                        onClick = onNavigateToLyrics,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_player_audio),
+                        subtitle = stringResource(R.string.settings_player_audio_desc),
+                        leadingIcon = Icons.AutoMirrored.Rounded.VolumeUp,
+                        onClick = onNavigateToPlayer,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_content),
+                        subtitle = stringResource(R.string.settings_content_desc),
+                        leadingIcon = Icons.Rounded.MusicNote,
+                        onClick = onNavigateToContent,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_alarms),
+                        subtitle = stringResource(R.string.settings_alarms_desc),
+                        leadingIcon = Icons.Rounded.Alarm,
+                        onClick = onNavigateToAlarms,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.storage_title),
+                        subtitle = stringResource(R.string.settings_storage_desc),
+                        leadingIcon = Icons.Rounded.Storage,
+                        onClick = onNavigateToStorage,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_scan_local),
+                        subtitle = stringResource(R.string.settings_scan_local_desc),
+                        leadingIcon = Icons.Rounded.Refresh,
+                        onClick = viewModel::scanLocalFiles,
+                    )
+                }
             }
 
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_plugins),
-                    description = stringResource(R.string.settings_plugins_desc),
-                    icon = Icons.Default.Extension,
-                    onClick = onNavigateToPlugins
+            item(key = "system-label") {
+                SectionLabel(
+                    text = stringResource(R.string.settings_category_system),
+                    modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp),
                 )
             }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_scan_local),
-                    description = stringResource(R.string.settings_scan_local_desc),
-                    icon = Icons.Default.Refresh,
-                    onClick = viewModel::scanLocalFiles
-                )
+            item(key = "system-card") {
+                SurfaceCard {
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_updater),
+                        subtitle = stringResource(R.string.settings_updater_desc),
+                        leadingIcon = Icons.Rounded.SystemUpdate,
+                        onClick = onNavigateToUpdater,
+                    )
+                    InsetDivider()
+                    SurfaceCardRow(
+                        title = stringResource(R.string.settings_about),
+                        subtitle = stringResource(R.string.settings_about_desc),
+                        leadingIcon = Icons.Rounded.Info,
+                        onClick = onNavigateToAbout,
+                    )
+                }
             }
 
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            item {
-                SettingsCategory(stringResource(R.string.settings_category_system))
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_updater),
-                    description = stringResource(R.string.settings_updater_desc),
-                    icon = Icons.Default.SystemUpdate,
-                    onClick = onNavigateToUpdater
-                )
-            }
-            item {
-                SettingsSectionItem(
-                    title = stringResource(R.string.settings_about),
-                    description = stringResource(R.string.settings_about_desc),
-                    icon = Icons.Default.Info,
-                    onClick = onNavigateToAbout
-                )
+            item(key = "moved-hint") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 0.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_moved_to_you_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun SettingsCategory(
-    title: String,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    )
-}
-
-@Composable
-private fun SettingsSectionItem(
-    title: String,
-    description: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            headlineContent = {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            },
-            supportingContent = {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
-        )
     }
 }

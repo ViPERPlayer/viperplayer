@@ -33,10 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.QueryStats
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -98,6 +95,9 @@ import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.common.components.AvatarRing
+import com.viperplayer.presentation.common.components.InitialsAvatar
+import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 @Composable
@@ -106,13 +106,13 @@ fun HomeScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToAnalytics: () -> Unit,
+    onNavigateToYou: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val topBarState by viewModel.topBarState.collectAsStateWithLifecycle()
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -149,6 +149,7 @@ fun HomeScreen(
 
     HomeScreenContent(
         uiState = uiState,
+        topBarState = topBarState,
         currentSongId = currentSong?.id,
         isPlaying = isPlaying,
         pendingActions = pendingActions,
@@ -157,9 +158,8 @@ fun HomeScreen(
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToPlaylist = onNavigateToPlaylist,
-        onNavigateToSettings = onNavigateToSettings,
-        onNavigateToHistory = onNavigateToHistory,
-        onNavigateToAnalytics = onNavigateToAnalytics,
+        onNavigateToYou = onNavigateToYou,
+        onNavigateToNotifications = onNavigateToNotifications,
         onRefresh = viewModel::refresh,
         onPlaySongFromQuickPicks = viewModel::playSongFromQuickPicks,
         onPlaySongFromSection = viewModel::playSongFromSection,
@@ -170,6 +170,7 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenContent(
     uiState: HomeUiState,
+    topBarState: HomeTopBarState = HomeTopBarState(),
     currentSongId: MediaId? = null,
     isPlaying: Boolean = false,
     pendingActions: List<PluginPendingAction> = emptyList(),
@@ -178,59 +179,67 @@ private fun HomeScreenContent(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToAnalytics: () -> Unit,
+    onNavigateToYou: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
     onRefresh: () -> Unit,
     onPlaySongFromQuickPicks: (Song) -> Unit,
     onPlaySongFromSection: (Song, String) -> Unit,
     onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> }
 ) {
-    var titleOverflowed by remember { mutableStateOf(false) }
     var showActionsSheet by remember { mutableStateOf(false) }
     // Dismissal is keyed on the current action set: a new action re-shows the banner.
     var bannerDismissed by remember(pendingActions.map { it.key }.toSet()) { mutableStateOf(false) }
-    val title = uiState.userName.let { userName ->
-        if (userName != null && !titleOverflowed) {
-            val resId = when (uiState.greetingType) {
-                GreetingType.MORNING -> R.string.greeting_good_morning_personalized
-                GreetingType.AFTERNOON -> R.string.greeting_good_afternoon_personalized
-                GreetingType.EVENING -> R.string.greeting_good_evening_personalized
-                GreetingType.NIGHT -> R.string.greeting_good_night_personalized
-            }
-            stringResource(resId, userName)
-        } else {
-            val resId = when (uiState.greetingType) {
-                GreetingType.MORNING -> R.string.greeting_good_morning
-                GreetingType.AFTERNOON -> R.string.greeting_good_afternoon
-                GreetingType.EVENING -> R.string.greeting_good_evening
-                GreetingType.NIGHT -> R.string.greeting_good_night
-            }
-            stringResource(resId)
+    val greetingCaption = stringResource(
+        when (uiState.greetingType) {
+            GreetingType.MORNING -> R.string.greeting_good_morning
+            GreetingType.AFTERNOON -> R.string.greeting_good_afternoon
+            GreetingType.EVENING -> R.string.greeting_good_evening
+            GreetingType.NIGHT -> R.string.greeting_good_night
         }
-    }
+    )
 
     ViperScaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = title,
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 1,
-                        onTextLayout = { textLayoutResult ->
-                            if (textLayoutResult.hasVisualOverflow && !titleOverflowed) {
-                                titleOverflowed = true
+                navigationIcon = {
+                    // Avatar entry to the You hub: generic glyph signed-out, initials signed-in, with a
+                    // live ring when friends are listening.
+                    IconButton(onClick = onNavigateToYou) {
+                        AvatarRing(size = 44.dp, hasLiveActivity = topBarState.friendsLive) {
+                            if (topBarState.signedIn && topBarState.initials.isNotBlank()) {
+                                InitialsAvatar(text = topBarState.initials)
+                            } else {
+                                PersonGlyphAvatar()
                             }
                         }
-                    )
+                    }
+                },
+                title = {
+                    Column {
+                        Text(
+                            text = greetingCaption,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        uiState.userName?.let { name ->
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 },
                 actions = {
-                    IconButton(onClick = { showActionsSheet = true }) {
+                    IconButton(onClick = onNavigateToNotifications) {
                         BadgedBox(
                             badge = {
-                                if (pendingActions.isNotEmpty()) {
-                                    Badge { Text(pendingActions.size.toString()) }
+                                if (topBarState.notificationCount > 0) {
+                                    Badge { Text(topBarState.notificationCount.toString()) }
                                 }
                             }
                         ) {
@@ -239,24 +248,6 @@ private fun HomeScreenContent(
                                 contentDescription = stringResource(R.string.plugin_actions_bell_cd),
                             )
                         }
-                    }
-                    IconButton(onClick = onNavigateToHistory) {
-                        Icon(
-                            imageVector = Icons.Rounded.History,
-                            contentDescription = stringResource(R.string.history),
-                        )
-                    }
-                    IconButton(onClick = onNavigateToAnalytics) {
-                        Icon(
-                            imageVector = Icons.Rounded.QueryStats,
-                            contentDescription = stringResource(R.string.stats),
-                        )
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                        )
                     }
                 },
             )
@@ -1233,9 +1224,8 @@ private fun HomeScreenPreview(uiState: HomeUiState) {
         onNavigateToAlbum = {},
         onNavigateToArtist = {},
         onNavigateToPlaylist = {},
-        onNavigateToSettings = {},
-        onNavigateToHistory = {},
-        onNavigateToAnalytics = {},
+        onNavigateToYou = {},
+        onNavigateToNotifications = {},
         onRefresh = {},
         onPlaySongFromQuickPicks = {},
         onPlaySongFromSection = { _, _ -> }

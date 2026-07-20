@@ -37,7 +37,10 @@ import com.viperplayer.follows.ui.FollowingScreen
 import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
+import com.viperplayer.presentation.social.FriendActivityScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
+import com.viperplayer.presentation.social.SharedWithYouScreen
+import com.viperplayer.presentation.you.YouScreen
 import com.viperplayer.presentation.library.CustomizeTabsScreen
 import com.viperplayer.presentation.library.LibraryScreen
 import com.viperplayer.presentation.listeningstats.ListeningStatsScreen
@@ -49,6 +52,8 @@ import com.viperplayer.presentation.settings.about.AboutSettingsScreen
 import com.viperplayer.presentation.settings.appearance.AppearanceSettingsScreen
 import com.viperplayer.presentation.settings.content.ContentSettingsScreen
 import com.viperplayer.presentation.account.AccountScreen
+import com.viperplayer.presentation.account.RegisterScreen
+import com.viperplayer.presentation.account.SignInScreen
 import com.viperplayer.presentation.settings.lastfm.LastfmSettingsScreen
 import com.viperplayer.presentation.settings.lyrics.LyricsSettingsScreen
 import com.viperplayer.presentation.settings.player.PlayerSettingsScreen
@@ -99,8 +104,29 @@ object SettingsAbout : NavKey
 @Serializable
 object SettingsUpdater : NavKey
 
+/** The signed-in account detail (reached from the You hub's "Manage account"). */
 @Serializable
 object Account : NavKey
+
+/** The "You" hub: account, sync, social, plugins, and setup in one place (from the Home avatar). */
+@Serializable
+object You : NavKey
+
+/** Sign-in form. */
+@Serializable
+object SignIn : NavKey
+
+/** Register form. */
+@Serializable
+object Register : NavKey
+
+/** Friend-activity feed (also the Home bell's notifications destination). Placeholder in Phase 1. */
+@Serializable
+object FriendActivity : NavKey
+
+/** Shared-with-you inbox. Placeholder in Phase 1. */
+@Serializable
+object SharedWithYou : NavKey
 
 @Serializable
 object SettingsAlarms : NavKey
@@ -194,9 +220,8 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
-                onNavigateToSettings = { navigator.navigate(Settings) },
-                onNavigateToHistory = { navigator.navigate(History) },
-                onNavigateToAnalytics = { navigator.navigate(Analytics) },
+                onNavigateToYou = { navigator.navigate(You) },
+                onNavigateToNotifications = { navigator.navigate(FriendActivity) },
             )
         }
 
@@ -272,13 +297,61 @@ fun ViperNavDisplay(
                 onNavigateToPlayer = { navigator.navigate(SettingsPlayer) },
                 onNavigateToContent = { navigator.navigate(SettingsContent) },
                 onNavigateToStorage = { navigator.navigate(SettingsStorage) },
-                onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToAbout = { navigator.navigate(SettingsAbout) },
                 onNavigateToUpdater = { navigator.navigate(SettingsUpdater) },
                 onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
+            )
+        }
+
+        entry<You> {
+            YouScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToSettings = { navigator.navigate(Settings) },
+                onNavigateToAccount = { navigator.navigate(Account) },
+                onNavigateToSignIn = { navigator.navigate(SignIn) },
+                onNavigateToRegister = { navigator.navigate(Register) },
+                onNavigateToFriendActivity = { navigator.navigate(FriendActivity) },
+                onNavigateToSharedWithYou = { navigator.navigate(SharedWithYou) },
+                onNavigateToJoinSession = { navigator.navigate(JoinSession) },
+                onNavigateToPlugins = { navigator.navigate(Plugins) },
+                onNavigateToHistory = { navigator.navigate(History) },
                 onNavigateToListeningStats = { navigator.navigate(ListeningStats) },
+                onNavigateToDownloads = { navigator.navigate(Downloads) },
                 onNavigateToLastfm = { navigator.navigate(SettingsLastfm) },
-                onNavigateToAccount = { navigator.navigate(Account) }
+                onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
+            )
+        }
+
+        entry<SignIn> {
+            SignInScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToRegister = { navigator.navigate(Register) },
+                onAuthenticated = { navigator.goBack() },
+            )
+        }
+
+        entry<Register> {
+            RegisterScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToSignIn = { navigator.navigate(SignIn) },
+                onAuthenticated = { navigator.goBack() },
+            )
+        }
+
+        entry<FriendActivity> {
+            FriendActivityScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+            )
+        }
+
+        entry<SharedWithYou> {
+            SharedWithYouScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
             )
         }
 
@@ -292,7 +365,8 @@ fun ViperNavDisplay(
         entry<Account> {
             AccountScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navigator.goBack() }
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToSignIn = { navigator.navigate(SignIn) },
             )
         }
 
