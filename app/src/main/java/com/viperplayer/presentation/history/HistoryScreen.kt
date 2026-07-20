@@ -29,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -40,12 +39,19 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.common.components.SectionLabel
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 /**
  * History screen: a chronological, date-grouped timeline of every recorded play. Tapping a song
@@ -90,6 +96,10 @@ private fun HistoryScreenContent(
     var showClearConfirm by remember { mutableStateOf(false) }
     // Stable "now" so date bucketing doesn't shift across recompositions.
     val now = remember { System.currentTimeMillis() }
+    // Localized short time-of-day formatter (e.g. "9:41 PM") for each row's played-at stamp.
+    val timeFormatter = remember {
+        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault())
+    }
 
     ViperScaffold(
         modifier = modifier,
@@ -146,10 +156,8 @@ private fun HistoryScreenContent(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = contentPadding.calculateTopPadding(),
-                    bottom = rootPadding.calculateBottomPadding() + 8.dp
-                )
+                // Keep the scaffold's top inset; apply the bottom system inset from rootPadding.
+                contentPadding = contentPadding.with(bottom = 8.dp) + rootPadding.bottom()
             ) {
                 itemsIndexed(
                     items = history,
@@ -160,15 +168,13 @@ private fun HistoryScreenContent(
 
                     Column(modifier = Modifier.animateItem()) {
                         if (bucket != prevBucket) {
-                            Text(
-                                text = bucket.label(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                            SectionLabel(
+                                text = bucket.label().uppercase(Locale.getDefault()),
                                 modifier = Modifier.padding(
                                     start = 16.dp,
                                     end = 16.dp,
                                     top = if (index == 0) 8.dp else 16.dp,
-                                    bottom = 4.dp
+                                    bottom = 8.dp
                                 )
                             )
                         }
@@ -177,7 +183,7 @@ private fun HistoryScreenContent(
                         ListItem(
                             title = entry.song.title,
                             badges = if (entry.song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
-                            subtitle = entry.song.artistNames,
+                            subtitle = rowSubtitle(entry, timeFormatter),
                             isActive = isActive,
                             leadingContent = {
                                 ListItemLeadingArtwork(
@@ -218,6 +224,24 @@ private fun HistoryScreenContent(
                 }
             }
         )
+    }
+}
+
+/**
+ * Row subtitle in the mockup's "Artist · 9:41 PM" form. The played-at time is formatted at render
+ * from the already-loaded [HistoryEntry.playedAt]; the artist prefix is dropped when unknown.
+ */
+@Composable
+private fun rowSubtitle(entry: HistoryEntry, timeFormatter: DateTimeFormatter): String {
+    val time = remember(entry.playedAt) {
+        Instant.ofEpochMilli(entry.playedAt).atZone(ZoneId.systemDefault()).toLocalTime()
+            .format(timeFormatter)
+    }
+    val artist = entry.song.artistNames
+    return if (artist.isNullOrBlank()) {
+        time
+    } else {
+        stringResource(R.string.history_row_subtitle, artist, time)
     }
 }
 

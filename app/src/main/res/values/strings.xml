@@ -257,6 +257,8 @@
     <string name="history_clear_confirm_title">Clear history?</string>
     <string name="history_clear_confirm_message">This permanently deletes your entire listening history.</string>
     <string name="action_cancel">Cancel</string>
+    <!-- History row subtitle: artist name · time of day, e.g. "Aurora Fields · 9:41 PM" -->
+    <string name="history_row_subtitle">%1$s · %2$s</string>
     <!-- History date section headers -->
     <string name="history_today">Today</string>
     <string name="history_yesterday">Yesterday</string>
