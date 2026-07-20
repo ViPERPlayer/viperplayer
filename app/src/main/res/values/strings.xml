@@ -839,7 +839,12 @@
     <string name="action_follow">Follow</string>
     <string name="action_unfollow">Unfollow</string>
     <string name="following_title">Following</string>
+    <string name="following_state">Following</string>
     <string name="following_unfollow">Unfollow</string>
+    <!-- Caption under the title; %1$s is the pluralized artist count (e.g. "18 artists"). -->
+    <string name="following_subtitle">%1$s · new releases appear on Home</string>
+    <!-- Accessibility label for the per-artist Following chip; %1$s is the artist name. -->
+    <string name="following_unfollow_cd">Unfollow %1$s</string>
     <string name="following_empty">You\'re not following any artists yet. Open an artist and tap Follow.</string>
 
     <!-- Dynamic (smart) auto-playlists -->
