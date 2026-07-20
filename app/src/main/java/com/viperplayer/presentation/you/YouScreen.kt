@@ -3,6 +3,7 @@ package com.viperplayer.presentation.you
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -40,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -245,7 +248,7 @@ private fun SignedInHeader(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(4.dp))
-        AvatarRing(size = 92.dp, hasLiveActivity = friendsLive) {
+        AvatarRing(size = 92.dp, hasLiveActivity = friendsLive, showRing = true) {
             InitialsAvatar(text = initials)
         }
         Spacer(Modifier.height(12.dp))
@@ -281,12 +284,20 @@ private fun LibrarySyncCard(onSyncNow: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.CloudDone,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp),
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.CloudDone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.you_library_synced),
@@ -294,11 +305,15 @@ private fun LibrarySyncCard(onSyncNow: () -> Unit) {
                     fontWeight = FontWeight.SemiBold,
                 )
             }
-            IconButton(onClick = onSyncNow) {
+            IconButton(
+                onClick = onSyncNow,
+                modifier = Modifier.size(20.dp),
+            ) {
                 Icon(
                     imageVector = Icons.Rounded.Sync,
                     contentDescription = stringResource(R.string.you_library_sync_now),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
