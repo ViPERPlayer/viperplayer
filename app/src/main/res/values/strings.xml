@@ -1041,6 +1041,10 @@
     <string name="friend_activity_shared_playlist">%1$s shared a playlist · %2$s</string>
     <string name="friend_activity_liked_song">%1$s liked a song · %2$s</string>
     <string name="friend_activity_followed_artist">%1$s followed an artist · %2$s</string>
+    <!-- Action + time only (the friend's name is rendered as a separate bold span before these). -->
+    <string name="friend_activity_shared_playlist_action">shared a playlist · %1$s</string>
+    <string name="friend_activity_liked_song_action">liked a song · %1$s</string>
+    <string name="friend_activity_followed_artist_action">followed an artist · %1$s</string>
     <string name="friend_activity_invite">Invite friends</string>
     <string name="friend_activity_cd_play">Play</string>
     <string name="friend_activity_cd_liked">Liked</string>
