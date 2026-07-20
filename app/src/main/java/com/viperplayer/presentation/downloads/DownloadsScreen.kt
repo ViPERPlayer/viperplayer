@@ -1,18 +1,23 @@
 package com.viperplayer.presentation.downloads
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.SdCard
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,9 +29,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
@@ -36,14 +45,20 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.common.components.SectionLabel
+import com.viperplayer.presentation.common.components.SurfaceCard
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
-import androidx.compose.ui.tooling.preview.Preview
 
 /**
- * Downloads screen: completed offline songs (with a remove action) and any in-progress downloads
- * showing a progress indicator + state. Mirrors [com.viperplayer.presentation.history.HistoryScreen].
+ * Downloads screen: a storage-usage summary, any in-progress downloads (with a live progress
+ * indicator + state), and the completed offline songs (each with a remove action). Follows the
+ * redesign's card + section-label visual language and mirrors
+ * [com.viperplayer.presentation.history.HistoryScreen].
  */
 @Composable
 fun DownloadsScreen(
@@ -81,6 +96,7 @@ private fun DownloadsScreenContent(
     val downloadedIds = downloadedSongs.map { it.id }.toSet()
     val inProgress = downloads.values
         .filter { it.state != DownloadManager.State.COMPLETED && it.mediaId !in downloadedIds }
+        .toList()
 
     ViperScaffold(
         modifier = modifier,
@@ -115,25 +131,47 @@ private fun DownloadsScreenContent(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = contentPadding.calculateTopPadding(),
-                    bottom = rootPadding.calculateBottomPadding() + 8.dp
-                )
+                // Keep the scaffold's top inset; apply the bottom system inset from rootPadding.
+                contentPadding = contentPadding.with(bottom = 8.dp) + rootPadding.bottom()
             ) {
+                item(key = "storage_summary") {
+                    StorageSummaryCard(
+                        downloadedCount = downloadedSongs.size,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 4.dp)
+                    )
+                }
+
                 if (inProgress.isNotEmpty()) {
                     item(key = "in_progress_header") {
-                        SectionHeader(stringResource(R.string.downloads_in_progress))
+                        SectionLabel(
+                            text = stringResource(R.string.downloads_in_progress).uppercase(),
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp
+                            )
+                        )
                     }
-                    items(inProgress, key = { it.mediaId.toString() }) { progress ->
-                        InProgressRow(progress = progress)
+                    items(inProgress, key = { "progress_${it.mediaId}" }) { progress ->
+                        InProgressRow(
+                            progress = progress,
+                            modifier = Modifier
+                                .animateItem()
+                                .fillMaxWidth()
+                        )
                     }
                 }
 
                 if (downloadedSongs.isNotEmpty()) {
                     item(key = "downloaded_header") {
-                        SectionHeader(stringResource(R.string.downloads_completed))
+                        SectionLabel(
+                            text = stringResource(R.string.downloads_completed).uppercase(),
+                            modifier = Modifier.padding(
+                                start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp
+                            )
+                        )
                     }
-                    items(downloadedSongs, key = { it.id.toString() }) { song ->
+                    items(downloadedSongs, key = { "song_${it.id}" }) { song ->
                         ListItem(
                             title = song.title,
                             badges = if (song.isExplicit) listOf(ItemBadge.EXPLICIT) else emptyList(),
@@ -148,11 +186,23 @@ private fun DownloadsScreenContent(
                                 )
                             },
                             trailingContent = {
-                                IconButton(onClick = { onRemove(song.id) }) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Delete,
-                                        contentDescription = stringResource(R.string.downloads_remove)
+                                        imageVector = Icons.Rounded.CheckCircle,
+                                        contentDescription = stringResource(R.string.downloads_completed),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
                                     )
+                                    IconButton(onClick = { onRemove(song.id) }) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Delete,
+                                            contentDescription = stringResource(R.string.downloads_remove),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -166,18 +216,69 @@ private fun DownloadsScreenContent(
     }
 }
 
+/** Leading artwork slot size for an in-progress row — matches the list's 48dp leading rhythm. */
+private val ProgressArtworkSize = 48.dp
+
+/** Diameter of the determinate progress ring drawn over an in-progress thumbnail. */
+private val ProgressRingSize = 28.dp
+
+/**
+ * The storage-usage summary card at the top of the screen: an SD-card glyph, the count of songs
+ * available offline, and (when there is at least one) a subtle filled track echoing the mockup's
+ * usage bar. The count is derived from the already-loaded [downloadedCount]; no IO happens here.
+ */
 @Composable
-private fun SectionHeader(label: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
-    )
+private fun StorageSummaryCard(
+    downloadedCount: Int,
+    modifier: Modifier = Modifier,
+) {
+    SurfaceCard(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.SdCard,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = stringResource(R.string.downloads_offline_summary),
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = pluralSongCount(downloadedCount),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+        }
+    }
 }
 
+/** Localized "N songs" count for the storage summary, pluralized without touching Locale in comp. */
 @Composable
-private fun InProgressRow(progress: DownloadManager.DownloadProgress) {
+private fun pluralSongCount(count: Int): String =
+    pluralStringResource(R.plurals.library_song_count, count, count)
+
+/**
+ * A single in-progress / failed / unsupported download row: a striped-tinted thumbnail carrying a
+ * determinate progress ring while running (or an indeterminate spinner while queued, or a retry
+ * glyph once failed), the song id as the title, and the localized state as the subtitle. Failed and
+ * unsupported rows are dimmed to recede, matching the mockup.
+ */
+@Composable
+private fun InProgressRow(
+    progress: DownloadManager.DownloadProgress,
+    modifier: Modifier = Modifier,
+) {
     val stateLabel = when (progress.state) {
         DownloadManager.State.QUEUED -> stringResource(R.string.downloads_state_queued)
         DownloadManager.State.RUNNING ->
@@ -186,6 +287,10 @@ private fun InProgressRow(progress: DownloadManager.DownloadProgress) {
         DownloadManager.State.UNSUPPORTED -> stringResource(R.string.downloads_state_unsupported)
         DownloadManager.State.COMPLETED -> stringResource(R.string.downloads_completed)
     }
+    val isError = progress.state == DownloadManager.State.FAILED ||
+            progress.state == DownloadManager.State.UNSUPPORTED
+    val rowModifier = if (isError) modifier.alpha(0.72f) else modifier
+
     ListItem(
         title = progress.mediaId.sourceId,
         badges = emptyList(),
@@ -193,27 +298,39 @@ private fun InProgressRow(progress: DownloadManager.DownloadProgress) {
         isActive = false,
         leadingContent = {
             Box(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(ProgressArtworkSize),
                 contentAlignment = Alignment.Center
             ) {
-                if (progress.state == DownloadManager.State.RUNNING) {
-                    CircularProgressIndicator(
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RoundedCornerShape(6.dp),
+                        )
+                )
+                when (progress.state) {
+                    DownloadManager.State.RUNNING -> CircularProgressIndicator(
                         progress = { progress.progress },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(ProgressRingSize),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant,
                     )
-                } else if (progress.state == DownloadManager.State.QUEUED) {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
-                } else {
-                    Icon(
+                    DownloadManager.State.QUEUED -> CircularProgressIndicator(
+                        modifier = Modifier.size(ProgressRingSize),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant,
+                    )
+                    else -> Icon(
                         imageVector = Icons.Rounded.Refresh,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
         },
         trailingContent = {},
-        modifier = Modifier.fillMaxWidth()
+        modifier = rowModifier
     )
 }
 
