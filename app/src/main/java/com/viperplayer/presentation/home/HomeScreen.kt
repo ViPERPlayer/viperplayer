@@ -205,7 +205,13 @@ private fun HomeScreenContent(
                     // Avatar entry to the You hub: generic glyph signed-out, initials signed-in, with a
                     // live ring when friends are listening.
                     IconButton(onClick = onNavigateToYou) {
-                        AvatarRing(size = 44.dp, hasLiveActivity = topBarState.friendsLive) {
+                        // Signed-in avatars always carry the gradient identity ring; the "live" label
+                        // is still driven by friendsLive. Signed-out (glyph) shows no ring.
+                        AvatarRing(
+                            size = 44.dp,
+                            hasLiveActivity = topBarState.friendsLive,
+                            showRing = topBarState.signedIn,
+                        ) {
                             if (topBarState.signedIn && topBarState.initials.isNotBlank()) {
                                 InitialsAvatar(text = topBarState.initials)
                             } else {
@@ -228,7 +234,7 @@ private fun HomeScreenContent(
                             )
                             Text(
                                 text = userName,
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -237,7 +243,7 @@ private fun HomeScreenContent(
                             // Signed out: the greeting itself is the headline (mockup 2b).
                             Text(
                                 text = greetingCaption,
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
