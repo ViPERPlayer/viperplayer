@@ -25,14 +25,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Sync
-import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -60,6 +61,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -174,7 +177,7 @@ fun PluginsScreen(
                             // indicator, overlaid on the top-right of the system-update icon.
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Rounded.SystemUpdate,
+                                    imageVector = Icons.Filled.SystemUpdate,
                                     contentDescription = stringResource(R.string.plugins_check_updates),
                                 )
                                 if (uiState.hasUpdates) {
@@ -497,7 +500,7 @@ fun PluginCard(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PluginIconTile(name = plugin.name, connected = isConnected)
+            PluginIconTile(id = plugin.id, name = plugin.name, connected = isConnected)
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -674,45 +677,88 @@ fun PluginCard(
     }
 }
 
+/** Plugin id of the built-in on-device "Local" source, rendered with a device glyph (mockup 5f). */
+private const val LocalPluginId = "local"
+
 /**
- * The 48dp rounded monogram tile leading a [PluginCard]: the plugin's first initial on a
- * primaryContainer fill when connected, or a muted surfaceContainerHigh tile with the generic
- * extension glyph otherwise (mockup 5f).
+ * The 48dp rounded tile leading a [PluginCard]. A connected plugin gets a diagonal two-tone
+ * [Brush.linearGradient] fill (mockup 5f), keyed by well-known plugin id to distinct colorScheme
+ * tone pairs where we can detect one cheaply, falling back to a tasteful role-based gradient. The
+ * built-in "Local" plugin shows a device glyph; every other plugin shows its monogram initial. A
+ * disabled/unrecognised tile stays a muted flat surface with the initial.
  */
 @Composable
-private fun PluginIconTile(name: String, connected: Boolean) {
+private fun PluginIconTile(id: String, name: String, connected: Boolean) {
     val initial = name.trim().firstOrNull()?.uppercaseChar()
-    val containerColor = if (connected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-    val contentColor = if (connected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val scheme = MaterialTheme.colorScheme
+
+    // Diagonal (top-start → bottom-end) gradient tone pair for connected tiles, mapped from
+    // well-known plugin ids to distinct colorScheme roles; otherwise a role-based default.
+    val gradientTones: Pair<Color, Color>? =
+        if (connected) {
+            when {
+                id == LocalPluginId ->
+                    scheme.secondaryContainer to scheme.surfaceContainerHighest
+                id.contains("testsource", ignoreCase = true) ->
+                    scheme.primaryContainer to scheme.surfaceContainerHigh
+                id.contains("thirdsource", ignoreCase = true) || id.contains("music", ignoreCase = true) ->
+                    scheme.tertiaryContainer to scheme.surfaceContainerHigh
+                else ->
+                    scheme.primaryContainer to scheme.surfaceContainerHigh
+            }
+        } else {
+            null
+        }
+
+    val contentColor = if (connected) scheme.onPrimaryContainer else scheme.onSurfaceVariant
+
+    val tileModifier = Modifier
+        .size(48.dp)
+        .clip(RoundedCornerShape(14.dp))
+        .let { base ->
+            if (gradientTones != null) {
+                base.background(
+                    Brush.linearGradient(
+                        colors = listOf(gradientTones.first, gradientTones.second),
+                    )
+                )
+            } else {
+                base.background(scheme.surfaceContainerHigh)
+            }
+        }
+
     Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(containerColor),
+        modifier = tileModifier,
         contentAlignment = Alignment.Center,
     ) {
-        if (initial != null) {
-            Text(
-                text = initial.toString(),
-                color = contentColor,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.ExtraBold,
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Rounded.Extension,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(22.dp),
-            )
+        when {
+            // Built-in on-device source: a representative device glyph instead of an initial.
+            id == LocalPluginId -> {
+                Icon(
+                    imageVector = Icons.Rounded.Smartphone,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            // Named plugin: keep the monogram initial (never fall back to the generic glyph).
+            initial != null -> {
+                Text(
+                    text = initial.toString(),
+                    color = contentColor,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+            }
+            // Truly nameless plugin: the generic extension glyph as a last resort.
+            else -> {
+                Icon(
+                    imageVector = Icons.Rounded.Extension,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
     }
 }
@@ -782,7 +828,7 @@ private fun PluginUpdateSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.SystemUpdate,
+                    imageVector = Icons.Filled.SystemUpdate,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -852,8 +898,17 @@ private fun PluginUpdateSection(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (!update.changelog.isNullOrBlank()) {
-                            TextButton(onClick = onShowChangelog) {
-                                Text(stringResource(R.string.plugins_update_changelog))
+                            // Plain primary text link ("What's new"): minimal button chrome so it
+                            // reads as a link, sitting on the LEFT of the update row (mockup 5f).
+                            TextButton(
+                                onClick = onShowChangelog,
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.plugins_update_changelog),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.weight(1f))
