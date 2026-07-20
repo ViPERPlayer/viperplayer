@@ -57,7 +57,6 @@ import com.viperplayer.presentation.common.components.CountBadge
 import com.viperplayer.presentation.common.components.FilledPill
 import com.viperplayer.presentation.common.components.InitialsAvatar
 import com.viperplayer.presentation.common.components.InsetDivider
-import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.SurfaceCardRow

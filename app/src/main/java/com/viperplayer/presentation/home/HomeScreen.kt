@@ -216,16 +216,27 @@ private fun HomeScreenContent(
                 },
                 title = {
                     Column {
-                        Text(
-                            text = greetingCaption,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        uiState.userName?.let { name ->
+                        val userName = uiState.userName
+                        if (userName != null) {
+                            // Signed in: small greeting caption above the first name.
                             Text(
-                                text = name,
+                                text = greetingCaption,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = userName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        } else {
+                            // Signed out: the greeting itself is the headline (mockup 2b).
+                            Text(
+                                text = greetingCaption,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
