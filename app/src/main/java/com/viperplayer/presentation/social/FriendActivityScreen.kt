@@ -1,6 +1,8 @@
 package com.viperplayer.presentation.social
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,17 +19,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -34,13 +38,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -53,11 +62,9 @@ import com.viperplayer.presentation.common.components.AvatarRing
 import com.viperplayer.presentation.common.components.FilledPill
 import com.viperplayer.presentation.common.components.InitialsAvatar
 import com.viperplayer.presentation.common.components.InsetDivider
-import com.viperplayer.presentation.common.components.OutlinedPill
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.common.components.SurfaceCard
-import com.viperplayer.presentation.common.components.TonalChip
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 
@@ -241,16 +248,7 @@ private fun EarlierRow(item: FriendActivityItem, relativeTime: String) {
     ) {
         FriendAvatar(name = item.friend.displayName, live = false)
         Column(modifier = Modifier.weight(1f)) {
-            val eventText = when (item) {
-                is FriendActivityItem.SharedPlaylist ->
-                    stringResource(R.string.friend_activity_shared_playlist, item.friend.displayName, relativeTime)
-                is FriendActivityItem.LikedSong ->
-                    stringResource(R.string.friend_activity_liked_song, item.friend.displayName, relativeTime)
-                is FriendActivityItem.FollowedArtist ->
-                    stringResource(R.string.friend_activity_followed_artist, item.friend.displayName, relativeTime)
-                is FriendActivityItem.ListeningNow ->
-                    stringResource(R.string.friend_activity_track_line, item.track.title, item.track.artist)
-            }
+            val eventText = earlierEventLine(item = item, relativeTime = relativeTime)
             val detailText = when (item) {
                 is FriendActivityItem.SharedPlaylist -> item.playlistName
                 is FriendActivityItem.LikedSong -> item.songTitle
@@ -277,12 +275,43 @@ private fun EarlierRow(item: FriendActivityItem, relativeTime: String) {
     }
 }
 
+/**
+ * The "earlier" event sentence as a two-tone [AnnotatedString]: the friend's display name in a bold
+ * `onSurface` span, the action + relative time in normal-weight `onSurfaceVariant`. The name is
+ * always a distinct leading span (the templates carry only the action + time). The name-less
+ * [FriendActivityItem.ListeningNow] fallback renders as one plain dim string.
+ */
+@Composable
+private fun earlierEventLine(item: FriendActivityItem, relativeTime: String): AnnotatedString {
+    val nameStyle = SpanStyle(
+        color = MaterialTheme.colorScheme.onSurface,
+        fontWeight = FontWeight.SemiBold,
+    )
+    val actionText = when (item) {
+        is FriendActivityItem.SharedPlaylist ->
+            stringResource(R.string.friend_activity_shared_playlist_action, relativeTime)
+        is FriendActivityItem.LikedSong ->
+            stringResource(R.string.friend_activity_liked_song_action, relativeTime)
+        is FriendActivityItem.FollowedArtist ->
+            stringResource(R.string.friend_activity_followed_artist_action, relativeTime)
+        is FriendActivityItem.ListeningNow ->
+            return AnnotatedString(
+                stringResource(R.string.friend_activity_track_line, item.track.title, item.track.artist),
+            )
+    }
+    return buildAnnotatedString {
+        withStyle(nameStyle) { append(item.friend.displayName) }
+        append(" ")
+        append(actionText)
+    }
+}
+
 /** The trailing affordance for an "earlier" row, keyed to the event type. */
 @Composable
 private fun EarlierTrailing(item: FriendActivityItem) {
     when (item) {
         is FriendActivityItem.SharedPlaylist ->
-            TonalChip(text = stringResource(R.string.action_save), onClick = {})
+            CompactSaveChip(text = stringResource(R.string.action_save), onClick = {})
         is FriendActivityItem.LikedSong ->
             Icon(
                 imageVector = Icons.Rounded.Favorite,
@@ -468,14 +497,16 @@ private fun NewInviteCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilledPill(
+            CompactActionPill(
                 text = stringResource(R.string.shared_with_you_save_to_library),
                 onClick = onSave,
+                filled = true,
                 modifier = Modifier.weight(1f),
             )
-            OutlinedPill(
+            CompactActionPill(
                 text = stringResource(R.string.shared_with_you_preview),
                 onClick = {},
+                filled = false,
             )
             IconButton(onClick = onDismiss) {
                 Icon(
@@ -531,7 +562,7 @@ private fun EarlierInviteRow(inviteUi: InviteUi) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Rounded.TaskAlt,
+                imageVector = Icons.Rounded.CheckCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(17.dp),
@@ -548,12 +579,20 @@ private fun EarlierInviteRow(inviteUi: InviteUi) {
 
 // ---- Shared small pieces ----------------------------------------------------------------------
 
-/** A 48dp friend avatar: a live gradient ring when [live], initials from [name]. */
+/** Idle-avatar inner-disc inset, matching the ring + gap a live avatar insets its disc by, so the
+ *  idle inner disc renders at the same size as the live rows' inner disc. */
+private val IdleAvatarInset = 3.dp
+
+/** A 48dp friend avatar: a live gradient ring when [live], initials from [name]. Idle avatars inset
+ *  their inner disc by [IdleAvatarInset] so it matches the live rows' (ring-inset) inner disc size. */
 @Composable
 private fun FriendAvatar(name: String, live: Boolean) {
     AvatarRing(size = 48.dp, hasLiveActivity = live) {
         val initial = name.firstOrNull()?.uppercase().orEmpty()
-        if (initial.isEmpty()) PersonGlyphAvatar() else InitialsAvatar(text = initial)
+        val bodyModifier = if (live) Modifier else Modifier.fillMaxSize().padding(IdleAvatarInset)
+        Box(modifier = bodyModifier) {
+            if (initial.isEmpty()) PersonGlyphAvatar() else InitialsAvatar(text = initial)
+        }
     }
 }
 
@@ -595,6 +634,91 @@ private fun JamBadge() {
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
     )
+}
+
+/**
+ * A slim (~32dp) tonal action pill sized to its label, for use inline inside a feed row (the EARLIER
+ * shared-playlist "Save" chip in mockup 5a). Uses secondaryContainer / onSecondaryContainer like the
+ * shared tonal chip but drops the 44dp min-size so it reads as a compact in-row affordance.
+ */
+@Composable
+private fun CompactSaveChip(text: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Box(
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/** Visual height of a NEW-card action pill (slimmer than the shared 44dp pills). */
+private val NewCardPillHeight = 38.dp
+
+/** Vertical inset that lifts the [NewCardPillHeight] pill's touch target back up to the 44dp floor. */
+private val NewCardPillTouchInset = 3.dp
+
+/**
+ * A slim (~38dp) action pill for the NEW invite card (mockup 5b): [filled] renders a primary fill
+ * with onPrimary text and stretches to fill its (weighted) slot; otherwise an outlined pill with
+ * primary text sized to its label. The visible pill is [NewCardPillHeight] tall, but the clickable
+ * node is padded to keep a 44dp touch target.
+ */
+@Composable
+private fun CompactActionPill(
+    text: String,
+    onClick: () -> Unit,
+    filled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = if (filled) MaterialTheme.colorScheme.primary else Color.Transparent
+    val contentColor = if (filled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+    val border = if (filled) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    val widthModifier = if (filled) Modifier.fillMaxWidth() else Modifier
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = CircleShape,
+        color = Color.Transparent,
+    ) {
+        Box(
+            modifier = widthModifier.padding(vertical = NewCardPillTouchInset),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .then(widthModifier)
+                    .heightIn(min = NewCardPillHeight)
+                    .clip(CircleShape)
+                    .background(containerColor)
+                    .then(if (border != null) Modifier.border(border, CircleShape) else Modifier)
+                    .padding(horizontal = 18.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = text,
+                    color = contentColor,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }
 
 /** A rounded artwork thumbnail with a themed placeholder box behind it for null/loading art. */
