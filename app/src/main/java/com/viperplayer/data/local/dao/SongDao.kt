@@ -46,6 +46,14 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE isDownloaded = 1 ORDER BY title ASC")
     fun getAllDownloaded(): Flow<List<SongEntity>>
 
+    /** Live count of liked songs, for the Library "Liked" shortcut tile. */
+    @Query("SELECT COUNT(*) FROM songs WHERE isLiked = 1")
+    fun observeLikedCount(): Flow<Int>
+
+    /** Live count of downloaded songs, for the Library "Downloads" shortcut tile. */
+    @Query("SELECT COUNT(*) FROM songs WHERE isDownloaded = 1")
+    fun observeDownloadedCount(): Flow<Int>
+
     @Query("SELECT * FROM songs ORDER BY title ASC")
     fun getAll(): Flow<List<SongEntity>>
 

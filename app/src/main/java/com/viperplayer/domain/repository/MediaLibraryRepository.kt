@@ -48,6 +48,13 @@ interface MediaLibraryRepository {
      */
     fun getSongsByDateAdded(): Flow<List<Song>>
     fun getAllDownloadedSongs(): Flow<List<Song>>
+
+    /** Live count of liked songs — backs the Library "Liked" shortcut tile. */
+    fun likedSongCount(): Flow<Int>
+
+    /** Live count of downloaded songs — backs the Library "Downloads" shortcut tile. */
+    fun downloadedSongCount(): Flow<Int>
+
     suspend fun saveSong(song: Song)
     suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean)
     suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean)

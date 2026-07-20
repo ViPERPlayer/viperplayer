@@ -37,6 +37,8 @@ class FollowedArtistsRepositoryImplTest {
         override fun observeIsFollowing(pluginId: String, sourceId: String): Flow<Boolean> =
             rows.map { list -> list.any { it.pluginId == pluginId && it.sourceId == sourceId } }
 
+        override fun observeCount(): Flow<Int> = rows.map { it.size }
+
         override suspend fun insert(artist: FollowedArtistEntity): Long {
             val exists = rows.value.any { it.pluginId == artist.pluginId && it.sourceId == artist.sourceId }
             if (exists) return -1L // INSERT OR IGNORE: conflict -> ignored

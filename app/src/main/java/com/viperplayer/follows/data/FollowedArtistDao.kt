@@ -17,6 +17,10 @@ interface FollowedArtistDao {
     @Query("SELECT EXISTS(SELECT 1 FROM followed_artists WHERE pluginId = :pluginId AND sourceId = :sourceId)")
     fun observeIsFollowing(pluginId: String, sourceId: String): Flow<Boolean>
 
+    /** Live count of followed artists, for the Library "Following" shortcut tile. */
+    @Query("SELECT COUNT(*) FROM followed_artists")
+    fun observeCount(): Flow<Int>
+
     /**
      * Idempotent insert: the unique (pluginId, sourceId) index means a second follow of the same
      * artist is ignored rather than creating a duplicate row.

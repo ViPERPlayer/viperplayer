@@ -25,6 +25,7 @@ import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.sort.MediaSorter
+import com.viperplayer.follows.data.FollowedArtistsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -124,6 +125,17 @@ data class LibraryUiState(
     val error: String? = null
 )
 
+/**
+ * Live counts for the pinned Library shortcut tiles (Liked / Downloads / Following). Derived from the
+ * library + follows repositories and exposed separately from [LibraryUiState] so the tiles update
+ * reactively without coupling to the tab content load.
+ */
+data class LibraryShortcutCounts(
+    val liked: Int = 0,
+    val downloaded: Int = 0,
+    val following: Int = 0,
+)
+
 /** One-shot result of an M3U import, surfaced as a Toast by the screen. */
 sealed interface ImportEvent {
     data class Success(val imported: Int, val skipped: Int) : ImportEvent
@@ -139,6 +151,7 @@ class LibraryViewModel @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val playerRepository: PlayerRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
+    private val followedArtistsRepository: FollowedArtistsRepository,
     private val autoPlaylistRepository: AutoPlaylistRepository,
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val settingsRepository: SettingsRepository,
@@ -169,6 +182,24 @@ class LibraryViewModel @Inject constructor(
 
     private val _importEvents = MutableSharedFlow<ImportEvent>(extraBufferCapacity = 1)
     val importEvents: SharedFlow<ImportEvent> = _importEvents.asSharedFlow()
+
+    /**
+     * Live counts for the pinned shortcut tiles (Liked / Downloads / Following), combined from the
+     * library + follows repositories. Kept separate from [uiState] so the tiles react to library
+     * changes without a tab reload. [SharingStarted.WhileSubscribed] tears the underlying DB queries
+     * down when the screen is off-screen.
+     */
+    val shortcutCounts: StateFlow<LibraryShortcutCounts> = combine(
+        mediaLibraryRepository.likedSongCount(),
+        mediaLibraryRepository.downloadedSongCount(),
+        followedArtistsRepository.count(),
+    ) { liked, downloaded, following ->
+        LibraryShortcutCounts(liked = liked, downloaded = downloaded, following = following)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = LibraryShortcutCounts(),
+    )
 
     // Expose current song and playing state from player repository
     val currentSong: StateFlow<Song?> = playerRepository.currentSong

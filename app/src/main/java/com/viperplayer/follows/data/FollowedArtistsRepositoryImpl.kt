@@ -25,6 +25,8 @@ class FollowedArtistsRepositoryImpl @Inject constructor(
     override fun isFollowing(mediaId: MediaId): Flow<Boolean> =
         dao.observeIsFollowing(mediaId.pluginId, mediaId.sourceId)
 
+    override fun count(): Flow<Int> = dao.observeCount()
+
     override suspend fun follow(artist: FollowedArtist) {
         // INSERT OR IGNORE against the unique (pluginId, sourceId) index makes this idempotent.
         dao.insert(FollowedArtistEntity.fromDomain(artist))

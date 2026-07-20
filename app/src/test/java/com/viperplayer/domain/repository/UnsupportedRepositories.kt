@@ -60,6 +60,8 @@ open class UnsupportedMediaLibraryRepository : MediaLibraryRepository {
     override fun getAllSavedSongs(): Flow<List<Song>> = TODO()
     override fun getSongsByDateAdded(): Flow<List<Song>> = TODO()
     override fun getAllDownloadedSongs(): Flow<List<Song>> = TODO()
+    override fun likedSongCount(): Flow<Int> = TODO()
+    override fun downloadedSongCount(): Flow<Int> = TODO()
     override suspend fun saveSong(song: Song) = TODO()
     override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) = TODO()
     override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean) = TODO()

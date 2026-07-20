@@ -159,6 +159,7 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val shortcutCounts by viewModel.shortcutCounts.collectAsStateWithLifecycle()
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
@@ -237,6 +238,7 @@ fun LibraryScreen(
                     // meaningless without alphabetical order) and no per-type sort control.
                     null -> UnifiedLibraryList(
                         items = uiState.unified,
+                        shortcutCounts = shortcutCounts,
                         currentSongId = currentSong?.id,
                         isPlaying = isPlaying,
                         contentPadding = listContentPadding,
@@ -261,6 +263,7 @@ fun LibraryScreen(
                         } else {
                             SongsLibraryList(
                                 songs = uiState.songs,
+                                shortcutCounts = shortcutCounts,
                                 currentSongId = currentSong?.id,
                                 isPlaying = isPlaying,
                                 sort = uiState.songsSort,
@@ -283,6 +286,7 @@ fun LibraryScreen(
                         } else {
                             AlbumsLibraryList(
                                 albums = uiState.albums,
+                                shortcutCounts = shortcutCounts,
                                 sort = uiState.albumsSort,
                                 contentPadding = listContentPadding,
                                 onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ALBUMS, it) },
@@ -301,6 +305,7 @@ fun LibraryScreen(
                         } else {
                             ArtistsLibraryList(
                                 artists = uiState.artists,
+                                shortcutCounts = shortcutCounts,
                                 sort = uiState.artistsSort,
                                 contentPadding = listContentPadding,
                                 onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ARTISTS, it) },
@@ -320,6 +325,7 @@ fun LibraryScreen(
                             PlaylistsLibraryList(
                                 playlists = uiState.playlists,
                                 autoPlaylists = uiState.autoPlaylists,
+                                shortcutCounts = shortcutCounts,
                                 sort = uiState.playlistsSort,
                                 contentPadding = listContentPadding,
                                 onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_PLAYLISTS, it) },
@@ -399,6 +405,7 @@ fun LibraryScreen(
 @Composable
 private fun UnifiedLibraryList(
     items: List<LibraryFeedItem>,
+    shortcutCounts: LibraryShortcutCounts,
     currentSongId: MediaId?,
     isPlaying: Boolean,
     contentPadding: PaddingValues,
@@ -431,6 +438,7 @@ private fun UnifiedLibraryList(
                     items.size,
                     items.size
                 ),
+                shortcutCounts = shortcutCounts,
                 sort = null,
                 sortOptions = emptyList(),
                 onOrderChange = {},
@@ -485,6 +493,7 @@ private fun UnifiedLibraryList(
 @Composable
 private fun SongsLibraryList(
     songs: List<Song>,
+    shortcutCounts: LibraryShortcutCounts,
     currentSongId: MediaId?,
     isPlaying: Boolean,
     sort: SortOrder,
@@ -501,6 +510,7 @@ private fun SongsLibraryList(
     TypeLibraryList(
         itemCount = songs.size,
         countLabel = pluralStringResource(R.plurals.library_song_count, songs.size, songs.size),
+        shortcutCounts = shortcutCounts,
         sort = sort,
         sortOptions = SONG_SORT_OPTIONS,
         useNameLabel = false,
@@ -534,6 +544,7 @@ private fun SongsLibraryList(
 @Composable
 private fun AlbumsLibraryList(
     albums: List<Album>,
+    shortcutCounts: LibraryShortcutCounts,
     sort: SortOrder,
     contentPadding: PaddingValues,
     onOrderChange: (SortOrder) -> Unit,
@@ -546,6 +557,7 @@ private fun AlbumsLibraryList(
     TypeLibraryList(
         itemCount = albums.size,
         countLabel = pluralStringResource(R.plurals.library_album_count, albums.size, albums.size),
+        shortcutCounts = shortcutCounts,
         sort = sort,
         sortOptions = ALBUM_SORT_OPTIONS,
         useNameLabel = false,
@@ -575,6 +587,7 @@ private fun AlbumsLibraryList(
 @Composable
 private fun ArtistsLibraryList(
     artists: List<Artist>,
+    shortcutCounts: LibraryShortcutCounts,
     sort: SortOrder,
     contentPadding: PaddingValues,
     onOrderChange: (SortOrder) -> Unit,
@@ -587,6 +600,7 @@ private fun ArtistsLibraryList(
     TypeLibraryList(
         itemCount = artists.size,
         countLabel = pluralStringResource(R.plurals.library_artist_count, artists.size, artists.size),
+        shortcutCounts = shortcutCounts,
         sort = sort,
         sortOptions = ARTIST_SORT_OPTIONS,
         useNameLabel = true,
@@ -621,6 +635,7 @@ private fun ArtistsLibraryList(
 private fun PlaylistsLibraryList(
     playlists: List<Playlist>,
     autoPlaylists: List<Playlist>,
+    shortcutCounts: LibraryShortcutCounts,
     sort: SortOrder,
     contentPadding: PaddingValues,
     onOrderChange: (SortOrder) -> Unit,
@@ -633,6 +648,7 @@ private fun PlaylistsLibraryList(
     TypeLibraryList(
         itemCount = playlists.size,
         countLabel = pluralStringResource(R.plurals.library_playlist_count, playlists.size, playlists.size),
+        shortcutCounts = shortcutCounts,
         sort = sort,
         sortOptions = PLAYLIST_SORT_OPTIONS,
         useNameLabel = true,
@@ -697,6 +713,7 @@ private fun PlaylistsLibraryList(
 private fun TypeLibraryList(
     itemCount: Int,
     countLabel: String,
+    shortcutCounts: LibraryShortcutCounts,
     sort: SortOrder,
     sortOptions: List<SortOption>,
     useNameLabel: Boolean,
@@ -723,6 +740,7 @@ private fun TypeLibraryList(
             item(key = "type_header") {
                 LibraryListHeader(
                     countLabel = countLabel,
+                    shortcutCounts = shortcutCounts,
                     sort = sort,
                     sortOptions = sortOptions,
                     onOrderChange = onOrderChange,
@@ -984,6 +1002,7 @@ private fun LibraryFilterChips(
 @Composable
 private fun LibraryListHeader(
     countLabel: String,
+    shortcutCounts: LibraryShortcutCounts,
     sort: SortOrder?,
     sortOptions: List<SortOption>,
     onOrderChange: (SortOrder) -> Unit,
@@ -1003,18 +1022,33 @@ private fun LibraryListHeader(
             ShortcutTile(
                 icon = Icons.Rounded.Favorite,
                 label = stringResource(R.string.library_liked),
+                count = pluralStringResource(
+                    R.plurals.library_song_count,
+                    shortcutCounts.liked,
+                    shortcutCounts.liked,
+                ),
                 onClick = onLiked,
                 modifier = Modifier.weight(1f),
             )
             ShortcutTile(
                 icon = Icons.Rounded.Download,
                 label = stringResource(R.string.downloads_title),
+                count = pluralStringResource(
+                    R.plurals.library_song_count,
+                    shortcutCounts.downloaded,
+                    shortcutCounts.downloaded,
+                ),
                 onClick = onNavigateToDownloads,
                 modifier = Modifier.weight(1f),
             )
             ShortcutTile(
                 icon = Icons.Rounded.Group,
                 label = stringResource(R.string.following_title),
+                count = pluralStringResource(
+                    R.plurals.library_artist_count,
+                    shortcutCounts.following,
+                    shortcutCounts.following,
+                ),
                 onClick = onNavigateToFollowing,
                 modifier = Modifier.weight(1f),
             )
@@ -1091,8 +1125,9 @@ private fun SortPill(
 
 /**
  * A single pinned shortcut tile (Liked / Downloads / Following): a flat surfaceContainerHighest panel
- * with a primary-tinted filled icon and a label. Navigation-only — the counts in the mockup are not
- * available to the presentation layer without new data plumbing, so the tile shows just its label.
+ * with a primary-tinted filled icon and a label. When [count] is non-null it renders as a second,
+ * de-emphasised line under the label (e.g. "128 songs"); the caller resolves the pluralized, localized
+ * string so this stays a pure renderer.
  */
 @Composable
 private fun ShortcutTile(
@@ -1100,6 +1135,7 @@ private fun ShortcutTile(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    count: String? = null,
 ) {
     Surface(
         modifier = modifier,
@@ -1127,6 +1163,15 @@ private fun ShortcutTile(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (count != null) {
+                Text(
+                    text = count,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

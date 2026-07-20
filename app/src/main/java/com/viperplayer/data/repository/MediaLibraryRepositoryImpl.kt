@@ -527,6 +527,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun likedSongCount(): Flow<Int> = songDao.observeLikedCount()
+
+    override fun downloadedSongCount(): Flow<Int> = songDao.observeDownloadedCount()
+
     override fun getSongsByDateAdded(): Flow<List<Song>> {
         // "Recently Added" auto-playlist: saved library songs newest-first (insertion order). Uses the
         // same entity->domain mapping (with connectivity-aware playability) as getAllSavedSongs.

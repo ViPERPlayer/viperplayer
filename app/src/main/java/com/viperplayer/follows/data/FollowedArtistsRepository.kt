@@ -17,6 +17,9 @@ interface FollowedArtistsRepository {
     /** Live "is this artist followed?" flag. */
     fun isFollowing(mediaId: MediaId): Flow<Boolean>
 
+    /** Live count of followed artists — backs the Library "Following" shortcut tile. */
+    fun count(): Flow<Int>
+
     /** Follow an artist. Idempotent: following an already-followed artist is a no-op. */
     suspend fun follow(artist: FollowedArtist)
 
