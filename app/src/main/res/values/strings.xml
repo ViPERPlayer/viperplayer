@@ -49,7 +49,6 @@
     <string name="main_enabled">Enabled</string>
     <string name="main_disabled">Disabled</string>
     <string name="viper_fx_title">ViPER FX</string>
-    <string name="viper_fx_master_switch">Master switch</string>
     <plurals name="viper_fx_effects_active">
         <item quantity="one">%d effect active</item>
         <item quantity="other">%d effects active</item>

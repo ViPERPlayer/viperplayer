@@ -254,7 +254,8 @@ fun ViperNavDisplay(
                 },
                 onNavigateToDownloads = { navigator.navigate(Downloads) },
                 onNavigateToFollowing = { navigator.navigate(Following) },
-                onNavigateToCustomizeTabs = { navigator.navigate(CustomizeTabs) }
+                onNavigateToCustomizeTabs = { navigator.navigate(CustomizeTabs) },
+                onNavigateToSearch = { navigator.navigate(Search) }
             )
         }
 
