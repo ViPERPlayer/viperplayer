@@ -494,12 +494,20 @@
     <string name="plugins_author">Author: %1$s</string>
     <string name="plugins_by">by %1$s</string>
     <string name="plugins_version">Version: %1$s</string>
+    <!-- Compact version for the inline meta line on a plugin card, e.g. "v1.2.0". -->
+    <string name="plugins_version_short">v%1$s</string>
     <string name="plugins_api_version">API Version: %1$s</string>
     <string name="plugins_package">Package: %1$s</string>
     <string name="plugins_api_short">API v%1$s</string>
     <string name="plugins_capability_search">Search</string>
     <string name="plugins_capability_library">Library</string>
     <string name="plugins_capability_playlists">Playlists</string>
+    <!-- All-caps "CONNECTED" pill on a plugin card. -->
+    <string name="plugins_status_connected">CONNECTED</string>
+    <!-- Middot separator joining the parts of a plugin's meta line (author · version · API). -->
+    <string name="plugins_meta_separator">" · "</string>
+    <!-- Appended to a plugin's meta line when the plugin is turned off. -->
+    <string name="plugins_meta_disabled">disabled</string>
     <string name="plugins_settings_cd">Plugin Settings</string>
     <string name="plugins_show_info">Show info</string>
     <string name="plugins_uninstall">Uninstall</string>

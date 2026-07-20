@@ -2,10 +2,10 @@ package com.viperplayer.presentation.plugins
 
 import android.content.ComponentName
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,36 +16,33 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -53,7 +50,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -62,13 +58,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.viperplayer.R
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -77,10 +76,16 @@ import com.viperplayer.data.plugin.update.PluginUpdateProgress
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.PluginPendingAction
+import com.viperplayer.presentation.common.components.FilledPill
+import com.viperplayer.presentation.common.components.OutlinedPill
+import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
-import com.viperplayer.presentation.ktx.with
 
+/** Alpha applied to a disabled plugin card so it reads as "off" (mockup 5f). */
+private const val DisabledCardAlpha = 0.72f
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluginsScreen(
     rootPadding: PaddingValues,
@@ -141,132 +146,96 @@ fun PluginsScreen(
         onPauseOrDispose { }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        TopAppBar(
-            title = { Text(stringResource(R.string.settings_plugins)) },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back)
-                    )
-                }
-            },
-            actions = {
-                IconButton(
-                    onClick = { viewModel.checkForUpdates() },
-                    enabled = !uiState.isCheckingUpdates,
-                ) {
-                    if (uiState.isCheckingUpdates) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_plugins)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
                         )
-                    } else {
-                        // A badge dot signals the global "updates available" indicator.
-                        BadgedBox(
-                            badge = {
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.checkForUpdates() },
+                        enabled = !uiState.isCheckingUpdates,
+                    ) {
+                        if (uiState.isCheckingUpdates) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            // A small error-tinted dot signals the global "updates available"
+                            // indicator, overlaid on the top-right of the system-update icon.
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.SystemUpdate,
+                                    contentDescription = stringResource(R.string.plugins_check_updates),
+                                )
                                 if (uiState.hasUpdates) {
-                                    Badge(
-                                        modifier = Modifier.semantics {
-                                            contentDescription =
-                                                updatesBadgeDescription
-                                        }
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(x = 3.dp, y = (-3).dp)
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.error)
+                                            .semantics {
+                                                contentDescription = updatesBadgeDescription
+                                            },
                                     )
                                 }
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SystemUpdate,
-                                contentDescription = stringResource(R.string.plugins_check_updates),
-                            )
                         }
                     }
                 }
-            }
-        )
-
+            )
+        },
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(rootPadding.with(bottom = 0.dp))
+                .padding(innerPadding)
+                .padding(top = rootPadding.calculateTopPadding())
         ) {
 
             uiState.error?.let { error ->
-                Card(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
                 ) {
                     Text(
                         text = error,
                         color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(16.dp)
                     )
                 }
             }
 
             if (uiState.discoveredPlugins.isEmpty() && !uiState.isRefreshing) {
-                Box(
-                    modifier = Modifier
-                        .padding(rootPadding.bottom())
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Extension,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = stringResource(R.string.plugins_none_found),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.plugins_none_found_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    data = "https://github.com/viperplayer/plugins".toUri()
-                                }
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier.fillMaxWidth(0.7f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.plugins_download))
+                PluginsEmptyState(
+                    rootPadding = rootPadding,
+                    onDownload = {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            data = "https://github.com/viperplayer/plugins".toUri()
                         }
-                    }
-                }
+                        context.startActivity(intent)
+                    },
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = rootPadding.bottom() + PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(uiState.discoveredPlugins) { plugin ->
                         val isEnabled = viewModel.isEnabled(plugin.id)
@@ -437,6 +406,51 @@ fun PluginsScreen(
     }
 }
 
+/** Centered empty state shown when no plugins are discovered. */
+@Composable
+private fun PluginsEmptyState(
+    rootPadding: PaddingValues,
+    onDownload: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .padding(rootPadding.bottom())
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Extension,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.plugins_none_found),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.plugins_none_found_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            FilledPill(
+                text = stringResource(R.string.plugins_download),
+                onClick = onDownload,
+                leadingIcon = Icons.Rounded.Download,
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PluginCard(
@@ -467,92 +481,51 @@ fun PluginCard(
     modifier: Modifier = Modifier,
     onOpenSettings: () -> Unit = {},
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = { },
-                onLongClick = onLongPress
-            ),
-        shape = RoundedCornerShape(16.dp)
+    SurfaceCard(
+        modifier = modifier.combinedClickable(
+            onClick = { },
+            onLongClick = onLongPress,
+        ),
     ) {
-      Column(modifier = Modifier.fillMaxWidth()) {
+        // Whole-card dimming when the plugin is turned off (mockup 5f).
+        val contentAlpha = if (isEnabled) 1f else DisabledCardAlpha
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .alpha(contentAlpha)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Plugin icon placeholder
-            Surface(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Extension,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
+            PluginIconTile(name = plugin.name, connected = isConnected)
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = plugin.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                if (!plugin.author.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = stringResource(R.string.plugins_by, plugin.author.orEmpty()),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        text = plugin.name,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                }
-
-                if (!plugin.description.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = plugin.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    plugin.apiVersion?.let { apiVersion ->
-                        Text(
-                            text = stringResource(R.string.plugins_api_short, apiVersion),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (isConnected) Spacer(modifier = Modifier.width(8.dp))
-                    }
-
                     if (isConnected) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                text = stringResource(R.string.status_connected),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+                        ConnectedPill()
                     }
                 }
+
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = pluginMetaLine(plugin = plugin, isEnabled = isEnabled),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
                 // Pending user action (permission, login, verification...) — tap to resolve.
                 pendingAction?.let { action ->
@@ -563,69 +536,74 @@ fun PluginCard(
                     )
                 }
 
-                // Show capabilities if connected
+                // Capability chips for a connected plugin.
                 connectedPlugin?.let { connected ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (connected.capabilities.canSearch) {
-                            CapabilityChip(stringResource(R.string.plugins_capability_search))
-                        }
-                        if (connected.capabilities.hasLibrary) {
-                            CapabilityChip(stringResource(R.string.plugins_capability_library))
-                        }
-                        if (connected.capabilities.hasPlaylists) {
-                            CapabilityChip(stringResource(R.string.plugins_capability_playlists))
+                    val hasAnyCapability = connected.capabilities.canSearch ||
+                        connected.capabilities.hasLibrary ||
+                        connected.capabilities.hasPlaylists
+                    if (hasAnyCapability) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (connected.capabilities.canSearch) {
+                                CapabilityChip(stringResource(R.string.plugins_capability_search))
+                            }
+                            if (connected.capabilities.hasLibrary) {
+                                CapabilityChip(stringResource(R.string.plugins_capability_library))
+                            }
+                            if (connected.capabilities.hasPlaylists) {
+                                CapabilityChip(stringResource(R.string.plugins_capability_playlists))
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Library sync in progress for this plugin.
-            if (isSyncing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            // Show settings button if plugin has settings activity
-            if (plugin.settingsActivity != null) {
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = stringResource(R.string.plugins_settings_cd),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
-            Box {
-                if (isToggling) {
+            // Trailing controls cluster: sync spinner, settings shortcut, and the enable switch
+            // (or its toggle spinner) that also anchors the long-press dropdown menu.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Library sync in progress for this plugin.
+                if (isSyncing) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp
                     )
-                } else {
-                    Switch(
-                        checked = isEnabled,
-                        onCheckedChange = { onToggle() }
-                    )
                 }
 
-                // Dropdown menu for long press
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = onDismissMenu
-                ) {
+                // Settings shortcut when the plugin exposes a settings activity.
+                if (plugin.settingsActivity != null) {
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = stringResource(R.string.plugins_settings_cd),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Box {
+                    if (isToggling) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = { onToggle() }
+                        )
+                    }
+
+                    // Dropdown menu for long press
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = onDismissMenu
+                    ) {
                     if (canSyncLibrary) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.plugins_sync_library)) },
@@ -633,7 +611,7 @@ fun PluginCard(
                             enabled = !isSyncing,
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Sync,
+                                    imageVector = Icons.Rounded.Sync,
                                     contentDescription = null
                                 )
                             }
@@ -647,7 +625,7 @@ fun PluginCard(
                             onClick = { onTogglePushSync(!pushSyncEnabled) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.CloudUpload,
+                                    imageVector = Icons.Rounded.CloudUpload,
                                     contentDescription = null
                                 )
                             },
@@ -664,7 +642,7 @@ fun PluginCard(
                         onClick = onShowInfo,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Info,
+                                imageVector = Icons.Rounded.Info,
                                 contentDescription = null
                             )
                         }
@@ -674,15 +652,15 @@ fun PluginCard(
                         onClick = onUninstall,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.Rounded.Delete,
                                 contentDescription = null
                             )
                         }
                     )
+                    }
                 }
             }
         }
-
         // "Update available" banner + install/dismiss + progress, only when an update is offered.
         if (update != null) {
             PluginUpdateSection(
@@ -693,8 +671,88 @@ fun PluginCard(
                 onShowChangelog = onShowChangelog,
             )
         }
-      }
     }
+}
+
+/**
+ * The 48dp rounded monogram tile leading a [PluginCard]: the plugin's first initial on a
+ * primaryContainer fill when connected, or a muted surfaceContainerHigh tile with the generic
+ * extension glyph otherwise (mockup 5f).
+ */
+@Composable
+private fun PluginIconTile(name: String, connected: Boolean) {
+    val initial = name.trim().firstOrNull()?.uppercaseChar()
+    val containerColor = if (connected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val contentColor = if (connected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(containerColor),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (initial != null) {
+            Text(
+                text = initial.toString(),
+                color = contentColor,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.ExtraBold,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Rounded.Extension,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+/** The all-caps "CONNECTED" pill next to a connected plugin's name (mockup 5f). */
+@Composable
+private fun ConnectedPill() {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Text(
+            text = stringResource(R.string.plugins_status_connected),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+    }
+}
+
+/**
+ * Builds the single meta line under a plugin's name — "by Author · vX.Y · API vN", omitting parts
+ * that are absent — and appends a "disabled" hint when the plugin is turned off (mockup 5f).
+ */
+@Composable
+private fun pluginMetaLine(plugin: PluginInfo, isEnabled: Boolean): String {
+    val separator = stringResource(R.string.plugins_meta_separator)
+    val parts = buildList {
+        if (!plugin.author.isNullOrBlank()) {
+            add(stringResource(R.string.plugins_by, plugin.author.orEmpty()))
+        }
+        if (plugin.version.isNotBlank()) {
+            add(stringResource(R.string.plugins_version_short, plugin.version))
+        }
+        plugin.apiVersion?.let { add(stringResource(R.string.plugins_api_short, it)) }
+        if (!isEnabled) add(stringResource(R.string.plugins_meta_disabled))
+    }
+    return parts.joinToString(separator)
 }
 
 /**
@@ -719,14 +777,16 @@ private fun PluginUpdateSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Icon(
-                    imageVector = Icons.Default.SystemUpdate,
+                    imageVector = Icons.Rounded.SystemUpdate,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.plugins_update_available),
@@ -741,7 +801,7 @@ private fun PluginUpdateSection(
                             update.availableVersionName,
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                     )
                 }
             }
@@ -785,10 +845,11 @@ private fun PluginUpdateSection(
 
                 else -> {
                     // Idle: offer the actions.
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (!update.changelog.isNullOrBlank()) {
                             TextButton(onClick = onShowChangelog) {
@@ -796,12 +857,14 @@ private fun PluginUpdateSection(
                             }
                         }
                         Spacer(modifier = Modifier.weight(1f))
-                        OutlinedButton(onClick = onDismiss) {
-                            Text(stringResource(R.string.plugins_update_dismiss))
-                        }
-                        Button(onClick = onInstall) {
-                            Text(stringResource(R.string.plugins_update_action))
-                        }
+                        OutlinedPill(
+                            text = stringResource(R.string.plugins_update_dismiss),
+                            onClick = onDismiss,
+                        )
+                        FilledPill(
+                            text = stringResource(R.string.plugins_update_action),
+                            onClick = onInstall,
+                        )
                     }
                 }
             }
@@ -809,17 +872,19 @@ private fun PluginUpdateSection(
     }
 }
 
+/** A small tonal capability chip (Search / Library / Playlists) on a connected plugin card. */
 @Composable
 fun CapabilityChip(label: String) {
     Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
         )
     }
 }
-
