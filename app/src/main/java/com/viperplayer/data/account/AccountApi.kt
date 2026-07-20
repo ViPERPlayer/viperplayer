@@ -80,6 +80,35 @@ class AccountApi @Inject constructor(
         return handle(response) { json.decodeFromString<UserDto>(it) }
     }
 
+    /**
+     * Changes the signed-in user's password (`POST /auth/change-password`, `Authorization: Bearer`).
+     * The backend replies 204 on success (no body). A rejected access token surfaces as
+     * [AccountApiResult.Unauthenticated] so the caller can refresh + retry; a wrong current password
+     * is also 401 — the repository disambiguates by retry outcome. A weak new password is 400
+     * ([AccountApiResult.Rejected]).
+     */
+    suspend fun changePassword(
+        accessToken: String,
+        currentPassword: String,
+        newPassword: String,
+    ): AccountApiResult<Unit> = bearerPost(
+        path = "/auth/change-password",
+        accessToken = accessToken,
+        body = json.encodeToString(ChangePasswordRequestDto(currentPassword, newPassword)),
+    )
+
+    /**
+     * Permanently deletes the signed-in account (`POST /auth/delete`, `Authorization: Bearer`),
+     * confirming with the current [password]. The backend replies 204 on success (no body); a wrong
+     * password is 401.
+     */
+    suspend fun deleteAccount(accessToken: String, password: String): AccountApiResult<Unit> =
+        bearerPost(
+            path = "/auth/delete",
+            accessToken = accessToken,
+            body = json.encodeToString(DeleteAccountRequestDto(password)),
+        )
+
     /** Best-effort logout; revokes the presented refresh token server-side. Failures are swallowed. */
     suspend fun logout(refreshToken: String) {
         val base = baseUrl ?: return
@@ -114,6 +143,51 @@ class AccountApi @Inject constructor(
             return AccountApiResult.NetworkError
         }
         return handle(response, map)
+    }
+
+    /**
+     * A `Authorization: Bearer` POST whose 2xx carries no meaningful body (the backend answers 204).
+     * Returns [AccountApiResult.Success] for any empty-2xx, so callers get `Unit` without decoding.
+     */
+    private suspend fun bearerPost(
+        path: String,
+        accessToken: String,
+        body: String,
+    ): AccountApiResult<Unit> {
+        val base = baseUrl ?: return AccountApiResult.NotConfigured
+        val response = try {
+            httpClient.post("$base$path") {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setBody(body)
+            }
+        } catch (e: CancellationException) {
+            throw e // let coroutine cancellation propagate — it's not a network failure
+        } catch (e: Exception) {
+            Timber.w("Account API request failed: ${e.javaClass.simpleName}")
+            return AccountApiResult.NetworkError
+        }
+        return handleNoContent(response)
+    }
+
+    /**
+     * Maps a no-body response: any 2xx (including 204) is [AccountApiResult.Success] with [Unit];
+     * a non-2xx maps through [mapAccountHttpError] carrying the server's `{"error": …}` when present.
+     */
+    private suspend fun handleNoContent(response: HttpResponse): AccountApiResult<Unit> {
+        if (response.status.isSuccess()) return AccountApiResult.Success(Unit)
+        val bodyText = try {
+            response.bodyAsText()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return AccountApiResult.NetworkError
+        }
+        val serverMessage = runCatching { json.decodeFromString<ErrorDto>(bodyText).error }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+        return mapAccountHttpError(response.status.value, serverMessage)
     }
 
     private suspend fun <T> handle(response: HttpResponse, map: (String) -> T): AccountApiResult<T> {

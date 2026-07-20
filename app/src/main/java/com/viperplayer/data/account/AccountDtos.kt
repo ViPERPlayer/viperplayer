@@ -17,6 +17,14 @@ data class LoginRequestDto(val email: String, val password: String)
 @Serializable
 data class RefreshRequestDto(val refreshToken: String)
 
+/** `POST /auth/change-password` (Bearer). Backend replies 204 on success, 401 wrong current, 400 weak. */
+@Serializable
+data class ChangePasswordRequestDto(val currentPassword: String, val newPassword: String)
+
+/** `POST /auth/delete` (Bearer). Backend replies 204 on success, 401 wrong password. */
+@Serializable
+data class DeleteAccountRequestDto(val password: String)
+
 /** `POST /auth/refresh` wraps the new pair under `tokens` (the client unwraps it). */
 @Serializable
 data class RefreshResponseDto(val tokens: TokenPairDto)

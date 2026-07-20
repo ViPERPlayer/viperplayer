@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -40,10 +41,25 @@ class LibrarySyncManager @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val pushSyncManager: PushSyncManager,
-) {
+    private val statusStore: LibrarySyncStatusStore,
+) : LibrarySync {
     private val _syncing = MutableStateFlow<Set<String>>(emptySet())
     /** Plugin ids currently syncing, for the UI to show progress. */
-    val syncing: StateFlow<Set<String>> = _syncing.asStateFlow()
+    override val syncing: StateFlow<Set<String>> = _syncing.asStateFlow()
+
+    /**
+     * Sync every currently-connected plugin's account library into the local library, sequentially.
+     * Iteration lives here (not the ViewModel) so the UI only launches + observes [syncing]. Each
+     * plugin's [syncPlugin] records its outcome into the status store; failures are isolated per
+     * plugin. A no-op when no plugins are connected.
+     */
+    override suspend fun syncConnectedPlugins() {
+        val plugins = pluginRepository.connectedPlugins.first()
+        for (plugin in plugins) {
+            runCatching { syncPlugin(plugin.info.id) }
+                .onFailure { Timber.w(it, "Library sync failed for ${plugin.info.id}") }
+        }
+    }
 
     /**
      * Sync [pluginId]'s account library into the local library. Returns per-type counts. An empty
@@ -95,7 +111,10 @@ class LibrarySyncManager @Inject constructor(
             )
 
             SyncResult(songs = songs, albums = albums, artists = artists, playlists = playlists)
-                .also { Timber.d("Synced library for $pluginId: $it") }
+                .also {
+                    Timber.d("Synced library for $pluginId: $it")
+                    statusStore.record(it, System.currentTimeMillis())
+                }
         } finally {
             _syncing.update { it - pluginId }
         }

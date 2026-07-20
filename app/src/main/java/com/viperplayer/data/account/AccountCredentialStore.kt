@@ -57,6 +57,7 @@ class AccountCredentialStore @Inject constructor(
             prefs[USER_ID_KEY] = user.id
             prefs[EMAIL_KEY] = user.email
             prefs[DISPLAY_NAME_KEY] = user.displayName
+            prefs[CREATED_AT_KEY] = user.createdAtMs
             prefs[ACCESS_TOKEN_KEY] = accessToken
             prefs[REFRESH_TOKEN_KEY] = refreshToken
             prefs[ACCESS_EXPIRES_AT_KEY] = accessExpiresAtMs
@@ -78,6 +79,7 @@ class AccountCredentialStore @Inject constructor(
             prefs[USER_ID_KEY] = user.id
             prefs[EMAIL_KEY] = user.email
             prefs[DISPLAY_NAME_KEY] = user.displayName
+            prefs[CREATED_AT_KEY] = user.createdAtMs
         }
     }
 
@@ -94,6 +96,7 @@ class AccountCredentialStore @Inject constructor(
                 id = userId,
                 email = prefs[EMAIL_KEY].orEmpty(),
                 displayName = prefs[DISPLAY_NAME_KEY].orEmpty(),
+                createdAtMs = prefs[CREATED_AT_KEY] ?: 0L,
             ),
             isSignedIn = hasSession,
         )
@@ -105,6 +108,7 @@ class AccountCredentialStore @Inject constructor(
         val USER_ID_KEY = stringPreferencesKey("account_user_id")
         val EMAIL_KEY = stringPreferencesKey("account_email")
         val DISPLAY_NAME_KEY = stringPreferencesKey("account_display_name")
+        val CREATED_AT_KEY = longPreferencesKey("account_created_at_ms")
         val ACCESS_TOKEN_KEY = stringPreferencesKey("account_access_token")
         val REFRESH_TOKEN_KEY = stringPreferencesKey("account_refresh_token")
         val ACCESS_EXPIRES_AT_KEY = longPreferencesKey("account_access_expires_at_ms")

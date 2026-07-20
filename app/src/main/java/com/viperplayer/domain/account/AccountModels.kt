@@ -9,6 +9,8 @@ data class AccountUser(
     val id: String,
     val email: String,
     val displayName: String,
+    /** Epoch millis the account was created, or 0 when unknown (pre-existing sessions before this field). */
+    val createdAtMs: Long = 0,
 )
 
 /**

@@ -220,6 +220,21 @@ object ListeningStatsAggregator {
         )
     }
 
+    /**
+     * Total actually-listened millis in the current calendar month — the window
+     * [first-of-month 00:00 in [zone], [nowMs]) — summed over each record's [PlayRecord.listenedMs].
+     * Pure: a caller passes "now" and a zone and gets a deterministic total (0 when nothing played
+     * this month). Drives the You hub's "N hours this month" subtitle.
+     */
+    fun listenedMsInMonth(records: List<PlayRecord>, nowMs: Long, zone: ZoneId): Long {
+        val now = zonedOf(nowMs, zone)
+        val startOfMonth = ZonedDateTime.of(now.year, now.monthValue, 1, 0, 0, 0, 0, zone)
+            .toInstant().toEpochMilli()
+        return records
+            .filter { it.timestampMs in startOfMonth until nowMs }
+            .sumOf { it.listenedMs }
+    }
+
     /** All calendar years (descending) that have at least one play, resolved in [zone]. */
     fun yearsWithData(records: List<PlayRecord>, zone: ZoneId = ZoneId.systemDefault()): List<Int> =
         records.mapTo(HashSet()) { zonedOf(it.timestampMs, zone).year }
