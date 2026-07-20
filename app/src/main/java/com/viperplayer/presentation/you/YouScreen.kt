@@ -272,12 +272,12 @@ private fun SignedInHeader(
             onClick = onManageAccount,
         )
         Spacer(Modifier.height(16.dp))
-        LibrarySyncCard(onSyncNow = onSyncNow)
+        LibrarySyncCard(status = syncStatus, onSyncNow = onSyncNow)
     }
 }
 
 @Composable
-private fun LibrarySyncCard(onSyncNow: () -> Unit) {
+private fun LibrarySyncCard(status: LibrarySyncStatusUi, onSyncNow: () -> Unit) {
     SurfaceCard {
         Row(
             modifier = Modifier
@@ -306,6 +306,18 @@ private fun LibrarySyncCard(onSyncNow: () -> Unit) {
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
+                if (status.hasSynced) {
+                    Text(
+                        text = stringResource(
+                            R.string.you_library_synced_status,
+                            status.songs,
+                            status.albums,
+                            status.relativeTime,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             IconButton(
                 onClick = onSyncNow,
@@ -488,6 +500,9 @@ private fun MusicCard(
         InsetDivider()
         SurfaceCardRow(
             title = stringResource(R.string.you_listening_stats),
+            subtitle = state.listeningThisMonth
+                .takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.you_listening_stats_this_month, it) },
             leadingIcon = Icons.Rounded.BarChart,
             onClick = onStats,
         )

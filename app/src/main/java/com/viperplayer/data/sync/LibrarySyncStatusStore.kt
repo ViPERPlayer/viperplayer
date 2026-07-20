@@ -20,9 +20,11 @@ import javax.inject.Singleton
  * the aggregate per-type counts pulled. Backed by DataStore, mirroring the other preference stores.
  *
  * A single "Sync now" iterates every connected plugin, each producing a [SyncResult] and calling
- * [record]. Records within the same run (their [atMs] falling inside [RUN_WINDOW_MS] of the stored
- * timestamp) ACCUMULATE, so the status reflects the whole run's totals; a record starting a new run
- * (a later, out-of-window timestamp) replaces the previous run's counts.
+ * [record]. Records within the same run (their [atMs] falling inside [RUN_WINDOW_MS] of the run's
+ * START timestamp) ACCUMULATE, so the status reflects the whole run's totals; a record starting a
+ * new run (an [atMs] beyond that window of the run start) RESETS the counts. Anchoring on the run
+ * start — not the last record — means a second "Sync now" fired soon after the previous one starts
+ * fresh instead of piling onto it.
  *
  * The primary constructor takes a [DataStore] directly so unit tests can inject an in-memory one
  * (PreferenceDataStoreFactory) and round-trip on the JVM without Android.
@@ -47,16 +49,19 @@ class LibrarySyncStatusStore(
 
     /**
      * Records the outcome of one plugin's sync at [atMs]. Counts accumulate with any record from the
-     * same run (within [RUN_WINDOW_MS]); a record beyond that window starts fresh totals.
+     * same run — one whose [atMs] is within [RUN_WINDOW_MS] of the run's START; a record beyond that
+     * window opens a new run and starts fresh totals (anchored on the run start, not the last record,
+     * so back-to-back runs don't pile onto each other).
      */
     suspend fun record(result: SyncResult, atMs: Long) {
         dataStore.edit { prefs ->
-            val previousAt = prefs[LAST_SYNCED_AT_KEY] ?: 0L
-            val sameRun = previousAt != 0L && atMs - previousAt in 0..RUN_WINDOW_MS
+            val runStartedAt = prefs[RUN_STARTED_AT_KEY] ?: 0L
+            val sameRun = runStartedAt != 0L && atMs - runStartedAt in 0..RUN_WINDOW_MS
             val baseSongs = if (sameRun) prefs[SONGS_KEY] ?: 0 else 0
             val baseAlbums = if (sameRun) prefs[ALBUMS_KEY] ?: 0 else 0
             val baseArtists = if (sameRun) prefs[ARTISTS_KEY] ?: 0 else 0
             val basePlaylists = if (sameRun) prefs[PLAYLISTS_KEY] ?: 0 else 0
+            if (!sameRun) prefs[RUN_STARTED_AT_KEY] = atMs
             prefs[LAST_SYNCED_AT_KEY] = atMs
             prefs[SONGS_KEY] = baseSongs + result.songs
             prefs[ALBUMS_KEY] = baseAlbums + result.albums
@@ -73,6 +78,7 @@ class LibrarySyncStatusStore(
         const val RUN_WINDOW_MS = 5 * 60 * 1000L
 
         val LAST_SYNCED_AT_KEY = longPreferencesKey("library_sync_last_synced_at_ms")
+        val RUN_STARTED_AT_KEY = longPreferencesKey("library_sync_run_started_at_ms")
         val SONGS_KEY = intPreferencesKey("library_sync_songs")
         val ALBUMS_KEY = intPreferencesKey("library_sync_albums")
         val ARTISTS_KEY = intPreferencesKey("library_sync_artists")

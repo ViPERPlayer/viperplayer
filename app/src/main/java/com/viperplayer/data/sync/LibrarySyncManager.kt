@@ -6,6 +6,7 @@ import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.data.preferences.LibrarySyncPreferences
 import com.viperplayer.data.sync.push.PushSyncManager
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -42,6 +43,7 @@ class LibrarySyncManager @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val pushSyncManager: PushSyncManager,
     private val statusStore: LibrarySyncStatusStore,
+    private val librarySyncPreferences: LibrarySyncPreferences,
 ) : LibrarySync {
     private val _syncing = MutableStateFlow<Set<String>>(emptySet())
     /** Plugin ids currently syncing, for the UI to show progress. */
@@ -51,9 +53,11 @@ class LibrarySyncManager @Inject constructor(
      * Sync every currently-connected plugin's account library into the local library, sequentially.
      * Iteration lives here (not the ViewModel) so the UI only launches + observes [syncing]. Each
      * plugin's [syncPlugin] records its outcome into the status store; failures are isolated per
-     * plugin. A no-op when no plugins are connected.
+     * plugin. A no-op when no plugins are connected, or when local sync is disabled — this is the
+     * single gate both "Sync now" callers (Account + You) go through.
      */
     override suspend fun syncConnectedPlugins() {
+        if (!librarySyncPreferences.isEnabled.first()) return
         val plugins = pluginRepository.connectedPlugins.first()
         for (plugin in plugins) {
             runCatching { syncPlugin(plugin.info.id) }

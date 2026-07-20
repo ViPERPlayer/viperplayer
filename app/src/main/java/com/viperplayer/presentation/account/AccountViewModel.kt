@@ -11,8 +11,11 @@ import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AuthResult
 import com.viperplayer.domain.sync.LibrarySyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -80,6 +83,10 @@ class AccountViewModel @Inject constructor(
     )
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
 
+    /** One-shot signal emitted when a change-password succeeds, so the screen can close the dialog. */
+    private val _changePasswordSucceeded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val changePasswordSucceeded: SharedFlow<Unit> = _changePasswordSucceeded.asSharedFlow()
+
     init {
         viewModelScope.launch {
             accountRepository.state.collect { account ->
@@ -124,7 +131,10 @@ class AccountViewModel @Inject constructor(
     }
 
     fun changePassword(current: String, new: String) {
-        submit { accountRepository.changePassword(current, new) }
+        submit(
+            action = { accountRepository.changePassword(current, new) },
+            onSuccess = { _changePasswordSucceeded.tryEmit(Unit) },
+        )
     }
 
     fun deleteAccount(password: String) {
@@ -149,7 +159,7 @@ class AccountViewModel @Inject constructor(
         _uiState.update { it.copy(error = null) }
     }
 
-    private fun submit(action: suspend () -> AuthResult) {
+    private fun submit(action: suspend () -> AuthResult, onSuccess: () -> Unit = {}) {
         if (_uiState.value.isSubmitting) return
         _uiState.update { it.copy(isSubmitting = true, error = null) }
         viewModelScope.launch {
@@ -165,6 +175,7 @@ class AccountViewModel @Inject constructor(
                     },
                 )
             }
+            if (result is AuthResult.Success) onSuccess()
         }
     }
 

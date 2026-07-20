@@ -31,12 +31,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,8 +87,20 @@ fun AccountScreen(
     viewModel: AccountViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val changePasswordSuccessMessage = stringResource(R.string.account_change_password_success)
+    var showChangePassword by remember { mutableStateOf(false) }
+    var showDeleteAccount by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.changePasswordSucceeded.collect {
+            showChangePassword = false
+            snackbarHostState.showSnackbar(changePasswordSuccessMessage)
+        }
+    }
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.account_settings_entry)) },
@@ -115,6 +130,11 @@ fun AccountScreen(
                 !uiState.isConfigured -> NotConfiguredCard()
                 uiState.account.isSignedIn -> SignedInContent(
                     uiState = uiState,
+                    showChangePassword = showChangePassword,
+                    showDeleteAccount = showDeleteAccount,
+                    onShowChangePassword = { showChangePassword = it },
+                    onShowDeleteAccount = { showDeleteAccount = it },
+                    onClearError = viewModel::clearError,
                     onSignOut = viewModel::signOut,
                     onSyncToggle = viewModel::setSyncEnabled,
                     onSyncNow = viewModel::syncNow,
@@ -146,6 +166,11 @@ private fun NotConfiguredCard() {
 @Composable
 private fun SignedInContent(
     uiState: AccountUiState,
+    showChangePassword: Boolean,
+    showDeleteAccount: Boolean,
+    onShowChangePassword: (Boolean) -> Unit,
+    onShowDeleteAccount: (Boolean) -> Unit,
+    onClearError: () -> Unit,
     onSignOut: () -> Unit,
     onSyncToggle: (Boolean) -> Unit,
     onSyncNow: () -> Unit,
@@ -156,9 +181,6 @@ private fun SignedInContent(
     val user = account.user ?: return
     val displayName = user.displayName.ifBlank { user.email }
     val initials = displayName.firstOrNull()?.uppercase().orEmpty()
-
-    var showChangePassword by remember { mutableStateOf(false) }
-    var showDeleteAccount by remember { mutableStateOf(false) }
 
     ProfileHeader(displayName = displayName, email = user.email, initials = initials)
 
@@ -210,7 +232,10 @@ private fun SignedInContent(
         ActionRow(
             leadingIcon = Icons.Rounded.Password,
             title = stringResource(R.string.account_change_password),
-            onClick = { showChangePassword = true },
+            onClick = {
+                onClearError()
+                onShowChangePassword(true)
+            },
         )
     }
 
@@ -218,14 +243,20 @@ private fun SignedInContent(
     SignOutButton(onSignOut = onSignOut)
 
     Spacer(Modifier.height(8.dp))
-    DeleteAccountLink(onClick = { showDeleteAccount = true })
+    DeleteAccountLink(onClick = {
+        onClearError()
+        onShowDeleteAccount(true)
+    })
 
     if (showChangePassword) {
         ChangePasswordDialog(
             isSubmitting = uiState.isSubmitting,
             error = uiState.error,
             onConfirm = onChangePassword,
-            onDismiss = { showChangePassword = false },
+            onDismiss = {
+                onShowChangePassword(false)
+                onClearError()
+            },
         )
     }
     if (showDeleteAccount) {
@@ -233,7 +264,10 @@ private fun SignedInContent(
             isSubmitting = uiState.isSubmitting,
             error = uiState.error,
             onConfirm = onDeleteAccount,
-            onDismiss = { showDeleteAccount = false },
+            onDismiss = {
+                onShowDeleteAccount(false)
+                onClearError()
+            },
         )
     }
 }
