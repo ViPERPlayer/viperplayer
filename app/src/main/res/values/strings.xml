@@ -42,6 +42,13 @@
     <string name="value_slider_reset_to_default">Reset to default</string>
     <string name="main_enabled">Enabled</string>
     <string name="main_disabled">Disabled</string>
+    <string name="viper_fx_title">ViPER FX</string>
+    <string name="viper_fx_master_switch">Master switch</string>
+    <plurals name="viper_fx_effects_active">
+        <item quantity="one">%d effect active</item>
+        <item quantity="other">%d effects active</item>
+    </plurals>
+    <string name="viper_fx_all_effects_off">No effects active</string>
     <string name="master_limiter">Master limiter</string>
     <string name="master_limiter_output_gain">Output gain</string>
     <string name="master_limiter_output_pan">Output pan</string>
