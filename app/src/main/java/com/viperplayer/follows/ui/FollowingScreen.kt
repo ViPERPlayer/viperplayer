@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -56,17 +57,12 @@ import com.viperplayer.follows.domain.FollowedArtist
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.AvatarRing
 import com.viperplayer.presentation.common.components.InitialsAvatar
-import com.viperplayer.presentation.common.components.InsetDivider
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
-import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 
 /** Diameter of the circular artist avatar in a followed-artist row. */
-private val ArtistAvatarSize = 52.dp
-
-/** Divider inset for avatar-led rows: avatar diameter + the row's icon→text gap. */
-private val FollowRowDividerInset = 66.dp
+private val ArtistAvatarSize = 56.dp
 
 /**
  * Followed-artists list. Stateful wrapper: collects [FollowingViewModel] state and forwards taps
@@ -96,8 +92,8 @@ fun FollowingScreen(
 }
 
 /**
- * Stateless followed-artists list (mockup 5j). A caption with the follow count, then a grouped
- * [SurfaceCard] of artist rows — each an avatar, name, and a "Following" chip (tap to unfollow,
+ * Stateless followed-artists list (mockup 5j). A caption with the follow count, then a flat,
+ * edge-to-edge list of artist rows — each an avatar, name, and a "Following" chip (tap to unfollow,
  * also reachable via long-press / the chip's own menu). Every interaction is forwarded as an event,
  * so this is testable without Hilt.
  */
@@ -139,8 +135,7 @@ fun FollowingScreenContent(
                     .fillMaxSize()
                     .padding(contentPadding)
                     .testTag("followingList"),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + rootPadding.bottom(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 8.dp) + rootPadding.bottom(),
             ) {
                 item(key = "caption") {
                     Text(
@@ -152,22 +147,20 @@ fun FollowingScreenContent(
                                 artists.size,
                             ),
                         ),
-                        modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 2.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                item(key = "card") {
-                    SurfaceCard {
-                        artists.forEachIndexed { index, artist ->
-                            if (index > 0) InsetDivider(startInset = FollowRowDividerInset)
-                            FollowedArtistRow(
-                                artist = artist,
-                                onClick = { onArtistClick(artist) },
-                                onUnfollow = { onUnfollow(artist.mediaId) },
-                            )
-                        }
-                    }
+                items(
+                    items = artists,
+                    key = { artist -> artist.mediaId.toString() },
+                ) { artist ->
+                    FollowedArtistRow(
+                        artist = artist,
+                        onClick = { onArtistClick(artist) },
+                        onUnfollow = { onUnfollow(artist.mediaId) },
+                    )
                 }
             }
         }
@@ -255,11 +248,11 @@ private fun FollowingChip(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(15.dp),
             )
             Text(
                 text = stringResource(R.string.following_state),
-                fontSize = 13.sp,
+                fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
