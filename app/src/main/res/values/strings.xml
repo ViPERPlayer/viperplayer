@@ -849,4 +849,9 @@
     <string name="account_need_account">Don\'t have an account? Create one</string>
     <string name="account_have_account">Already have an account? Sign in</string>
     <string name="account_not_configured">Accounts aren\'t available in this build. A ViPER backend URL must be configured.</string>
+
+    <!-- Visual-language primitives (design foundation) -->
+    <string name="cd_avatar">Avatar</string>
+    <string name="cd_avatar_live">Avatar with live activity</string>
+    <string name="badge_overflow_count">%1$d+</string>
 </resources>
