@@ -765,6 +765,8 @@
     <string name="host_session_code_copied">Code copied</string>
     <string name="host_session_starting">Starting your Jam…</string>
     <string name="host_session_end">End Jam</string>
+    <!-- Final conjunction in an "A, B and C" list (Oxford-style final separator, no comma). -->
+    <string name="list_conjunction_and">and</string>
 
     <!-- Player context chip -->
     <string name="player_context_search">Search</string>

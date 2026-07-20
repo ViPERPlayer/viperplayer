@@ -354,11 +354,12 @@ private fun StartingState() {
 }
 
 /**
- * The now-playing card. There is no shared track yet on the host side (the sync engine seeds a track
- * only once the host plays into the session), so this renders the placeholder + HOSTING badge.
+ * The now-playing card + HOSTING badge. When a shared track exists ([title] non-null) it shows the
+ * artwork slot with a two-line title/artist layout; otherwise it falls back to the placeholder (the
+ * sync engine seeds a track only once the host plays into the session).
  */
 @Composable
-private fun NowPlayingCard() {
+private fun NowPlayingCard(title: String? = null, artist: String? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -382,15 +383,38 @@ private fun NowPlayingCard() {
                 modifier = Modifier.size(24.dp),
             )
         }
-        Text(
-            text = stringResource(R.string.host_session_now_playing_placeholder),
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 14.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        if (title == null) {
+            Text(
+                text = stringResource(R.string.host_session_now_playing_placeholder),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (artist != null) {
+                    Text(
+                        text = artist,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp))
@@ -412,10 +436,19 @@ private fun NowPlayingCard() {
 private fun ListenersRow(participants: List<SessionParticipant>) {
     // Everyone except the local host, in the mockup's overlapping-avatar cluster.
     val others = participants.filterNot { it.isSelf }
+    // A small rotating palette so overlapping avatars read as distinct people rather than one repeated
+    // tone. Cycled by index — mirrors the mockup's rose / lilac / neutral trio.
+    val avatarTones = listOf(
+        MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer,
+        MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer,
+        MaterialTheme.colorScheme.surfaceContainerHighest to MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    val and = stringResource(R.string.list_conjunction_and)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         if (others.isNotEmpty()) {
             Row {
                 others.take(3).forEachIndexed { index, participant ->
+                    val (container, content) = avatarTones[index % avatarTones.size]
                     // Overlap each avatar onto its left neighbour by 10dp, matching the mockup cluster.
                     Box(
                         modifier = Modifier
@@ -425,7 +458,11 @@ private fun ListenersRow(participants: List<SessionParticipant>) {
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .padding(2.5.dp),
                     ) {
-                        InitialsAvatar(text = participant.initial)
+                        InitialsAvatar(
+                            text = participant.initial,
+                            containerColor = container,
+                            contentColor = content,
+                        )
                     }
                 }
             }
@@ -433,7 +470,12 @@ private fun ListenersRow(participants: List<SessionParticipant>) {
         val label = if (others.isEmpty()) {
             stringResource(R.string.host_session_listeners_you_only)
         } else {
-            stringResource(R.string.host_session_listeners, others.joinToString(", ") { it.name })
+            // Oxford-style join: "A", "A and B", "A, B and C" (final separator is " and ", no comma).
+            val names = when (others.size) {
+                1 -> others[0].name
+                else -> others.dropLast(1).joinToString(", ") { it.name } + " $and " + others.last().name
+            }
+            stringResource(R.string.host_session_listeners, names)
         }
         Text(
             text = label,

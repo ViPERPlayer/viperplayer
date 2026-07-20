@@ -44,7 +44,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.FlashlightOff
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Login
@@ -62,8 +61,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -134,6 +136,12 @@ fun JoinSessionScreen(
 
     var torchOn by remember { mutableStateOf(false) }
 
+    // Center-biased vignette (dark surface tones) so the viewfinder stays clear while the edges —
+    // where the controls + manual-entry sheet sit — darken for legibility over the camera feed. The
+    // gradient re-anchors to ~30% down the actual scan area at draw time (mirrors the mockup radial).
+    val vignetteInner = MaterialTheme.colorScheme.surface.copy(alpha = if (hasCameraPermission) 0.10f else 0.45f)
+    val vignetteOuter = MaterialTheme.colorScheme.surfaceDim.copy(alpha = if (hasCameraPermission) 0.60f else 0.88f)
+
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceDim)) {
         // ---- Scanner area ----
         Box(modifier = Modifier.fillMaxWidth().fillMaxSize()) {
@@ -148,7 +156,14 @@ fun JoinSessionScreen(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = if (hasCameraPermission) 0.15f else 0.6f)),
+                    .drawWithCache {
+                        val brush = Brush.radialGradient(
+                            colors = listOf(vignetteInner, vignetteOuter),
+                            center = Offset(size.width * 0.5f, size.height * 0.30f),
+                            radius = size.maxDimension * 0.9f,
+                        )
+                        onDrawBehind { drawRect(brush) }
+                    },
             )
         }
 
@@ -176,7 +191,7 @@ fun JoinSessionScreen(
             Text(
                 text = stringResourceSafe(R.string.join_session_title),
                 color = Color.White,
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
@@ -187,29 +202,37 @@ fun JoinSessionScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 5.dp),
             )
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(32.dp))
             Viewfinder(modifier = Modifier.align(Alignment.CenterHorizontally))
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(20.dp))
+            // Flashlight pill. Always a single filled FlashlightOn glyph; the active (torch-on) state
+            // is signalled by a brighter container + full-opacity content, not by swapping the icon.
+            val flashlightContainer = if (torchOn) {
+                Color.White.copy(alpha = 0.24f)
+            } else {
+                MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f)
+            }
             Row(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(100))
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
+                    .background(flashlightContainer)
                     .clickable { torchOn = !torchOn }
                     .padding(horizontal = 16.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                val flashlightAlpha = if (torchOn) 1f else 0.85f
                 Icon(
-                    if (torchOn) Icons.Filled.FlashlightOn else Icons.Filled.FlashlightOff,
+                    Icons.Filled.FlashlightOn,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
+                    tint = Color.White.copy(alpha = flashlightAlpha),
                     modifier = Modifier.size(19.dp),
                 )
                 Text(
                     stringResourceSafe(R.string.join_session_flashlight),
-                    color = Color.White.copy(alpha = 0.85f),
+                    color = Color.White.copy(alpha = flashlightAlpha),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -296,13 +319,13 @@ private fun ManualEntry(
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 24.dp + bottomPadding),
+            .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 28.dp + bottomPadding),
     ) {
         // "OR ENTER A CODE" divider.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
             Text(
-                stringResourceSafe(R.string.join_session_or_enter_code),
+                stringResourceSafe(R.string.join_session_or_enter_code).uppercase(),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.5.sp,
@@ -356,8 +379,8 @@ private fun ManualEntry(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Filled.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(19.dp))
-            Text(stringResourceSafe(R.string.join_session_paste), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Filled.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+            Text(stringResourceSafe(R.string.join_session_paste), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         }
 
         Spacer(Modifier.height(18.dp))
