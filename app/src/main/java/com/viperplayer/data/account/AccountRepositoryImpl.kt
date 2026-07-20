@@ -64,6 +64,21 @@ class AccountRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun setHandle(handle: String): AuthResult {
+        val trimmed = handle.trim().removePrefix("@")
+        val result = withAuth { token -> client.setHandle(token, trimmed) }
+        return when (val authResult = result.toAuthResult(unauthenticatedMessage = "Sign in to set a handle")) {
+            is AuthResult.Success -> {
+                // Claim succeeded server-side → persist the new handle on the cached user.
+                credentialStore.snapshot().state.user?.let { user ->
+                    credentialStore.updateUser(user.copy(handle = trimmed))
+                }
+                AuthResult.Success(credentialStore.snapshot().state.user ?: authResult.user)
+            }
+            else -> authResult
+        }
+    }
+
     /**
      * Maps a no-body authed result ([AccountApiResult] of [Unit]) into an [AuthResult]. There is no
      * user payload, so [AuthResult.Success] carries the current cached user (or a blank placeholder);
@@ -194,4 +209,5 @@ private fun UserDto.toAccountUser(): AccountUser = AccountUser(
     email = email,
     displayName = displayName.ifBlank { email.substringBefore('@') },
     createdAtMs = createdAtMs,
+    handle = handle?.takeIf { it.isNotBlank() },
 )

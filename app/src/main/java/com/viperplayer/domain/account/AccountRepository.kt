@@ -46,6 +46,13 @@ interface AccountRepository {
     suspend fun deleteAccount(password: String): AuthResult
 
     /**
+     * Claims / changes the signed-in user's public `@handle` (no leading `@`). On success the cached
+     * user is updated with the new handle. Returns an [AuthResult] — [AuthResult.Failed] for an
+     * invalid (400) or already-taken (409) handle, carrying the server's message.
+     */
+    suspend fun setHandle(handle: String): AuthResult
+
+    /**
      * Refreshes the cached user profile from the backend (`GetMe`), persisting any change. Best-effort:
      * returns the fresh [AccountUser] on success, null otherwise (offline, signed out, not configured).
      * Lets the UI populate newer profile fields (e.g. created-at) on pre-existing sessions.

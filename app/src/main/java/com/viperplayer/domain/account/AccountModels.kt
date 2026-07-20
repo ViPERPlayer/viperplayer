@@ -11,6 +11,8 @@ data class AccountUser(
     val displayName: String,
     /** Epoch millis the account was created, or 0 when unknown (pre-existing sessions before this field). */
     val createdAtMs: Long = 0,
+    /** The user's public `@handle`, or null when they haven't claimed one yet. Never includes the `@`. */
+    val handle: String? = null,
 )
 
 /**

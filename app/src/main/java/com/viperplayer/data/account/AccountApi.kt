@@ -109,6 +109,19 @@ class AccountApi @Inject constructor(
             body = json.encodeToString(DeleteAccountRequestDto(password)),
         )
 
+    /**
+     * Claims / changes the signed-in user's public `@handle` (`POST /account/handle`,
+     * `Authorization: Bearer`). The backend replies 200 `{handle}` on success (the body is ignored — the
+     * caller already knows the value it sent); an invalid handle is 400 and a taken one is 409, both
+     * mapped to [AccountApiResult.Rejected] carrying the server's message.
+     */
+    suspend fun setHandle(accessToken: String, handle: String): AccountApiResult<Unit> =
+        bearerPost(
+            path = "/account/handle",
+            accessToken = accessToken,
+            body = json.encodeToString(SetHandleRequestDto(handle)),
+        )
+
     /** Best-effort logout; revokes the presented refresh token server-side. Failures are swallowed. */
     suspend fun logout(refreshToken: String) {
         val base = baseUrl ?: return

@@ -39,7 +39,16 @@ data class UserDto(
     val email: String,
     val displayName: String = "",
     val createdAtMs: Long = 0,
+    /** The user's public `@handle` (no leading `@`), or null when unclaimed. `GET /auth/me`. */
+    val handle: String? = null,
 )
+
+/** `POST /account/handle` (Bearer) request + response body, both `{"handle": "..."}`. */
+@Serializable
+data class SetHandleRequestDto(val handle: String)
+
+@Serializable
+data class SetHandleResponseDto(val handle: String)
 
 @Serializable
 data class TokenPairDto(

@@ -88,6 +88,7 @@ fun FriendActivityScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onJoin: (String) -> Unit,
+    onFindPeople: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FriendActivityViewModel = hiltViewModel(),
 ) {
@@ -107,12 +108,15 @@ fun FriendActivityScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Rounded.PersonAdd,
-                            contentDescription = stringResource(R.string.friend_activity_invite),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    // The invite/find-people affordance is only meaningful when social is on.
+                    if (state.enabled) {
+                        IconButton(onClick = onFindPeople) {
+                            Icon(
+                                imageVector = Icons.Rounded.PersonAdd,
+                                contentDescription = stringResource(R.string.friend_activity_invite),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 },
             )

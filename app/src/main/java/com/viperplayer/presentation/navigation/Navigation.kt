@@ -37,6 +37,8 @@ import com.viperplayer.follows.ui.FollowingScreen
 import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
 import com.viperplayer.presentation.home.HomeScreen
+import com.viperplayer.presentation.social.FindPeopleScreen
+import com.viperplayer.presentation.social.FollowingUsersScreen
 import com.viperplayer.presentation.social.FriendActivityScreen
 import com.viperplayer.presentation.social.HostSessionScreen
 import com.viperplayer.presentation.social.JoinSessionScreen
@@ -129,6 +131,17 @@ object FriendActivity : NavKey
 /** Shared-with-you inbox. Placeholder in Phase 1. */
 @Serializable
 object SharedWithYou : NavKey
+
+/** "Find people": search public users by @handle and follow them (social S1). */
+@Serializable
+object FindPeople : NavKey
+
+/**
+ * The users the signed-in account follows (social S1). Named distinctly from [Following] (which is the
+ * ARTISTS list) to avoid a collision — this is the followed-*people* graph.
+ */
+@Serializable
+object FollowingUsers : NavKey
 
 @Serializable
 object SettingsAlarms : NavKey

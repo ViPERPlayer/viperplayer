@@ -2,6 +2,7 @@ package com.viperplayer.data.account
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -58,6 +59,7 @@ class AccountCredentialStore @Inject constructor(
             prefs[EMAIL_KEY] = user.email
             prefs[DISPLAY_NAME_KEY] = user.displayName
             prefs[CREATED_AT_KEY] = user.createdAtMs
+            prefs.setHandle(user.handle)
             prefs[ACCESS_TOKEN_KEY] = accessToken
             prefs[REFRESH_TOKEN_KEY] = refreshToken
             prefs[ACCESS_EXPIRES_AT_KEY] = accessExpiresAtMs
@@ -80,6 +82,7 @@ class AccountCredentialStore @Inject constructor(
             prefs[EMAIL_KEY] = user.email
             prefs[DISPLAY_NAME_KEY] = user.displayName
             prefs[CREATED_AT_KEY] = user.createdAtMs
+            prefs.setHandle(user.handle)
         }
     }
 
@@ -97,6 +100,7 @@ class AccountCredentialStore @Inject constructor(
                 email = prefs[EMAIL_KEY].orEmpty(),
                 displayName = prefs[DISPLAY_NAME_KEY].orEmpty(),
                 createdAtMs = prefs[CREATED_AT_KEY] ?: 0L,
+                handle = prefs[HANDLE_KEY]?.takeIf { it.isNotBlank() },
             ),
             isSignedIn = hasSession,
         )
@@ -109,9 +113,16 @@ class AccountCredentialStore @Inject constructor(
         val EMAIL_KEY = stringPreferencesKey("account_email")
         val DISPLAY_NAME_KEY = stringPreferencesKey("account_display_name")
         val CREATED_AT_KEY = longPreferencesKey("account_created_at_ms")
+        val HANDLE_KEY = stringPreferencesKey("account_handle")
         val ACCESS_TOKEN_KEY = stringPreferencesKey("account_access_token")
         val REFRESH_TOKEN_KEY = stringPreferencesKey("account_refresh_token")
         val ACCESS_EXPIRES_AT_KEY = longPreferencesKey("account_access_expires_at_ms")
+
+        /** Writes the nullable handle: stores a non-blank value, else removes the key entirely. */
+        fun MutablePreferences.setHandle(handle: String?) {
+            val trimmed = handle?.takeIf { it.isNotBlank() }
+            if (trimmed != null) this[HANDLE_KEY] = trimmed else remove(HANDLE_KEY)
+        }
     }
 }
 

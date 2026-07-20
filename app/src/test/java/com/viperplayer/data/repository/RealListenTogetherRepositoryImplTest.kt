@@ -87,6 +87,7 @@ class RealListenTogetherRepositoryImplTest {
         override suspend fun login(email: String, password: String): AuthResult = AuthResult.NetworkError
         override suspend fun changePassword(current: String, new: String): AuthResult = AuthResult.NetworkError
         override suspend fun deleteAccount(password: String): AuthResult = AuthResult.NetworkError
+        override suspend fun setHandle(handle: String): AuthResult = AuthResult.NetworkError
         override suspend fun refreshProfile(): AccountUser? = null
         override suspend fun logout() {}
         override suspend fun validAccessToken(): String? = null
