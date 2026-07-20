@@ -1006,8 +1006,10 @@
     <string name="auth_forgot_password">Forgot password?</string>
     <string name="auth_sign_in_cta">Sign in</string>
     <string name="auth_register_cta">Create account</string>
-    <string name="auth_switch_to_register">Don\'t have an account? Create one</string>
-    <string name="auth_switch_to_sign_in">Already have an account? Sign in</string>
+    <string name="auth_switch_to_register_prompt">Don\'t have an account? </string>
+    <string name="auth_switch_to_register_action">Create one</string>
+    <string name="auth_switch_to_sign_in_prompt">Already have an account? </string>
+    <string name="auth_switch_to_sign_in_action">Sign in</string>
     <string name="auth_password_req_length">At least 8 characters</string>
     <string name="auth_register_footnote">Your library stays on-device until you turn on sync.</string>
 

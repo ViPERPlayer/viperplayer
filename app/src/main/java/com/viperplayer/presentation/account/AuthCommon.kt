@@ -1,9 +1,10 @@
 package com.viperplayer.presentation.account
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -26,8 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -62,14 +67,15 @@ internal fun AuthBrandLockup() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.GraphicEq,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -84,16 +90,24 @@ internal fun AuthBrandLockup() {
     }
 }
 
-/** Colours for the auth filled text fields — surfaceContainerLow fill, no underline indicator. */
+/**
+ * Colours for the auth filled text fields — surfaceContainerLow fill. The focused field gains a
+ * primary emphasis (primary indicator, label and leading icon) while unfocused stays quiet; only the
+ * unfocused/disabled states drop their indicator so the resting field reads as a plain filled chip.
+ */
 @Composable
 internal fun authFieldColors(): TextFieldColors = TextFieldDefaults.colors(
     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-    focusedIndicatorColor = Color.Transparent,
+    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
     unfocusedIndicatorColor = Color.Transparent,
     disabledIndicatorColor = Color.Transparent,
     errorIndicatorColor = Color.Transparent,
+    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
 )
 
 /** A filled auth text field with a leading icon and 16dp rounded corners. */
@@ -111,7 +125,10 @@ internal fun AuthTextField(
     TextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth().clip(AuthFieldShape),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp)
+            .clip(AuthFieldShape),
         label = { Text(label) },
         singleLine = true,
         leadingIcon = {
@@ -162,6 +179,42 @@ internal fun PasswordRequirementRow(text: String, met: Boolean) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/**
+ * The bottom account-switch link, rendered as a single centered line: a quiet [prompt] in
+ * onSurfaceVariant followed by a bold primary [action] word. The whole line is clickable and invokes
+ * [onClick] (the nav callback to the other auth screen).
+ */
+@Composable
+internal fun AccountSwitchLink(
+    prompt: String,
+    action: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val text = buildAnnotatedString {
+        withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+            append(prompt)
+        }
+        withStyle(
+            SpanStyle(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+        ) {
+            append(action)
+        }
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+    )
 }
 
 /** Minimum password length enforced by the register requirement row + gate. */
