@@ -163,12 +163,11 @@ fun SignInScreen(
             }
 
             Spacer(Modifier.height(6.dp))
-            TextButton(
+            AccountSwitchLink(
+                prompt = stringResource(R.string.auth_switch_to_register_prompt),
+                action = stringResource(R.string.auth_switch_to_register_action),
                 onClick = onNavigateToRegister,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            ) {
-                Text(stringResource(R.string.auth_switch_to_register))
-            }
+            )
         }
     }
 }
