@@ -1,6 +1,7 @@
 package com.viperplayer.presentation.listeningstats
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,10 +25,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,9 +40,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -54,7 +57,27 @@ import com.viperplayer.domain.stats.ListeningStats
 import com.viperplayer.domain.stats.RankedItem
 import com.viperplayer.domain.stats.StatsRange
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.common.components.InsetDivider
+import com.viperplayer.presentation.common.components.SectionLabel
+import com.viperplayer.presentation.common.components.SelectableChip
+import com.viperplayer.presentation.common.components.SurfaceCard
+import com.viperplayer.presentation.common.components.SurfaceCardCornerRadius
+import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.ktx.plus
 import java.time.Year
+
+/** Corner radius for the smaller stat/activity tiles — a step down from the [SurfaceCardCornerRadius]. */
+private val TileCornerRadius = 18.dp
+
+/** Artwork thumbnail size + radius for a ranked row, matching the mockup's 46dp / 10dp tile. */
+private val RankArtworkSize = 46.dp
+private val RankArtworkRadius = 10.dp
+
+/** Fixed width of the leading rank ordinal in a ranked row (mockup: 22px, centered). */
+private val RankNumberWidth = 22.dp
+
+/** Alpha applied to non-peak activity bars so the tallest bar reads as the highlight. */
+private const val ActivityBarDimAlpha = 0.45f
 
 /**
  * The Listening stats screen: a range chips row drives a summary + top songs/artists/albums + an
@@ -129,11 +152,11 @@ fun ListeningStatsContent(
         },
     ) { contentPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                top = contentPadding.calculateTopPadding(),
-                bottom = rootPadding.calculateBottomPadding() + 16.dp,
-            ),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = contentPadding.calculateTopPadding()),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + rootPadding.bottom(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "range_chips") {
                 RangeChips(range = range, onSelectRange = onSelectRange)
@@ -154,21 +177,21 @@ fun ListeningStatsContent(
                 item(key = "top_songs_header") {
                     SectionHeader(stringResource(R.string.listening_stats_top_songs))
                 }
-                itemsWithRank(stats.topSongs, keyPrefix = "song")
+                rankedItems(stats.topSongs, keyPrefix = "song")
             }
 
             if (stats.topArtists.isNotEmpty()) {
                 item(key = "top_artists_header") {
                     SectionHeader(stringResource(R.string.listening_stats_top_artists))
                 }
-                itemsWithRank(stats.topArtists, keyPrefix = "artist")
+                rankedItems(stats.topArtists, keyPrefix = "artist")
             }
 
             if (stats.topAlbums.isNotEmpty()) {
                 item(key = "top_albums_header") {
                     SectionHeader(stringResource(R.string.listening_stats_top_albums))
                 }
-                itemsWithRank(stats.topAlbums, keyPrefix = "album")
+                rankedItems(stats.topAlbums, keyPrefix = "album")
             }
 
             item(key = "activity_header") {
@@ -207,39 +230,43 @@ fun ListeningStatsContent(
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text(stringResource(R.string.action_back))
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
     }
 }
 
-private fun LazyListScope.itemsWithRank(
+/** Emits the whole ranking as one grouped [SurfaceCard] list item, with divided rank rows inside. */
+private fun LazyListScope.rankedItems(
     items: List<RankedItem>,
     keyPrefix: String,
 ) {
-    items.forEachIndexed { index, item ->
-        item(key = "$keyPrefix:${item.key}") {
-            RankedRow(rank = index + 1, item = item)
+    item(key = "$keyPrefix:card") {
+        SurfaceCard(contentPadding = PaddingValues(vertical = 4.dp)) {
+            items.forEachIndexed { index, item ->
+                // Inset the divider past the row's 16dp padding + 22dp rank + 12dp gap so it starts
+                // under the artwork, aligning with the visual content rather than the rank ordinal.
+                if (index > 0) InsetDivider(startInset = 16.dp + RankNumberWidth + 12.dp)
+                RankedRow(rank = index + 1, item = item)
+            }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RangeChips(range: StatsRange, onSelectRange: (StatsRange) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         StatsRange.entries.forEach { entry ->
-            FilterChip(
+            SelectableChip(
+                text = entry.label(),
                 selected = range == entry,
                 onClick = { onSelectRange(entry) },
-                label = { Text(entry.label()) },
             )
         }
     }
@@ -248,109 +275,111 @@ private fun RangeChips(range: StatsRange, onSelectRange: (StatsRange) -> Unit) {
 @Composable
 private fun WrappedCta(onClick: () -> Unit) {
     val year = remember { Year.now().value }
-    Card(
+    // The mockup's #4F378B→#633B48 gradient maps to primaryContainer→tertiaryContainer.
+    val gradient = Brush.linearGradient(
+        listOf(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    )
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
+            .clip(RoundedCornerShape(SurfaceCardCornerRadius))
+            .background(gradient)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.AutoAwesome,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        Icon(
+            imageVector = Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.listening_stats_wrapped_cta_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.listening_stats_wrapped_cta_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = stringResource(R.string.listening_stats_wrapped_cta_body, year),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            Text(
+                text = stringResource(R.string.listening_stats_wrapped_cta_body, year),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
             )
         }
+        Icon(
+            imageVector = Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
 }
 
 @Composable
 private fun SummaryGrid(stats: ListeningStats) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            StatColumn(
-                value = StatsFormat.listeningTime(stats.totalListenedMs),
-                label = stringResource(R.string.listening_stats_stat_time),
-            )
-            StatColumn(
-                value = stats.totalPlays.toString(),
-                label = stringResource(R.string.listening_stats_stat_plays),
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            StatColumn(
-                value = stats.uniqueSongs.toString(),
-                label = stringResource(R.string.listening_stats_stat_songs),
-            )
-            StatColumn(
-                value = stats.uniqueArtists.toString(),
-                label = stringResource(R.string.listening_stats_stat_artists),
-            )
-            StatColumn(
-                value = stats.uniqueAlbums.toString(),
-                label = stringResource(R.string.listening_stats_stat_albums),
-            )
+    // A 2-column grid of stat tiles. The stat list may be odd-length; a lone tile on the final row
+    // keeps its half-width column (balanced by a spacer) rather than stretching across the row.
+    val tiles = listOf(
+        StatsFormat.listeningTime(stats.totalListenedMs) to stringResource(R.string.listening_stats_stat_time),
+        stats.totalPlays.toString() to stringResource(R.string.listening_stats_stat_plays),
+        stats.uniqueSongs.toString() to stringResource(R.string.listening_stats_stat_songs),
+        stats.uniqueArtists.toString() to stringResource(R.string.listening_stats_stat_artists),
+        stats.uniqueAlbums.toString() to stringResource(R.string.listening_stats_stat_albums),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        tiles.chunked(2).forEach { rowTiles ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                rowTiles.forEach { (value, label) ->
+                    StatTile(
+                        value = value,
+                        label = label,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (rowTiles.size == 1) {
+                    // Balance the lone trailing tile so it doesn't stretch across the whole row.
+                    Spacer(Modifier.weight(1f))
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun StatColumn(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatTile(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(TileCornerRadius))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(14.dp),
+    ) {
         Text(
             text = value,
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 @Composable
 private fun SectionHeader(title: String) {
-    Text(
+    SectionLabel(
         text = title,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+        modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp),
     )
 }
 
@@ -359,55 +388,60 @@ private fun RankedRow(rank: Int, item: RankedItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = stringResource(R.string.listening_stats_rank_prefix, rank),
+            text = rank.toString(),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(32.dp),
+            // The #1 entry gets the primary accent; the rest read as muted ordinals.
+            color = if (rank == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(RankNumberWidth),
         )
         if (item.artworkUrl != null) {
             AsyncImage(
                 model = item.artworkUrl,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .size(RankArtworkSize)
+                    .clip(RoundedCornerShape(RankArtworkRadius)),
             )
-            Spacer(Modifier.width(12.dp))
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(RankArtworkSize)
+                    .clip(RoundedCornerShape(RankArtworkRadius))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            )
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             item.subtitle?.let {
                 Text(
                     text = it,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        Spacer(Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = item.playCount.toString(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = StatsFormat.listeningTime(item.listenedMs),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = pluralStringResource(R.plurals.play_count, item.playCount, item.playCount),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }
 
@@ -418,42 +452,61 @@ private fun ActivityChart(
     labelOf: (Int) -> String,
 ) {
     val max = (buckets.maxOfOrNull { it.playCount } ?: 0).coerceAtLeast(1)
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    SurfaceCard(contentPadding = PaddingValues(14.dp)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp),
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 12.dp),
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(96.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .height(72.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
             buckets.forEach { bucket ->
-                Column(
+                val fraction = bucket.playCount.toFloat() / max
+                // The peak bucket(s) render at full primary; the rest are dimmed so the peak pops.
+                val isPeak = bucket.playCount == max && bucket.playCount > 0
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height((72.dp * fraction).coerceAtLeast(2.dp))
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .background(
+                            if (isPeak) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = ActivityBarDimAlpha)
+                            },
+                        ),
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            buckets.forEach { bucket ->
+                val isPeak = bucket.playCount == max && bucket.playCount > 0
+                Text(
+                    text = labelOf(bucket.labelIndex),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isPeak) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
                     modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom,
-                ) {
-                    val fraction = bucket.playCount.toFloat() / max
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height((72.dp * fraction).coerceAtLeast(2.dp))
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(MaterialTheme.colorScheme.primary),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = labelOf(bucket.labelIndex),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
-                }
+                )
             }
         }
     }
@@ -464,7 +517,7 @@ private fun EmptyState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 48.dp),
+            .padding(horizontal = 16.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -477,6 +530,7 @@ private fun EmptyState() {
             text = stringResource(R.string.listening_stats_empty_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
     }
 }
