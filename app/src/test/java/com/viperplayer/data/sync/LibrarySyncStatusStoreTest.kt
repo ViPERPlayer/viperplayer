@@ -93,14 +93,17 @@ class LibrarySyncStatusStoreTest {
         try {
             val store = LibrarySyncStatusStore(openStore(tempFolder.newFile("s.preferences_pb"), scope))
             val window = 5 * 60 * 1000L
+            // Realistic epoch-ms base (record() uses 0L as its "no run yet" sentinel, and real
+            // System.currentTimeMillis() is never 0).
+            val t0 = 1_700_000_000_000L
 
-            // Run 1 starts at t=0, its second plugin records near the window edge.
-            store.record(SyncResult(songs = 10), 0L)
-            store.record(SyncResult(songs = 10), window - 1_000L)
+            // Run 1 starts at t0, its second plugin records near the window edge.
+            store.record(SyncResult(songs = 10), t0)
+            store.record(SyncResult(songs = 10), t0 + window - 1_000L)
 
             // Run 2 starts just past run 1's START window, but within the window of run 1's LAST record.
             // It must open a fresh run and reset, not pile onto run 1's 20.
-            store.record(SyncResult(songs = 4), window + 1_000L)
+            store.record(SyncResult(songs = 4), t0 + window + 1_000L)
 
             val status = store.status.first()
             assertEquals(4, status.songs)
