@@ -24,6 +24,12 @@
     <string name="search_clear_history">Clear all</string>
     <string name="search_remove_history_entry">Remove</string>
     <string name="search_insert_query">Insert query</string>
+    <string name="search_section_top_result">Top result</string>
+    <string name="search_section_songs">Songs</string>
+    <string name="search_section_albums">Albums</string>
+    <string name="search_section_artists">Artists</string>
+    <string name="search_section_playlists">Playlists</string>
+    <string name="search_open">Open</string>
 
     <!-- ViPER effects -->
     <string name="viper_bass">ViPER bass</string>
