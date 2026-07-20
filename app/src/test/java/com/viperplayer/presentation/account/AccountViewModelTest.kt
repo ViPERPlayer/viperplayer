@@ -76,6 +76,7 @@ class AccountViewModelTest {
 
         override suspend fun changePassword(current: String, new: String): AuthResult = result
         override suspend fun deleteAccount(password: String): AuthResult = result
+        override suspend fun refreshProfile(): AccountUser? = (result as? AuthResult.Success)?.user
 
         override suspend fun <T> withBackendAuth(
             call: suspend (accessToken: String) -> AccountApiResult<T>,
