@@ -21,7 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.AlertDialog
@@ -57,8 +57,6 @@ import com.viperplayer.domain.stats.ListeningStats
 import com.viperplayer.domain.stats.RankedItem
 import com.viperplayer.domain.stats.StatsRange
 import com.viperplayer.presentation.common.ViperScaffold
-import com.viperplayer.presentation.common.components.InsetDivider
-import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.common.components.SelectableChip
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.SurfaceCardCornerRadius
@@ -75,6 +73,9 @@ private val RankArtworkRadius = 10.dp
 
 /** Fixed width of the leading rank ordinal in a ranked row (mockup: 22px, centered). */
 private val RankNumberWidth = 22.dp
+
+/** Height of the activity chart's bar row (the tallest bar spans the full height). */
+private val ActivityBarRowHeight = 64.dp
 
 /** Alpha applied to non-peak activity bars so the tallest bar reads as the highlight. */
 private const val ActivityBarDimAlpha = 0.45f
@@ -237,17 +238,18 @@ fun ListeningStatsContent(
     }
 }
 
-/** Emits the whole ranking as one grouped [SurfaceCard] list item, with divided rank rows inside. */
+/**
+ * Emits the whole ranking as one flat list item: bare rank rows on the background, no card wrapper
+ * and no dividers. Grouping the rows in a single item keeps them tightly stacked (each row carries
+ * its own ~6dp vertical padding) rather than picking up the LazyColumn's larger inter-item spacing.
+ */
 private fun LazyListScope.rankedItems(
     items: List<RankedItem>,
     keyPrefix: String,
 ) {
-    item(key = "$keyPrefix:card") {
-        SurfaceCard(contentPadding = PaddingValues(vertical = 4.dp)) {
+    item(key = "$keyPrefix:rows") {
+        Column {
             items.forEachIndexed { index, item ->
-                // Inset the divider past the row's 16dp padding + 22dp rank + 12dp gap so it starts
-                // under the artwork, aligning with the visual content rather than the rank ordinal.
-                if (index > 0) InsetDivider(startInset = 16.dp + RankNumberWidth + 12.dp)
                 RankedRow(rank = index + 1, item = item)
             }
         }
@@ -293,7 +295,7 @@ private fun WrappedCta(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Rounded.AutoAwesome,
+            imageVector = Icons.Filled.AutoAwesome,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
         )
@@ -320,14 +322,21 @@ private fun WrappedCta(onClick: () -> Unit) {
 
 @Composable
 private fun SummaryGrid(stats: ListeningStats) {
-    // A 2-column grid of stat tiles. The stat list may be odd-length; a lone tile on the final row
-    // keeps its half-width column (balanced by a spacer) rather than stretching across the row.
+    // The peak weekday drives the "Most active day" tile. The tile shows an em dash when no day has
+    // any plays (the whole grid only renders for non-empty stats, but a bucket may still be all-zero).
+    val peakDay = stats.byDayOfWeek.maxByOrNull { it.playCount }?.takeIf { it.playCount > 0 }
+    val mostActiveDay = peakDay?.let { StatsFormat.dayNames.getOrElse(it.labelIndex) { "" } } ?: "—"
+
+    // A balanced 2x2 grid of exactly four summary tiles.
     val tiles = listOf(
-        StatsFormat.listeningTime(stats.totalListenedMs) to stringResource(R.string.listening_stats_stat_time),
-        stats.totalPlays.toString() to stringResource(R.string.listening_stats_stat_plays),
-        stats.uniqueSongs.toString() to stringResource(R.string.listening_stats_stat_songs),
-        stats.uniqueArtists.toString() to stringResource(R.string.listening_stats_stat_artists),
-        stats.uniqueAlbums.toString() to stringResource(R.string.listening_stats_stat_albums),
+        StatsFormat.listeningTime(stats.totalListenedMs) to
+            stringResource(R.string.listening_stats_stat_time_listened),
+        stats.totalPlays.toString() to
+            stringResource(R.string.listening_stats_stat_songs_played),
+        stats.uniqueArtists.toString() to
+            stringResource(R.string.listening_stats_stat_different_artists),
+        mostActiveDay to
+            stringResource(R.string.listening_stats_stat_most_active_day),
     )
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(2).forEach { rowTiles ->
@@ -338,10 +347,6 @@ private fun SummaryGrid(stats: ListeningStats) {
                         label = label,
                         modifier = Modifier.weight(1f),
                     )
-                }
-                if (rowTiles.size == 1) {
-                    // Balance the lone trailing tile so it doesn't stretch across the whole row.
-                    Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -377,9 +382,13 @@ private fun StatTile(value: String, label: String, modifier: Modifier = Modifier
 
 @Composable
 private fun SectionHeader(title: String) {
-    SectionLabel(
+    // A content title, not an eyebrow label: title-case, bold, onSurface, no tint or letter-spacing.
+    Text(
         text = title,
-        modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
     )
 }
 
@@ -388,7 +397,7 @@ private fun RankedRow(rank: Int, item: RankedItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -463,7 +472,7 @@ private fun ActivityChart(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp),
+                .height(ActivityBarRowHeight),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -474,7 +483,7 @@ private fun ActivityChart(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height((72.dp * fraction).coerceAtLeast(2.dp))
+                        .height((ActivityBarRowHeight * fraction).coerceAtLeast(2.dp))
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                         .background(
                             if (isPeak) {

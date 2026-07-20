@@ -327,6 +327,10 @@
     <string name="listening_stats_stat_songs">Songs</string>
     <string name="listening_stats_stat_artists">Artists</string>
     <string name="listening_stats_stat_albums">Albums</string>
+    <string name="listening_stats_stat_time_listened">Time listened</string>
+    <string name="listening_stats_stat_songs_played">Songs played</string>
+    <string name="listening_stats_stat_different_artists">Different artists</string>
+    <string name="listening_stats_stat_most_active_day">Most active day</string>
     <string name="listening_stats_top_songs">Top songs</string>
     <string name="listening_stats_top_artists">Top artists</string>
     <string name="listening_stats_top_albums">Top albums</string>
