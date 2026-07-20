@@ -123,6 +123,9 @@
     <string name="action_view_album">View album</string>
     <string name="action_details">Details</string>
     <string name="action_like">Like</string>
+    <!-- Short labels for the media-options quick-action tiles -->
+    <string name="options_tile_queue">Queue</string>
+    <string name="options_tile_playlist">Playlist</string>
     <string name="action_more">More</string>
     <string name="cd_artwork">Artwork</string>
     <!-- Home + navigation -->
