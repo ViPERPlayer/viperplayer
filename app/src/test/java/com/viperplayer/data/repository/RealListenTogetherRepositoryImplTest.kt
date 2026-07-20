@@ -85,6 +85,8 @@ class RealListenTogetherRepositoryImplTest {
         override val isConfigured: Boolean = true
         override suspend fun register(email: String, password: String, displayName: String?): AuthResult = AuthResult.NetworkError
         override suspend fun login(email: String, password: String): AuthResult = AuthResult.NetworkError
+        override suspend fun changePassword(current: String, new: String): AuthResult = AuthResult.NetworkError
+        override suspend fun deleteAccount(password: String): AuthResult = AuthResult.NetworkError
         override suspend fun logout() {}
         override suspend fun validAccessToken(): String? = null
         override suspend fun <T> withBackendAuth(call: suspend (accessToken: String) -> AccountApiResult<T>): AccountApiResult<T> =

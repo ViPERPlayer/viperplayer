@@ -1,6 +1,12 @@
 package com.viperplayer.presentation.account
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.data.preferences.LibrarySyncPreferences
+import com.viperplayer.data.sync.LibrarySync
+import com.viperplayer.data.sync.LibrarySyncStatusStore
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
@@ -68,15 +74,41 @@ class AccountViewModelTest {
 
         override suspend fun validAccessToken(): String? = null
 
+        override suspend fun changePassword(current: String, new: String): AuthResult = result
+        override suspend fun deleteAccount(password: String): AuthResult = result
+
         override suspend fun <T> withBackendAuth(
             call: suspend (accessToken: String) -> AccountApiResult<T>,
         ): AccountApiResult<T> = AccountApiResult.Unauthenticated
     }
 
+    private class FakeLibrarySync : LibrarySync {
+        override val syncing = MutableStateFlow<Set<String>>(emptySet())
+        override suspend fun syncConnectedPlugins() {}
+    }
+
+    /** Minimal in-memory DataStore<Preferences> so the sync stores work in a pure-JVM unit test. */
+    private fun fakePrefsDataStore(): DataStore<Preferences> = object : DataStore<Preferences> {
+        private val flow = MutableStateFlow(emptyPreferences())
+        override val data: Flow<Preferences> = flow
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+            val updated = transform(flow.value)
+            flow.value = updated
+            return updated
+        }
+    }
+
+    private fun accountViewModel(repo: AccountRepository) = AccountViewModel(
+        repo,
+        FakeLibrarySync(),
+        LibrarySyncPreferences(fakePrefsDataStore()),
+        LibrarySyncStatusStore(fakePrefsDataStore()),
+    )
+
     @Test
     fun signIn_success_clearsErrorAndStopsSubmitting() = runTest {
         val repo = FakeAccountRepository(result = AuthResult.Success(AccountUser("1", "a@b.com", "A")))
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
 
         vm.signIn("a@b.com", "supersecret")
         advanceUntilIdle()
@@ -89,7 +121,7 @@ class AccountViewModelTest {
     @Test
     fun signIn_failed_surfacesServerMessage() = runTest {
         val repo = FakeAccountRepository(result = AuthResult.Failed("Invalid email or password"))
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
 
         vm.signIn("a@b.com", "wrongpass")
         advanceUntilIdle()
@@ -101,7 +133,7 @@ class AccountViewModelTest {
     @Test
     fun register_networkError_surfacesConnectionMessage() = runTest {
         val repo = FakeAccountRepository(result = AuthResult.NetworkError)
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
 
         vm.register("a@b.com", "supersecret", "Alice")
         advanceUntilIdle()
@@ -113,7 +145,7 @@ class AccountViewModelTest {
     @Test
     fun register_notConfigured_surfacesUnavailableMessage() = runTest {
         val repo = FakeAccountRepository(result = AuthResult.NotConfigured)
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
 
         vm.register("a@b.com", "supersecret", "")
         advanceUntilIdle()
@@ -124,7 +156,7 @@ class AccountViewModelTest {
     @Test
     fun signedInState_flowsThroughFromRepository() = runTest {
         val repo = FakeAccountRepository()
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
         advanceUntilIdle()
 
         repo.stateFlow.value = AccountState(
@@ -140,7 +172,7 @@ class AccountViewModelTest {
     @Test
     fun setMode_togglesAndClearsError() = runTest {
         val repo = FakeAccountRepository(result = AuthResult.Failed("boom"))
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
         vm.signIn("a@b.com", "x")
         advanceUntilIdle()
         assertEquals("boom", vm.uiState.value.error)
@@ -152,14 +184,14 @@ class AccountViewModelTest {
 
     @Test
     fun isConfigured_reflectsRepository() = runTest {
-        val vm = AccountViewModel(FakeAccountRepository(isConfigured = false))
+        val vm = accountViewModel(FakeAccountRepository(isConfigured = false))
         assertFalse(vm.uiState.value.isConfigured)
     }
 
     @Test
     fun signOut_delegatesToRepository() = runTest {
         val repo = FakeAccountRepository()
-        val vm = AccountViewModel(repo)
+        val vm = accountViewModel(repo)
         vm.signOut()
         advanceUntilIdle()
         assertEquals(1, repo.logoutCalls)

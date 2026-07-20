@@ -52,6 +52,8 @@ class LibrarySyncRepositoryImplTest {
         override suspend fun register(email: String, password: String, displayName: String?) =
             throw UnsupportedOperationException()
         override suspend fun login(email: String, password: String) = throw UnsupportedOperationException()
+        override suspend fun changePassword(current: String, new: String) = throw UnsupportedOperationException()
+        override suspend fun deleteAccount(password: String) = throw UnsupportedOperationException()
         override suspend fun logout() {}
         override suspend fun validAccessToken(): String? = token
         override suspend fun <T> withBackendAuth(
