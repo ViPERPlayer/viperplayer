@@ -75,8 +75,8 @@ fun Effect(
     title: String,
     checked: Boolean?,
     onCheckedChange: ((Boolean) -> Unit)?,
-    content: (@Composable ColumnScope.() -> Unit)?,
     summary: String? = null,
+    content: (@Composable ColumnScope.() -> Unit)?,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     // An effect with no enable toggle (checked == null) is always considered active (e.g. Master
