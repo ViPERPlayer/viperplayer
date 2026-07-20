@@ -1,6 +1,7 @@
 package com.viperplayer.presentation.downloads
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SdCard
@@ -22,6 +24,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem as Material3ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -30,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,8 +61,8 @@ import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /**
  * Downloads screen: a storage-usage summary, any in-progress downloads (with a live progress
- * indicator + state), and the completed offline songs (each with a remove action). Follows the
- * redesign's card + section-label visual language and mirrors
+ * indicator + state, plus cancel/retry actions), and the completed offline songs (each with a
+ * remove action). Follows the redesign's card + section-label visual language and mirrors
  * [com.viperplayer.presentation.history.HistoryScreen].
  */
 @Composable
@@ -76,7 +81,9 @@ fun DownloadsScreen(
         downloads = downloads,
         onNavigateBack = onNavigateBack,
         onRemove = viewModel::remove,
-        onRetry = viewModel::retry,
+        // A failed in-progress row carries only its [MediaId]; re-queueing re-resolves the stream
+        // from the plugin by id, so a minimal Song carrier is enough to drive the retry.
+        onRetry = { mediaId -> viewModel.retry(Song(id = mediaId, title = mediaId.sourceId)) },
         modifier = modifier,
     )
 }
@@ -89,7 +96,7 @@ private fun DownloadsScreenContent(
     downloads: Map<MediaId, DownloadManager.DownloadProgress>,
     onNavigateBack: () -> Unit,
     onRemove: (MediaId) -> Unit,
-    onRetry: (Song) -> Unit,
+    onRetry: (MediaId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // In-progress / failed / unsupported items that are not yet finished + persisted.
@@ -155,6 +162,8 @@ private fun DownloadsScreenContent(
                     items(inProgress, key = { "progress_${it.mediaId}" }) { progress ->
                         InProgressRow(
                             progress = progress,
+                            onCancel = { onRemove(progress.mediaId) },
+                            onRetry = { onRetry(progress.mediaId) },
                             modifier = Modifier
                                 .animateItem()
                                 .fillMaxWidth()
@@ -222,10 +231,14 @@ private val ProgressArtworkSize = 48.dp
 /** Diameter of the determinate progress ring drawn over an in-progress thumbnail. */
 private val ProgressRingSize = 28.dp
 
+/** Corner radius for the striped in-progress / failed thumbnail — matches list artwork rounding. */
+private val ProgressArtworkCorner = 6.dp
+
 /**
  * The storage-usage summary card at the top of the screen: an SD-card glyph, the count of songs
- * available offline, and (when there is at least one) a subtle filled track echoing the mockup's
- * usage bar. The count is derived from the already-loaded [downloadedCount]; no IO happens here.
+ * available offline. The count is derived from the already-loaded [downloadedCount]; no IO happens
+ * here. The mockup's determinate "412 MB used" usage bar is intentionally omitted: the model
+ * exposes no real used/total storage bytes, so a fabricated percentage would be misleading.
  */
 @Composable
 private fun StorageSummaryCard(
@@ -269,69 +282,126 @@ private fun pluralSongCount(count: Int): String =
     pluralStringResource(R.plurals.library_song_count, count, count)
 
 /**
- * A single in-progress / failed / unsupported download row: a striped-tinted thumbnail carrying a
- * determinate progress ring while running (or an indeterminate spinner while queued, or a retry
- * glyph once failed), the song id as the title, and the localized state as the subtitle. Failed and
- * unsupported rows are dimmed to recede, matching the mockup.
+ * A single in-progress / failed / unsupported download row.
+ *
+ * While running/queued the striped-tinted thumbnail carries a determinate progress ring (or an
+ * indeterminate spinner when queued) and a trailing [Icons.Rounded.Close] cancels the download via
+ * [onCancel] (backed by the manager's remove, which drops the in-flight entry). Once failed or
+ * unsupported the row dims to recede; a genuine failure additionally becomes tappable with a
+ * trailing [Icons.Rounded.Refresh] to re-queue it via [onRetry], and its subtitle is error-tinted.
+ *
+ * The title is the song's [MediaId.sourceId]: a queued/failed row carries only a
+ * [DownloadManager.DownloadProgress] (no Song, no real title), so the real title cannot be resolved
+ * in the presentation layer here.
  */
 @Composable
 private fun InProgressRow(
     progress: DownloadManager.DownloadProgress,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val stateLabel = when (progress.state) {
+    val isFailed = progress.state == DownloadManager.State.FAILED
+    val isUnsupported = progress.state == DownloadManager.State.UNSUPPORTED
+    val isError = isFailed || isUnsupported
+
+    val subtitle = when (progress.state) {
         DownloadManager.State.QUEUED -> stringResource(R.string.downloads_state_queued)
         DownloadManager.State.RUNNING ->
             stringResource(R.string.downloads_state_running, (progress.progress * 100).toInt())
-        DownloadManager.State.FAILED -> stringResource(R.string.downloads_state_failed)
+        DownloadManager.State.FAILED -> stringResource(R.string.downloads_failed_retry)
         DownloadManager.State.UNSUPPORTED -> stringResource(R.string.downloads_state_unsupported)
         DownloadManager.State.COMPLETED -> stringResource(R.string.downloads_completed)
     }
-    val isError = progress.state == DownloadManager.State.FAILED ||
-            progress.state == DownloadManager.State.UNSUPPORTED
-    val rowModifier = if (isError) modifier.alpha(0.72f) else modifier
+    val subtitleColor =
+        if (isFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
 
-    ListItem(
-        title = progress.mediaId.sourceId,
-        badges = emptyList(),
-        subtitle = stateLabel,
-        isActive = false,
-        leadingContent = {
-            Box(
-                modifier = Modifier.size(ProgressArtworkSize),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(6.dp),
-                        )
-                )
-                when (progress.state) {
-                    DownloadManager.State.RUNNING -> CircularProgressIndicator(
-                        progress = { progress.progress },
-                        modifier = Modifier.size(ProgressRingSize),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outlineVariant,
-                    )
-                    DownloadManager.State.QUEUED -> CircularProgressIndicator(
-                        modifier = Modifier.size(ProgressRingSize),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outlineVariant,
-                    )
-                    else -> Icon(
+    val dimmedModifier = if (isError) modifier.alpha(0.72f) else modifier
+    // Only a genuine failure is retryable; an unsupported stream can never be downloaded here.
+    val rowModifier = if (isFailed) dimmedModifier.clickable(onClick = onRetry) else dimmedModifier
+
+    Material3ListItem(
+        headlineContent = {
+            Text(
+                text = progress.mediaId.sourceId,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        supportingContent = {
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = subtitleColor,
+            )
+        },
+        leadingContent = { ProgressThumbnail(state = progress.state, progress = progress.progress) },
+        trailingContent = {
+            when {
+                isFailed -> IconButton(onClick = onRetry) {
+                    Icon(
                         imageVector = Icons.Rounded.Refresh,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.downloads_retry),
                         tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                isUnsupported -> {}
+                else -> IconButton(onClick = onCancel) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.downloads_cancel),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         },
-        trailingContent = {},
-        modifier = rowModifier
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = rowModifier.fillMaxWidth(),
     )
+}
+
+/**
+ * The striped-tinted thumbnail in an in-progress / failed row's leading slot: a determinate ring
+ * while running, an indeterminate spinner while queued, or a refresh glyph once failed/unsupported.
+ */
+@Composable
+private fun ProgressThumbnail(
+    state: DownloadManager.State,
+    progress: Float,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.size(ProgressArtworkSize),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = RoundedCornerShape(ProgressArtworkCorner),
+                )
+        )
+        when (state) {
+            DownloadManager.State.RUNNING -> CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.size(ProgressRingSize),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant,
+            )
+            DownloadManager.State.QUEUED -> CircularProgressIndicator(
+                modifier = Modifier.size(ProgressRingSize),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant,
+            )
+            else -> Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
 }
 
 @Preview(showBackground = true)

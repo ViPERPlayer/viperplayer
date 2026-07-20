@@ -674,6 +674,9 @@
     <string name="downloads_completed">Downloaded</string>
     <string name="downloads_offline_summary">Available offline</string>
     <string name="downloads_remove">Remove download</string>
+    <string name="downloads_cancel">Cancel download</string>
+    <string name="downloads_retry">Retry download</string>
+    <string name="downloads_failed_retry">Failed · tap to retry</string>
     <string name="downloads_state_queued">Queued…</string>
     <string name="downloads_state_running">Downloading… %1$d%%</string>
     <string name="downloads_state_failed">Download failed</string>
