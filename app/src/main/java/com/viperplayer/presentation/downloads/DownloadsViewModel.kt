@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.SongEntity
+import com.viperplayer.data.local.mapper.mediaIdFromColumns
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -108,7 +109,8 @@ class DownloadsViewModel @Inject constructor(
                     val file = File(path)
                     if (!file.exists()) return@mapNotNull null
                     val format = path.substringAfterLast('.', "").takeIf { it.isNotEmpty() }?.uppercase()
-                    MediaId(entity.pluginId, entity.sourceId) to DownloadFileInfo(file.length(), format)
+                    mediaIdFromColumns(entity.idType, entity.pluginId, entity.sourceId) to
+                        DownloadFileInfo(file.length(), format)
                 }.toMap()
             }
             .flowOn(Dispatchers.IO)

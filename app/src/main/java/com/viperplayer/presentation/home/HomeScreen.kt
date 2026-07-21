@@ -1283,41 +1283,41 @@ private fun getSampleCategories(): List<BrowseCategory> {
 private fun getSampleAlbums(): List<Album> {
     return listOf(
         Album(
-            id = MediaId("album", "1"),
+            id = MediaId.Plugin("album", "1"),
             name = "Midnight Dreams",
-            artists = listOf(ArtistRef(name = "The Nocturnes", id = MediaId("artist", "1"))),
+            artists = listOf(ArtistRef(name = "The Nocturnes", id = MediaId.Plugin("artist", "1"))),
             artworkUrl = "https://picsum.photos/seed/album1/400/400",
             releaseYear = 2023,
             trackCount = 12
         ),
         Album(
-            id = MediaId("album", "2"),
+            id = MediaId.Plugin("album", "2"),
             name = "Electric Waves",
-            artists = listOf(ArtistRef(name = "Synth Masters", id = MediaId("artist", "2"))),
+            artists = listOf(ArtistRef(name = "Synth Masters", id = MediaId.Plugin("artist", "2"))),
             artworkUrl = "https://picsum.photos/seed/album2/400/400",
             releaseYear = 2024,
             trackCount = 10
         ),
         Album(
-            id = MediaId("album", "3"),
+            id = MediaId.Plugin("album", "3"),
             name = "Acoustic Sessions",
-            artists = listOf(ArtistRef(name = "The Unplugged", id = MediaId("artist", "3"))),
+            artists = listOf(ArtistRef(name = "The Unplugged", id = MediaId.Plugin("artist", "3"))),
             artworkUrl = "https://picsum.photos/seed/album3/400/400",
             releaseYear = 2022,
             trackCount = 8
         ),
         Album(
-            id = MediaId("album", "4"),
+            id = MediaId.Plugin("album", "4"),
             name = "Urban Beats",
-            artists = listOf(ArtistRef(name = "City Sounds", id = MediaId("artist", "4"))),
+            artists = listOf(ArtistRef(name = "City Sounds", id = MediaId.Plugin("artist", "4"))),
             artworkUrl = "https://picsum.photos/seed/album4/400/400",
             releaseYear = 2024,
             trackCount = 15
         ),
         Album(
-            id = MediaId("album", "5"),
+            id = MediaId.Plugin("album", "5"),
             name = "Classical Collection",
-            artists = listOf(ArtistRef(name = "Symphony Orchestra", id = MediaId("artist", "5"))),
+            artists = listOf(ArtistRef(name = "Symphony Orchestra", id = MediaId.Plugin("artist", "5"))),
             artworkUrl = "https://picsum.photos/seed/album5/400/400",
             releaseYear = 2021,
             trackCount = 20
@@ -1329,22 +1329,22 @@ private fun getSampleAlbums(): List<Album> {
 private fun getSampleArtists(): List<Artist> {
     return listOf(
         Artist(
-            id = MediaId("artist", "1"),
+            id = MediaId.Plugin("artist", "1"),
             name = "The Nocturnes",
             imageUrl = "https://picsum.photos/seed/artist1/400/400"
         ),
         Artist(
-            id = MediaId("artist", "2"),
+            id = MediaId.Plugin("artist", "2"),
             name = "Synth Masters",
             imageUrl = "https://picsum.photos/seed/artist2/400/400"
         ),
         Artist(
-            id = MediaId("artist", "3"),
+            id = MediaId.Plugin("artist", "3"),
             name = "The Unplugged",
             imageUrl = "https://picsum.photos/seed/artist3/400/400"
         ),
         Artist(
-            id = MediaId("artist", "4"),
+            id = MediaId.Plugin("artist", "4"),
             name = "City Sounds",
             imageUrl = "https://picsum.photos/seed/artist4/400/400"
         )
@@ -1355,28 +1355,28 @@ private fun getSampleArtists(): List<Artist> {
 private fun getSamplePlaylists(): List<Playlist> {
     return listOf(
         Playlist(
-            id = MediaId("playlist", "1"),
+            id = MediaId.Plugin("playlist", "1"),
             name = "Chill Vibes",
             description = "Relaxing music for any time",
             artworkUrl = "https://picsum.photos/seed/playlist1/400/400",
             songCount = 50
         ),
         Playlist(
-            id = MediaId("playlist", "2"),
+            id = MediaId.Plugin("playlist", "2"),
             name = "Workout Mix",
             description = "High energy tracks",
             artworkUrl = "https://picsum.photos/seed/playlist2/400/400",
             songCount = 30
         ),
         Playlist(
-            id = MediaId("playlist", "3"),
+            id = MediaId.Plugin("playlist", "3"),
             name = "Focus Flow",
             description = "Music for concentration",
             artworkUrl = "https://picsum.photos/seed/playlist3/400/400",
             songCount = 40
         ),
         Playlist(
-            id = MediaId("playlist", "4"),
+            id = MediaId.Plugin("playlist", "4"),
             name = "Party Hits",
             description = "The best party songs",
             artworkUrl = "https://picsum.photos/seed/playlist4/400/400",

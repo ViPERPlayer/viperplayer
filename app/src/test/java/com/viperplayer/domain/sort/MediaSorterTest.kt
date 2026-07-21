@@ -32,24 +32,24 @@ class MediaSorterTest {
         track: Int? = null,
         disc: Int? = null,
     ): Song = Song(
-        id = MediaId("test", "song${nextId++}"),
+        id = MediaId.Plugin("test", "song${nextId++}"),
         title = title,
         artists = artist?.let { listOf(ArtistRef(it)) } ?: emptyList(),
-        album = album?.let { Album(id = MediaId("test", "alb$it"), name = it) },
+        album = album?.let { Album(id = MediaId.Plugin("test", "alb$it"), name = it) },
         durationMs = durationMs,
         trackNumber = track,
         discNumber = disc,
     )
 
     private fun album(name: String, artist: String? = null, year: Int? = null): Album = Album(
-        id = MediaId("test", "album${nextId++}"),
+        id = MediaId.Plugin("test", "album${nextId++}"),
         name = name,
         artists = artist?.let { listOf(ArtistRef(it)) } ?: emptyList(),
         releaseYear = year,
     )
 
-    private fun artist(name: String) = Artist(id = MediaId("test", "artist${nextId++}"), name = name)
-    private fun playlist(name: String) = Playlist(id = MediaId("test", "pl${nextId++}"), name = name)
+    private fun artist(name: String) = Artist(id = MediaId.Plugin("test", "artist${nextId++}"), name = name)
+    private fun playlist(name: String) = Playlist(id = MediaId.Plugin("test", "pl${nextId++}"), name = name)
 
     private val asc = SortDirection.ASCENDING
     private val desc = SortDirection.DESCENDING

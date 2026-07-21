@@ -75,7 +75,7 @@ class PlaylistMutationTest {
     }
 
     private fun song(id: String, title: String = id) =
-        Song(id = MediaId("local", id), title = title, durationMs = 1000L)
+        Song(id = MediaId.Local(id), title = title, durationMs = 1000L)
 
     /** The current ordered song source-ids for a playlist (via the reactive getPlaylist flow). */
     private suspend fun orderedIds(playlistId: MediaId): List<String> =
@@ -146,7 +146,7 @@ class PlaylistMutationTest {
         repository.addSongToPlaylist(playlistId, song("b"))
         repository.addSongToPlaylist(playlistId, song("c"))
 
-        repository.removeSongFromPlaylist(playlistId, MediaId("local", "b"))
+        repository.removeSongFromPlaylist(playlistId, MediaId.Local("b"))
 
         assertEquals(listOf("a", "c"), orderedIds(playlistId))
         // After compaction a newly-added song must land at the end (position 2), not collide with "c".
@@ -250,10 +250,10 @@ class PlaylistMutationTest {
     fun renamePlaylist_nonLocalPlaylist_isNoOp() = runBlocking {
         // Guard: only local playlists are renameable. A remote plugin playlist id has no local row,
         // so the update simply affects nothing (and never throws).
-        repository.renamePlaylist(MediaId("testsource", "remote123"), "Hacked")
+        repository.renamePlaylist(MediaId.Plugin("testsource", "remote123"), "Hacked")
         // Sanity: an unrelated local playlist is untouched.
         val local = repository.createLocalPlaylist("Safe")
-        repository.renamePlaylist(MediaId("testsource", "remote123"), "Again")
+        repository.renamePlaylist(MediaId.Plugin("testsource", "remote123"), "Again")
         assertEquals("Safe", repository.getPlaylist(local).first()?.name)
     }
 

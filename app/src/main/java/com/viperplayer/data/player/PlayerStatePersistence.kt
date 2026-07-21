@@ -11,7 +11,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.SongDao
+import com.viperplayer.data.local.dao.getByMediaId
 import com.viperplayer.data.local.entity.QueueSongCrossRef
+import com.viperplayer.data.local.mapper.mediaIdFromColumns
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
@@ -81,7 +83,7 @@ class PlayerStatePersistence @Inject constructor(
                         try {
                             // Get song entity (should already exist from play/addToQueue)
                             val songEntity =
-                                songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)
+                                songDao.getByMediaId(mediaId)
 
                             if (songEntity == null) {
                                 Timber.w("Song not found in database when saving queue: $mediaId. It should have been saved when played/added to queue.")
@@ -137,7 +139,7 @@ class PlayerStatePersistence @Inject constructor(
             val queueSongIds = crossRefDao.getSongIdsForQueue()
             val queue = queueSongIds.mapNotNull { songId ->
                 val songEntity = songDao.getByIdSync(songId) ?: return@mapNotNull null
-                val mediaId = MediaId(songEntity.pluginId, songEntity.sourceId)
+                val mediaId = mediaIdFromColumns(songEntity.idType, songEntity.pluginId, songEntity.sourceId)
                 // Load full song from MediaLibraryRepository (includes artists, album, etc.)
                 mediaLibraryRepository.getSong(mediaId).first()
             }

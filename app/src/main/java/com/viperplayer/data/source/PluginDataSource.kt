@@ -505,19 +505,19 @@ class PluginDataSource @Inject constructor(
         }.getOrNull()
 
     suspend fun getSong(id: MediaId): Result<Song> = runCatching {
-        source(id.pluginId).getSong(id.sourceId).toDomain(id.pluginId)
+        source(id.routingPluginId).getSong(id.sourceId).toDomain(id.routingPluginId)
     }.onFailure { Timber.e(it, "getSong failed for $id") }
 
     suspend fun getAlbum(id: MediaId): Result<Album> = runCatching {
-        source(id.pluginId).getAlbum(id.sourceId).toDomain(id.pluginId)
+        source(id.routingPluginId).getAlbum(id.sourceId).toDomain(id.routingPluginId)
     }.onFailure { Timber.e(it, "getAlbum failed for $id") }
 
     suspend fun getArtist(id: MediaId): Result<ArtistDetail> = runCatching {
-        source(id.pluginId).getArtist(id.sourceId).toDomainDetail(id.pluginId)
+        source(id.routingPluginId).getArtist(id.sourceId).toDomainDetail(id.routingPluginId)
     }.onFailure { Timber.e(it, "getArtist failed for $id") }
 
     suspend fun getPlaylist(id: MediaId): Result<Playlist> = runCatching {
-        source(id.pluginId).getPlaylist(id.sourceId).toDomain(id.pluginId)
+        source(id.routingPluginId).getPlaylist(id.sourceId).toDomain(id.routingPluginId)
     }.onFailure { Timber.e(it, "getPlaylist failed for $id") }
 
     suspend fun getLyrics(
@@ -528,7 +528,7 @@ class PluginDataSource @Inject constructor(
         durationMs: Long?
     ): Result<Lyrics?> = runCatching {
         // Lyrics is an optional capability — client.lyrics is null when the plugin doesn't advertise it.
-        awaitPlugin(id.pluginId).client.lyrics?.getLyrics(
+        awaitPlugin(id.routingPluginId).client.lyrics?.getLyrics(
             LyricsRequest(
                 songId = id.sourceId,
                 title = title,
@@ -541,27 +541,27 @@ class PluginDataSource @Inject constructor(
 
     suspend fun getArtistSongs(artistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Song>> =
         runCatching {
-            source(artistId.pluginId).getArtistSongs(artistId.sourceId, PageRequest(cursor, limit))
-                .toDomain { it.toDomain(artistId.pluginId) }
+            source(artistId.routingPluginId).getArtistSongs(artistId.sourceId, PageRequest(cursor, limit))
+                .toDomain { it.toDomain(artistId.routingPluginId) }
         }.onFailure { Timber.e(it, "artist songs failed for $artistId") }
 
     suspend fun getArtistAlbums(artistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Album>> =
         runCatching {
-            source(artistId.pluginId).getArtistAlbums(artistId.sourceId, PageRequest(cursor, limit))
-                .toDomain { it.toDomain(artistId.pluginId) }
+            source(artistId.routingPluginId).getArtistAlbums(artistId.sourceId, PageRequest(cursor, limit))
+                .toDomain { it.toDomain(artistId.routingPluginId) }
         }.onFailure { Timber.e(it, "artist albums failed for $artistId") }
 
     suspend fun getPlaylistSongs(playlistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Song>> =
         runCatching {
-            source(playlistId.pluginId).getPlaylistSongs(playlistId.sourceId, PageRequest(cursor, limit))
-                .toDomain { it.toDomain(playlistId.pluginId) }
+            source(playlistId.routingPluginId).getPlaylistSongs(playlistId.sourceId, PageRequest(cursor, limit))
+                .toDomain { it.toDomain(playlistId.routingPluginId) }
         }.onFailure { Timber.e(it, "playlist songs failed for $playlistId") }
 
     /** Radio/autoplay seed: songs related to [songId], used to keep the queue going. */
     suspend fun getRelatedSongs(songId: MediaId): Result<PagedResult<Song>> =
         runCatching {
-            source(songId.pluginId).getRelatedSongs(songId.sourceId)
-                .toDomain { it.toDomain(songId.pluginId) }
+            source(songId.routingPluginId).getRelatedSongs(songId.sourceId)
+                .toDomain { it.toDomain(songId.routingPluginId) }
         }.onFailure { Timber.e(it, "related songs failed for $songId") }
 
     suspend fun getHomeContent(pluginId: String): Result<HomeContent> = runCatching {
@@ -577,16 +577,16 @@ class PluginDataSource @Inject constructor(
     suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
         val maxBitrateKbps = maxBitrateKbpsFor(settingsRepository.audioQuality.first())
-        source(mediaId.pluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
+        source(mediaId.routingPluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
     }.onFailure {
         Timber.e(it, "getStream failed for $mediaId")
         // Playback-time auth failures usually mean the plugin now has a pending action to show;
         // playback is interrupted, so also surface it as a notification.
         if ((it as? PluginException)?.code == PluginErrorCode.AUTH_REQUIRED) {
             scope.launch {
-                refreshPluginStatus(mediaId.pluginId)
-                _pluginActions.value[mediaId.pluginId]?.firstOrNull()?.let { action ->
-                    actionNotifier.notify(mediaId.pluginId, action)
+                refreshPluginStatus(mediaId.routingPluginId)
+                _pluginActions.value[mediaId.routingPluginId]?.firstOrNull()?.let { action ->
+                    actionNotifier.notify(mediaId.routingPluginId, action)
                 }
             }
         }

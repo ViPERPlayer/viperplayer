@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.viperplayer.domain.autoplaylist.AutoPlaylistType
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -69,7 +70,7 @@ class AutoPlaylistLibraryTest {
         composeRule.onNodeWithText("Most Played").performClick()
 
         assertEquals(mostPlayed, clicked)
-        assertEquals(AutoPlaylistType.PLUGIN_ID, clicked?.id?.pluginId)
+        assertEquals(AutoPlaylistType.PLUGIN_ID, (clicked?.id as? MediaId.Plugin)?.pluginId)
         assertTrue(AutoPlaylistType.isAutoPlaylist(clicked!!.id))
     }
 }

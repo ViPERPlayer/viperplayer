@@ -6,6 +6,12 @@ import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.dao.ViperPresetDao
+import com.viperplayer.data.local.dao.getByMediaId
+import com.viperplayer.data.local.dao.updateLiked
+import com.viperplayer.data.local.dao.updateSaved
+import com.viperplayer.data.local.mapper.entityPluginId
+import com.viperplayer.data.local.mapper.idType
+import com.viperplayer.data.local.mapper.mediaIdFromColumns
 import com.viperplayer.data.local.entity.PlaylistEntity
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
 import com.viperplayer.data.local.entity.SongEntity
@@ -73,8 +79,8 @@ class BackupManager @Inject constructor(
         val songEntities = (likedEntities + savedEntities).distinctBy { it.id }
         val backupSongs = songEntities.map { it.toBackupSong() }
 
-        val likedSongIds = likedEntities.map { it.mediaId().toString() }
-        val savedSongIds = savedEntities.map { it.mediaId().toString() }
+        val likedSongIds = likedEntities.map { it.mediaId().encode() }
+        val savedSongIds = savedEntities.map { it.mediaId().encode() }
 
         val playlists = playlistDao.getAll().first().map { playlist ->
             val songIds = runCatching { crossRefDao.getSongIdsForPlaylist(playlist.id) }
@@ -83,7 +89,8 @@ class BackupManager @Inject constructor(
                 runCatching { songDao.getByIdSync(songId)?.toBackupSong() }.getOrNull()
             }
             BackupPlaylist(
-                pluginId = playlist.pluginId,
+                // Export the routing plugin id ("local" for local content) so import round-trips.
+                pluginId = mediaIdFromColumns(playlist.idType, playlist.pluginId, playlist.sourceId).routingPluginId,
                 sourceId = playlist.sourceId,
                 name = playlist.name,
                 description = playlist.description,
@@ -136,12 +143,14 @@ class BackupManager @Inject constructor(
     /** Upsert a song row and apply its liked/saved flags. Returns the local row id, or null. */
     private suspend fun upsertBackupSong(song: BackupSong): Long? {
         if (song.sourceId.isBlank()) return null
-        val existing = songDao.getByMediaId(song.pluginId, song.sourceId)
+        val mediaId = MediaId.from(song.pluginId, song.sourceId)
+        val existing = songDao.getByMediaId(mediaId)
         val songId = if (existing != null) {
             existing.id
         } else {
             val entity = SongEntity(
-                pluginId = song.pluginId,
+                idType = mediaId.idType,
+                pluginId = mediaId.entityPluginId,
                 sourceId = song.sourceId,
                 title = song.title,
                 durationMs = song.durationMs,
@@ -153,14 +162,14 @@ class BackupManager @Inject constructor(
             )
             val inserted = songDao.insert(entity)
             if (inserted == -1L) {
-                songDao.getByMediaId(song.pluginId, song.sourceId)?.id
+                songDao.getByMediaId(mediaId)?.id
             } else {
                 inserted
             }
         }
         // Ensure flags are applied even for a pre-existing row.
-        if (song.isLiked) songDao.updateLiked(song.pluginId, song.sourceId, true)
-        if (song.isSaved) songDao.updateSaved(song.pluginId, song.sourceId, true)
+        if (song.isLiked) songDao.updateLiked(mediaId, true)
+        if (song.isSaved) songDao.updateSaved(mediaId, true)
         return songId
     }
 
@@ -168,10 +177,12 @@ class BackupManager @Inject constructor(
 
     private suspend fun restorePlaylist(playlist: BackupPlaylist) {
         if (playlist.sourceId.isBlank()) return
-        val existing = playlistDao.getByMediaId(playlist.pluginId, playlist.sourceId)
+        val mediaId = MediaId.from(playlist.pluginId, playlist.sourceId)
+        val existing = playlistDao.getByMediaId(mediaId)
         val entity = PlaylistEntity(
             id = existing?.id ?: 0L,
-            pluginId = playlist.pluginId,
+            idType = mediaId.idType,
+            pluginId = mediaId.entityPluginId,
             sourceId = playlist.sourceId,
             name = playlist.name,
             description = playlist.description,
@@ -348,7 +359,7 @@ class BackupManager @Inject constructor(
 
     // ---- Mappers -----------------------------------------------------------------------------
 
-    private fun SongEntity.mediaId() = MediaId(pluginId, sourceId)
+    private fun SongEntity.mediaId() = mediaIdFromColumns(idType, pluginId, sourceId)
 
     private suspend fun SongEntity.toBackupSong(): BackupSong {
         val artistNames = runCatching {
@@ -360,7 +371,8 @@ class BackupManager @Inject constructor(
             runCatching { albumDao.getByIdSync(aId)?.name }.getOrNull()
         }
         return BackupSong(
-            pluginId = pluginId,
+            // Export the routing plugin id ("local" for local content) so import round-trips the type.
+            pluginId = mediaId().routingPluginId,
             sourceId = sourceId,
             title = title,
             artistNames = artistNames,

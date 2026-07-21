@@ -30,7 +30,7 @@ class FollowingScreenTest {
 
     private fun artist(sourceId: String, name: String) = FollowingUiModel(
         artist = FollowedArtist(
-            mediaId = MediaId("plugin", sourceId),
+            mediaId = MediaId.Plugin("plugin", sourceId),
             name = name,
             artworkUrl = null,
             followedAt = sourceId.toLong(),
@@ -85,7 +85,7 @@ class FollowingScreenTest {
 
         composeRule.onNodeWithText("Alpha").performClick()
 
-        assertEquals(MediaId("plugin", "1"), clicked)
+        assertEquals(MediaId.Plugin("plugin", "1"), clicked)
     }
 
     @Test
@@ -109,7 +109,7 @@ class FollowingScreenTest {
         composeRule.onAllNodesWithContentDescription("More")[0].performClick()
         composeRule.onNodeWithText("Unfollow").performClick()
 
-        assertEquals(MediaId("plugin", "1"), unfollowed)
+        assertEquals(MediaId.Plugin("plugin", "1"), unfollowed)
         composeRule.onNodeWithText("Alpha").assertDoesNotExist()
         composeRule.onNodeWithText("Beta").assertIsDisplayed()
     }

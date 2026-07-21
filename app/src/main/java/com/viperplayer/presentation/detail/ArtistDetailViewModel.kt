@@ -72,7 +72,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
     private val artistId = artistDetail.artistId
 
     /** The plugin backing this screen — used to match pending plugin actions on errors. */
-    val pluginId: String get() = artistId.pluginId
+    val pluginId: String get() = artistId.routingPluginId
 
     // Minimal placeholder shown while the full artist is (re)fetched by id.
     private val placeholderArtist = ArtistDetail(

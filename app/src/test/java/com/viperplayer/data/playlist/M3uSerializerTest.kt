@@ -12,7 +12,7 @@ class M3uSerializerTest {
 
     private fun song(pluginId: String, sourceId: String, title: String, artist: String?, durationMs: Long?) =
         Song(
-            id = MediaId(pluginId, sourceId),
+            id = MediaId.Plugin(pluginId, sourceId),
             title = title,
             artists = artist?.let { listOf(ArtistRef(name = it, id = null)) } ?: emptyList(),
             durationMs = durationMs,

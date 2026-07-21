@@ -675,7 +675,7 @@ private fun PlaylistMetadataHeader(
 @Composable
 private fun PlaylistDetailScreenPreview() {
     val playlist = Playlist(
-        id = MediaId("plugin", "playlist1"),
+        id = MediaId.Plugin("plugin", "playlist1"),
         name = "Rock Classics",
         ownerName = "ViPER Player",
         artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
@@ -684,7 +684,7 @@ private fun PlaylistDetailScreenPreview() {
 
     val songs = listOf(
         Song(
-            id = MediaId("plugin", "song1"),
+            id = MediaId.Plugin("plugin", "song1"),
             title = "Bohemian Rhapsody",
             artists = emptyList(), // Simplified for preview
             album = null,
@@ -693,7 +693,7 @@ private fun PlaylistDetailScreenPreview() {
             discNumber = 1
         ),
         Song(
-            id = MediaId("plugin", "song2"),
+            id = MediaId.Plugin("plugin", "song2"),
             title = "Stairway to Heaven",
             artists = emptyList(),
             album = null,

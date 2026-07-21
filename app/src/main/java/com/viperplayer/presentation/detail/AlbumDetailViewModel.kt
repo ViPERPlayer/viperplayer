@@ -68,7 +68,7 @@ class AlbumDetailViewModel @AssistedInject constructor(
     private val albumId = albumDetail.albumId
 
     /** The plugin backing this screen — used to match pending plugin actions on errors. */
-    val pluginId: String get() = albumId.pluginId
+    val pluginId: String get() = albumId.routingPluginId
 
     // Minimal placeholder shown while the full album is (re)fetched by id.
     private val placeholderAlbum = Album(

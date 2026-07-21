@@ -371,12 +371,12 @@ fun MiniPlayerPreview() {
         Surface {
             MiniPlayerContent(
                 song = Song(
-                    id = MediaId("test", "1"),
+                    id = MediaId.Plugin("test", "1"),
                     title = "Sample Song",
                     artists = listOf(
                         ArtistRef(
                             name = "Sample Artist",
-                            id = MediaId("test", "artist1")
+                            id = MediaId.Plugin("test", "artist1")
                         )
                     )
                 ),

@@ -88,11 +88,11 @@ class SongInfoViewModel @AssistedInject constructor(
         val isCurrent = current?.id == mediaId
         // Prefer the live playing song (fullest metadata), then the DB copy, then the nav placeholder.
         val song = current?.takeIf { it.id == mediaId } ?: dbSong ?: placeholder
-        val pluginName = plugins.firstOrNull { it.info.id == mediaId.pluginId }?.info?.name
+        val pluginName = plugins.firstOrNull { it.info.id == mediaId.routingPluginId }?.info?.name
         SongInfoUiState(
             song = song,
             pluginName = pluginName,
-            pluginPackage = mediaId.pluginId,
+            pluginPackage = mediaId.routingPluginId,
             isCurrentSong = isCurrent,
         )
     }.stateIn(
@@ -101,7 +101,7 @@ class SongInfoViewModel @AssistedInject constructor(
         initialValue = SongInfoUiState(
             song = placeholder,
             pluginName = null,
-            pluginPackage = mediaId.pluginId,
+            pluginPackage = mediaId.routingPluginId,
             isCurrentSong = false,
         ),
     )

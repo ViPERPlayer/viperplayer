@@ -74,19 +74,15 @@ class AutoPlaylistRepositoryImpl @Inject constructor(
         records: List<PlayRecord>,
     ): List<Song> {
         val now = System.currentTimeMillis()
-        // On-device the play-history stores Song.id via MediaId.toString() (Uri-encoded), so join the
+        // On-device the play-history stores Song.id via MediaId.encode() (Uri-encoded), so join the
         // library on that exact key rather than the generator's pure default.
-        val keyOf: (MediaId) -> String = { it.toString() }
-        // For a history song missing from the library, rebuild its MediaId by Uri-DECODING the stored
-        // (encoded) id via MediaId.fromString — round-tripping MediaId.toString() so the plugin later
-        // gets the original sourceId (e.g. a local `content://…` URI) rather than a percent-encoded one.
-        // fromString may throw on a genuinely malformed id, so fall back to the generator's pure parser.
+        val keyOf: (MediaId) -> String = { it.encode() }
+        // For a history song missing from the library, rebuild its MediaId by DECODING the stored
+        // (encoded) id via MediaId.decode — round-tripping MediaId.encode() so the plugin later gets the
+        // original sourceId (e.g. a local `content://…` URI) rather than a percent-encoded one.
+        // decode returns null on a genuinely malformed id, so fall back to the generator's pure parser.
         val mediaIdOf: (String) -> MediaId = { raw ->
-            try {
-                MediaId.fromString(raw)
-            } catch (e: IllegalArgumentException) {
-                AutoPlaylistGenerator.parseMediaId(raw)
-            }
+            MediaId.decode(raw) ?: AutoPlaylistGenerator.parseMediaId(raw)
         }
         return when (type) {
             AutoPlaylistType.RECENTLY_ADDED -> AutoPlaylistGenerator.recentlyAdded(recentlyAdded)

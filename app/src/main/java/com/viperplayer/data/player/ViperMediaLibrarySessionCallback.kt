@@ -165,7 +165,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
             try {
                 // Try to resolve as Song first
                 val songId = try {
-                    MediaId.fromString(mediaId)
+                    MediaId.decode(mediaId)
                 } catch (e: Exception) {
                     null
                 }
@@ -218,21 +218,21 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                         when (it) {
                             is Song -> it.toMediaItem()
                             is Artist -> buildBrowsableItem(
-                                PREFIX_ARTIST + it.id.toString(),
+                                PREFIX_ARTIST + it.id.encode(),
                                 it.name,
                                 it.imageUrl,
                                 MediaMetadata.MEDIA_TYPE_ARTIST
                             )
 
                             is Album -> buildBrowsableItem(
-                                PREFIX_ALBUM + it.id.toString(),
+                                PREFIX_ALBUM + it.id.encode(),
                                 it.name,
                                 it.artworkUrl,
                                 MediaMetadata.MEDIA_TYPE_ALBUM
                             )
 
                             is Playlist -> buildBrowsableItem(
-                                PREFIX_PLAYLIST + it.id.toString(),
+                                PREFIX_PLAYLIST + it.id.encode(),
                                 it.name,
                                 it.artworkUrl,
                                 MediaMetadata.MEDIA_TYPE_PLAYLIST
@@ -260,7 +260,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         return serviceScope.future {
             val resolvedMediaItems = mediaItems.mapNotNull { mediaItem ->
                 try {
-                    val mediaId = MediaId.fromString(mediaItem.mediaId)
+                    val mediaId = MediaId.decode(mediaItem.mediaId) ?: return@mapNotNull mediaItem
                     val song = mediaLibraryRepository.getSong(mediaId).first()
                         ?: pluginRepository.getSong(mediaId).getOrNull()
 
@@ -289,7 +289,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         val artists = mediaLibraryRepository.getAllSavedArtists().first()
         return artists.map { artist ->
             buildBrowsableItem(
-                PREFIX_ARTIST + artist.id.toString(), artist.name, artist.imageUrl,
+                PREFIX_ARTIST + artist.id.encode(), artist.name, artist.imageUrl,
                 MediaMetadata.MEDIA_TYPE_ARTIST
             )
         }
@@ -299,7 +299,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         val albums = mediaLibraryRepository.getAllSavedAlbums().first()
         return albums.map { album ->
             buildBrowsableItem(
-                PREFIX_ALBUM + album.id.toString(), album.name, album.artworkUrl,
+                PREFIX_ALBUM + album.id.encode(), album.name, album.artworkUrl,
                 MediaMetadata.MEDIA_TYPE_ALBUM
             )
         }
@@ -309,7 +309,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         val playlists = mediaLibraryRepository.getAllSavedPlaylists().first()
         return playlists.map { playlist ->
             buildBrowsableItem(
-                PREFIX_PLAYLIST + playlist.id.toString(),
+                PREFIX_PLAYLIST + playlist.id.encode(),
                 playlist.name,
                 playlist.artworkUrl,
                 MediaMetadata.MEDIA_TYPE_PLAYLIST
@@ -323,7 +323,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
     }
 
     private suspend fun getArtistChildren(artistIdString: String): List<MediaItem> {
-        val artistId = MediaId.fromString(artistIdString)
+        val artistId = MediaId.decode(artistIdString) ?: return emptyList()
         // Try fetching from plugin repository first (remote)
         val artist = pluginRepository.getArtist(artistId).getOrNull()
         if (artist != null && artist.topSongs.isNotEmpty()) {
@@ -338,7 +338,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
     }
 
     private suspend fun getAlbumChildren(albumIdString: String): List<MediaItem> {
-        val albumId = MediaId.fromString(albumIdString)
+        val albumId = MediaId.decode(albumIdString) ?: return emptyList()
         val album = pluginRepository.getAlbum(albumId).getOrNull()
         if (album?.songs != null && album.songs.isNotEmpty()) {
             return album.songs.map { it.toMediaItem() }
@@ -351,7 +351,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
     }
 
     private suspend fun getPlaylistChildren(playlistIdString: String): List<MediaItem> {
-        val playlistId = MediaId.fromString(playlistIdString)
+        val playlistId = MediaId.decode(playlistIdString) ?: return emptyList()
         val playlist = pluginRepository.getPlaylist(playlistId).getOrNull()
         if (playlist?.songs != null && playlist.songs.isNotEmpty()) {
             return playlist.songs.map { it.toMediaItem() }

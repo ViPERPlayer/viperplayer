@@ -1,6 +1,7 @@
 package com.viperplayer.data.social
 
 import com.viperplayer.data.repository.toSessionPlayback
+import com.viperplayer.domain.model.MediaId
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -62,7 +63,7 @@ class SessionPlaybackMappingTest {
         assertEquals("http://x", track.artworkUrl)
         assertEquals(210_000, track.durationMs)
         // mediaId is derived from plugin+source.
-        assertEquals("testsource", track.mediaId!!.pluginId)
+        assertEquals(MediaId.Plugin("testsource", "99"), track.mediaId)
     }
 
     @Test

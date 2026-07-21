@@ -214,7 +214,7 @@ class PlayerRepositoryImpl @Inject constructor(
         // by ViperMediaSource from the bare mediaId + isVideo extra, so we only need the identity + the
         // display metadata (so the now-playing UI shows the remote track even if it's not in the local DB).
         val extras = Bundle().apply {
-            putString("pluginId", mediaId.pluginId)
+            putString("pluginId", mediaId.routingPluginId)
             putString("sourceId", mediaId.sourceId)
             putString("title", title)
             putString("artistName", artist)
@@ -230,7 +230,7 @@ class PlayerRepositoryImpl @Inject constructor(
             .setExtras(extras)
             .build()
         val mediaItem = MediaItem.Builder()
-            .setMediaId(mediaId.toString())
+            .setMediaId(mediaId.encode())
             .setUri("") // required so ExoPlayer doesn't crash on an item with no direct URI
             .setMediaMetadata(metadata)
             .build()
@@ -316,7 +316,7 @@ class PlayerRepositoryImpl @Inject constructor(
 
         val tailMediaId = controller.getMediaItemAt(count - 1)?.mediaId ?: return
         if (tailMediaId in autoplaySeeds) return
-        val seed = MediaId.fromString(tailMediaId) ?: return
+        val seed = MediaId.decode(tailMediaId) ?: return
         autoplaySeeds.add(tailMediaId)
 
         autoplayJob = scope.launch {
@@ -324,7 +324,7 @@ class PlayerRepositoryImpl @Inject constructor(
             val existing = (0 until controller.mediaItemCount)
                 .mapNotNull { controller.getMediaItemAt(it)?.mediaId }
                 .toSet()
-            val fresh = related.filter { it.id.toString() !in existing }
+            val fresh = related.filter { it.id.encode() !in existing }
             Timber.d("autoplay: tail=$tailMediaId related=${related.size} new=${fresh.size} queue=${controller.mediaItemCount}")
             if (fresh.isEmpty()) return@launch
             fresh.forEach { runCatching { mediaLibraryRepository.saveSong(it) } }
@@ -410,7 +410,7 @@ class PlayerRepositoryImpl @Inject constructor(
         val mediaItem = player.currentMediaItem ?: return null
 
         return try {
-            MediaId.fromString(mediaItem.mediaId)
+            MediaId.decode(mediaItem.mediaId)
         } catch (e: Exception) {
             Timber.e(e, "Failed to parse MediaId from controller: ${mediaItem.mediaId}")
             null
@@ -425,7 +425,7 @@ class PlayerRepositoryImpl @Inject constructor(
     private fun extractQueueMediaIds(player: Player): List<MediaId> {
         return (0 until player.mediaItemCount).mapNotNull { i ->
             try {
-                MediaId.fromString(player.getMediaItemAt(i).mediaId)
+                MediaId.decode(player.getMediaItemAt(i).mediaId)
             } catch (e: Exception) {
                 null
             }
@@ -511,7 +511,7 @@ class PlayerRepositoryImpl @Inject constructor(
                                 .mapNotNull { index ->
                                     controller.getMediaItemAt(index)?.mediaId?.let { mediaIdString ->
                                         try {
-                                            MediaId.fromString(mediaIdString)
+                                            MediaId.decode(mediaIdString)
                                         } catch (e: Exception) {
                                             Timber.e(e, "Failed to parse MediaId: $mediaIdString")
                                             null
@@ -529,7 +529,7 @@ class PlayerRepositoryImpl @Inject constructor(
                                 .mapNotNull { index ->
                                     controller.getMediaItemAt(index)?.mediaId?.let { mediaIdString ->
                                         try {
-                                            MediaId.fromString(mediaIdString)
+                                            MediaId.decode(mediaIdString)
                                         } catch (e: Exception) {
                                             Timber.e(e, "Failed to parse MediaId: $mediaIdString")
                                             null
@@ -546,7 +546,7 @@ class PlayerRepositoryImpl @Inject constructor(
                         .mapNotNull { index ->
                             controller.getMediaItemAt(index)?.mediaId?.let { mediaIdString ->
                                 try {
-                                    MediaId.fromString(mediaIdString)
+                                    MediaId.decode(mediaIdString)
                                 } catch (e: Exception) {
                                     Timber.e(e, "Failed to parse MediaId: $mediaIdString")
                                     null

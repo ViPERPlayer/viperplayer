@@ -29,10 +29,10 @@ class PlaylistDetailScreenTest {
     val composeRule = createComposeRule()
 
     private fun song(id: String, title: String) =
-        Song(id = MediaId("local", id), title = title, durationMs = 1000L)
+        Song(id = MediaId.Local(id), title = title, durationMs = 1000L)
 
     private val playlist = Playlist(
-        id = MediaId("local", "playlist_1"),
+        id = MediaId.Local("playlist_1"),
         name = "Road Trip",
         songCount = 2,
         isEditable = true,

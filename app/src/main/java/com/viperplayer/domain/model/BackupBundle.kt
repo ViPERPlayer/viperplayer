@@ -13,9 +13,9 @@ import kotlinx.serialization.Serializable
 data class BackupBundle(
     val version: Int = CURRENT_VERSION,
     val exportedAtMs: Long = 0L,
-    /** Convenience index: MediaId.toString() of every liked song. Also encoded in [songs]. */
+    /** Convenience index: MediaId.encode() of every liked song. Also encoded in [songs]. */
     val likedSongIds: List<String> = emptyList(),
-    /** Convenience index: MediaId.toString() of every saved song. Also encoded in [songs]. */
+    /** Convenience index: MediaId.encode() of every saved song. Also encoded in [songs]. */
     val savedSongIds: List<String> = emptyList(),
     /** All liked + saved songs, with enough columns to fully re-create the row. */
     val songs: List<BackupSong> = emptyList(),

@@ -52,7 +52,10 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         PlayEventEntity::class,
         OutboxEntity::class
     ],
-    version = 2,
+    // v3: MediaId sealed refactor (#12) — songs/albums/artists/playlists gain an `idType`
+    // discriminator column and their unique identity index becomes (idType, pluginId, sourceId).
+    // Destructive migration (DatabaseModule fallbackToDestructiveMigration) drops + recreates.
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(

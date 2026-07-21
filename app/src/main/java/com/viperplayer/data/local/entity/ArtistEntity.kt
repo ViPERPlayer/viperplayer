@@ -15,11 +15,13 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "artists",
-    indices = [Index(value = ["pluginId", "sourceId"], unique = true)]
+    indices = [Index(value = ["idType", "pluginId", "sourceId"], unique = true)]
 )
 data class ArtistEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    // MediaId identity, type-discriminated: idType is "plugin"|"local"; pluginId is "" for local.
+    val idType: String,
     val pluginId: String,
     val sourceId: String?,
     val name: String,

@@ -25,7 +25,7 @@ class ArtworkDownloader @Inject constructor(
     // Stable, collision-free cache key. sourceId.hashCode() (32-bit) collided -> wrong image served.
     private fun cacheFilename(mediaId: MediaId): String {
         val digest = java.security.MessageDigest.getInstance("SHA-256")
-            .digest("${mediaId.pluginId}:${mediaId.sourceId}".toByteArray())
+            .digest(mediaId.encode().toByteArray())
         return "artwork_" + digest.joinToString("") { "%02x".format(it.toInt() and 0xFF) } + ".jpg"
     }
 

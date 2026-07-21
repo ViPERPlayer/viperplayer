@@ -235,7 +235,7 @@ class DownloadManager @Inject constructor(
     }
 
     private fun sanitize(mediaId: MediaId): String =
-        "${mediaId.pluginId}_${mediaId.sourceId}".replace(Regex("[^A-Za-z0-9._-]"), "_")
+        "${mediaId.routingPluginId}_${mediaId.sourceId}".replace(Regex("[^A-Za-z0-9._-]"), "_")
 
     private fun extensionFor(mimeType: String?): String = when {
         mimeType == null -> "bin"

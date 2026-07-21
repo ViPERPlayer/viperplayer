@@ -53,7 +53,7 @@ class FollowedArtistsRepositoryImplTest {
     }
 
     private fun followed(sourceId: String, name: String, followedAt: Long) = FollowedArtist(
-        mediaId = MediaId("plugin", sourceId),
+        mediaId = MediaId.Plugin("plugin", sourceId),
         name = name,
         artworkUrl = null,
         followedAt = followedAt,
@@ -88,7 +88,7 @@ class FollowedArtistsRepositoryImplTest {
     @Test
     fun unfollow_removesArtist() = runTest {
         val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
-        val id = MediaId("plugin", "1")
+        val id = MediaId.Plugin("plugin", "1")
         repo.follow(followed("1", "Artist One", 100))
 
         repo.unfollow(id)
@@ -101,7 +101,7 @@ class FollowedArtistsRepositoryImplTest {
         val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
         repo.follow(followed("1", "Artist One", 100))
 
-        repo.unfollow(MediaId("plugin", "does-not-exist"))
+        repo.unfollow(MediaId.Plugin("plugin", "does-not-exist"))
 
         assertEquals(1, repo.followedArtists().first().size)
     }
@@ -109,7 +109,7 @@ class FollowedArtistsRepositoryImplTest {
     @Test
     fun isFollowing_reflectsState() = runTest {
         val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
-        val id = MediaId("plugin", "1")
+        val id = MediaId.Plugin("plugin", "1")
 
         assertFalse(repo.isFollowing(id).first())
 
@@ -150,7 +150,7 @@ class FollowedArtistsRepositoryImplTest {
         // unfollow so the change can be propagated to the plugin account.
         val outbox = CapturingOutbox()
         val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), outbox)
-        val id = MediaId("plugin", "1")
+        val id = MediaId.Plugin("plugin", "1")
 
         repo.follow(followed("1", "Artist One", 100))
         repo.unfollow(id)

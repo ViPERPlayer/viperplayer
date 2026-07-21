@@ -27,7 +27,7 @@ class AlarmContentSpecTest {
 
     @Test
     fun playlist_roundTrips_withShuffleFlag() {
-        val id = MediaId("local", "playlist-42")
+        val id = MediaId.Local("playlist-42")
         val spec = AlarmContentSpec.PlaylistContent(id, shuffle = true)
         val decoded = AlarmContentSpec.decode(spec.encode())
         assertEquals(spec, decoded)
@@ -35,7 +35,7 @@ class AlarmContentSpecTest {
 
     @Test
     fun playlist_roundTrips_withoutShuffle() {
-        val id = MediaId("local", "playlist-7")
+        val id = MediaId.Local("playlist-7")
         val spec = AlarmContentSpec.PlaylistContent(id, shuffle = false)
         assertEquals(spec, AlarmContentSpec.decode(spec.encode()))
     }
@@ -56,7 +56,7 @@ class AlarmContentSpecTest {
             daysOfWeek = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
             enabled = true,
             label = "Gym",
-            content = AlarmContentSpec.PlaylistContent(MediaId("local", "p1"), shuffle = true),
+            content = AlarmContentSpec.PlaylistContent(MediaId.Local("p1"), shuffle = true),
             volume = 0.7f,
             fadeInDurationSec = 45,
             vibrate = false,

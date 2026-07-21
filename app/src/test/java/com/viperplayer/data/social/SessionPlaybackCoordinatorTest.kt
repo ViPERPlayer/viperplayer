@@ -128,7 +128,7 @@ class SessionPlaybackCoordinatorTest {
     )
 
     private fun song() = Song(
-        id = MediaId("testsource", "42"), title = "T", artists = listOf(ArtistRef("A")),
+        id = MediaId.Plugin("testsource", "42"), title = "T", artists = listOf(ArtistRef("A")),
         durationMs = 200_000, artworkUrl = "http://art",
     )
 
@@ -162,7 +162,7 @@ class SessionPlaybackCoordinatorTest {
 
         assertTrue("follower mode should be on", player.followerModeEnabled)
         assertEquals(1, player.playRemoteCalls.size)
-        assertEquals(MediaId("testsource", "42"), player.playRemoteCalls.first())
+        assertEquals(MediaId.Plugin("testsource", "42"), player.playRemoteCalls.first())
         // A follower never seeds the session.
         assertTrue(repo.setTrackCalls.isEmpty())
     }

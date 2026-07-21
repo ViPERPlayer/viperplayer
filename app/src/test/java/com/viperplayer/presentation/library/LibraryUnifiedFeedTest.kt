@@ -19,7 +19,7 @@ import org.junit.Test
  */
 class LibraryUnifiedFeedTest {
 
-    private fun id(source: String) = MediaId("local", source)
+    private fun id(source: String) = MediaId.Local(source)
 
     private fun song(source: String, albumId: MediaId? = null, artistId: MediaId? = null) = Song(
         id = id(source),

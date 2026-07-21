@@ -13,7 +13,7 @@ import org.junit.Test
 class RadioQueueBuilderTest {
 
     private fun song(id: String, title: String = id) =
-        Song(id = MediaId("p", id), title = title, durationMs = 1000L)
+        Song(id = MediaId.Plugin("p", id), title = title, durationMs = 1000L)
 
     @Test
     fun buildSongs_seedFirst_thenRelated() {

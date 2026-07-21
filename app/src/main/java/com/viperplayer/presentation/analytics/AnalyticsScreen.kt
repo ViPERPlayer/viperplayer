@@ -212,7 +212,7 @@ private fun AnalyticsScreenContent(
             } else {
                 itemsIndexed(
                     items = mostPlayed,
-                    key = { _, item -> "${item.song.id.pluginId}:${item.song.id.sourceId}" }
+                    key = { _, item -> item.song.id.encode() }
                 ) { index, item ->
                     val isActive = currentSongId == item.song.id
                     val plays = pluralStringResource(

@@ -15,7 +15,7 @@ class SessionTrackMapperTest {
     @Test
     fun mapsIdentity_metadata_andBlankAlbum() {
         val song = Song(
-            id = MediaId("testsource", "12345"),
+            id = MediaId.Plugin("testsource", "12345"),
             title = "Blinding Lights",
             artists = listOf(ArtistRef("The Weeknd"), ArtistRef("Rosalía")),
             durationMs = 200_040,
@@ -39,7 +39,7 @@ class SessionTrackMapperTest {
     @Test
     fun blankOptionalFields_becomeEmptyNotNull() {
         val song = Song(
-            id = MediaId("local", "song-1"),
+            id = MediaId.Local("song-1"),
             title = "Untitled",
             artists = emptyList(),
             durationMs = null,

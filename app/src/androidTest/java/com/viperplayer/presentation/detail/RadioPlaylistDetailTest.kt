@@ -30,7 +30,7 @@ class RadioPlaylistDetailTest {
     val composeRule = createComposeRule()
 
     private fun song(id: String, title: String) =
-        Song(id = MediaId("testsource", id), title = title, durationMs = 1000L)
+        Song(id = MediaId.Plugin("testsource", id), title = title, durationMs = 1000L)
 
     private val seed = song("seed", "Seed Song")
     private val radioSongs = RadioQueueBuilder.buildSongs(

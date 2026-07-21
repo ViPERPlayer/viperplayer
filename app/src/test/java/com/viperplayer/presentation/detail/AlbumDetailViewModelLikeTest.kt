@@ -53,10 +53,10 @@ class AlbumDetailViewModelLikeTest {
         Dispatchers.resetMain()
     }
 
-    private val song = Song(id = MediaId("testsource", "s1"), title = "Song")
+    private val song = Song(id = MediaId.Plugin("testsource", "s1"), title = "Song")
 
     private fun viewModel(media: FakeMediaLibraryRepository) = AlbumDetailViewModel(
-        albumDetail = AlbumDetail(albumId = MediaId("testsource", "a1")),
+        albumDetail = AlbumDetail(albumId = MediaId.Plugin("testsource", "a1")),
         pluginRepository = UnusedPluginRepository(),
         mediaLibraryRepository = media,
         playerRepository = InertPlayerRepository(),

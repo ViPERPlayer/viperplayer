@@ -26,22 +26,18 @@ import org.junit.runner.RunWith
 class AutoPlaylistIdDecodeTest {
 
     // The production join key: the encoded canonical id string, matching what the history stores.
-    private val keyOf: (MediaId) -> String = { it.toString() }
+    private val keyOf: (MediaId) -> String = { it.encode() }
 
-    // The production reconstruction: Uri-DECODE via MediaId.fromString, pure fallback on malformed ids.
+    // The production reconstruction: Uri-DECODE via MediaId.decode, pure fallback on malformed ids.
     private val mediaIdOf: (String) -> MediaId = { raw ->
-        try {
-            MediaId.fromString(raw)
-        } catch (e: IllegalArgumentException) {
-            AutoPlaylistGenerator.parseMediaId(raw)
-        }
+        MediaId.decode(raw) ?: AutoPlaylistGenerator.parseMediaId(raw)
     }
 
     @Test
     fun mostPlayed_missingLocalSong_sourceIdDecodesBackToContentUri() {
-        val original = MediaId("local", "content://media/external/audio/media/123")
-        // Exactly what the play-history persists for this song (Song.id.toString(), Uri-encoded).
-        val persistedId = original.toString()
+        val original = MediaId.Local("content://media/external/audio/media/123")
+        // Exactly what the play-history persists for this song (Song.id.encode(), Uri-encoded).
+        val persistedId = original.encode()
         // Sanity: persistence really did percent-encode the reserved chars.
         assertFalse("expected a percent-encoded persisted id", persistedId.contains("content://"))
 
@@ -73,12 +69,12 @@ class AutoPlaylistIdDecodeTest {
 
     @Test
     fun inLibrarySong_stillResolvesViaEncodedKey_unchanged() {
-        // The in-library path must keep matching on the correctly-ENCODED toString() key.
-        val id = MediaId("local", "content://media/external/audio/media/999")
+        // The in-library path must keep matching on the correctly-ENCODED encode() key.
+        val id = MediaId.Local("content://media/external/audio/media/999")
         val liveSong = Song(id = id, title = "Live", isLiked = true)
         val record = PlayRecord(
             timestampMs = 100L,
-            mediaId = id.toString(),
+            mediaId = id.encode(),
             title = "Stale",
             artist = "A",
             album = null,

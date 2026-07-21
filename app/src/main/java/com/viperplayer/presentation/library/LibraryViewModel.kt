@@ -446,7 +446,7 @@ class LibraryViewModel @Inject constructor(
                 val connectedPluginIds = connectedPlugins.map { it.info.id }.toSet()
 
                 songsList.map { song ->
-                    val isPluginConnected = song.id.pluginId in connectedPluginIds
+                    val isPluginConnected = song.id.routingPluginId in connectedPluginIds
                     // Song is playable if:
                     // 1. Song is downloaded (can play offline), OR
                     // 2. Plugin is connected AND (song doesn't require internet OR internet is available)

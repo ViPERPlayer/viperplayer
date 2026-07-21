@@ -39,7 +39,7 @@ class LibrarySortSeedTest {
 
     private var nextId = 0
     private fun song(title: String): Song =
-        Song(id = MediaId("test", "song${nextId++}"), title = title)
+        Song(id = MediaId.Plugin("test", "song${nextId++}"), title = title)
 
     /** A [SettingsRepository] fake that only implements the per-view sort order; the rest is unused. */
     private class FakeSettingsRepository(

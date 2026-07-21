@@ -72,11 +72,11 @@ class LocalMediaDataSource @Inject constructor(
 
                 val artistRef = ArtistRef(
                     name = artistName ?: "Unknown Artist",
-                    id = MediaId.of("local", artistId.toString())
+                    id = MediaId.Local(artistId.toString())
                 )
 
                 val album = Album(
-                    id = MediaId("local", albumId.toString()),
+                    id = MediaId.Local(albumId.toString()),
                     name = albumName ?: "Unknown Album",
                     artists = listOf(artistRef),
                     artworkUrl = getAlbumArtUri(albumId)?.toString()
@@ -84,7 +84,7 @@ class LocalMediaDataSource @Inject constructor(
 
                 songs.add(
                     Song(
-                        id = MediaId("local", contentUri.toString()),
+                        id = MediaId.Local(contentUri.toString()),
                         title = title,
                         artists = listOf(artistRef),
                         album = album,

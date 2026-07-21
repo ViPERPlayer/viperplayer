@@ -20,7 +20,7 @@ class AddToPlaylistSheetTest {
     val composeRule = createComposeRule()
 
     private fun playlist(id: String, name: String, count: Int) =
-        Playlist(id = MediaId("local", id), name = name, songCount = count)
+        Playlist(id = MediaId.Local(id), name = name, songCount = count)
 
     @Test
     fun listsExistingPlaylistsAndNewEntry() {

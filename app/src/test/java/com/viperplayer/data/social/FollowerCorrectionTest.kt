@@ -44,7 +44,7 @@ class FollowerCorrectionTest {
         controllerId = "",
     )
 
-    private val mediaId = MediaId("testsource", "42")
+    private val mediaId = MediaId.Plugin("testsource", "42")
 
     @Test
     fun unsynced_serverNowNull_surfacesSyncing() {
@@ -102,7 +102,7 @@ class FollowerCorrectionTest {
         val load = d.loadTrack
         assertNotNull(load)
         assertEquals(2, load!!.epoch)
-        assertEquals(MediaId("testsource", "99"), load.mediaId)
+        assertEquals(MediaId.Plugin("testsource", "99"), load.mediaId)
     }
 
     @Test

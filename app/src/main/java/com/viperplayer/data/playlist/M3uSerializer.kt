@@ -50,7 +50,7 @@ object M3uSerializer {
      * URI, that URI; otherwise a `viper://<pluginId>/<sourceId>` URI so the entry round-trips.
      */
     private fun locationFor(song: Song): String {
-        val pluginId = song.id.pluginId
+        val pluginId = song.id.routingPluginId
         val sourceId = song.id.sourceId
         if (pluginId.contains(LOCAL_PLUGIN_MARKER) && looksLikeUri(sourceId)) {
             return sourceId

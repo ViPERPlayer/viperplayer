@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "playlists",
     indices = [
-        Index(value = ["pluginId", "sourceId"], unique = true),
+        Index(value = ["idType", "pluginId", "sourceId"], unique = true),
         Index(value = ["isLiked"]),
         Index(value = ["isSaved"])
     ]
@@ -18,6 +18,8 @@ import androidx.room.PrimaryKey
 data class PlaylistEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    // MediaId identity, type-discriminated: idType is "plugin"|"local"; pluginId is "" for local.
+    val idType: String,
     val pluginId: String,
     val sourceId: String,
     val name: String,

@@ -24,7 +24,7 @@ class QueueSheetContentTest {
     val composeRule = createComposeRule()
 
     private fun song(id: String, title: String) =
-        Song(id = MediaId("local", id), title = title, durationMs = 1000L)
+        Song(id = MediaId.Local(id), title = title, durationMs = 1000L)
 
     private val queue = listOf(
         song("a", "Song A"),

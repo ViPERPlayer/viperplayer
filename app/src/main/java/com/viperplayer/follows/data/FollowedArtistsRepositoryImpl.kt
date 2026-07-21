@@ -23,7 +23,8 @@ class FollowedArtistsRepositoryImpl @Inject constructor(
         }
 
     override fun isFollowing(mediaId: MediaId): Flow<Boolean> =
-        dao.observeIsFollowing(mediaId.pluginId, mediaId.sourceId)
+        // Followed artists are always plugin artists; routingPluginId is the plugin's own id.
+        dao.observeIsFollowing(mediaId.routingPluginId, mediaId.sourceId)
 
     override fun count(): Flow<Int> = dao.observeCount()
 
@@ -32,14 +33,14 @@ class FollowedArtistsRepositoryImpl @Inject constructor(
         dao.insert(FollowedArtistEntity.fromDomain(artist))
         // Propagate the follow up to the originating plugin account (two-way sync push).
         libraryPushOutbox.enqueue(
-            LibraryMutation.SetFollowed(artist.mediaId.pluginId, artist.mediaId.sourceId, followed = true)
+            LibraryMutation.SetFollowed(artist.mediaId.routingPluginId, artist.mediaId.sourceId, followed = true)
         )
     }
 
     override suspend fun unfollow(mediaId: MediaId) {
-        dao.delete(mediaId.pluginId, mediaId.sourceId)
+        dao.delete(mediaId.routingPluginId, mediaId.sourceId)
         libraryPushOutbox.enqueue(
-            LibraryMutation.SetFollowed(mediaId.pluginId, mediaId.sourceId, followed = false)
+            LibraryMutation.SetFollowed(mediaId.routingPluginId, mediaId.sourceId, followed = false)
         )
     }
 }

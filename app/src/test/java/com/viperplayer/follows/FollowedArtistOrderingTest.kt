@@ -19,7 +19,7 @@ class FollowedArtistOrderingTest {
         name: String,
         followedAt: Long,
     ) = FollowedArtist(
-        mediaId = MediaId(pluginId, sourceId),
+        mediaId = MediaId.Plugin(pluginId, sourceId),
         name = name,
         artworkUrl = null,
         followedAt = followedAt,

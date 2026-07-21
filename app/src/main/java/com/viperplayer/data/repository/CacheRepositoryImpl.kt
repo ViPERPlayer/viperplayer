@@ -49,7 +49,7 @@ class CacheRepositoryImpl @Inject constructor(
                         file.delete()
                     }
                 }
-                songDao.updateDownloaded(song.pluginId, song.sourceId, false, null)
+                songDao.updateDownloaded(song.idType, song.pluginId, song.sourceId, false, null)
             }
             Timber.d("Cleared downloads: ${totalBytesCleared / (1024 * 1024)} MB")
         } catch (e: Exception) {

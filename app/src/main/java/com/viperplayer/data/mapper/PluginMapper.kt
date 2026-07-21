@@ -19,7 +19,8 @@ import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsLine
 import com.viperplayer.domain.model.LyricsWord
 import com.viperplayer.plugin.util.LrcParser
-import com.viperplayer.domain.model.MediaId
+import com.viperplayer.data.plugin.mediaIdFor
+import com.viperplayer.data.plugin.mediaIdForOrNull
 import com.viperplayer.domain.model.SectionAction
 import com.viperplayer.domain.model.SectionFilter
 import com.viperplayer.domain.model.MediaItem
@@ -80,7 +81,7 @@ object PluginMapper {
     }
 
     fun SdkSong.toDomain(pluginId: String): Song = Song(
-        id = MediaId(pluginId, id),
+        id = mediaIdFor(pluginId, id),
         title = title,
         artists = artists.map { it.toArtistRef(pluginId) },
         album = album?.toDomain(pluginId),
@@ -97,7 +98,7 @@ object PluginMapper {
     )
 
     fun SdkVideo.toDomain(pluginId: String): Song = Song(
-        id = MediaId(pluginId, id),
+        id = mediaIdFor(pluginId, id),
         title = title,
         artists = artists.map { it.toArtistRef(pluginId) },
         album = album?.toDomain(pluginId),
@@ -121,7 +122,7 @@ object PluginMapper {
     }
 
     fun SdkAlbum.toDomain(pluginId: String): Album = Album(
-        id = MediaId(pluginId, id),
+        id = mediaIdFor(pluginId, id),
         name = name,
         artists = artists.map { it.toArtistRef(pluginId) },
         artworkUrl = artwork.bestUrl(),
@@ -134,7 +135,7 @@ object PluginMapper {
     /** A byline credit (inside a Song/Album). Unlinked artists carry a null [ArtistRef.id]. */
     fun SdkArtist.toArtistRef(pluginId: String): ArtistRef = ArtistRef(
         name = name,
-        id = MediaId.of(pluginId, id),
+        id = mediaIdForOrNull(pluginId, id),
     )
 
     /**
@@ -142,7 +143,7 @@ object PluginMapper {
      * so it must carry a real id. A blank id here is an unlinked artist that should not be surfaced
      * as an entity; callers use [toArtistRef] instead. Returns null so such an artist is skipped.
      */
-    fun SdkArtist.toDomainRef(pluginId: String): Artist? = MediaId.of(pluginId, id)?.let { mediaId ->
+    fun SdkArtist.toDomainRef(pluginId: String): Artist? = mediaIdForOrNull(pluginId, id)?.let { mediaId ->
         Artist(
             id = mediaId,
             name = name,
@@ -151,7 +152,7 @@ object PluginMapper {
     }
 
     fun SdkArtist.toDomainDetail(pluginId: String): ArtistDetail = ArtistDetail(
-        id = MediaId(pluginId, id),
+        id = mediaIdFor(pluginId, id),
         name = name,
         imageUrl = artwork.bestUrl(),
         topSongs = topSongs.mapNotNull { it.toDomainSong(pluginId) },
@@ -163,7 +164,7 @@ object PluginMapper {
     )
 
     fun SdkPlaylist.toDomain(pluginId: String): Playlist = Playlist(
-        id = MediaId(pluginId, id),
+        id = mediaIdFor(pluginId, id),
         name = name,
         description = description,
         artworkUrl = artwork.bestUrl(),

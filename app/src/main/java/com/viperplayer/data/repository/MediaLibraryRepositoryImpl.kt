@@ -7,6 +7,16 @@ import com.viperplayer.data.local.dao.GenreDao
 import com.viperplayer.data.local.dao.PlayEventDao
 import com.viperplayer.data.local.dao.PlaylistDao
 import com.viperplayer.data.local.dao.SongDao
+import com.viperplayer.data.local.dao.delete
+import com.viperplayer.data.local.dao.getByMediaId
+import com.viperplayer.data.local.dao.getByMediaIdFlow
+import com.viperplayer.data.local.dao.getUnlinkedByName
+import com.viperplayer.data.local.dao.incrementPlayCount
+import com.viperplayer.data.local.dao.updateDownloaded
+import com.viperplayer.data.local.dao.updateLiked
+import com.viperplayer.data.local.dao.updateLocalArtworkPath
+import com.viperplayer.data.local.dao.updateName
+import com.viperplayer.data.local.dao.updateSaved
 import com.viperplayer.data.local.entity.AlbumArtistCrossRef
 import com.viperplayer.data.local.entity.ArtistEntity
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
@@ -18,6 +28,9 @@ import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toRef
+import com.viperplayer.data.local.mapper.entityPluginId
+import com.viperplayer.data.local.mapper.idType
+import com.viperplayer.data.local.mapper.mediaIdFromColumns
 import com.viperplayer.data.playlist.M3uSerializer
 import com.viperplayer.data.playlist.PlaylistOrdering
 import com.viperplayer.data.source.LocalMediaDataSource
@@ -85,7 +98,10 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         val entity = artistDao.getByIdSync(artistId) ?: return null
         // A row with a null sourceId is an unlinked byline artist (a name with no navigable
         // identity) → null id; a real sourceId → a linked ref that navigates to the artist.
-        return ArtistRef(name = entity.name, id = entity.sourceId?.let { MediaId(entity.pluginId, it) })
+        return ArtistRef(
+            name = entity.name,
+            id = entity.sourceId?.let { mediaIdFromColumns(entity.idType, entity.pluginId, it) },
+        )
     }
 
     /**
@@ -100,7 +116,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
      * Returns the artist ID, preserving existing ID to maintain foreign key relationships.
      */
     private suspend fun upsertArtist(artist: Artist): Long {
-        val existing = artistDao.getByMediaId(artist.id.pluginId, artist.id.sourceId)
+        val existing = artistDao.getByMediaId(artist.id)
         val entity = artist.toEntity()
 
         return if (existing != null) {
@@ -118,7 +134,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             val insertedId = artistDao.insert(entity)
             if (insertedId == -1L) {
                 // Insert was ignored due to conflict, try to get existing
-                artistDao.getByMediaId(artist.id.pluginId, artist.id.sourceId)?.id
+                artistDao.getByMediaId(artist.id)?.id
                     ?: throw IllegalStateException("Failed to insert or find artist: ${artist.id}")
             } else {
                 insertedId
@@ -128,20 +144,23 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     /**
      * Upsert a byline ref to an `artists` row and return its id. A linked ref (non-null id) dedups
-     * on (pluginId, sourceId); an unlinked ref (null id) becomes a null-sourceId row deduped on
-     * (pluginId, name) under [owningPluginId]. Byline order is kept by the caller's cross-ref.
+     * on (idType, pluginId, sourceId); an unlinked ref (null id) becomes a null-sourceId row deduped
+     * on (idType, pluginId, name) under [owningId]'s type/plugin. Byline order is kept by the caller's
+     * cross-ref.
      */
-    private suspend fun upsertArtistRef(owningPluginId: String, ref: ArtistRef): Long {
-        val id = ref.id ?: return upsertUnlinkedArtist(owningPluginId, ref.name)
+    private suspend fun upsertArtistRef(owningId: MediaId, ref: ArtistRef): Long {
+        val id = ref.id ?: return upsertUnlinkedArtist(owningId, ref.name)
         return upsertArtist(Artist(id = id, name = ref.name))
     }
 
     /** Find-or-insert a null-sourceId (unlinked) artist row for a plain byline name. */
-    private suspend fun upsertUnlinkedArtist(pluginId: String, name: String): Long {
-        artistDao.getUnlinkedByName(pluginId, name)?.let { return it.id }
-        val insertedId = artistDao.insert(ArtistEntity(pluginId = pluginId, sourceId = null, name = name))
+    private suspend fun upsertUnlinkedArtist(owningId: MediaId, name: String): Long {
+        artistDao.getUnlinkedByName(owningId, name)?.let { return it.id }
+        val insertedId = artistDao.insert(
+            ArtistEntity(idType = owningId.idType, pluginId = owningId.entityPluginId, sourceId = null, name = name)
+        )
         return if (insertedId != -1L) insertedId
-        else artistDao.getUnlinkedByName(pluginId, name)?.id
+        else artistDao.getUnlinkedByName(owningId, name)?.id
             ?: throw IllegalStateException("Failed to insert or find unlinked artist: $name")
     }
 
@@ -150,7 +169,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
      * Returns the album ID, preserving existing ID to maintain foreign key relationships.
      */
     private suspend fun upsertAlbum(album: Album, primaryArtistId: Long?): Long {
-        val existing = albumDao.getByMediaId(album.id.pluginId, album.id.sourceId)
+        val existing = albumDao.getByMediaId(album.id)
         val entity = album.toEntity(primaryArtistId)
 
         return if (existing != null) {
@@ -169,7 +188,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             val insertedId = albumDao.insert(entity)
             if (insertedId == -1L) {
                 // Insert was ignored due to conflict, try to get existing
-                albumDao.getByMediaId(album.id.pluginId, album.id.sourceId)?.id
+                albumDao.getByMediaId(album.id)?.id
                     ?: throw IllegalStateException("Failed to insert or find album: ${album.id}")
             } else {
                 insertedId
@@ -227,8 +246,8 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     // Artists
     override fun getArtist(mediaId: MediaId): Flow<Artist?> {
         return combine(
-            artistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
-            artistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id }
+            artistDao.getByMediaIdFlow(mediaId),
+            artistDao.getByMediaIdFlow(mediaId).map { it?.id }
         ) { artistEntity, _ ->
             if (artistEntity == null) return@combine null
             artistEntity.toDomain()
@@ -295,19 +314,19 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            artistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+            artistDao.updateLiked(mediaId, isLiked)
         }
 
     override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            artistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+            artistDao.updateSaved(mediaId, isSaved)
         }
 
     // Albums
     override fun getAlbum(mediaId: MediaId): Flow<Album?> {
         return combine(
-            albumDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
-            albumDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId).map { it?.id }
+            albumDao.getByMediaIdFlow(mediaId),
+            albumDao.getByMediaIdFlow(mediaId).map { it?.id }
         ) { albumEntity, albumId ->
             if (albumEntity == null) return@combine null
 
@@ -363,7 +382,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         // Upsert every byline ref (linked → dedup on sourceId; unlinked → null-sourceId row),
         // keeping each artist's position in the byline.
         val artistIds = album.artists.mapIndexed { index, ref ->
-            index to upsertArtistRef(album.id.pluginId, ref)
+            index to upsertArtistRef(album.id, ref)
         }
 
         val primaryArtistId = artistIds.firstOrNull()?.second
@@ -384,17 +403,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            albumDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+            albumDao.updateLiked(mediaId, isLiked)
         }
 
     override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            albumDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+            albumDao.updateSaved(mediaId, isSaved)
         }
 
     override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            albumDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
+            albumDao.updateDownloaded(mediaId, isDownloaded)
         }
 
     // Songs
@@ -403,7 +422,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         // distinctUntilChanged on the entity) — NOT on every connectivity tick — and via one-shot
         // sync queries instead of three duplicate row subscriptions + per-row Flow fan-out.
         val hydrated: Flow<Pair<SongEntity, Song>?> =
-            songDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId)
+            songDao.getByMediaIdFlow(mediaId)
                 .distinctUntilChanged()
                 .map { entity -> entity?.let { it to hydrateSong(it) } }
         // isPlayable is the only connectivity-dependent field, so layer it on cheaply.
@@ -570,7 +589,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             // Upsert every album byline ref (linked → dedup on sourceId; unlinked → null-sourceId
             // row), keeping each artist's byline position.
             val albumArtistIds = album.artists.mapIndexed { index, ref ->
-                index to upsertArtistRef(album.id.pluginId, ref)
+                index to upsertArtistRef(album.id, ref)
             }
 
             val primaryArtistId = albumArtistIds.firstOrNull()?.second
@@ -592,7 +611,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
 
         // Check if song already exists to preserve ID and other status fields
-        val existingSong = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+        val existingSong = songDao.getByMediaId(song.id)
         val songEntity = song.toEntity(albumId).copy(
             // CRITICAL: Preserve the existing ID to avoid breaking foreign key relationships
             id = existingSong?.id ?: 0L,
@@ -619,7 +638,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             val insertedId = songDao.insert(songEntity)
             if (insertedId == -1L) {
                 // Insert was ignored due to conflict, try to get existing
-                songDao.getByMediaId(song.id.pluginId, song.id.sourceId)?.id
+                songDao.getByMediaId(song.id)?.id
                     ?: throw IllegalStateException("Failed to insert or find song: ${song.id}")
             } else {
                 insertedId
@@ -634,7 +653,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     ioScope.launch {
                         val localPath = artworkDownloader.downloadArtwork(artworkUrl, song.id)
                         localPath?.let {
-                            songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, it)
+                            songDao.updateLocalArtworkPath(song.id, it)
                         }
                     }
                 }
@@ -648,7 +667,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         if (song.artists.isNotEmpty()) {
             crossRefDao.deleteSongArtists(songId)
             song.artists.forEachIndexed { index, ref ->
-                val artistId = upsertArtistRef(song.id.pluginId, ref)
+                val artistId = upsertArtistRef(song.id, ref)
                 crossRefDao.insertSongArtist(
                     SongArtistCrossRef(
                         songId = songId,
@@ -662,12 +681,15 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            songDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+            songDao.updateLiked(mediaId, isLiked)
 
             // Propagate the like/unlike up to the originating plugin account (two-way sync push).
-            libraryPushOutbox.enqueue(
-                LibraryMutation.SetLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
-            )
+            // Local songs have no remote account, so only plugin content is pushed.
+            if (mediaId is MediaId.Plugin) {
+                libraryPushOutbox.enqueue(
+                    LibraryMutation.SetLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+                )
+            }
 
             // Download artwork if song is being liked
             if (isLiked) {
@@ -675,7 +697,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 song?.artworkUrl?.let { artworkUrl ->
                     val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
                     localPath?.let {
-                        songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+                        songDao.updateLocalArtworkPath(mediaId, it)
                     }
                 }
             } else {
@@ -686,7 +708,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            songDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+            songDao.updateSaved(mediaId, isSaved)
 
             // Download artwork if song is being saved
             if (isSaved) {
@@ -694,7 +716,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 song?.artworkUrl?.let { artworkUrl ->
                     val localPath = artworkDownloader.downloadArtwork(artworkUrl, mediaId)
                     localPath?.let {
-                        songDao.updateLocalArtworkPath(mediaId.pluginId, mediaId.sourceId, it)
+                        songDao.updateLocalArtworkPath(mediaId, it)
                     }
                 }
             }
@@ -705,16 +727,16 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         isDownloaded: Boolean,
         downloadPath: String?
     ): Unit = withContext(Dispatchers.IO) {
-        songDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded, downloadPath)
+        songDao.updateDownloaded(mediaId, isDownloaded, downloadPath)
     }
 
     override suspend fun incrementSongPlayCount(mediaId: MediaId): Unit =
         withContext(Dispatchers.IO) {
-            songDao.incrementPlayCount(mediaId.pluginId, mediaId.sourceId)
+            songDao.incrementPlayCount(mediaId)
             // Also record a discrete play event so History and the time-windowed Stats screen have a
             // per-play signal. Resolve the local song row first; if the song isn't persisted yet there
             // is nothing to reference (the FK would fail), so we simply skip the event.
-            val songId = songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)?.id
+            val songId = songDao.getByMediaId(mediaId)?.id
             if (songId != null) {
                 playEventDao.insert(
                     PlayEventEntity(
@@ -731,7 +753,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             // Fill it onto the most recent unmeasured play of this song so Stats reflect actual
             // listening rather than the full-duration estimate used as a fallback.
             if (durationListenedMs <= 0L) return@withContext
-            val songId = songDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)?.id
+            val songId = songDao.getByMediaId(mediaId)?.id
                 ?: return@withContext
             playEventDao.recordListenedTimeForLatest(songId, durationListenedMs)
         }
@@ -830,7 +852,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         // Observe playlist_songs reactively (via flatMapLatest on the playlist row id) so that
         // membership/order edits — including a same-app add from the picker — re-emit here rather
         // than requiring a manual reload.
-        val songIdsFlow = playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId)
+        val songIdsFlow = playlistDao.getByMediaIdFlow(mediaId)
             .map { it?.id }
             .distinctUntilChanged()
             .flatMapLatest { playlistId ->
@@ -838,7 +860,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 else crossRefDao.getSongIdsForPlaylistFlow(playlistId)
             }
         return combine(
-            playlistDao.getByMediaIdFlow(mediaId.pluginId, mediaId.sourceId),
+            playlistDao.getByMediaIdFlow(mediaId),
             songIdsFlow,
             pluginRepository.connectedPlugins,
             networkConnectivityChecker.isInternetAvailable
@@ -961,7 +983,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun savePlaylist(playlist: Playlist): Unit = withContext(Dispatchers.IO) {
         // Upsert instead of REPLACE: REPLACE would churn the PK and CASCADE-delete every
         // playlist_songs row (and reset status flags). Preserve the id + flags like saveSong does.
-        val existing = playlistDao.getByMediaId(playlist.id.pluginId, playlist.id.sourceId)
+        val existing = playlistDao.getByMediaId(playlist.id)
         val playlistEntity = playlist.toEntity().copy(
             id = existing?.id ?: 0L,
             isLiked = existing?.isLiked ?: false,
@@ -981,7 +1003,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             crossRefDao.deletePlaylistSongs(playlistId)
             songs.forEachIndexed { index, song ->
                 saveSong(song)
-                val songEntity = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+                val songEntity = songDao.getByMediaId(song.id)
                 songEntity?.let {
                     crossRefDao.insertPlaylistSong(
                         PlaylistSongCrossRef(
@@ -995,7 +1017,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     if (it.localArtworkPath == null && song.artworkUrl != null) {
                         val localPath = artworkDownloader.downloadArtwork(song.artworkUrl, song.id)
                         localPath?.let { path ->
-                            songDao.updateLocalArtworkPath(song.id.pluginId, song.id.sourceId, path)
+                            songDao.updateLocalArtworkPath(song.id, path)
                         }
                     }
                 }
@@ -1005,22 +1027,22 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            playlistDao.updateLiked(mediaId.pluginId, mediaId.sourceId, isLiked)
+            playlistDao.updateLiked(mediaId, isLiked)
         }
 
     override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            playlistDao.updateSaved(mediaId.pluginId, mediaId.sourceId, isSaved)
+            playlistDao.updateSaved(mediaId, isSaved)
         }
 
     override suspend fun isPlaylistSaved(mediaId: MediaId): Boolean =
         withContext(Dispatchers.IO) {
-            playlistDao.getByMediaId(mediaId.pluginId, mediaId.sourceId)?.isSaved ?: false
+            playlistDao.getByMediaId(mediaId)?.isSaved ?: false
         }
 
     override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean): Unit =
         withContext(Dispatchers.IO) {
-            playlistDao.updateDownloaded(mediaId.pluginId, mediaId.sourceId, isDownloaded)
+            playlistDao.updateDownloaded(mediaId, isDownloaded)
         }
 
     override fun getLikedSongsPlaylist(): Flow<Playlist> {
@@ -1029,7 +1051,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             val artworkUrl = songs.firstOrNull { it.artworkUrl != null }?.artworkUrl
 
             Playlist(
-                id = MediaId("local", "liked_songs"),
+                id = MediaId.Local("liked_songs"),
                 name = "Liked Songs",
                 description = "Songs you've liked",
                 artworkUrl = artworkUrl,
@@ -1058,7 +1080,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun createLocalPlaylist(name: String): MediaId = withContext(Dispatchers.IO) {
         val trimmed = name.trim().ifBlank { "Playlist" }
-        val mediaId = MediaId("local", "playlist_${UUID.randomUUID()}")
+        val mediaId = MediaId.Local("playlist_${UUID.randomUUID()}")
         savePlaylist(
             Playlist(
                 id = mediaId,
@@ -1076,20 +1098,20 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             // Guard: only user-created local playlists can be renamed. Remote plugin playlists and the
             // virtual "Liked Songs" list (which isn't a stored row) are left untouched.
-            if (mediaId.pluginId != "local" || mediaId.sourceId == "liked_songs") return@withContext
+            if (mediaId !is MediaId.Local || mediaId.sourceId == "liked_songs") return@withContext
             val trimmed = newName.trim()
             if (trimmed.isBlank()) return@withContext
-            playlistDao.updateName(mediaId.pluginId, mediaId.sourceId, trimmed)
+            playlistDao.updateName(mediaId, trimmed)
         }
 
     override suspend fun addSongToPlaylist(playlistId: MediaId, song: Song): Unit =
         withContext(Dispatchers.IO) {
             val playlistEntity =
-                playlistDao.getByMediaId(playlistId.pluginId, playlistId.sourceId) ?: return@withContext
+                playlistDao.getByMediaId(playlistId) ?: return@withContext
             // If the song already has a row and is already a member, leave its position untouched
             // (no duplicate: PK is playlistId+songId) and skip saveSong so we don't clobber good
             // persisted metadata with a possibly leaner Song object.
-            val existing = songDao.getByMediaId(song.id.pluginId, song.id.sourceId)
+            val existing = songDao.getByMediaId(song.id)
             if (existing != null &&
                 crossRefDao.countSongInPlaylist(playlistEntity.id, existing.id) > 0
             ) {
@@ -1098,7 +1120,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             // Persist the song so a not-yet-saved plugin track still has a row to reference.
             saveSong(song)
             val songEntity =
-                songDao.getByMediaId(song.id.pluginId, song.id.sourceId) ?: return@withContext
+                songDao.getByMediaId(song.id) ?: return@withContext
             val nextPosition =
                 PlaylistOrdering.nextPosition(crossRefDao.getMaxPositionForPlaylist(playlistEntity.id))
             crossRefDao.insertPlaylistSong(
@@ -1112,9 +1134,12 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             // Push the membership change up to the plugin account when the playlist and the track
             // both belong to the same plugin (a remote playlist). Cross-plugin adds and local-only
             // playlists have no single remote target, so they are not pushed.
-            if (playlistId.pluginId != "local" && song.id.pluginId == playlistId.pluginId) {
+            val songId = song.id
+            if (playlistId is MediaId.Plugin && songId is MediaId.Plugin &&
+                songId.pluginId == playlistId.pluginId
+            ) {
                 libraryPushOutbox.enqueue(
-                    LibraryMutation.AddTrackToPlaylist(playlistId.pluginId, playlistId.sourceId, song.id.sourceId)
+                    LibraryMutation.AddTrackToPlaylist(playlistId.pluginId, playlistId.sourceId, songId.sourceId)
                 )
             }
         }
@@ -1122,15 +1147,17 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun removeSongFromPlaylist(playlistId: MediaId, songId: MediaId): Unit =
         withContext(Dispatchers.IO) {
             val playlistEntity =
-                playlistDao.getByMediaId(playlistId.pluginId, playlistId.sourceId) ?: return@withContext
+                playlistDao.getByMediaId(playlistId) ?: return@withContext
             val songEntity =
-                songDao.getByMediaId(songId.pluginId, songId.sourceId) ?: return@withContext
+                songDao.getByMediaId(songId) ?: return@withContext
             crossRefDao.removeSongFromPlaylist(playlistEntity.id, songEntity.id)
             // Compact positions so they stay contiguous (0..n-1) after the removal.
             rewritePlaylistPositions(playlistEntity.id, crossRefDao.getSongIdsForPlaylist(playlistEntity.id))
 
             // Push the removal up to the plugin account for a remote playlist (see addSongToPlaylist).
-            if (playlistId.pluginId != "local" && songId.pluginId == playlistId.pluginId) {
+            if (playlistId is MediaId.Plugin && songId is MediaId.Plugin &&
+                songId.pluginId == playlistId.pluginId
+            ) {
                 libraryPushOutbox.enqueue(
                     LibraryMutation.RemoveTrackFromPlaylist(playlistId.pluginId, playlistId.sourceId, songId.sourceId)
                 )
@@ -1143,7 +1170,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         toIndex: Int
     ): Unit = withContext(Dispatchers.IO) {
         val playlistEntity =
-            playlistDao.getByMediaId(playlistId.pluginId, playlistId.sourceId) ?: return@withContext
+            playlistDao.getByMediaId(playlistId) ?: return@withContext
         val ordered = crossRefDao.getSongIdsForPlaylist(playlistEntity.id)
         val reordered = PlaylistOrdering.move(ordered, fromIndex, toIndex)
         if (reordered == ordered) return@withContext
@@ -1183,7 +1210,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
     override suspend fun exportPlaylistToM3u(mediaId: MediaId): String? =
         withContext(Dispatchers.IO) {
-            val playlist = if (mediaId.pluginId == "local" && mediaId.sourceId == "liked_songs") {
+            val playlist = if (mediaId is MediaId.Local && mediaId.sourceId == "liked_songs") {
                 getLikedSongsPlaylist().first()
             } else {
                 getPlaylist(mediaId).first()
@@ -1205,7 +1232,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                 return@mapNotNull null
             }
             val (pluginId, sourceId) = viper
-            val id = MediaId.of(pluginId, sourceId)
+            val id = MediaId.fromOrNull(pluginId, sourceId)
             if (id == null) {
                 skipped++
                 return@mapNotNull null
@@ -1220,7 +1247,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
         }
 
         val playlist = Playlist(
-            id = MediaId("local", "import_${System.currentTimeMillis()}"),
+            id = MediaId.Local("import_${System.currentTimeMillis()}"),
             name = playlistName.ifBlank { "Imported playlist" },
             songCount = songs.size,
             isPublic = false,

@@ -148,7 +148,8 @@ class ViperMediaSource(
 
         sourceScope.launch {
             try {
-                val mediaId = MediaId.fromString(mediaItem.mediaId)
+                val mediaId = MediaId.decode(mediaItem.mediaId)
+                    ?: throw IllegalStateException("Unresolvable mediaId: ${mediaItem.mediaId}")
                 val isVideo = mediaItem.mediaMetadata.extras?.getBoolean("isVideo") == true
                 val resolved = pluginDataSource.getStream(mediaId, isVideo).getOrThrow()
                 val source = resolved.source

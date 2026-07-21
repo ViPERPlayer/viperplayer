@@ -10,48 +10,49 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Instrumented (real android.net.Uri) test for the "Song radio" synthetic-id encode/parse round-trip
- * (issue #7). [RadioPlaylist.buildMediaId] packs the seed [MediaId] into the radio id's `sourceId`
- * (URL-encoded) so that [RadioPlaylist.parseSeedId] recovers it exactly — even when the seed is a
- * `local` `content://…` URI full of reserved characters that would otherwise corrupt the id string.
+ * Instrumented (real android.net.Uri) test for the "Song radio" synthetic-id round-trip (issue #7).
+ * Radio is now the typed [MediaId.Radio] variant that holds the seed [MediaId] directly, so
+ * [RadioPlaylist.buildMediaId] wraps the seed and [RadioPlaylist.parseSeedId] unwraps it — even when
+ * the seed is a `local` `content://…` URI full of reserved characters. The [MediaId.encode]/[MediaId.decode]
+ * round-trip through the wrapped seed is also verified.
  */
 @RunWith(AndroidJUnit4::class)
 class RadioPlaylistIdTest {
 
     @Test
     fun buildMediaId_isRadioPlaylist_andParsesSeedBack() {
-        val seed = MediaId("local", "content://media/external/audio/media/123")
+        val seed = MediaId.Local("content://media/external/audio/media/123")
 
         val radioId = RadioPlaylist.buildMediaId(seed)
 
-        assertEquals(RadioPlaylist.PLUGIN_ID, radioId.pluginId)
+        assertTrue(radioId is MediaId.Radio)
         assertTrue(RadioPlaylist.isRadioPlaylist(radioId))
-        // Round-trips exactly back to the original seed — not a percent-mangled form.
+        // Round-trips exactly back to the original seed.
         assertEquals(seed, RadioPlaylist.parseSeedId(radioId))
     }
 
     @Test
-    fun buildMediaId_roundTrips_pluginSeedWithReservedChars() {
-        // A plugin seed whose sourceId itself contains '=' and '&' (the MediaId string separators).
-        val seed = MediaId("testsource", "track=42&region=US")
-
+    fun encodeDecode_roundTrips_radioWithSeedContainingReservedChars() {
+        // A plugin seed whose sourceId itself contains '=' and '&' (the encode() separators).
+        val seed = MediaId.Plugin("testsource", "track=42&region=US")
         val radioId = RadioPlaylist.buildMediaId(seed)
-        // The nested separators are encoded away, so the radio id's own parsing is not confused.
-        assertFalse(radioId.sourceId.contains("&"))
 
-        assertEquals(seed, RadioPlaylist.parseSeedId(radioId))
+        // encode/decode round-trips the whole radio id (and thus the nested seed) intact.
+        val decoded = MediaId.decode(radioId.encode())
+        assertEquals(radioId, decoded)
+        assertEquals(seed, RadioPlaylist.parseSeedId(decoded!!))
     }
 
     @Test
     fun parseSeedId_nonRadioId_isNull() {
-        assertNull(RadioPlaylist.parseSeedId(MediaId("auto", "recently_added")))
-        assertNull(RadioPlaylist.parseSeedId(MediaId("local", "song123")))
+        assertNull(RadioPlaylist.parseSeedId(MediaId.Plugin("auto", "recently_added")))
+        assertNull(RadioPlaylist.parseSeedId(MediaId.Local("song123")))
     }
 
     @Test
-    fun isRadioPlaylist_onlyForRadioPlugin() {
-        assertTrue(RadioPlaylist.isRadioPlaylist(MediaId("radio", "seed")))
-        assertFalse(RadioPlaylist.isRadioPlaylist(MediaId("auto", "seed")))
-        assertFalse(RadioPlaylist.isRadioPlaylist(MediaId("local", "seed")))
+    fun isRadioPlaylist_onlyForRadioVariant() {
+        assertTrue(RadioPlaylist.isRadioPlaylist(MediaId.Radio(MediaId.Local("seed"))))
+        assertFalse(RadioPlaylist.isRadioPlaylist(MediaId.Plugin("auto", "seed")))
+        assertFalse(RadioPlaylist.isRadioPlaylist(MediaId.Local("seed")))
     }
 }

@@ -13,7 +13,7 @@ import org.junit.Test
 class NavigationLogicTest {
 
     private fun album(id: String): NavKey =
-        AlbumDetail(albumId = MediaId(pluginId = "p", sourceId = id), initialName = "n")
+        AlbumDetail(albumId = MediaId.Plugin(pluginId = "p", sourceId = id), initialName = "n")
 
     @Test
     fun shouldPush_ontoEmptyStack_isTrue() {

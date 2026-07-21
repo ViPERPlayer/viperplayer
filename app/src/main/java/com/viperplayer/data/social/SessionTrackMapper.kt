@@ -12,7 +12,7 @@ import com.viperplayer.domain.model.Song
  * album field) — the round-trip through the server would drop it anyway.
  */
 fun Song.toSessionTrack(): SessionTrack = SessionTrack(
-    pluginId = id.pluginId,
+    pluginId = id.routingPluginId,
     sourceId = id.sourceId,
     title = title,
     artist = artistNames.orEmpty(),

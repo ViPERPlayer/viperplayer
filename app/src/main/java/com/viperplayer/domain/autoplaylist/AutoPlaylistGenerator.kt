@@ -65,11 +65,11 @@ object AutoPlaylistGenerator {
      * @param records the play-history to rank over (already range-filtered by the caller if desired).
      * @param library the current library songs, indexed by id for resolution.
      * @param keyOf how a [Song]'s [MediaId] maps to the string the play-history stores. Defaults to the
-     *   pure [mediaKey]; the (Android) repository passes `MediaId::toString` so the join matches the
+     *   pure [mediaKey]; the (Android) repository passes `MediaId::encode` so the join matches the
      *   Uri-encoded ids actually persisted. Overriding it keeps this function Android-free/testable.
      * @param mediaIdOf how a history record's id string is turned back into a [MediaId] when the song is
      *   no longer in the library. Defaults to the pure [parseMediaId]; the (Android) repository passes a
-     *   `MediaId.fromString`-based parser so the reconstructed id is Uri-DECODED (round-tripping the
+     *   `MediaId.decode`-based parser so the reconstructed id is Uri-DECODED (round-tripping the
      *   encoded string the history stores) instead of keeping percent-escapes. Kept as a parameter so
      *   this function stays Android-free/testable.
      */
@@ -195,11 +195,16 @@ object AutoPlaylistGenerator {
     ): Song = byId[mediaIdString] ?: recordToSong(record, mediaIdOf)
 
     /**
-     * The join key between a [Song] and a [PlayRecord]: the [Song.id]'s canonical `pluginId&sourceId`
-     * string, computed purely (no Android `Uri`) so the generator stays Android-free and JVM-testable.
-     * Must produce the same string the play-history stores in [PlayRecord.mediaId] for identical ids.
+     * The join key between a [Song] and a [PlayRecord]: a stable, type-tagged string for the
+     * [Song.id], computed purely (no Android `Uri`) so the generator stays Android-free and
+     * JVM-testable. Must round-trip with [parseMediaId]. The on-device repository overrides this with
+     * `MediaId.encode` so it matches exactly what the play-history stores in [PlayRecord.mediaId].
      */
-    fun mediaKey(mediaId: MediaId): String = "pluginId=${mediaId.pluginId}&sourceId=${mediaId.sourceId}"
+    fun mediaKey(mediaId: MediaId): String = when (mediaId) {
+        is MediaId.Plugin -> "t=plugin&p=${mediaId.pluginId}&s=${mediaId.sourceId}"
+        is MediaId.Local -> "t=local&s=${mediaId.sourceId}"
+        is MediaId.Radio -> "t=radio&seed=${mediaKey(mediaId.seed)}"
+    }
 
     /** Indexes [library] by [keyOf] for O(1) resolution of a ranked history id back to a song. */
     private fun indexLibrary(library: List<Song>, keyOf: (MediaId) -> String): Map<String, Song> =
@@ -212,7 +217,7 @@ object AutoPlaylistGenerator {
      *
      * @param mediaIdOf turns the record's id string back into a [MediaId]. Defaults to the pure
      *   [parseMediaId] (no `Uri`) so this is JVM-testable; the (Android) repository passes a
-     *   `MediaId.fromString`-based parser so the reconstructed id is Uri-DECODED and round-trips exactly
+     *   `MediaId.decode`-based parser so the reconstructed id is Uri-DECODED and round-trips exactly
      *   with the encoded string the history stores (otherwise the plugin is later handed a raw
      *   percent-encoded sourceId and resolves the wrong track / fails to stream — notably for `local`,
      *   whose sourceId is a `content://…` URI). Either parser must never throw on a malformed id.
@@ -231,23 +236,27 @@ object AutoPlaylistGenerator {
     )
 
     /**
-     * Pure parse of a `pluginId=…&sourceId=…` id string into a [MediaId] (no Android `Uri`). Values are
-     * used as-is (NOT Uri-decoded); a missing/blank `sourceId` falls back to the raw string so a
-     * [MediaId] can always be constructed (its `sourceId` must be non-blank). Exposed as the pure
-     * default for [recordToSong]/the play-based generators and as a safe fallback for the repository's
-     * decoding parser (`MediaId.fromString`) when an id is genuinely malformed; never throws.
+     * Pure parse of a [mediaKey] string into a [MediaId] (no Android `Uri`). Values are used as-is (NOT
+     * Uri-decoded); a missing/blank `sourceId` falls back to the raw string so a [MediaId] can always
+     * be constructed (its `sourceId` must be non-blank). Exposed as the pure default for
+     * [recordToSong]/the play-based generators and as a safe fallback for the repository's decoding
+     * parser (`MediaId.decode`) when an id is genuinely malformed; never throws.
      */
     fun parseMediaId(raw: String): MediaId {
         val params = raw.split("&").mapNotNull { part ->
             val idx = part.indexOf('=')
             if (idx <= 0) null else part.substring(0, idx) to part.substring(idx + 1)
         }.toMap()
-        val pluginId = params["pluginId"].orEmpty()
         // sourceId must be non-blank (MediaId's init requires it); fall back to the raw string, then to
         // a placeholder so a malformed/blank id can never throw here.
-        val sourceId = params["sourceId"]?.takeIf { it.isNotBlank() }
+        val sourceId = params["s"]?.takeIf { it.isNotBlank() }
             ?: raw.takeIf { it.isNotBlank() }
             ?: "unknown"
-        return MediaId(pluginId.ifBlank { "unknown" }, sourceId)
+        return when (params["t"]) {
+            "local" -> MediaId.Local(sourceId)
+            "radio" -> params["seed"]?.takeIf { it.isNotBlank() }?.let { MediaId.Radio(parseMediaId(it)) }
+                ?: MediaId.Local(sourceId)
+            else -> MediaId.Plugin(params["p"].orEmpty().ifBlank { "unknown" }, sourceId)
+        }
     }
 }

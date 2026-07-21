@@ -14,12 +14,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ArtistDao {
 
-    @Query("SELECT * FROM artists WHERE pluginId = :pluginId AND sourceId = :sourceId LIMIT 1")
-    suspend fun getByMediaId(pluginId: String, sourceId: String): ArtistEntity?
+    @Query("SELECT * FROM artists WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId LIMIT 1")
+    suspend fun getByMediaId(idType: String, pluginId: String, sourceId: String): ArtistEntity?
 
     /** Find an unlinked (null-sourceId) byline artist by name, for dedup on insert. */
-    @Query("SELECT * FROM artists WHERE pluginId = :pluginId AND sourceId IS NULL AND name = :name LIMIT 1")
-    suspend fun getUnlinkedByName(pluginId: String, name: String): ArtistEntity?
+    @Query("SELECT * FROM artists WHERE idType = :idType AND pluginId = :pluginId AND sourceId IS NULL AND name = :name LIMIT 1")
+    suspend fun getUnlinkedByName(idType: String, pluginId: String, name: String): ArtistEntity?
 
     @Query("SELECT * FROM artists WHERE id = :id")
     fun getById(id: Long): Flow<ArtistEntity?>
@@ -27,8 +27,8 @@ interface ArtistDao {
     @Query("SELECT * FROM artists WHERE id = :id LIMIT 1")
     suspend fun getByIdSync(id: Long): ArtistEntity?
 
-    @Query("SELECT * FROM artists WHERE pluginId = :pluginId AND sourceId = :sourceId")
-    fun getByMediaIdFlow(pluginId: String, sourceId: String): Flow<ArtistEntity?>
+    @Query("SELECT * FROM artists WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId")
+    fun getByMediaIdFlow(idType: String, pluginId: String, sourceId: String): Flow<ArtistEntity?>
 
     @Query("SELECT * FROM artists WHERE isLiked = 1 ORDER BY name ASC")
     fun getAllLiked(): Flow<List<ArtistEntity>>
@@ -51,14 +51,14 @@ interface ArtistDao {
     @Update
     suspend fun update(artist: ArtistEntity)
 
-    @Query("UPDATE artists SET isLiked = :isLiked WHERE pluginId = :pluginId AND sourceId = :sourceId")
-    suspend fun updateLiked(pluginId: String, sourceId: String, isLiked: Boolean)
+    @Query("UPDATE artists SET isLiked = :isLiked WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId")
+    suspend fun updateLiked(idType: String, pluginId: String, sourceId: String, isLiked: Boolean)
 
-    @Query("UPDATE artists SET isSaved = :isSaved WHERE pluginId = :pluginId AND sourceId = :sourceId")
-    suspend fun updateSaved(pluginId: String, sourceId: String, isSaved: Boolean)
+    @Query("UPDATE artists SET isSaved = :isSaved WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId")
+    suspend fun updateSaved(idType: String, pluginId: String, sourceId: String, isSaved: Boolean)
 
-    @Query("DELETE FROM artists WHERE pluginId = :pluginId AND sourceId = :sourceId")
-    suspend fun delete(pluginId: String, sourceId: String)
+    @Query("DELETE FROM artists WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId")
+    suspend fun delete(idType: String, pluginId: String, sourceId: String)
 
     @Query("DELETE FROM artists")
     suspend fun deleteAll()

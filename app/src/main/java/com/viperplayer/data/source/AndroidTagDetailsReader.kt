@@ -37,7 +37,7 @@ class AndroidTagDetailsReader @Inject constructor(
     private val contentResolver: ContentResolver = context.contentResolver
 
     override suspend fun read(mediaId: MediaId): TagDetails? = withContext(Dispatchers.IO) {
-        if (mediaId.pluginId != LOCAL_PLUGIN_ID) return@withContext null
+        if (mediaId !is MediaId.Local) return@withContext null
         val uri = runCatching { mediaId.sourceId.toUri() }.getOrNull() ?: return@withContext null
 
         val tags = readTextTags(uri)
@@ -168,8 +168,4 @@ class AndroidTagDetailsReader @Inject constructor(
         val bitsPerSample: Int? = null,
         val coverArtBytes: Int? = null,
     )
-
-    private companion object {
-        const val LOCAL_PLUGIN_ID = "local"
-    }
 }

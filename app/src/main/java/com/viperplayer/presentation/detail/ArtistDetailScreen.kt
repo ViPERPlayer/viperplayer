@@ -442,33 +442,33 @@ private fun ArtistDetailScreenContent(
 @Composable
 private fun ArtistDetailScreenPreview() {
     val artist = ArtistDetail(
-        id = MediaId("plugin", "artist1"),
+        id = MediaId.Plugin("plugin", "artist1"),
         name = "Pink Floyd",
         imageUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
         topSongs = listOf(
             Song(
-                id = MediaId("plugin", "song1"),
+                id = MediaId.Plugin("plugin", "song1"),
                 title = "Money",
-                artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+                artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
                 durationMs = 382000
             ),
             Song(
-                id = MediaId("plugin", "song2"),
+                id = MediaId.Plugin("plugin", "song2"),
                 title = "Another Brick in the Wall, Pt. 2",
-                artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+                artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
                 durationMs = 239000,
                 isExplicit = true
             )
         ),
         albums = listOf(
             Album(
-                id = MediaId("plugin", "album1"),
+                id = MediaId.Plugin("plugin", "album1"),
                 name = "The Dark Side of the Moon",
                 artists = emptyList(),
                 artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png"
             ),
             Album(
-                id = MediaId("plugin", "album2"),
+                id = MediaId.Plugin("plugin", "album2"),
                 name = "The Wall",
                 artists = emptyList(),
                 artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png"

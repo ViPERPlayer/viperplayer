@@ -27,19 +27,24 @@ data class FollowedArtistEntity(
     val followedAt: Long,
 ) {
     fun toDomain(): FollowedArtist = FollowedArtist(
-        mediaId = MediaId(pluginId, sourceId),
+        // Followed artists are always plugin artists (follows sync to a plugin account).
+        mediaId = MediaId.Plugin(pluginId, sourceId),
         name = name,
         artworkUrl = artworkUrl,
         followedAt = followedAt,
     )
 
     companion object {
-        fun fromDomain(artist: FollowedArtist): FollowedArtistEntity = FollowedArtistEntity(
-            pluginId = artist.mediaId.pluginId,
-            sourceId = artist.mediaId.sourceId,
-            name = artist.name,
-            artworkUrl = artist.artworkUrl,
-            followedAt = artist.followedAt,
-        )
+        fun fromDomain(artist: FollowedArtist): FollowedArtistEntity {
+            val mediaId = artist.mediaId
+            val pluginId = if (mediaId is MediaId.Plugin) mediaId.pluginId else ""
+            return FollowedArtistEntity(
+                pluginId = pluginId,
+                sourceId = mediaId.sourceId,
+                name = artist.name,
+                artworkUrl = artist.artworkUrl,
+                followedAt = artist.followedAt,
+            )
+        }
     }
 }

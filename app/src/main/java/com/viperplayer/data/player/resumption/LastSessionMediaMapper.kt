@@ -46,7 +46,7 @@ object LastSessionMediaMapper {
      * resumption card and now-playing UI render immediately, before any network call.
      */
     fun toMediaItem(item: LastSessionItem): MediaItem {
-        val mediaId = MediaId(item.pluginId, item.sourceId).toString()
+        val mediaId = MediaId.from(item.pluginId, item.sourceId).encode()
         val extras = Bundle().apply {
             putString("pluginId", item.pluginId)
             putString("sourceId", item.sourceId)

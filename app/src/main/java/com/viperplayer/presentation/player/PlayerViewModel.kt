@@ -398,7 +398,7 @@ class PlayerViewModel @Inject constructor(
             if (songs.isEmpty() || trimmed.isEmpty()) return@launch
             mediaLibraryRepository.savePlaylist(
                 Playlist(
-                    id = MediaId("local", "queue_${System.currentTimeMillis()}"),
+                    id = MediaId.Local("queue_${System.currentTimeMillis()}"),
                     name = trimmed,
                     songCount = songs.size,
                     isPublic = false,

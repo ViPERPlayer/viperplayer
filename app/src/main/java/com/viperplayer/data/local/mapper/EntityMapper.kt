@@ -12,6 +12,37 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 
+/** Room `idType` discriminator values for a persisted [MediaId]. Library rows are Plugin or Local. */
+const val ID_TYPE_PLUGIN = "plugin"
+const val ID_TYPE_LOCAL = "local"
+
+/**
+ * The (idType, pluginId) column pair for a persisted [MediaId]. `pluginId` is `""` for a [MediaId.Local]
+ * so the `(idType, pluginId, sourceId)` unique index and equality queries work without NULL handling.
+ * Radio ids are never persisted in the library tables.
+ */
+val MediaId.idType: String
+    get() = when (this) {
+        is MediaId.Plugin -> ID_TYPE_PLUGIN
+        is MediaId.Local -> ID_TYPE_LOCAL
+        is MediaId.Radio -> error("Radio MediaId is not persisted in the library database")
+    }
+
+/** The `pluginId` column value for a persisted [MediaId] ("" for local). */
+val MediaId.entityPluginId: String
+    get() = when (this) {
+        is MediaId.Plugin -> pluginId
+        is MediaId.Local -> ""
+        is MediaId.Radio -> error("Radio MediaId is not persisted in the library database")
+    }
+
+/** Rebuilds a persisted library [MediaId] from its type-discriminated columns. */
+fun mediaIdFromColumns(idType: String, pluginId: String, sourceId: String): MediaId =
+    when (idType) {
+        ID_TYPE_LOCAL -> MediaId.Local(sourceId)
+        else -> MediaId.Plugin(pluginId, sourceId)
+    }
+
 /**
  * Mappers between Room entities and domain models.
  */
@@ -23,7 +54,11 @@ object EntityMapper {
     // (reached via getArtist(mediaId) lookups). Unlinked rows surface as an [ArtistRef] via [toRef].
     fun ArtistEntity.toDomain(): Artist {
         return Artist(
-            id = MediaId(pluginId, checkNotNull(sourceId) { "navigable artist row must have a sourceId" }),
+            id = mediaIdFromColumns(
+                idType,
+                pluginId,
+                checkNotNull(sourceId) { "navigable artist row must have a sourceId" },
+            ),
             name = name,
             imageUrl = imageUrl
         )
@@ -33,11 +68,13 @@ object EntityMapper {
     fun Artist.toRef(): ArtistRef = ArtistRef(name = name, id = id)
 
     /** A byline ref from a stored artist row: a null sourceId is an unlinked (null-id) ref. */
-    fun ArtistEntity.toRef(): ArtistRef = ArtistRef(name = name, id = sourceId?.let { MediaId(pluginId, it) })
+    fun ArtistEntity.toRef(): ArtistRef =
+        ArtistRef(name = name, id = sourceId?.let { mediaIdFromColumns(idType, pluginId, it) })
 
     fun Artist.toEntity(): ArtistEntity {
         return ArtistEntity(
-            pluginId = id.pluginId,
+            idType = id.idType,
+            pluginId = id.entityPluginId,
             sourceId = id.sourceId,
             name = name,
             imageUrl = imageUrl,
@@ -50,7 +87,7 @@ object EntityMapper {
     // Album mappings (requires artists to be loaded separately)
     fun AlbumEntity.toDomain(artists: List<ArtistRef> = emptyList()): Album {
         return Album(
-            id = MediaId(pluginId, sourceId),
+            id = mediaIdFromColumns(idType, pluginId, sourceId),
             name = name,
             artists = artists,
             artworkUrl = artworkUrl,
@@ -62,7 +99,8 @@ object EntityMapper {
 
     fun Album.toEntity(primaryArtistId: Long? = null): AlbumEntity {
         return AlbumEntity(
-            pluginId = id.pluginId,
+            idType = id.idType,
+            pluginId = id.entityPluginId,
             sourceId = id.sourceId,
             name = name,
             primaryArtistId = primaryArtistId,
@@ -92,7 +130,7 @@ object EntityMapper {
         } ?: artworkUrl
 
         return Song(
-            id = MediaId(pluginId, sourceId),
+            id = mediaIdFromColumns(idType, pluginId, sourceId),
             title = title,
             artists = artists,
             album = album,
@@ -113,7 +151,8 @@ object EntityMapper {
 
     fun Song.toEntity(albumId: Long? = null): SongEntity {
         return SongEntity(
-            pluginId = id.pluginId,
+            idType = id.idType,
+            pluginId = id.entityPluginId,
             sourceId = id.sourceId,
             title = title,
             albumId = albumId,
@@ -139,7 +178,7 @@ object EntityMapper {
     // Playlist mappings
     fun PlaylistEntity.toDomain(songs: List<Song>? = null): Playlist {
         return Playlist(
-            id = MediaId(pluginId, sourceId),
+            id = mediaIdFromColumns(idType, pluginId, sourceId),
             name = name,
             description = description,
             artworkUrl = artworkUrl,
@@ -153,7 +192,8 @@ object EntityMapper {
 
     fun Playlist.toEntity(): PlaylistEntity {
         return PlaylistEntity(
-            pluginId = id.pluginId,
+            idType = id.idType,
+            pluginId = id.entityPluginId,
             sourceId = id.sourceId,
             name = name,
             description = description,

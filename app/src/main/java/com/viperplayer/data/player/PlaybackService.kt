@@ -511,7 +511,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         // The song is persisted before playback begins (saveSong precedes setMediaItem), so the
         // event's foreign key resolves; if it somehow isn't, the repository simply skips the event.
         if (mediaItem != null) {
-            MediaId.fromString(mediaItem.mediaId)?.let { mediaId ->
+            MediaId.decode(mediaItem.mediaId)?.let { mediaId ->
                 lifecycleScope.launch {
                     runCatching { mediaLibraryRepository.incrementSongPlayCount(mediaId) }
                         .onFailure { Timber.e(it, "Failed to record play for $mediaId") }
@@ -549,7 +549,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             if (lastAutoLoadSongId == current.mediaId) return@launch
             lastAutoLoadSongId = current.mediaId
 
-            val mediaId = MediaId.fromString(current.mediaId) ?: return@launch
+            val mediaId = MediaId.decode(current.mediaId) ?: return@launch
             val related = pluginDataSource.getRelatedSongs(mediaId).getOrNull()?.items.orEmpty()
             if (related.isEmpty()) return@launch
 
@@ -557,7 +557,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 .mapNotNull { player.getMediaItemAt(it).mediaId }
                 .toSet()
             val toAdd = related
-                .filter { it.id.toString() !in existing }
+                .filter { it.id.encode() !in existing }
                 .map { it.toMediaItem() }
             if (toAdd.isNotEmpty()) {
                 player.addMediaItems(toAdd)
@@ -898,7 +898,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         runCatching { lastfmScrobbler.onSessionEnded(mediaItem, listenedMs) }
             .onFailure { Timber.e(it, "Failed to submit Last.fm scrobble") }
 
-        runCatching { MediaId.fromString(mediaItem.mediaId) }.getOrNull()?.let { mediaId ->
+        runCatching { MediaId.decode(mediaItem.mediaId) }.getOrNull()?.let { mediaId ->
             lifecycleScope.launch {
                 runCatching { mediaLibraryRepository.recordListenedTime(mediaId, listenedMs) }
                     .onFailure { Timber.e(it, "Failed to record listened time for $mediaId") }

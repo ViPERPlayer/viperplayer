@@ -57,5 +57,5 @@ data class SessionTrack(
     val durationMs: Long,
 ) {
     /** The portable [MediaId], or null when this ref is unlinked (blank source id). */
-    val mediaId: MediaId? get() = MediaId.of(pluginId, sourceId)
+    val mediaId: MediaId? get() = MediaId.fromOrNull(pluginId, sourceId)
 }

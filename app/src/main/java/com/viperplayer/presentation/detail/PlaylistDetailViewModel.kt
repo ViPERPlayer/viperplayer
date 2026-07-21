@@ -93,7 +93,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
     private val playlistId = playlistDetail.playlistId
 
     /** The plugin backing this screen — used to match pending plugin actions on errors. */
-    val pluginId: String get() = playlistId.pluginId
+    val pluginId: String get() = playlistId.routingPluginId
 
     /**
      * Whether this playlist lives in the local Room database (the virtual "Liked Songs" list or a
@@ -101,7 +101,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
      * playlist loaded once via [PluginRepository].
      */
     private val isLocalPlaylist: Boolean
-        get() = playlistId.pluginId == "local"
+        get() = playlistId is MediaId.Local
 
     /**
      * The dynamic auto-playlist type this screen renders, or null when it is a normal (local/plugin)
@@ -406,7 +406,7 @@ class PlaylistDetailViewModel @AssistedInject constructor(
      * playlists are editable; the virtual "Liked Songs" list and remote plugin playlists are not.
      */
     val isEditable: Boolean
-        get() = playlistId.pluginId == "local" && playlistId.sourceId != "liked_songs"
+        get() = playlistId is MediaId.Local && playlistId.sourceId != "liked_songs"
 
     /**
      * Remove the song at [index] from this playlist and reflect it in the UI immediately. Backed by

@@ -33,9 +33,8 @@ sealed interface AlarmContentSpec {
                 val body = raw.removePrefix(PLAYLIST_PREFIX)
                 val shuffle = body.startsWith("1|")
                 val idPart = body.substringAfter('|', missingDelimiterValue = "")
-                return runCatching { MediaId.fromString(idPart) }
-                    .map { PlaylistContent(it, shuffle) as AlarmContentSpec }
-                    .getOrDefault(ShuffleAll)
+                val mediaId = MediaId.decode(idPart) ?: return ShuffleAll
+                return PlaylistContent(mediaId, shuffle)
             }
             return ShuffleAll
         }

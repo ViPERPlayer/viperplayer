@@ -68,9 +68,6 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import java.util.concurrent.TimeUnit
 
-/** The embedded local-files plugin id — the only source whose files carry an on-disk tag set. */
-private const val LOCAL_PLUGIN_ID = "local"
-
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SongInfoScreen(
@@ -193,7 +190,7 @@ fun SongInfoScreen(
             }
 
             // Tag / metadata detail viewer — local files only (the full on-disk tag set).
-            if (song.id.pluginId == LOCAL_PLUGIN_ID) {
+            if (song.id is MediaId.Local) {
                 item {
                     SectionLabel(stringResource(R.string.tag_details_section_metadata), top = 20.dp)
                     NavTile(

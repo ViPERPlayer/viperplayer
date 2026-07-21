@@ -15,7 +15,7 @@ object MediaItemMapper {
      * Converts a domain Song to a Media3 MediaItem.
      */
     fun Song.toMediaItem(): MediaItem {
-        val mediaId = id.toString()
+        val mediaId = id.encode()
 
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
@@ -31,7 +31,7 @@ object MediaItemMapper {
 
         // Store domain model data in extras for later retrieval
         val extras = Bundle().apply {
-            putString("pluginId", id.pluginId)
+            putString("pluginId", id.routingPluginId)
             putString("sourceId", id.sourceId)
             putString("title", title)
             putString("artistName", artistNames)

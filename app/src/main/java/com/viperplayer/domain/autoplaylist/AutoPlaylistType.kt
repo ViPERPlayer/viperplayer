@@ -33,7 +33,7 @@ enum class AutoPlaylistType(val id: String, val usesPlayHistory: Boolean) {
     ;
 
     /** The synthetic [MediaId] identifying this auto-playlist across the app. */
-    val mediaId: MediaId get() = MediaId(PLUGIN_ID, id)
+    val mediaId: MediaId get() = MediaId.Plugin(PLUGIN_ID, id)
 
     companion object {
         /** Reserved plugin id for virtual auto-playlists (never a real installed plugin). */
@@ -43,6 +43,7 @@ enum class AutoPlaylistType(val id: String, val usesPlayHistory: Boolean) {
         fun fromId(id: String): AutoPlaylistType? = entries.firstOrNull { it.id == id }
 
         /** True when [mediaId] refers to a virtual auto-playlist (its plugin is [PLUGIN_ID]). */
-        fun isAutoPlaylist(mediaId: MediaId): Boolean = mediaId.pluginId == PLUGIN_ID
+        fun isAutoPlaylist(mediaId: MediaId): Boolean =
+            mediaId is MediaId.Plugin && mediaId.pluginId == PLUGIN_ID
     }
 }

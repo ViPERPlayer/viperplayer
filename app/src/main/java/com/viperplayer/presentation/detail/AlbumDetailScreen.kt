@@ -535,50 +535,50 @@ private fun DiscHeader(
 private fun AlbumDetailScreenPreview() {
     val songs = listOf(
         Song(
-            id = MediaId("plugin", "song1"),
+            id = MediaId.Plugin("plugin", "song1"),
             title = "Speak to Me",
-            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
             durationMs = 90000,
             trackNumber = 1,
             discNumber = 1
         ),
         Song(
-            id = MediaId("plugin", "song2"),
+            id = MediaId.Plugin("plugin", "song2"),
             title = "Breathe (In the Air)",
-            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
             durationMs = 169000,
             trackNumber = 2,
             discNumber = 1
         ),
         Song(
-            id = MediaId("plugin", "song3"),
+            id = MediaId.Plugin("plugin", "song3"),
             title = "On the Run",
-            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
             durationMs = 213000,
             trackNumber = 3,
             discNumber = 1,
             isExplicit = true
         ),
         Song(
-            id = MediaId("plugin", "song4"),
+            id = MediaId.Plugin("plugin", "song4"),
             title = "Time",
-            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
             durationMs = 421000,
             trackNumber = 4,
             discNumber = 1
         ),
         Song(
-            id = MediaId("plugin", "song11"),
+            id = MediaId.Plugin("plugin", "song11"),
             title = "Bonus Track 1",
-            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
             durationMs = 300000,
             trackNumber = 1,
             discNumber = 2
         ),
         Song(
-            id = MediaId("plugin", "song12"),
+            id = MediaId.Plugin("plugin", "song12"),
             title = "Bonus Track 2",
-            artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+            artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
             durationMs = 240000,
             trackNumber = 2,
             discNumber = 2
@@ -586,9 +586,9 @@ private fun AlbumDetailScreenPreview() {
     )
 
     val album = Album(
-        id = MediaId("plugin", "album1"),
+        id = MediaId.Plugin("plugin", "album1"),
         name = "The Dark Side of the Moon",
-        artists = listOf(ArtistRef("Pink Floyd", MediaId("plugin", "artist1"))),
+        artists = listOf(ArtistRef("Pink Floyd", MediaId.Plugin("plugin", "artist1"))),
         artworkUrl = "https://raw.githubusercontent.com/coil-kt/coil/master/logo.png",
         releaseYear = 1973,
         trackCount = 10,
