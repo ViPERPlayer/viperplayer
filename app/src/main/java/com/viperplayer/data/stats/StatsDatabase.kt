@@ -10,9 +10,12 @@ import androidx.room.RoomDatabase
  * listening-stats feature owns its schema end-to-end and never touches the shared library DB / its
  * migrations.
  */
+// v2: no schema change — bumped to force the destructive reset (fallbackToDestructiveMigration) so
+// play_history rows written with the pre-#12 mediaId string format (pluginId=…&sourceId=…) are wiped
+// rather than lingering and failing to join against the new MediaId.encode() key (t=plugin&p=…&s=…).
 @Database(
     entities = [PlayHistoryEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class StatsDatabase : RoomDatabase() {

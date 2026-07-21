@@ -27,8 +27,9 @@ data class FollowedArtistEntity(
     val followedAt: Long,
 ) {
     fun toDomain(): FollowedArtist = FollowedArtist(
-        // Followed artists are always plugin artists (follows sync to a plugin account).
-        mediaId = MediaId.Plugin(pluginId, sourceId),
+        // Reconstruct the typed id from the stored routing id: the embedded local plugin maps back to
+        // MediaId.Local, every other plugin to MediaId.Plugin (never Plugin("local", …)).
+        mediaId = MediaId.from(pluginId, sourceId),
         name = name,
         artworkUrl = artworkUrl,
         followedAt = followedAt,
@@ -36,11 +37,11 @@ data class FollowedArtistEntity(
 
     companion object {
         fun fromDomain(artist: FollowedArtist): FollowedArtistEntity {
-            val mediaId = artist.mediaId
-            val pluginId = if (mediaId is MediaId.Plugin) mediaId.pluginId else ""
+            // Store the routing id so it matches the isFollowing/unfollow reads, which also key on
+            // routingPluginId (local → "local"). Artists are never Radio, so this never throws.
             return FollowedArtistEntity(
-                pluginId = pluginId,
-                sourceId = mediaId.sourceId,
+                pluginId = artist.mediaId.routingPluginId,
+                sourceId = artist.mediaId.sourceId,
                 name = artist.name,
                 artworkUrl = artist.artworkUrl,
                 followedAt = artist.followedAt,

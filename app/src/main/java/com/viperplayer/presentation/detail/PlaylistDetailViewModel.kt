@@ -92,8 +92,12 @@ class PlaylistDetailViewModel @AssistedInject constructor(
 
     private val playlistId = playlistDetail.playlistId
 
-    /** The plugin backing this screen — used to match pending plugin actions on errors. */
-    val pluginId: String get() = playlistId.routingPluginId
+    /**
+     * The plugin backing this screen — used to match pending plugin actions on errors. Non-plugin
+     * playlists (local, radio) have no plugin to reconnect to, so they report an empty id that never
+     * matches a pending action; a [MediaId.Radio]'s [MediaId.routingPluginId] would otherwise throw.
+     */
+    val pluginId: String get() = (playlistId as? MediaId.Plugin)?.pluginId ?: ""
 
     /**
      * Whether this playlist lives in the local Room database (the virtual "Liked Songs" list or a

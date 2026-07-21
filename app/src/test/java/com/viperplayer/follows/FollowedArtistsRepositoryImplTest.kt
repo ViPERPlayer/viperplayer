@@ -164,6 +164,25 @@ class FollowedArtistsRepositoryImplTest {
         )
     }
 
+    @Test
+    fun followLocalArtist_isFollowingAndUnfollowMatch_andRoundTripsAsLocal() = runTest {
+        // Regression (#12): a followed local artist must be written and read under the SAME key. The
+        // entity stores routingPluginId ("local") and isFollowing/unfollow key on routingPluginId too,
+        // so the Follow state must reflect and unfollow must remove. toDomain must rebuild MediaId.Local
+        // (never Plugin("local", …)), keeping it equal to the Local id used everywhere else.
+        val repo = FollowedArtistsRepositoryImpl(FakeFollowedArtistDao(), LibraryPushOutbox.NOOP)
+        val local = MediaId.Local("42")
+
+        repo.follow(FollowedArtist(mediaId = local, name = "Local Band", artworkUrl = null, followedAt = 100))
+
+        assertTrue(repo.isFollowing(local).first())
+        assertEquals(local, repo.followedArtists().first().single().mediaId)
+
+        repo.unfollow(local)
+        assertFalse(repo.isFollowing(local).first())
+        assertTrue(repo.followedArtists().first().isEmpty())
+    }
+
     /** Records enqueued mutations so the wiring from the repository to the outbox can be asserted. */
     private class CapturingOutbox : LibraryPushOutbox {
         val captured = mutableListOf<LibraryMutation>()
