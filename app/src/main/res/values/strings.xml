@@ -1229,4 +1229,21 @@
     <string name="account_error_password_incorrect">Password is incorrect</string>
     <string name="account_error_sign_in_to_set_handle">Sign in to set a handle</string>
     <string name="account_error_invalid_credentials">Invalid email or password</string>
+    <!-- ==== i18n tail: proper fixes for previously-deferred strings ==== -->
+    <!-- AutoEq parser errors (domain returns a typed reason; UI resolves these) -->
+    <string name="autoeq_error_file_empty">File is empty</string>
+    <string name="autoeq_error_no_graphiceq_points">No valid GraphicEQ frequency/gain points found</string>
+    <string name="autoeq_error_no_parametriceq_filters">No valid ParametricEQ filters found</string>
+    <!-- IIR equalizer preset display labels (the preset ids stay stable keys) -->
+    <string name="iir_eq_preset_flat">Flat</string>
+    <string name="iir_eq_preset_bass_boost">Bass Boost</string>
+    <string name="iir_eq_preset_treble_boost">Treble Boost</string>
+    <string name="iir_eq_preset_vocal_boost">Vocal Boost</string>
+    <string name="iir_eq_preset_rock">Rock</string>
+    <string name="iir_eq_preset_custom">Custom</string>
+    <!-- Account HTTP error fallbacks (used only when the server sends no error body) -->
+    <string name="account_error_email_taken">That email is already registered</string>
+    <string name="account_error_bad_request">Check your details and try again</string>
+    <string name="account_error_not_found">Not found</string>
+    <string name="account_error_request_failed">Request failed (%1$d)</string>
 </resources>

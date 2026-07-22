@@ -7,6 +7,7 @@ import com.viperplayer.domain.account.AccountUser
 import com.viperplayer.domain.librarysync.LibrarySyncResult
 import com.viperplayer.domain.librarysync.SyncedPlaylist
 import com.viperplayer.domain.librarysync.SyncedTrack
+import com.viperplayer.data.resources.StringProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -30,6 +31,9 @@ class LibrarySyncRepositoryImplTest {
 
     private val BASE = "https://backend.test"
 
+    /** A trivial fake — error-fallback strings are irrelevant to these repository tests. */
+    private val stringProvider = StringProvider { _, _ -> "" }
+
     private fun api(status: HttpStatusCode, body: String): LibraryApi =
         LibraryApi(
             HttpClient(
@@ -41,6 +45,7 @@ class LibrarySyncRepositoryImplTest {
                     )
                 },
             ),
+            stringProvider,
         ) { BASE }
 
     /** A fake account repo whose withBackendAuth just supplies a fixed token and delegates to the call. */
@@ -89,7 +94,7 @@ class LibrarySyncRepositoryImplTest {
     fun getLibrary_noToken_isUnauthenticated_withoutCallingApi() = runTest {
         val account = FakeAccountRepository(null)
         // Engine would error if hit — proves the auth seam short-circuits before any request.
-        val api = LibraryApi(HttpClient(MockEngine { error("should not be called") })) { BASE }
+        val api = LibraryApi(HttpClient(MockEngine { error("should not be called") }), stringProvider) { BASE }
         val repo = LibrarySyncRepositoryImpl(api, account)
 
         assertEquals(LibrarySyncResult.Unauthenticated, repo.getLibrary())

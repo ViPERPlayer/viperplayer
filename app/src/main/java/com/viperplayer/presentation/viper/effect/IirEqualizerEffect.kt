@@ -69,7 +69,7 @@ fun IirEqualizerEffect(
     Effect(
         icon = painterResource(R.drawable.ic_spectrum), // Used ic_spectrum as fallback
         title = stringResource(R.string.iir_equalizer),
-        summary = stringResource(R.string.viper_summary_iir, state.bandCount, state.preset),
+        summary = stringResource(R.string.viper_summary_iir, state.bandCount, iirPresetLabel(state.preset)),
         checked = state.enabled,
         onCheckedChange = onEnabledChange
     ) {
@@ -115,7 +115,7 @@ fun IirEqualizerEffect(
                     .menuAnchor()
                     .fillMaxWidth(),
                 readOnly = true,
-                value = state.preset,
+                value = iirPresetLabel(state.preset),
                 onValueChange = {},
                 label = { Text(stringResource(R.string.effect_preset)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -127,7 +127,7 @@ fun IirEqualizerEffect(
             ) {
                 IirEqualizerPresets.PRESETS.forEach { preset ->
                     DropdownMenuItem(
-                        text = { Text(preset) },
+                        text = { Text(iirPresetLabel(preset)) },
                         onClick = {
                             onPresetChange(preset)
                             expanded = false
@@ -230,4 +230,15 @@ fun IirEqualizerEffect(
             }
         }
     }
+}
+
+@Composable
+private fun iirPresetLabel(key: String): String = when (key) {
+    "Flat" -> stringResource(R.string.iir_eq_preset_flat)
+    "Bass Boost" -> stringResource(R.string.iir_eq_preset_bass_boost)
+    "Treble Boost" -> stringResource(R.string.iir_eq_preset_treble_boost)
+    "Vocal Boost" -> stringResource(R.string.iir_eq_preset_vocal_boost)
+    "Rock" -> stringResource(R.string.iir_eq_preset_rock)
+    "Custom" -> stringResource(R.string.iir_eq_preset_custom)
+    else -> key
 }

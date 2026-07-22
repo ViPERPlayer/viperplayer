@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.search
 
+import android.icu.text.ListFormatter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.model.Album
@@ -171,18 +172,7 @@ class SearchViewModel @Inject constructor(
                     append(stringProvider.getString(R.string.search_subtitle_type_song))
                     if (it.artists.isNotEmpty()) {
                         append(" • ")
-                        if (it.artists.size > 1) {
-                            it.artists.forEachIndexed { index, artist ->
-                                if (index == it.artists.size - 1) {
-                                    append(" and ")
-                                } else if (index > 0) {
-                                    append(", ")
-                                }
-                                append(artist.name)
-                            }
-                        } else {
-                            append(it.artists.joinToString { it.name })
-                        }
+                        append(ListFormatter.getInstance().format(it.artists.map { a -> a.name }))
                     }
 //                    it.album?.let { album ->
 //                        append(" • ")
@@ -223,18 +213,7 @@ class SearchViewModel @Inject constructor(
                     append(stringProvider.getString(R.string.search_subtitle_type_album))
                     if (it.artists.isNotEmpty()) {
                         append(" • ")
-                        if (it.artists.size > 1) {
-                            it.artists.forEachIndexed { index, artist ->
-                                if (index == it.artists.size - 1) {
-                                    append(" and ")
-                                } else if (index > 0) {
-                                    append(", ")
-                                }
-                                append(artist.name)
-                            }
-                        } else {
-                            append(it.artists.joinToString { it.name })
-                        }
+                        append(ListFormatter.getInstance().format(it.artists.map { a -> a.name }))
                     }
                     it.releaseYear?.let { releaseYear ->
                         append(" • ")

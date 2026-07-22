@@ -213,7 +213,7 @@ private fun AlbumHeader(album: Album) {
         circular = false,
         title = album.name,
         explicit = false,
-        subtitle = album.artistName
+        subtitle = album.artistName ?: stringResource(R.string.unknown_artist)
     )
 }
 

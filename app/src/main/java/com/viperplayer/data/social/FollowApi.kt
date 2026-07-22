@@ -3,7 +3,9 @@ package com.viperplayer.data.social
 import com.viperplayer.BuildConfig
 import com.viperplayer.data.account.AccountApiResult
 import com.viperplayer.data.account.ErrorDto
+import com.viperplayer.data.account.accountErrorFallbacks
 import com.viperplayer.data.account.mapAccountHttpError
+import com.viperplayer.data.resources.StringProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -39,6 +41,7 @@ import javax.inject.Singleton
 @Singleton
 open class FollowApi @Inject constructor(
     private val httpClient: HttpClient,
+    private val stringProvider: StringProvider,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -49,7 +52,11 @@ open class FollowApi @Inject constructor(
      */
     private var rawBackendUrl: () -> String = { BuildConfig.VIPER_BACKEND_URL }
 
-    internal constructor(httpClient: HttpClient, rawBackendUrl: () -> String) : this(httpClient) {
+    internal constructor(
+        httpClient: HttpClient,
+        stringProvider: StringProvider,
+        rawBackendUrl: () -> String,
+    ) : this(httpClient, stringProvider) {
         this.rawBackendUrl = rawBackendUrl
     }
 
@@ -148,7 +155,7 @@ open class FollowApi @Inject constructor(
             return AccountApiResult.NetworkError
         }
         if (response.status.isSuccess()) return AccountApiResult.Success(Unit)
-        return mapAccountHttpError(response.status.value, serverMessageOf(response))
+        return mapAccountHttpError(response.status.value, serverMessageOf(response), stringProvider.accountErrorFallbacks())
     }
 
     private suspend fun <T> handle(response: HttpResponse, map: (String) -> T): AccountApiResult<T> {
@@ -163,7 +170,7 @@ open class FollowApi @Inject constructor(
             val serverMessage = runCatching { json.decodeFromString<ErrorDto>(bodyText).error }
                 .getOrNull()
                 ?.takeIf { it.isNotBlank() }
-            return mapAccountHttpError(response.status.value, serverMessage)
+            return mapAccountHttpError(response.status.value, serverMessage, stringProvider.accountErrorFallbacks())
         }
         val mapped = runCatching { map(bodyText) }.getOrNull()
             ?: return AccountApiResult.Rejected("Malformed response")

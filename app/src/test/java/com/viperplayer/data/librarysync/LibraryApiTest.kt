@@ -1,6 +1,7 @@
 package com.viperplayer.data.librarysync
 
 import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.data.resources.StringProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -31,6 +32,9 @@ class LibraryApiTest {
 
     private val recorded = mutableListOf<HttpRequestData>()
 
+    /** A trivial fake — the error-fallback strings are irrelevant to these transport tests. */
+    private val stringProvider = StringProvider { _, _ -> "" }
+
     /** Builds a [LibraryApi] whose engine records requests and answers with [handler]. */
     private fun api(
         handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
@@ -40,7 +44,7 @@ class LibraryApiTest {
             recorded += request
             handler(request)
         }
-        return LibraryApi(HttpClient(engine)) { BASE }
+        return LibraryApi(HttpClient(engine), stringProvider) { BASE }
     }
 
     private fun MockRequestHandleScope.json(status: HttpStatusCode, body: String) = respond(
@@ -192,7 +196,7 @@ class LibraryApiTest {
 
     @Test
     fun setLike_networkFailure_mapsToNetworkError() = runTest {
-        val api = LibraryApi(HttpClient(MockEngine { throw IOException("offline") })) { BASE }
+        val api = LibraryApi(HttpClient(MockEngine { throw IOException("offline") }), stringProvider) { BASE }
         assertEquals(AccountApiResult.NetworkError, api.setLike("t", TrackRefDto("p", "s"), liked = false))
     }
 
@@ -201,7 +205,7 @@ class LibraryApiTest {
     @Test
     fun notConfigured_shortCircuits_withoutHittingEngine() = runTest {
         val engine = MockEngine { error("should not be called when unconfigured") }
-        val api = LibraryApi(HttpClient(engine)) { "REPLACE_WITH_REAL_VALUE" }
+        val api = LibraryApi(HttpClient(engine), stringProvider) { "REPLACE_WITH_REAL_VALUE" }
 
         assertEquals(AccountApiResult.NotConfigured, api.getLibrary("t"))
         assertEquals(AccountApiResult.NotConfigured, api.deletePlaylist("t", "p"))
@@ -210,7 +214,7 @@ class LibraryApiTest {
 
     @Test
     fun baseUrl_trimsTrailingSlash() {
-        val api = LibraryApi(HttpClient(MockEngine { respondOk() })) { "https://api.example.com/" }
+        val api = LibraryApi(HttpClient(MockEngine { respondOk() }), stringProvider) { "https://api.example.com/" }
         assertEquals("https://api.example.com", api.baseUrl)
     }
 

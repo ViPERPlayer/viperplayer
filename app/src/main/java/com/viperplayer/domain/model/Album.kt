@@ -30,7 +30,7 @@ data class Album(
     val type: AlbumType = AlbumType.ALBUM,
     val songs: List<Song>? = null
 ) : MediaItem, Parcelable {
-    val artistName: String
-        get() = artists.firstOrNull()?.name ?: "Unknown Artist"
+    val artistName: String?
+        get() = artists.firstOrNull()?.name
 }
 

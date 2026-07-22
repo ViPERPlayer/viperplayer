@@ -832,11 +832,20 @@ class ViperViewModel @Inject constructor(
                     ).show()
                 }
 
-                is AutoEqParser.ParseResult.Error -> Toast.makeText(
-                    context,
-                    context.getString(R.string.iir_autoeq_import_failed, result.reason),
-                    Toast.LENGTH_LONG
-                ).show()
+                is AutoEqParser.ParseResult.Error -> {
+                    val reason = context.getString(
+                        when (result.error) {
+                            AutoEqParser.ParseError.EMPTY_FILE -> R.string.autoeq_error_file_empty
+                            AutoEqParser.ParseError.NO_GRAPHIC_POINTS -> R.string.autoeq_error_no_graphiceq_points
+                            AutoEqParser.ParseError.NO_PARAMETRIC_FILTERS -> R.string.autoeq_error_no_parametriceq_filters
+                        }
+                    )
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.iir_autoeq_import_failed, reason),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }

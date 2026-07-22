@@ -1,6 +1,7 @@
 package com.viperplayer.data.account
 
 import com.viperplayer.BuildConfig
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.social.BackendConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -35,6 +36,7 @@ import javax.inject.Singleton
 @Singleton
 class AccountApi @Inject constructor(
     private val httpClient: HttpClient,
+    private val stringProvider: StringProvider,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -200,7 +202,7 @@ class AccountApi @Inject constructor(
         val serverMessage = runCatching { json.decodeFromString<ErrorDto>(bodyText).error }
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
-        return mapAccountHttpError(response.status.value, serverMessage)
+        return mapAccountHttpError(response.status.value, serverMessage, stringProvider.accountErrorFallbacks())
     }
 
     private suspend fun <T> handle(response: HttpResponse, map: (String) -> T): AccountApiResult<T> {
@@ -215,7 +217,7 @@ class AccountApi @Inject constructor(
             val serverMessage = runCatching { json.decodeFromString<ErrorDto>(bodyText).error }
                 .getOrNull()
                 ?.takeIf { it.isNotBlank() }
-            return mapAccountHttpError(response.status.value, serverMessage)
+            return mapAccountHttpError(response.status.value, serverMessage, stringProvider.accountErrorFallbacks())
         }
         val mapped = runCatching { map(bodyText) }.getOrNull()
             ?: return AccountApiResult.Rejected("Malformed response")

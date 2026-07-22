@@ -1,5 +1,11 @@
 package com.viperplayer.presentation.listeningstats
 
+import java.time.DayOfWeek
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+
 /**
  * Small, pure display helpers for the listening-stats screens. Kept Android-free so they can be used
  * from previews and tests without a Context.
@@ -9,6 +15,10 @@ object StatsFormat {
     /**
      * Formats a listening duration into a compact human string, e.g. "3d 4h", "2h 15m", "45m".
      * Returns "0m" for non-positive durations.
+     *
+     * The d/h/m unit abbreviations are intentionally untranslated (technical unit abbreviations,
+     * consistent with dB/Hz/kHz elsewhere); this object stays Context-free and cannot use string
+     * resources.
      */
     fun listeningTime(ms: Long): String {
         if (ms <= 0L) return "0m"
@@ -25,21 +35,28 @@ object StatsFormat {
         return parts.joinToString(" ")
     }
 
-    /** Day-of-week short labels, Monday-first, matching the aggregator's 0-based indexing. */
-    val dayLabels: List<String> = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    /**
+     * Day-of-week short labels, Monday-first, matching the aggregator's 0-based indexing.
+     * Locale-aware and recomputed per access so a runtime locale change is reflected.
+     */
+    val dayLabels: List<String>
+        get() = (1..7).map {
+            DayOfWeek.of(it).getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        }
 
-    /** Full day-of-week names, Monday-first. */
-    val dayNames: List<String> =
-        listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    /**
+     * Full day-of-week names, Monday-first.
+     * Locale-aware and recomputed per access so a runtime locale change is reflected.
+     */
+    val dayNames: List<String>
+        get() = (1..7).map {
+            DayOfWeek.of(it).getDisplayName(TextStyle.FULL, Locale.getDefault())
+        }
 
     /** Formats an hour-of-day (0..23) as a 12-hour clock label, e.g. "9 AM", "11 PM", "12 AM". */
     fun hourLabel(hour: Int): String {
         val h = ((hour % 24) + 24) % 24
-        val period = if (h < 12) "AM" else "PM"
-        val display = when (h % 12) {
-            0 -> 12
-            else -> h % 12
-        }
-        return "$display $period"
+        return LocalTime.of(h, 0)
+            .format(DateTimeFormatter.ofPattern("h a", Locale.getDefault()))
     }
 }

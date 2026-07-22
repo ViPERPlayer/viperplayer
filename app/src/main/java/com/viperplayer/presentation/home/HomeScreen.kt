@@ -974,9 +974,10 @@ private fun MediaItem.displayTitle(): String = when (this) {
     is Playlist -> name
 }
 
+@Composable
 private fun MediaItem.displaySubtitle(): String? = when (this) {
     is Song -> artistNames
-    is Album -> artistName
+    is Album -> artistName ?: stringResource(R.string.unknown_artist)
     is Artist -> null
     is Playlist -> description
 }
@@ -1016,7 +1017,7 @@ fun AlbumCard(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = album.artistName,
+            text = album.artistName ?: stringResource(R.string.unknown_artist),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

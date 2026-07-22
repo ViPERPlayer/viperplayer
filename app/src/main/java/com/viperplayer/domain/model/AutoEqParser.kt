@@ -19,15 +19,18 @@ object AutoEqParser {
 
     sealed interface ParseResult {
         data class Success(val profile: AutoEqProfile) : ParseResult
-        data class Error(val reason: String) : ParseResult
+        data class Error(val error: ParseError) : ParseResult
     }
+
+    /** Typed parse failures; the UI layer maps these to localized messages. */
+    enum class ParseError { EMPTY_FILE, NO_GRAPHIC_POINTS, NO_PARAMETRIC_FILTERS }
 
     /** Convenience: parse and return the profile, or null on any failure. */
     fun parseOrNull(content: String): AutoEqProfile? =
         (parse(content) as? ParseResult.Success)?.profile
 
     fun parse(content: String): ParseResult {
-        if (content.isBlank()) return ParseResult.Error("File is empty")
+        if (content.isBlank()) return ParseResult.Error(ParseError.EMPTY_FILE)
 
         // A GraphicEQ marker anywhere means graphic format; otherwise look for Filter/Preamp lines.
         val hasGraphicMarker = content.contains("GraphicEQ", ignoreCase = true)
@@ -66,7 +69,7 @@ object AutoEqParser {
         }
 
         if (points.isEmpty()) {
-            return ParseResult.Error("No valid GraphicEQ frequency/gain points found")
+            return ParseResult.Error(ParseError.NO_GRAPHIC_POINTS)
         }
 
         val sorted = points.sortedBy { it.frequencyHz }.dedupByFrequency()
@@ -103,7 +106,7 @@ object AutoEqParser {
 
         if (filters.isEmpty()) {
             // A file with only a Preamp and no usable filters isn't actionable for a graphic EQ.
-            return ParseResult.Error("No valid ParametricEQ filters found")
+            return ParseResult.Error(ParseError.NO_PARAMETRIC_FILTERS)
         }
 
         return ParseResult.Success(
