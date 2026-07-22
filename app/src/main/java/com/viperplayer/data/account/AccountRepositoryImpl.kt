@@ -1,5 +1,7 @@
 package com.viperplayer.data.account
 
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
@@ -23,6 +25,7 @@ import javax.inject.Singleton
 class AccountRepositoryImpl @Inject constructor(
     private val client: AccountApi,
     private val credentialStore: AccountCredentialStore,
+    private val stringProvider: StringProvider,
 ) : AccountRepository {
 
     override val state: Flow<AccountState> = credentialStore.state
@@ -49,12 +52,12 @@ class AccountRepositoryImpl @Inject constructor(
         val result = withAuth { token -> client.changePassword(token, current, new) }
         // A 401 here (after the transparent refresh-and-retry) means the CURRENT password was wrong,
         // not an expired token — surface it as a rejection rather than clearing the session.
-        return result.toAuthResult(unauthenticatedMessage = "Current password is incorrect")
+        return result.toAuthResult(unauthenticatedMessage = stringProvider.getString(R.string.account_error_current_password_incorrect))
     }
 
     override suspend fun deleteAccount(password: String): AuthResult {
         val result = withAuth { token -> client.deleteAccount(token, password) }
-        return when (val authResult = result.toAuthResult(unauthenticatedMessage = "Password is incorrect")) {
+        return when (val authResult = result.toAuthResult(unauthenticatedMessage = stringProvider.getString(R.string.account_error_password_incorrect))) {
             is AuthResult.Success -> {
                 // Account gone server-side → drop the local session so the app returns signed-out.
                 credentialStore.clear()
@@ -67,7 +70,7 @@ class AccountRepositoryImpl @Inject constructor(
     override suspend fun setHandle(handle: String): AuthResult {
         val trimmed = handle.trim().removePrefix("@")
         val result = withAuth { token -> client.setHandle(token, trimmed) }
-        return when (val authResult = result.toAuthResult(unauthenticatedMessage = "Sign in to set a handle")) {
+        return when (val authResult = result.toAuthResult(unauthenticatedMessage = stringProvider.getString(R.string.account_error_sign_in_to_set_handle))) {
             is AuthResult.Success -> {
                 // Claim succeeded server-side → persist the new handle on the cached user.
                 credentialStore.snapshot().state.user?.let { user ->
@@ -193,7 +196,7 @@ class AccountRepositoryImpl @Inject constructor(
             AuthResult.Success(user)
         }
         is AccountApiResult.Rejected -> AuthResult.Failed(result.message)
-        AccountApiResult.Unauthenticated -> AuthResult.Failed("Invalid email or password")
+        AccountApiResult.Unauthenticated -> AuthResult.Failed(stringProvider.getString(R.string.account_error_invalid_credentials))
         AccountApiResult.NetworkError -> AuthResult.NetworkError
         AccountApiResult.NotConfigured -> AuthResult.NotConfigured
     }

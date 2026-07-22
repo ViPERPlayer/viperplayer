@@ -1,6 +1,8 @@
 package com.viperplayer.data.repository
 
 import android.os.Build
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.social.CMD_NEXT
 import com.viperplayer.data.social.CMD_PAUSE
 import com.viperplayer.data.social.CMD_PLAY
@@ -73,6 +75,7 @@ class RealListenTogetherRepositoryImpl(
     private val socketClient: JamSocketClient,
     private val deviceIdStore: DeviceIdProvider,
     private val accountRepository: AccountRepository,
+    private val stringProvider: StringProvider,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     // Test-only: caps the clock's ping loop so a virtual-time test's advanceUntilIdle doesn't spin on
     // the otherwise-infinite sync loop. null (prod) runs the clock until the connection is torn down.
@@ -109,39 +112,46 @@ class RealListenTogetherRepositoryImpl(
 
     override fun serverNowUs(): Long? = clock?.serverNowUs()
 
+    // Default member labels for a blank host/guest name, resolved once per mapping.
+    private fun defaultHostName(): String =
+        stringProvider.getString(R.string.listen_together_default_host_name)
+
+    private fun defaultMemberGuestName(): String =
+        stringProvider.getString(R.string.listen_together_default_guest_name)
+
     override suspend fun startSession(): Result<ListenSession> {
         val identity = resolveIdentity()
         return when (val result = sessionApi.createSession(identity.deviceId, identity.userId, identity.name)) {
             is SessionApiResult.Success -> {
                 val body = result.value
                 val inviteUrl = body.inviteUrl.ifBlank { inviteUrlFor(body.code) }
-                val session = body.snapshot.toListenSession(identity.deviceId, body.code, inviteUrl)
+                val session = body.snapshot.toListenSession(identity.deviceId, body.code, inviteUrl, defaultHostName(), defaultMemberGuestName())
                 _currentSession.value = session
                 openConnection(body.jwt, body.code, inviteUrl, identity.deviceId)
                 Result.success(session)
             }
             is SessionApiResult.Rejected -> Result.failure(IllegalStateException(result.message))
-            SessionApiResult.NetworkError -> Result.failure(IllegalStateException("Couldn't reach the session server"))
-            SessionApiResult.NotConfigured -> Result.failure(IllegalStateException("Listen together isn't available"))
+            SessionApiResult.NetworkError -> Result.failure(IllegalStateException(stringProvider.getString(R.string.listen_together_error_network)))
+            SessionApiResult.NotConfigured -> Result.failure(IllegalStateException(stringProvider.getString(R.string.listen_together_error_not_available)))
         }
     }
 
     override suspend fun joinSession(codeOrUrl: String): Result<ListenSession> {
         val code = parseCode(codeOrUrl)
-            ?: return Result.failure(IllegalArgumentException("Not a valid session code"))
+            ?: return Result.failure(IllegalArgumentException(stringProvider.getString(R.string.listen_together_error_invalid_code)))
         val identity = resolveIdentity()
         return when (val result = sessionApi.joinSession(code, identity.deviceId, identity.userId, identity.name)) {
             is SessionApiResult.Success -> {
                 val body = result.value
                 val inviteUrl = inviteUrlFor(code)
-                val session = body.snapshot.toListenSession(identity.deviceId, code, inviteUrl)
+                val session = body.snapshot.toListenSession(identity.deviceId, code, inviteUrl, defaultHostName(), defaultMemberGuestName())
                 _currentSession.value = session
                 openConnection(body.jwt, code, inviteUrl, identity.deviceId)
                 Result.success(session)
             }
             is SessionApiResult.Rejected -> Result.failure(IllegalArgumentException(result.message))
-            SessionApiResult.NetworkError -> Result.failure(IllegalStateException("Couldn't reach the session server"))
-            SessionApiResult.NotConfigured -> Result.failure(IllegalStateException("Listen together isn't available"))
+            SessionApiResult.NetworkError -> Result.failure(IllegalStateException(stringProvider.getString(R.string.listen_together_error_network)))
+            SessionApiResult.NotConfigured -> Result.failure(IllegalStateException(stringProvider.getString(R.string.listen_together_error_not_available)))
         }
     }
 
@@ -219,7 +229,7 @@ class RealListenTogetherRepositoryImpl(
             conn.incoming.collect { event ->
                 when (event) {
                     is JamServerEvent.Membership ->
-                        _currentSession.value = event.snapshot.toListenSession(localDeviceId, code, inviteUrl)
+                        _currentSession.value = event.snapshot.toListenSession(localDeviceId, code, inviteUrl, defaultHostName(), defaultMemberGuestName())
                     is JamServerEvent.Playback ->
                         _playback.value = event.timeline.toSessionPlayback()
                     is JamServerEvent.CommandAck ->
@@ -260,7 +270,7 @@ class RealListenTogetherRepositoryImpl(
     }
 
     private fun defaultGuestName(): String =
-        Build.MODEL?.takeIf { it.isNotBlank() } ?: "Guest"
+        Build.MODEL?.takeIf { it.isNotBlank() } ?: stringProvider.getString(R.string.listen_together_default_guest_name)
 
     private data class Identity(val deviceId: String, val userId: String, val name: String)
 }
@@ -275,15 +285,17 @@ internal fun SessionSnapshotDto.toListenSession(
     localDeviceId: String,
     code: String,
     inviteUrl: String,
+    defaultHostName: String,
+    defaultGuestName: String,
 ): ListenSession {
     val isHost = host.deviceId == localDeviceId
     val localMember = members.firstOrNull { it.deviceId == localDeviceId }
     return ListenSession(
         code = code,
         inviteUrl = inviteUrl,
-        hostName = host.displayName(),
+        hostName = host.displayName(defaultHostName, defaultGuestName),
         isHost = isHost,
-        participants = members.map { it.toParticipant(localDeviceId) },
+        participants = members.map { it.toParticipant(localDeviceId, defaultHostName, defaultGuestName) },
         canControl = canControl(isHost, localMember, permissions.guestsCanControl),
     )
 }
@@ -302,16 +314,20 @@ private fun canControl(isHost: Boolean, localMember: MemberDto?, guestsCanContro
     }
 }
 
-private fun MemberDto.toParticipant(localDeviceId: String): SessionParticipant = SessionParticipant(
+private fun MemberDto.toParticipant(
+    localDeviceId: String,
+    defaultHostName: String,
+    defaultGuestName: String,
+): SessionParticipant = SessionParticipant(
     // deviceId is the stable per-member key; fall back to userId if a member somehow lacks one.
     id = deviceId.ifBlank { userId },
-    name = displayName(),
+    name = displayName(defaultHostName, defaultGuestName),
     isSelf = deviceId == localDeviceId,
 )
 
 /** A member's shown name, defaulting a blank one so the UI never renders an empty label. */
-private fun MemberDto.displayName(): String =
-    name.takeIf { it.isNotBlank() } ?: if (role == ROLE_HOST) "Host" else "Guest"
+private fun MemberDto.displayName(defaultHostName: String, defaultGuestName: String): String =
+    name.takeIf { it.isNotBlank() } ?: if (role == ROLE_HOST) defaultHostName else defaultGuestName
 
 /**
  * Folds a server [TimelineDto] into the domain [SessionPlayback]. A blank track ref (no plugin/source)

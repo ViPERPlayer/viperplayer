@@ -560,7 +560,7 @@ class ViperViewModel @Inject constructor(
                 is ViperAssetRepository.DdcImportResult.Success -> {
                     Toast.makeText(
                         context,
-                        "DDC file imported successfully",
+                        context.getString(R.string.ddc_import_success),
                         Toast.LENGTH_SHORT
                     ).show()
                     setViperDdcFile(result.fileName)
@@ -568,19 +568,19 @@ class ViperViewModel @Inject constructor(
 
                 ViperAssetRepository.DdcImportResult.InvalidExtension -> Toast.makeText(
                     context,
-                    "Error: Invalid file extension (must be .vdc)",
+                    context.getString(R.string.ddc_import_invalid_extension),
                     Toast.LENGTH_SHORT
                 ).show()
 
                 ViperAssetRepository.DdcImportResult.InvalidContent -> Toast.makeText(
                     context,
-                    "Error: Invalid file content (parse failed)",
+                    context.getString(R.string.ddc_import_invalid_content),
                     Toast.LENGTH_SHORT
                 ).show()
 
                 ViperAssetRepository.DdcImportResult.IOError -> Toast.makeText(
                     context,
-                    "Error: import failed (IO error)",
+                    context.getString(R.string.ddc_import_io_error),
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -640,10 +640,17 @@ class ViperViewModel @Inject constructor(
                         )
                     )
                 }
-                Toast.makeText(context, "Impulse loaded: $fileName", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.convolver_impulse_loaded, fileName),
+                    Toast.LENGTH_SHORT
+                ).show()
             } else {
-                Toast.makeText(context, "Failed to load impulse response", Toast.LENGTH_SHORT)
-                    .show()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.convolver_impulse_load_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }

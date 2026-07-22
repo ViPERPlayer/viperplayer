@@ -2,6 +2,8 @@ package com.viperplayer.presentation.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
@@ -61,7 +63,8 @@ class ArtistDetailViewModel @AssistedInject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository,
     private val settingsRepository: SettingsRepository,
-    private val followedArtistsRepository: FollowedArtistsRepository
+    private val followedArtistsRepository: FollowedArtistsRepository,
+    private val stringProvider: StringProvider
 ) : ViewModel() {
 
     @AssistedFactory
@@ -187,7 +190,8 @@ class ArtistDetailViewModel @AssistedInject constructor(
                 val artistResult = pluginRepository.getArtist(artistId)
                 if (artistResult.isFailure) {
                     _uiState.value = ArtistDetailUiState.Error(
-                        artistResult.exceptionOrNull()?.message ?: "Failed to load artist"
+                        artistResult.exceptionOrNull()?.message
+                            ?: stringProvider.getString(R.string.artist_load_failed)
                     )
                     return@launch
                 }
@@ -207,7 +211,7 @@ class ArtistDetailViewModel @AssistedInject constructor(
                 )
             } catch (e: Exception) {
                 _uiState.value = ArtistDetailUiState.Error(
-                    e.message ?: "Failed to load artist details"
+                    e.message ?: stringProvider.getString(R.string.artist_load_details_failed)
                 )
             }
         }

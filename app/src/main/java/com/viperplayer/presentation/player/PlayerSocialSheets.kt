@@ -108,8 +108,9 @@ fun PlayerSocialSheets(
 
     val session = uiState.session
     val inviteUrl = session?.inviteUrl.orEmpty()
+    val titlePart = song.title + (song.artistNames?.let { " — $it" } ?: "")
     val shareText = remember(song, inviteUrl) {
-        "Listen with me: ${song.title}${song.artistNames?.let { " — $it" } ?: ""}\n$inviteUrl"
+        context.getString(R.string.social_share_message, titlePart, inviteUrl)
     }
 
     // Independent sheets that LAYER: opening a nested one (Share / QR) does NOT close the sheet
@@ -436,7 +437,7 @@ private fun QrJoinContent(
         }
 
         Spacer(Modifier.height(22.dp))
-        Text("Point a camera at the code, or enter", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.social_qr_instructions), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             text = code.replace("-", " · "),
             fontSize = 28.sp,
@@ -457,7 +458,7 @@ private fun QrJoinContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-            Text("Copy link instead", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 9.dp))
+            Text(stringResource(R.string.social_copy_link_instead), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 9.dp))
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -519,7 +520,7 @@ private fun HostCard(song: Song) {
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "YOU'RE HOSTING",
+                stringResource(R.string.social_youre_hosting),
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -576,7 +577,7 @@ private fun DeviceRow(icon: ImageVector, name: String, subtitle: String?, select
             }
         }
         if (selected) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+            Icon(Icons.Filled.CheckCircle, contentDescription = stringResource(R.string.cd_selected), tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

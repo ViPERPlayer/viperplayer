@@ -66,6 +66,7 @@ class PlaylistMutationTest {
             networkConnectivityChecker = NetworkConnectivityChecker(context),
             localMediaDataSource = LocalMediaDataSource(context),
             libraryPushOutbox = LibraryPushOutbox.NOOP,
+            stringProvider = { id, args -> context.getString(id, *args) },
         )
     }
 

@@ -77,6 +77,20 @@ val AccentPresets: List<AccentPreset> = listOf(
     AccentPreset("Gold", Color(0xFF6C5D00)),
 )
 
+/** Resolves the localized accessibility label for a preset's stable [AccentPreset.name] key. */
+@Composable
+private fun accentPresetLabel(name: String): String = when (name) {
+    "Purple" -> stringResource(R.string.appearance_accent_purple)
+    "Green" -> stringResource(R.string.appearance_accent_green)
+    "Blue" -> stringResource(R.string.appearance_accent_blue)
+    "Red" -> stringResource(R.string.appearance_accent_red)
+    "Mauve" -> stringResource(R.string.appearance_accent_mauve)
+    "Orange" -> stringResource(R.string.appearance_accent_orange)
+    "Teal" -> stringResource(R.string.appearance_accent_teal)
+    "Gold" -> stringResource(R.string.appearance_accent_gold)
+    else -> name
+}
+
 @Composable
 fun AppearanceSettingsScreen(
     rootPadding: PaddingValues,
@@ -307,7 +321,7 @@ private fun AccentColorCard(
                         color = preset.color,
                         selected = selectedArgb == preset.color.toArgb(),
                         enabled = enabled,
-                        contentDescription = preset.name,
+                        contentDescription = accentPresetLabel(preset.name),
                         onClick = { onSelect(preset.color.toArgb()) }
                     )
                 }
@@ -539,11 +553,12 @@ private fun ThemeDialog(
     )
 }
 
+@Composable
 private fun getThemeDescription(theme: ThemeMode): String {
     return when (theme) {
-        ThemeMode.LIGHT -> "Light"
-        ThemeMode.DARK -> "Dark"
-        ThemeMode.SYSTEM -> "System Default"
+        ThemeMode.LIGHT -> stringResource(R.string.appearance_theme_mode_light)
+        ThemeMode.DARK -> stringResource(R.string.appearance_theme_mode_dark)
+        ThemeMode.SYSTEM -> stringResource(R.string.appearance_theme_mode_system)
     }
 }
 
@@ -587,10 +602,11 @@ private fun DynamicThemeDialog(
     )
 }
 
+@Composable
 private fun getDynamicThemeDescription(mode: DynamicThemeMode): String {
     return when (mode) {
-        DynamicThemeMode.OFF -> "Off"
-        DynamicThemeMode.DYNAMIC -> "Dynamic (Album Art)"
-        DynamicThemeMode.SYSTEM -> "System (Material You)"
+        DynamicThemeMode.OFF -> stringResource(R.string.appearance_dynamic_theme_off)
+        DynamicThemeMode.DYNAMIC -> stringResource(R.string.appearance_dynamic_theme_dynamic)
+        DynamicThemeMode.SYSTEM -> stringResource(R.string.appearance_dynamic_theme_system)
     }
 }

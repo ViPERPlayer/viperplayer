@@ -156,7 +156,7 @@ private fun ArtistDetailScreenContent(
         is ArtistDetailUiState.Loading -> uiState.initialArtist
         else -> null
     }
-    val title = artist?.name ?: "Artist"
+    val title = artist?.name ?: stringResource(R.string.artist_detail_fallback_title)
 
     CollapsingArtworkScaffold(
         artworkUrl = artist?.imageUrl,
@@ -238,7 +238,7 @@ private fun ArtistDetailScreenContent(
                     // Top Songs section (rendered in the user-chosen sort order).
                     if (state.sortedSongs.isNotEmpty()) {
                         item {
-                            SectionHeader("Top Songs")
+                            SectionHeader(stringResource(R.string.artist_detail_section_top_songs))
                         }
                         items(
                             items = state.sortedSongs,
@@ -279,7 +279,7 @@ private fun ArtistDetailScreenContent(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                         item {
-                            SectionHeader("Albums")
+                            SectionHeader(stringResource(R.string.artist_detail_section_albums))
                         }
                         item {
                             LazyRow(
@@ -305,7 +305,7 @@ private fun ArtistDetailScreenContent(
                             Spacer(modifier = Modifier.height(24.dp))
                         }
                         item {
-                            SectionHeader("Playlists")
+                            SectionHeader(stringResource(R.string.artist_detail_section_playlists))
                         }
                         item {
                             LazyRow(
@@ -331,7 +331,7 @@ private fun ArtistDetailScreenContent(
                             Spacer(modifier = Modifier.height(24.dp))
                         }
                         item {
-                            SectionHeader("Featuring")
+                            SectionHeader(stringResource(R.string.artist_detail_section_featuring))
                         }
                         item {
                             LazyRow(
@@ -357,7 +357,7 @@ private fun ArtistDetailScreenContent(
                             Spacer(modifier = Modifier.height(24.dp))
                         }
                         item {
-                            SectionHeader("Appears On")
+                            SectionHeader(stringResource(R.string.artist_detail_section_appears_on))
                         }
                         item {
                             LazyRow(
@@ -398,7 +398,7 @@ private fun ArtistDetailScreenContent(
                             Spacer(modifier = Modifier.height(24.dp))
                         }
                         item {
-                            SectionHeader("Similar Artists")
+                            SectionHeader(stringResource(R.string.artist_detail_section_similar_artists))
                         }
                         item {
                             LazyRow(

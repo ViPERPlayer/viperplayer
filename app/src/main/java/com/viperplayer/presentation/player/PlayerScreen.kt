@@ -568,7 +568,7 @@ fun PlayerScreen(
                 ) {
                     ToggleIconButton(
                         icon = Icons.Filled.Shuffle,
-                        contentDescription = if (playbackState.shuffleEnabled) "Shuffle on" else "Shuffle off",
+                        contentDescription = stringResource(if (playbackState.shuffleEnabled) R.string.player_shuffle_on else R.string.player_shuffle_off),
                         active = playbackState.shuffleEnabled,
                         onClick = { if (transportEnabled) viewModel.toggleShuffle() }
                     )
@@ -1031,7 +1031,7 @@ private fun LikeButton(
     ) {
         Icon(
             imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-            contentDescription = if (isLiked) "Remove from liked" else "Add to liked",
+            contentDescription = stringResource(if (isLiked) R.string.player_remove_from_liked else R.string.player_add_to_liked),
             tint = tint,
             modifier = Modifier.size(30.dp)
         )
@@ -1123,7 +1123,7 @@ private fun MorphPlayButton(
     ) {
         Icon(
             imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (isPlaying) "Pause" else "Play",
+            contentDescription = stringResource(if (isPlaying) R.string.action_pause else R.string.action_play),
             tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(46.dp)
         )
@@ -1473,9 +1473,9 @@ fun SongDetailsBottomSheet(
         if (audioFormat == null && song.replayGainDb == null && song.peakAmplitude == null) {
             Text(
                 text = if (currentSong?.id == song.id) {
-                    "No technical details available for this track"
+                    stringResource(R.string.song_detail_no_technical_details)
                 } else {
-                    "Audio format details are only available for the currently playing track"
+                    stringResource(R.string.song_detail_format_only_current_track)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),

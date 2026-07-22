@@ -206,7 +206,7 @@ internal fun PlaylistDetailScreenContent(
         is PlaylistDetailUiState.Loading -> uiState.initialPlaylist
         else -> null
     }
-    val title = playlist?.name ?: "Playlist"
+    val title = playlist?.name ?: stringResource(R.string.playlist_detail_fallback_title)
 
     CollapsingArtworkScaffold(
         artworkUrl = playlist?.artworkUrl,

@@ -2,6 +2,8 @@ package com.viperplayer.presentation.social
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.social.FollowRepository
 import com.viperplayer.domain.social.FollowResult
 import com.viperplayer.domain.social.FollowUser
@@ -22,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class FollowingUsersViewModel @Inject constructor(
     private val followRepository: FollowRepository,
+    private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -49,9 +52,9 @@ class FollowingUsersViewModel @Inject constructor(
                 is FollowResult.Failed ->
                     _uiState.update { it.copy(loading = false, error = result.message) }
                 FollowResult.NetworkError ->
-                    _uiState.update { it.copy(loading = false, error = NETWORK_ERROR) }
+                    _uiState.update { it.copy(loading = false, error = stringProvider.getString(R.string.error_server_unreachable)) }
                 FollowResult.NotAuthenticated ->
-                    _uiState.update { it.copy(loading = false, error = SIGN_IN_ERROR) }
+                    _uiState.update { it.copy(loading = false, error = stringProvider.getString(R.string.following_users_error_sign_in)) }
                 FollowResult.NotConfigured ->
                     _uiState.update { it.copy(enabled = false, loading = false) }
             }
@@ -68,11 +71,6 @@ class FollowingUsersViewModel @Inject constructor(
                 _uiState.update { it.copy(users = previous) }
             }
         }
-    }
-
-    private companion object {
-        const val NETWORK_ERROR = "Couldn't reach the server. Check your connection."
-        const val SIGN_IN_ERROR = "Sign in to see who you follow."
     }
 }
 

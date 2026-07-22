@@ -2,10 +2,12 @@ package com.viperplayer.presentation.plugins
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
 import com.viperplayer.data.plugin.update.PluginUpdate
 import com.viperplayer.data.plugin.update.PluginUpdateManager
 import com.viperplayer.data.plugin.update.PluginUpdateProgress
 import com.viperplayer.data.preferences.PushSyncPreferences
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.sync.LibrarySyncManager
 import com.viperplayer.data.sync.SyncResult
 import com.viperplayer.data.sync.push.PushSyncManager
@@ -58,6 +60,7 @@ class PluginsViewModel @Inject constructor(
     private val pushSyncPreferences: PushSyncPreferences,
     private val pushSyncManager: PushSyncManager,
     private val pluginUpdateManager: PluginUpdateManager,
+    private val stringProvider: StringProvider,
 ) : ViewModel() {
     companion object {
         private const val TAG = "PluginsViewModel"
@@ -189,7 +192,10 @@ class PluginsViewModel @Inject constructor(
                     it.copy(
                         togglingPluginId = null,
                         error = e.message
-                            ?: "Failed to ${if (isEnabled) "disable" else "enable"} plugin"
+                            ?: stringProvider.getString(
+                                if (isEnabled) R.string.plugins_disable_failed
+                                else R.string.plugins_enable_failed
+                            )
                     )
                 }
             }

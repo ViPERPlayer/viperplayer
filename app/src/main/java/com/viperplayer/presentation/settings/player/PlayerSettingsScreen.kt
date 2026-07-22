@@ -749,12 +749,13 @@ private fun AudioQualityDialog(
     )
 }
 
+@Composable
 private fun getAudioQualityTitle(quality: AudioQuality): String {
     return when (quality) {
-        AudioQuality.LOW -> "Low"
-        AudioQuality.MEDIUM -> "Medium"
-        AudioQuality.HIGH -> "High"
-        AudioQuality.LOSSLESS -> "Lossless"
+        AudioQuality.LOW -> stringResource(R.string.player_audio_quality_low)
+        AudioQuality.MEDIUM -> stringResource(R.string.player_audio_quality_medium)
+        AudioQuality.HIGH -> stringResource(R.string.player_audio_quality_high)
+        AudioQuality.LOSSLESS -> stringResource(R.string.player_audio_quality_lossless)
     }
 }
 
@@ -767,13 +768,14 @@ private fun getAudioQualityDescription(quality: AudioQuality): String {
     }
 }
 
+@Composable
 private fun getHistoryDurationDescription(duration: HistoryDuration): String {
     return when (duration) {
-        HistoryDuration.DAYS_7 -> "7 days"
-        HistoryDuration.DAYS_30 -> "30 days"
-        HistoryDuration.DAYS_90 -> "90 days"
-        HistoryDuration.DAYS_180 -> "6 months"
-        HistoryDuration.DAYS_365 -> "1 year"
-        HistoryDuration.FOREVER -> "Forever"
+        HistoryDuration.DAYS_7 -> stringResource(R.string.player_history_duration_7_days)
+        HistoryDuration.DAYS_30 -> stringResource(R.string.player_history_duration_30_days)
+        HistoryDuration.DAYS_90 -> stringResource(R.string.player_history_duration_90_days)
+        HistoryDuration.DAYS_180 -> stringResource(R.string.player_history_duration_180_days)
+        HistoryDuration.DAYS_365 -> stringResource(R.string.player_history_duration_365_days)
+        HistoryDuration.FOREVER -> stringResource(R.string.player_history_duration_forever)
     }
 }

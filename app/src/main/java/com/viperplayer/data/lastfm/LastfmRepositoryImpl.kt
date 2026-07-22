@@ -1,6 +1,8 @@
 package com.viperplayer.data.lastfm
 
+import com.viperplayer.R
 import com.viperplayer.data.repository.NetworkConnectivityChecker
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.lastfm.LastfmErrorCodes
 import com.viperplayer.domain.lastfm.LastfmRepository
 import com.viperplayer.domain.lastfm.LastfmSettings
@@ -35,6 +37,7 @@ class LastfmRepositoryImpl @Inject constructor(
     private val api: LastfmApi,
     private val pendingScrobbleDao: PendingScrobbleDao,
     private val connectivity: NetworkConnectivityChecker,
+    private val stringProvider: StringProvider,
 ) : LastfmRepository {
 
     // Serializes queue drains so a scrobble submission and a flush can't double-submit the same rows.
@@ -63,7 +66,7 @@ class LastfmRepositoryImpl @Inject constructor(
     override suspend fun login(username: String, password: String): LoginResult {
         val trimmed = username.trim()
         if (trimmed.isEmpty() || password.isEmpty()) {
-            return LoginResult.Failed("Enter your username and password")
+            return LoginResult.Failed(stringProvider.getString(R.string.lastfm_error_empty_credentials))
         }
         // The password lives only for this call; getMobileSession discards it after signing/sending.
         return when (val result = api.getMobileSession(trimmed, password)) {
@@ -76,7 +79,7 @@ class LastfmRepositoryImpl @Inject constructor(
             }
 
             is LastfmResult.ApiError -> LoginResult.Failed(
-                result.message.ifBlank { "Login failed (error ${result.code})" }
+                result.message.ifBlank { stringProvider.getString(R.string.lastfm_error_login_failed, result.code) }
             )
 
             is LastfmResult.NetworkError -> LoginResult.NetworkError

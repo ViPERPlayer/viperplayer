@@ -2,6 +2,8 @@ package com.viperplayer.presentation.social
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.model.ListenSession
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.presentation.navigation.JoinSession
@@ -30,6 +32,7 @@ data class JoinSessionUiState(
 class JoinSessionViewModel @AssistedInject constructor(
     @Assisted private val route: JoinSession,
     private val repository: ListenTogetherRepository,
+    private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -70,7 +73,7 @@ class JoinSessionViewModel @AssistedInject constructor(
         if (code != null) {
             _state.update { it.copy(code = code, error = null) }
         } else {
-            _state.update { it.copy(error = "Couldn't read a code from that") }
+            _state.update { it.copy(error = stringProvider.getString(R.string.join_session_error_invalid_code)) }
         }
     }
 
@@ -81,7 +84,7 @@ class JoinSessionViewModel @AssistedInject constructor(
             _state.update { it.copy(joining = true, error = null) }
             repository.joinSession(current.code).fold(
                 onSuccess = { session -> _state.update { it.copy(joining = false, joined = session) } },
-                onFailure = { e -> _state.update { it.copy(joining = false, error = e.message ?: "Couldn't join") } },
+                onFailure = { e -> _state.update { it.copy(joining = false, error = e.message ?: stringProvider.getString(R.string.join_session_error_join_failed)) } },
             )
         }
     }

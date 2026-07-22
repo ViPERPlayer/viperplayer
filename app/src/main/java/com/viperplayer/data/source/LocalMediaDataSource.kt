@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.net.toUri
+import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
@@ -18,7 +19,7 @@ import javax.inject.Singleton
 
 @Singleton
 class LocalMediaDataSource @Inject constructor(
-    @ApplicationContext context: Context
+    @ApplicationContext private val context: Context
 ) {
     private val contentResolver: ContentResolver = context.contentResolver
 
@@ -57,7 +58,7 @@ class LocalMediaDataSource @Inject constructor(
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn) ?: "Unknown"
+                val title = cursor.getString(titleColumn) ?: context.getString(R.string.unknown_title)
                 val artistName = cursor.getString(artistColumn)
                 val artistId = cursor.getLong(artistIdColumn)
                 val albumName = cursor.getString(albumColumn)
@@ -71,13 +72,13 @@ class LocalMediaDataSource @Inject constructor(
                 )
 
                 val artistRef = ArtistRef(
-                    name = artistName ?: "Unknown Artist",
+                    name = artistName ?: context.getString(R.string.unknown_artist),
                     id = MediaId.Local(artistId.toString())
                 )
 
                 val album = Album(
                     id = MediaId.Local(albumId.toString()),
-                    name = albumName ?: "Unknown Album",
+                    name = albumName ?: context.getString(R.string.unknown_album),
                     artists = listOf(artistRef),
                     artworkUrl = getAlbumArtUri(albumId)?.toString()
                 )

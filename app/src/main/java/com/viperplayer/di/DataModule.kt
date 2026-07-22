@@ -15,6 +15,7 @@ import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
 import com.viperplayer.data.repository.RadioPlaylistRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.repository.SettingsRepositoryImpl
 import com.viperplayer.data.repository.ViperRepositoryImpl
 import com.viperplayer.data.sync.LibrarySync
@@ -146,6 +147,7 @@ abstract class DataModule {
             socketClient: KtorJamSocketClient,
             deviceIdStore: DeviceIdStore,
             accountRepository: AccountRepository,
+            stringProvider: StringProvider,
             mock: MockListenTogetherRepositoryImpl,
         ): ListenTogetherRepository =
             if (sessionApi.isConfigured) {
@@ -154,6 +156,7 @@ abstract class DataModule {
                     socketClient = socketClient,
                     deviceIdStore = deviceIdStore,
                     accountRepository = accountRepository,
+                    stringProvider = stringProvider,
                 )
             } else {
                 mock

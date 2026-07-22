@@ -3,6 +3,8 @@ package com.viperplayer.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
@@ -86,6 +88,7 @@ class HomeViewModel @Inject constructor(
     friendActivityRepository: FriendActivityRepository,
     sharedPlaylistsRepository: SharedPlaylistsRepository,
     socialFeatures: SocialFeatures,
+    private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
@@ -219,7 +222,7 @@ class HomeViewModel @Inject constructor(
                     HomeUiState.Error(
                         greetingType = state.greetingType,
                         userName = state.userName,
-                        message = e.message ?: "Failed to load content"
+                        message = e.message ?: stringProvider.getString(R.string.home_error_load_content)
                     )
                 }
             }

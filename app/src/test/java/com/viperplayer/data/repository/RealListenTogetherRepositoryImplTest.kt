@@ -1,5 +1,6 @@
 package com.viperplayer.data.repository
 
+import com.viperplayer.R
 import com.viperplayer.data.account.AccountApiResult
 import com.viperplayer.data.social.CMD_NEXT
 import com.viperplayer.data.social.CMD_PAUSE
@@ -25,6 +26,7 @@ import com.viperplayer.data.social.PermissionsDto
 import com.viperplayer.data.social.SessionApi
 import com.viperplayer.data.social.SessionApiResult
 import com.viperplayer.data.social.SessionDeltaDto
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.social.SessionSnapshotDto
 import com.viperplayer.data.social.TimelineDto
 import com.viperplayer.domain.account.AccountRepository
@@ -61,7 +63,7 @@ class RealListenTogetherRepositoryImplTest {
     private class FakeSessionApi(
         var createResult: SessionApiResult<CreateSessionResponseDto>,
         var joinResult: SessionApiResult<JoinSessionResponseDto>,
-    ) : SessionApi(HttpClient(MockEngine { error("unused") }), { "https://backend.test" }) {
+    ) : SessionApi(HttpClient(MockEngine { error("unused") }), { _, _ -> "" }, { "https://backend.test" }) {
         var lastCreate: Triple<String, String, String>? = null
         var lastJoin: List<String>? = null
 
@@ -122,6 +124,15 @@ class RealListenTogetherRepositoryImplTest {
         socketClient = socket,
         deviceIdStore = FakeDeviceIdProvider(deviceId),
         accountRepository = FakeAccountRepository(user),
+        // Resolve the blank-name fallback labels to their real English values so mapping behavior is
+        // preserved; every other resource is irrelevant here.
+        stringProvider = StringProvider { id, _ ->
+            when (id) {
+                R.string.listen_together_default_host_name -> "Host"
+                R.string.listen_together_default_guest_name -> "Guest"
+                else -> ""
+            }
+        },
         scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
         // Cap the clock loop so advanceUntilIdle terminates (no TimeResp is scripted → each ping just
         // times out; without a cap the loop would ping forever in virtual time).

@@ -1,6 +1,8 @@
 package com.viperplayer.data.social
 
 import com.viperplayer.BuildConfig
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -46,6 +48,7 @@ sealed interface SessionApiResult<out T> {
 @Singleton
 open class SessionApi @Inject constructor(
     private val httpClient: HttpClient,
+    private val stringProvider: StringProvider,
 ) {
     // encodeDefaults so the `mode` request field (which defaults to "JAM") is always sent — the backend
     // reads it. ignoreUnknownKeys so response fields we don't model (playback/queue/permissions/...)
@@ -62,7 +65,11 @@ open class SessionApi @Inject constructor(
      */
     private var rawBackendUrl: () -> String = { BuildConfig.VIPER_BACKEND_URL }
 
-    internal constructor(httpClient: HttpClient, rawBackendUrl: () -> String) : this(httpClient) {
+    internal constructor(
+        httpClient: HttpClient,
+        stringProvider: StringProvider,
+        rawBackendUrl: () -> String,
+    ) : this(httpClient, stringProvider) {
         this.rawBackendUrl = rawBackendUrl
     }
 
@@ -134,7 +141,7 @@ open class SessionApi @Inject constructor(
             return if (response.status.value >= 500) {
                 SessionApiResult.NetworkError
             } else {
-                SessionApiResult.Rejected(serverMessage ?: "Couldn't reach the session")
+                SessionApiResult.Rejected(serverMessage ?: stringProvider.getString(R.string.listen_together_error_rejected))
             }
         }
         val mapped = runCatching { map(bodyText) }.getOrNull()

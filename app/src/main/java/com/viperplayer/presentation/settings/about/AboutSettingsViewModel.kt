@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +43,8 @@ class AboutSettingsViewModel @Inject constructor(
                     )
                     _uiState.update {
                         it.copy(
-                            versionName = packageInfo.versionName ?: "Unknown",
+                            versionName = packageInfo.versionName
+                                ?: context.getString(R.string.version_unknown),
                             versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 packageInfo.longVersionCode
                             } else {

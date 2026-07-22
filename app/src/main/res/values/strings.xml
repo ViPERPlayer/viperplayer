@@ -1123,4 +1123,110 @@
     <string name="follow_action_following">Following</string>
     <string name="following_users_title">Following</string>
     <string name="following_users_empty">You\'re not following anyone yet</string>
+
+    <!-- ==== Externalized hardcoded strings (i18n sweep) ==== -->
+    <!-- ViPER FX -->
+    <string name="ddc_import_success">DDC file imported successfully</string>
+    <string name="ddc_import_invalid_extension">Error: Invalid file extension (must be .vdc)</string>
+    <string name="ddc_import_invalid_content">Error: Invalid file content (parse failed)</string>
+    <string name="ddc_import_io_error">Error: import failed (IO error)</string>
+    <string name="convolver_impulse_loaded">Impulse loaded: %1$s</string>
+    <string name="convolver_impulse_load_failed">Failed to load impulse response</string>
+    <!-- Appearance settings: accent colors -->
+    <string name="appearance_accent_purple">Purple</string>
+    <string name="appearance_accent_green">Green</string>
+    <string name="appearance_accent_blue">Blue</string>
+    <string name="appearance_accent_red">Red</string>
+    <string name="appearance_accent_mauve">Mauve</string>
+    <string name="appearance_accent_orange">Orange</string>
+    <string name="appearance_accent_gold">Gold</string>
+    <string name="appearance_accent_teal">Teal</string>
+    <!-- Appearance settings: theme mode + dynamic theme -->
+    <string name="appearance_theme_mode_light">Light</string>
+    <string name="appearance_theme_mode_dark">Dark</string>
+    <string name="appearance_theme_mode_system">System Default</string>
+    <string name="appearance_dynamic_theme_off">Off</string>
+    <string name="appearance_dynamic_theme_dynamic">Dynamic (Album Art)</string>
+    <string name="appearance_dynamic_theme_system">System (Material You)</string>
+    <!-- Player settings: audio quality + history duration -->
+    <string name="player_audio_quality_low">Low</string>
+    <string name="player_audio_quality_medium">Medium</string>
+    <string name="player_audio_quality_high">High</string>
+    <string name="player_audio_quality_lossless">Lossless</string>
+    <string name="player_history_duration_7_days">7 days</string>
+    <string name="player_history_duration_30_days">30 days</string>
+    <string name="player_history_duration_90_days">90 days</string>
+    <string name="player_history_duration_180_days">6 months</string>
+    <string name="player_history_duration_365_days">1 year</string>
+    <string name="player_history_duration_forever">Forever</string>
+    <!-- Settings errors -->
+    <string name="lastfm_error_network">Couldn\'t reach Last.fm. Check your connection.</string>
+    <string name="lastfm_error_not_configured">Last.fm API key is not configured in this build.</string>
+    <string name="updater_error_no_endpoint">Update download requires a configured update endpoint. Please update manually from your app store.</string>
+    <string name="updater_error_check_failed">Failed to check for updates: %1$s</string>
+    <string name="updater_error_load_version_failed">Failed to load version</string>
+    <string name="version_unknown">Unknown</string>
+    <!-- Account + social errors -->
+    <string name="error_server_unreachable">Couldn\'t reach the server. Check your connection.</string>
+    <string name="account_error_not_configured">Accounts aren\'t available in this build.</string>
+    <string name="find_people_error_sign_in">Sign in to find and follow people.</string>
+    <string name="following_users_error_sign_in">Sign in to see who you follow.</string>
+    <string name="join_session_error_invalid_code">Couldn\'t read a code from that</string>
+    <string name="join_session_error_join_failed">Couldn\'t join</string>
+    <!-- Player screen + social sheets -->
+    <string name="player_shuffle_on">Shuffle on</string>
+    <string name="player_shuffle_off">Shuffle off</string>
+    <string name="player_remove_from_liked">Remove from liked</string>
+    <string name="player_add_to_liked">Add to liked</string>
+    <string name="action_pause">Pause</string>
+    <string name="song_detail_no_technical_details">No technical details available for this track</string>
+    <string name="song_detail_format_only_current_track">Audio format details are only available for the currently playing track</string>
+    <string name="social_share_message">Listen with me: %1$s\n%2$s</string>
+    <string name="social_qr_instructions">Point a camera at the code, or enter</string>
+    <string name="social_copy_link_instead">Copy link instead</string>
+    <string name="social_youre_hosting">YOU\'RE HOSTING</string>
+    <string name="cd_selected">Selected</string>
+    <!-- Detail screens -->
+    <string name="artist_detail_section_top_songs">Top Songs</string>
+    <string name="artist_detail_section_albums">Albums</string>
+    <string name="artist_detail_section_playlists">Playlists</string>
+    <string name="artist_detail_section_featuring">Featuring</string>
+    <string name="artist_detail_section_appears_on">Appears On</string>
+    <string name="artist_detail_section_similar_artists">Similar Artists</string>
+    <string name="artist_detail_fallback_title">Artist</string>
+    <string name="playlist_detail_fallback_title">Playlist</string>
+    <string name="artist_load_failed">Failed to load artist</string>
+    <string name="artist_load_details_failed">Failed to load artist details</string>
+    <string name="album_load_failed">Failed to load album</string>
+    <string name="album_load_details_failed">Failed to load album details</string>
+    <!-- Search / home / library / plugins -->
+    <string name="search_subtitle_type_song">Song</string>
+    <string name="search_subtitle_type_album">Album</string>
+    <string name="search_subtitle_type_playlist">Playlist</string>
+    <string name="search_error_generic">Search failed</string>
+    <string name="home_error_load_content">Failed to load content</string>
+    <string name="default_imported_playlist_name">Imported playlist</string>
+    <string name="plugins_disable_failed">Failed to disable plugin</string>
+    <string name="plugins_enable_failed">Failed to enable plugin</string>
+    <!-- Local library defaults -->
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="liked_songs_playlist_name">Liked Songs</string>
+    <string name="liked_songs_playlist_desc">Songs you\'ve liked</string>
+    <string name="default_playlist_name">Playlist</string>
+    <!-- Listen Together -->
+    <string name="listen_together_error_network">Couldn\'t reach the session server</string>
+    <string name="listen_together_error_not_available">Listen together isn\'t available</string>
+    <string name="listen_together_error_invalid_code">Not a valid session code</string>
+    <string name="listen_together_error_rejected">Couldn\'t reach the session</string>
+    <string name="listen_together_default_host_name">Host</string>
+    <string name="listen_together_default_guest_name">Guest</string>
+    <!-- Last.fm (data layer) -->
+    <string name="lastfm_error_empty_credentials">Enter your username and password</string>
+    <string name="lastfm_error_login_failed">Login failed (error %1$d)</string>
+    <!-- Account (data layer) -->
+    <string name="account_error_current_password_incorrect">Current password is incorrect</string>
+    <string name="account_error_password_incorrect">Password is incorrect</string>
+    <string name="account_error_sign_in_to_set_handle">Sign in to set a handle</string>
+    <string name="account_error_invalid_credentials">Invalid email or password</string>
 </resources>

@@ -12,10 +12,12 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
+import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
 import com.viperplayer.data.player.resumption.LastSessionCodec
 import com.viperplayer.data.player.resumption.LastSessionMediaMapper
 import com.viperplayer.data.player.resumption.LastSessionStore
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
@@ -39,7 +41,8 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
     private val searchUseCase: SearchUseCase,
     private val playerRepository: PlayerRepository,
     private val pluginRepository: PluginRepository,
-    private val lastSessionStore: LastSessionStore
+    private val lastSessionStore: LastSessionStore,
+    private val stringProvider: StringProvider,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -105,7 +108,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
                 MediaMetadata.Builder()
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
-                    .setTitle("Library")
+                    .setTitle(stringProvider.getString(R.string.nav_library))
                     .build()
             )
             .build()
@@ -278,10 +281,10 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
 
     private fun getRootChildren(): List<MediaItem> {
         return listOf(
-            buildBrowsableItem(ARTISTS_ID, "Artists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS),
-            buildBrowsableItem(ALBUMS_ID, "Albums", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
-            buildBrowsableItem(PLAYLISTS_ID, "Playlists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS),
-            buildBrowsableItem(SONGS_ID, "Songs", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+            buildBrowsableItem(ARTISTS_ID, stringProvider.getString(R.string.library_tab_artists), mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS),
+            buildBrowsableItem(ALBUMS_ID, stringProvider.getString(R.string.library_tab_albums), mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
+            buildBrowsableItem(PLAYLISTS_ID, stringProvider.getString(R.string.library_tab_playlists), mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS),
+            buildBrowsableItem(SONGS_ID, stringProvider.getString(R.string.library_tab_songs), mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
         )
     }
 

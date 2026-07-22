@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.BuildConfig
+import com.viperplayer.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -70,7 +71,8 @@ class UpdaterSettingsViewModel @Inject constructor(
                         context.packageName,
                         0
                     )
-                    val versionName = packageInfo.versionName ?: "Unknown"
+                    val versionName = packageInfo.versionName
+                        ?: context.getString(R.string.version_unknown)
                     _uiState.update {
                         it.copy(
                             currentVersion = versionName,
@@ -79,10 +81,14 @@ class UpdaterSettingsViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to load current version")
+                    val unknown = context.getString(R.string.version_unknown)
                     _uiState.update {
                         it.copy(
-                            currentVersion = "Unknown",
-                            updateState = UpdateState.Error("Failed to load version", "Unknown")
+                            currentVersion = unknown,
+                            updateState = UpdateState.Error(
+                                context.getString(R.string.updater_error_load_version_failed),
+                                unknown
+                            )
                         )
                     }
                 }
@@ -117,7 +123,10 @@ class UpdaterSettingsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         updateState = UpdateState.Error(
-                            message = "Failed to check for updates: ${e.message}",
+                            message = context.getString(
+                                R.string.updater_error_check_failed,
+                                e.message ?: ""
+                            ),
                             currentVersion = currentVersion
                         )
                     )
@@ -147,8 +156,7 @@ class UpdaterSettingsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         updateState = UpdateState.Error(
-                            message = "Update download requires a configured update endpoint. " +
-                                "Please update manually from your app store.",
+                            message = context.getString(R.string.updater_error_no_endpoint),
                             currentVersion = state.currentVersion
                         )
                     )

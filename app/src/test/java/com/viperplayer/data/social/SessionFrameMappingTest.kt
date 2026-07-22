@@ -184,14 +184,14 @@ class SessionFrameMappingTest {
         val me = member("me-dev", "Bob")
         val snapshot = SessionSnapshotDto(sessionId = "s", mode = "JAM", host = host, members = listOf(host, me))
 
-        val asHost = snapshot.toListenSession(localDeviceId = "host-dev", code = "ABCDEF", inviteUrl = "https://viper.player/jam/abcdef")
+        val asHost = snapshot.toListenSession(localDeviceId = "host-dev", code = "ABCDEF", inviteUrl = "https://viper.player/jam/abcdef", defaultHostName = "Host", defaultGuestName = "Guest")
         assertTrue(asHost.isHost)
         assertEquals("Alice", asHost.hostName)
         assertEquals("ABCDEF", asHost.code)
         assertEquals(2, asHost.participants.size)
         assertTrue(asHost.participants.single { it.id == "host-dev" }.isSelf)
 
-        val asGuest = snapshot.toListenSession(localDeviceId = "me-dev", code = "ABCDEF", inviteUrl = "u")
+        val asGuest = snapshot.toListenSession(localDeviceId = "me-dev", code = "ABCDEF", inviteUrl = "u", defaultHostName = "Host", defaultGuestName = "Guest")
         assertFalse(asGuest.isHost)
         assertTrue(asGuest.participants.single { it.id == "me-dev" }.isSelf)
         assertFalse(asGuest.participants.single { it.id == "host-dev" }.isSelf)
@@ -212,13 +212,13 @@ class SessionFrameMappingTest {
         )
 
         // Host + Controller always control.
-        assertTrue(snap(false).toListenSession("host-dev", "C", "u").canControl)
-        assertTrue(snap(false).toListenSession("ctrl-dev", "C", "u").canControl)
+        assertTrue(snap(false).toListenSession("host-dev", "C", "u", "Host", "Guest").canControl)
+        assertTrue(snap(false).toListenSession("ctrl-dev", "C", "u", "Host", "Guest").canControl)
         // Listener never.
-        assertFalse(snap(true).toListenSession("lst-dev", "C", "u").canControl)
+        assertFalse(snap(true).toListenSession("lst-dev", "C", "u", "Host", "Guest").canControl)
         // Member gated on guestsCanControl.
-        assertFalse(snap(false).toListenSession("guest-dev", "C", "u").canControl)
-        assertTrue(snap(true).toListenSession("guest-dev", "C", "u").canControl)
+        assertFalse(snap(false).toListenSession("guest-dev", "C", "u", "Host", "Guest").canControl)
+        assertTrue(snap(true).toListenSession("guest-dev", "C", "u", "Host", "Guest").canControl)
     }
 
     @Test

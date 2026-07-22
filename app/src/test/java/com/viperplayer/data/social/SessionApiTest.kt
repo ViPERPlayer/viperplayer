@@ -37,7 +37,7 @@ class SessionApiTest {
             recorded += request
             handler(request)
         }
-        return SessionApi(HttpClient(engine)) { BASE }
+        return SessionApi(HttpClient(engine), { _, _ -> "" }) { BASE }
     }
 
     private fun MockRequestHandleScope.json(status: HttpStatusCode, body: String) = respond(
@@ -160,7 +160,7 @@ class SessionApiTest {
 
     @Test
     fun joinSession_networkFailure_mapsToNetworkError() = runTest {
-        val api = SessionApi(HttpClient(MockEngine { throw IOException("offline") })) { BASE }
+        val api = SessionApi(HttpClient(MockEngine { throw IOException("offline") }), { _, _ -> "" }) { BASE }
         assertEquals(SessionApiResult.NetworkError, api.joinSession("ABCDEF", "d", "u", "n"))
     }
 
@@ -175,7 +175,7 @@ class SessionApiTest {
     @Test
     fun notConfigured_shortCircuits_withoutHittingEngine() = runTest {
         val engine = MockEngine { error("should not be called when unconfigured") }
-        val api = SessionApi(HttpClient(engine)) { "REPLACE_WITH_REAL_VALUE" }
+        val api = SessionApi(HttpClient(engine), { _, _ -> "" }) { "REPLACE_WITH_REAL_VALUE" }
 
         assertEquals(SessionApiResult.NotConfigured, api.createSession("d", "u", "n"))
         assertEquals(SessionApiResult.NotConfigured, api.joinSession("c", "d", "u", "n"))

@@ -2,6 +2,8 @@ package com.viperplayer.presentation.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Song
@@ -57,7 +59,8 @@ class AlbumDetailViewModel @AssistedInject constructor(
     private val pluginRepository: PluginRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val playerRepository: PlayerRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val stringProvider: StringProvider
 ) : ViewModel() {
 
     @AssistedFactory
@@ -142,7 +145,8 @@ class AlbumDetailViewModel @AssistedInject constructor(
                 val albumResult = pluginRepository.getAlbum(albumId)
                 if (albumResult.isFailure) {
                     _uiState.value = AlbumDetailUiState.Error(
-                        albumResult.exceptionOrNull()?.message ?: "Failed to load album"
+                        albumResult.exceptionOrNull()?.message
+                            ?: stringProvider.getString(R.string.album_load_failed)
                     )
                     return@launch
                 }
@@ -158,7 +162,7 @@ class AlbumDetailViewModel @AssistedInject constructor(
                 )
             } catch (e: Exception) {
                 _uiState.value = AlbumDetailUiState.Error(
-                    e.message ?: "Failed to load album details"
+                    e.message ?: stringProvider.getString(R.string.album_load_details_failed)
                 )
             }
         }

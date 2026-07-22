@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -109,7 +110,7 @@ private fun ValuePickerDialog(
                 IconButton(onClick = onSelectedIndexReset) {
                     Icon(
                         painter = painterResource(R.drawable.ic_restart),
-                        contentDescription = "Reset to default",
+                        contentDescription = stringResource(R.string.value_slider_reset_to_default),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -158,7 +159,7 @@ private fun ValuePickerDialog(
                 Button(
                     onClick = onDismissRequest
                 ) {
-                    Text("Close")
+                    Text(stringResource(R.string.action_close))
                 }
             }
         }

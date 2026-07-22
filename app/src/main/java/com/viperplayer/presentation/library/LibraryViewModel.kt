@@ -696,7 +696,8 @@ class LibraryViewModel @Inject constructor(
                     val content = context.contentResolver.openInputStream(uri)?.use { input ->
                         input.readBytes().toString(Charsets.UTF_8)
                     } ?: return@withContext null
-                    val name = queryDisplayName(uri)?.substringBeforeLast('.') ?: "Imported playlist"
+                    val name = queryDisplayName(uri)?.substringBeforeLast('.')
+                        ?: context.getString(R.string.default_imported_playlist_name)
                     mediaLibraryRepository.importPlaylistFromM3u(name, content)
                 }
             } catch (e: Exception) {

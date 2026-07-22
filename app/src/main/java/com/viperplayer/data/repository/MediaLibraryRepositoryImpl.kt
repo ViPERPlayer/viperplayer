@@ -1,5 +1,6 @@
 package com.viperplayer.data.repository
 
+import com.viperplayer.R
 import com.viperplayer.data.local.dao.AlbumDao
 import com.viperplayer.data.local.dao.ArtistDao
 import com.viperplayer.data.local.dao.CrossRefDao
@@ -33,6 +34,7 @@ import com.viperplayer.data.local.mapper.idType
 import com.viperplayer.data.local.mapper.mediaIdFromColumns
 import com.viperplayer.data.playlist.M3uSerializer
 import com.viperplayer.data.playlist.PlaylistOrdering
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.data.sync.push.LibraryMutation
 import com.viperplayer.data.sync.push.LibraryPushOutbox
@@ -86,6 +88,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val networkConnectivityChecker: NetworkConnectivityChecker,
     private val localMediaDataSource: LocalMediaDataSource,
     private val libraryPushOutbox: LibraryPushOutbox,
+    private val stringProvider: StringProvider,
 ) : MediaLibraryRepository {
 
     // Scope for fire-and-forget background work (e.g. artwork caching) that must not block callers
@@ -1052,8 +1055,8 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
             Playlist(
                 id = MediaId.Local("liked_songs"),
-                name = "Liked Songs",
-                description = "Songs you've liked",
+                name = stringProvider.getString(R.string.liked_songs_playlist_name),
+                description = stringProvider.getString(R.string.liked_songs_playlist_desc),
                 artworkUrl = artworkUrl,
                 ownerName = null,
                 songCount = songs.size,
@@ -1079,7 +1082,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createLocalPlaylist(name: String): MediaId = withContext(Dispatchers.IO) {
-        val trimmed = name.trim().ifBlank { "Playlist" }
+        val trimmed = name.trim().ifBlank { stringProvider.getString(R.string.default_playlist_name) }
         val mediaId = MediaId.Local("playlist_${UUID.randomUUID()}")
         savePlaylist(
             Playlist(
@@ -1248,7 +1251,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
 
         val playlist = Playlist(
             id = MediaId.Local("import_${System.currentTimeMillis()}"),
-            name = playlistName.ifBlank { "Imported playlist" },
+            name = playlistName.ifBlank { stringProvider.getString(R.string.default_imported_playlist_name) },
             songCount = songs.size,
             isPublic = false,
             isEditable = true,

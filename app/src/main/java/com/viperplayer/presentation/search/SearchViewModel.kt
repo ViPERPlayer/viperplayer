@@ -8,6 +8,8 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.toArtist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -67,7 +69,8 @@ class SearchViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val searchRepository: SearchRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
-    private val searchUseCase: SearchUseCase
+    private val searchUseCase: SearchUseCase,
+    private val stringProvider: StringProvider
 ) : ViewModel() {
     // Expose current song and playing state from player repository
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
@@ -165,7 +168,7 @@ class SearchViewModel @Inject constructor(
         return when (this) {
             is Song -> this.let {
                 val subtitle = buildString {
-                    append("Song")
+                    append(stringProvider.getString(R.string.search_subtitle_type_song))
                     if (it.artists.isNotEmpty()) {
                         append(" • ")
                         if (it.artists.size > 1) {
@@ -217,7 +220,7 @@ class SearchViewModel @Inject constructor(
 
             is Album -> this.let {
                 val subtitle = buildString {
-                    append("Album")
+                    append(stringProvider.getString(R.string.search_subtitle_type_album))
                     if (it.artists.isNotEmpty()) {
                         append(" • ")
                         if (it.artists.size > 1) {
@@ -256,7 +259,7 @@ class SearchViewModel @Inject constructor(
 
             is Playlist -> this.let {
                 val subtitle = buildString {
-                    append("Playlist")
+                    append(stringProvider.getString(R.string.search_subtitle_type_playlist))
                     it.ownerName?.let { ownerName ->
                         append(" • ")
                         append(ownerName)
@@ -310,7 +313,9 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     _searchResultsState.value =
-                        SearchResultsState.Error(e.message ?: "Search failed")
+                        SearchResultsState.Error(
+                            e.message ?: stringProvider.getString(R.string.search_error_generic)
+                        )
                 }
         }
     }

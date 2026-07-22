@@ -61,6 +61,7 @@ class AlbumDetailViewModelLikeTest {
         mediaLibraryRepository = media,
         playerRepository = InertPlayerRepository(),
         settingsRepository = InertSettingsRepository(),
+        stringProvider = { _, _ -> "" },
     )
 
     @Test

@@ -2,6 +2,8 @@ package com.viperplayer.presentation.settings.lastfm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.lastfm.LastfmRepository
 import com.viperplayer.domain.lastfm.LastfmSettings
 import com.viperplayer.domain.lastfm.LoginResult
@@ -24,6 +26,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LastfmSettingsViewModel @Inject constructor(
     private val repository: LastfmRepository,
+    private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -50,8 +53,8 @@ class LastfmSettingsViewModel @Inject constructor(
                     loginError = when (result) {
                         is LoginResult.Success -> null
                         is LoginResult.Failed -> result.message
-                        LoginResult.NetworkError -> "Couldn't reach Last.fm. Check your connection."
-                        LoginResult.NotConfigured -> "Last.fm API key is not configured in this build."
+                        LoginResult.NetworkError -> stringProvider.getString(R.string.lastfm_error_network)
+                        LoginResult.NotConfigured -> stringProvider.getString(R.string.lastfm_error_not_configured)
                     },
                 )
             }

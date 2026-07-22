@@ -3,7 +3,9 @@ package com.viperplayer.presentation.account
 import android.text.format.DateUtils
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.viperplayer.R
 import com.viperplayer.data.preferences.LibrarySyncPreferences
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.sync.LibrarySync
 import com.viperplayer.data.sync.LibrarySyncStatusStore
 import com.viperplayer.domain.account.AccountRepository
@@ -76,6 +78,7 @@ class AccountViewModel @Inject constructor(
     private val librarySync: LibrarySync,
     private val librarySyncPreferences: LibrarySyncPreferences,
     librarySyncStatusStore: LibrarySyncStatusStore,
+    private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -189,8 +192,8 @@ class AccountViewModel @Inject constructor(
                     error = when (result) {
                         is AuthResult.Success -> null
                         is AuthResult.Failed -> result.message
-                        AuthResult.NetworkError -> "Couldn't reach the server. Check your connection."
-                        AuthResult.NotConfigured -> "Accounts aren't available in this build."
+                        AuthResult.NetworkError -> stringProvider.getString(R.string.error_server_unreachable)
+                        AuthResult.NotConfigured -> stringProvider.getString(R.string.account_error_not_configured)
                     },
                 )
             }

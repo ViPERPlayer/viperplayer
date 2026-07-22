@@ -3,8 +3,10 @@ package com.viperplayer.presentation.account
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import com.viperplayer.R
 import com.viperplayer.data.account.AccountApiResult
 import com.viperplayer.data.preferences.LibrarySyncPreferences
+import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.sync.LibrarySync
 import com.viperplayer.data.sync.LibrarySyncStatusStore
 import com.viperplayer.domain.account.AccountRepository
@@ -100,11 +102,24 @@ class AccountViewModelTest {
         }
     }
 
+    /**
+     * A fake [StringProvider] that returns the real English values for the two account error
+     * resources the error-mapping tests assert on, and the resource id (as a string) otherwise.
+     */
+    private val stringProvider = StringProvider { id, _ ->
+        when (id) {
+            R.string.error_server_unreachable -> "Couldn't reach the server. Check your connection."
+            R.string.account_error_not_configured -> "Accounts aren't available in this build."
+            else -> "res:$id"
+        }
+    }
+
     private fun accountViewModel(repo: AccountRepository) = AccountViewModel(
         repo,
         FakeLibrarySync(),
         LibrarySyncPreferences(fakePrefsDataStore()),
         LibrarySyncStatusStore(fakePrefsDataStore()),
+        stringProvider,
     )
 
     @Test

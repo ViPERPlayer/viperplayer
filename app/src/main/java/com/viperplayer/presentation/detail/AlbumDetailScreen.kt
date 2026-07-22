@@ -181,7 +181,7 @@ private fun AlbumDetailScreenContent(
                 )
             }
             IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }
         },
     ) { contentPadding ->
