@@ -90,6 +90,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Genre
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SortOption
@@ -164,6 +165,7 @@ fun LibraryScreen(
     onNavigateToFollowing: () -> Unit = {},
     onNavigateToCustomizeTabs: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
+    onViewDetails: (MediaItem) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -421,6 +423,7 @@ fun LibraryScreen(
             onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
+            onViewDetails = onViewDetails,
         )
 
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).

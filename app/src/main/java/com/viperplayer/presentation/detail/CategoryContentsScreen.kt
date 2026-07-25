@@ -29,6 +29,7 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
@@ -57,6 +58,7 @@ fun CategoryContentsScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
+    onViewDetails: (MediaItem) -> Unit,
     viewModel: CategoryContentsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -161,6 +163,7 @@ fun CategoryContentsScreen(
             onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
+            onViewDetails = onViewDetails,
         )
         AddToPlaylistSheetHost(controller = addToPlaylistController)
     }

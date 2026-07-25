@@ -100,6 +100,7 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.SearchFilter
@@ -129,6 +130,7 @@ fun SearchScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
+    onViewDetails: (MediaItem) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val searchSuggestionsState by viewModel.searchSuggestionsState.collectAsStateWithLifecycle()
@@ -483,6 +485,7 @@ fun SearchScreen(
             onLike = { scope.launch { if (it is Song) viewModel.toggleLike(it) } },
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
+            onViewDetails = onViewDetails,
         )
 
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).

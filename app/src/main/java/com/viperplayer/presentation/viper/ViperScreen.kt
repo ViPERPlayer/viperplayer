@@ -279,6 +279,7 @@ fun ViperScreen(
                             state = effects.dynamicSystem,
                             onEnabledChange = { viewModel.setDynamicSystemEnabled(it) },
                             onDeviceTypeChange = { viewModel.setDynamicSystemDeviceType(it) },
+                            onDeviceTypeReset = { viewModel.resetDynamicSystemDeviceType() },
                             onBassStrengthChange = { viewModel.setDynamicSystemBassStrength(it) },
                             onBassStrengthReset = { viewModel.resetDynamicSystemBassStrength() }
                         )

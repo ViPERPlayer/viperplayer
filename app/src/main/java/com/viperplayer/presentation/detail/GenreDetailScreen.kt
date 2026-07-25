@@ -37,6 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.SortOption
 import com.viperplayer.domain.model.SortOrder
 import com.viperplayer.domain.model.Song
@@ -70,6 +71,7 @@ private val GENRE_SONG_SORT_OPTIONS = listOf(
 fun GenreDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
+    onViewDetails: (MediaItem) -> Unit,
     viewModel: GenreDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -134,6 +136,7 @@ fun GenreDetailScreen(
             onPlayNext = { if (it is Song) viewModel.playNext(it) },
             onAddToQueue = { if (it is Song) viewModel.addToQueue(it) },
             onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
+            onViewDetails = onViewDetails,
         )
         AddToPlaylistSheetHost(controller = addToPlaylistController)
     }

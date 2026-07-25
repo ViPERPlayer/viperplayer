@@ -324,8 +324,10 @@ private fun earlierEventLine(item: FriendActivityItem, relativeTime: String): An
 @Composable
 private fun EarlierTrailing(item: FriendActivityItem) {
     when (item) {
-        is FriendActivityItem.SharedPlaylist ->
-            CompactSaveChip(text = stringResource(R.string.action_save), onClick = {})
+        // No trailing "Save" affordance here: shared-playlists are stub-backed
+        // (StubSharedPlaylistsRepository) and this event carries no playlist id, so a Save would be a
+        // dead no-op. Saving happens from the Shared-with-you inbox, which carries a real invite id.
+        is FriendActivityItem.SharedPlaylist -> Unit
         is FriendActivityItem.LikedSong ->
             Icon(
                 imageVector = Icons.Rounded.Favorite,
@@ -662,35 +664,6 @@ private fun JamBadge() {
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
     )
-}
-
-/**
- * A slim (~32dp) tonal action pill sized to its label, for use inline inside a feed row (the EARLIER
- * shared-playlist "Save" chip in mockup 5a). Uses secondaryContainer / onSecondaryContainer like the
- * shared tonal chip but drops the 44dp min-size so it reads as a compact in-row affordance.
- */
-@Composable
-private fun CompactSaveChip(text: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Box(
-            modifier = Modifier
-                .heightIn(min = 32.dp)
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-        }
-    }
 }
 
 /** Visual height of a NEW-card action pill (slimmer than the shared 44dp pills). */

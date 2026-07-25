@@ -93,6 +93,7 @@ fun ArtistDetailScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
+    onViewDetails: (MediaItem) -> Unit,
     viewModel: ArtistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -118,6 +119,7 @@ fun ArtistDetailScreen(
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToPlaylist = onNavigateToPlaylist,
         onNavigateToArtist = onNavigateToArtist,
+        onViewDetails = onViewDetails,
         onRefresh = viewModel::refresh,
         onToggleFollow = viewModel::toggleFollow,
         onSortOrderChange = viewModel::setSortOrder,
@@ -141,6 +143,7 @@ private fun ArtistDetailScreenContent(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
+    onViewDetails: (MediaItem) -> Unit = {},
     onRefresh: () -> Unit,
     onToggleFollow: () -> Unit = {},
     onSortOrderChange: (SortOrder) -> Unit = {},
@@ -431,6 +434,7 @@ private fun ArtistDetailScreenContent(
             onAddToQueue = { if (it is Song) onAddToQueue(it) },
             onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onViewAlbum = onNavigateToAlbum,
+            onViewDetails = onViewDetails,
         )
 
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).

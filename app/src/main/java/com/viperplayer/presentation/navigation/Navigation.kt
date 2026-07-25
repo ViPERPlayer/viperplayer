@@ -20,7 +20,12 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.viperplayer.alarm.ui.AlarmsScreen
+import com.viperplayer.domain.model.Album
+import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MediaItem
+import com.viperplayer.domain.model.Playlist
+import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.analytics.AnalyticsScreen
 import com.viperplayer.presentation.detail.AlbumDetailScreen
@@ -246,6 +251,25 @@ object HostSession : NavKey
 @Serializable
 object Player : NavKey
 
+/**
+ * Maps a media item's "Details" action to its detail destination and pushes it via [navigate].
+ * Defined once here so all option-sheet hosts (Album / Artist / Category / Genre / Playlist /
+ * Library / Search screens) share a single mapping instead of duplicating the `when` per screen:
+ *  - [Song] → [SongInfo] (the song-info / tag detail screen)
+ *  - [Album] → [AlbumDetail], [Artist] → [ArtistDetail], [Playlist] → [PlaylistDetail]
+ * mirroring the existing onNavigateToAlbum/Artist/Playlist keys those screens already use.
+ */
+fun navigateToMediaItemDetails(navigate: (NavKey) -> Unit, item: MediaItem) {
+    when (item) {
+        is Song -> navigate(
+            SongInfo(item.id, item.title, item.artistNames.orEmpty(), item.artworkUrl)
+        )
+        is Album -> navigate(AlbumDetail(item.id, item.name, item.artworkUrl))
+        is Artist -> navigate(ArtistDetail(item.id, item.name, item.imageUrl))
+        is Playlist -> navigate(PlaylistDetail(item.id, item.name, item.artworkUrl))
+    }
+}
+
 @Composable
 fun ViperNavDisplay(
     navigationState: NavigationState,
@@ -285,7 +309,8 @@ fun ViperNavDisplay(
                 },
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
-                }
+                },
+                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) }
             )
         }
 
@@ -307,7 +332,8 @@ fun ViperNavDisplay(
                 onNavigateToDownloads = { navigator.navigate(Downloads) },
                 onNavigateToFollowing = { navigator.navigate(Following) },
                 onNavigateToCustomizeTabs = { navigator.navigate(CustomizeTabs) },
-                onNavigateToSearch = { navigator.navigate(Search) }
+                onNavigateToSearch = { navigator.navigate(Search) },
+                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) }
             )
         }
 
@@ -318,6 +344,7 @@ fun ViperNavDisplay(
             GenreDetailScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
+                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) },
                 viewModel = viewModel,
             )
         }
@@ -338,6 +365,7 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
+                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) },
                 viewModel = viewModel,
             )
         }
@@ -511,7 +539,8 @@ fun ViperNavDisplay(
         entry<SettingsStorage> {
             StorageSettingsScreen(
                 rootPadding = rootPadding,
-                onNavigateBack = { navigator.goBack() }
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToDownloads = { navigator.navigate(Downloads) }
             )
         }
 
@@ -644,6 +673,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
             onNavigateToArtist = { artist ->
                 navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
             },
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
             viewModel = viewModel
         )
     }
@@ -664,6 +694,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
             onNavigateToArtist = { artist ->
                 navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
             },
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
             viewModel = viewModel
         )
     }
@@ -681,6 +712,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
             onNavigateToAlbum = { album ->
                 navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
             },
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
             viewModel = viewModel
         )
     }

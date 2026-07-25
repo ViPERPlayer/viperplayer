@@ -21,7 +21,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -126,16 +125,9 @@ fun SignInScreen(
                 trailing = { PasswordVisibilityToggle(passwordVisible) { passwordVisible = !passwordVisible } },
             )
 
-            TextButton(
-                onClick = { /* Password recovery is a later-phase flow; link present per mockup. */ },
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Text(
-                    text = stringResource(R.string.auth_forgot_password),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+            // No "Forgot password?" link: there is no account-recovery route in the app and no reset
+            // endpoint in the backend, so the control would be a dead no-op. A real recovery flow needs a
+            // backend password-reset endpoint plus email delivery, which is out of pure-code scope here.
 
             if (state.error != null) {
                 Text(

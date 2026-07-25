@@ -103,6 +103,7 @@ fun AlbumDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
+    onViewDetails: (MediaItem) -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -124,6 +125,7 @@ fun AlbumDetailScreen(
         onResolvePluginAction = resolvePluginAction,
         onNavigateBack = onNavigateBack,
         onNavigateToArtist = onNavigateToArtist,
+        onViewDetails = onViewDetails,
         onRefresh = viewModel::refresh,
         onSortOrderChange = viewModel::setSortOrder,
         onPlayAlbum = viewModel::playAlbum,
@@ -150,6 +152,7 @@ private fun AlbumDetailScreenContent(
     onResolvePluginAction: (PluginPendingAction) -> Unit = {},
     onNavigateBack: () -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
+    onViewDetails: (MediaItem) -> Unit = {},
     onRefresh: () -> Unit,
     onSortOrderChange: (SortOrder) -> Unit = {},
     onPlayAlbum: () -> Unit,
@@ -348,6 +351,7 @@ private fun AlbumDetailScreenContent(
         onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
         onLike = { if (it is Song) onToggleLike(it) },
         onViewArtist = onNavigateToArtist,
+        onViewDetails = onViewDetails,
     )
 
     // Add-to-playlist picker for a song's options sheet (existing playlists + create new).

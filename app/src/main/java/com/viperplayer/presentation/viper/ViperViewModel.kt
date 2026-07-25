@@ -387,6 +387,18 @@ class ViperViewModel @Inject constructor(
         }
     }
 
+    fun resetDynamicSystemDeviceType() {
+        viewModelScope.launch {
+            viperRepository.updateEffectsState {
+                it.copy(
+                    dynamicSystem = it.dynamicSystem.copy(
+                        deviceType = ViperDefaults.DYNAMIC_SYSTEM_DEVICE_TYPE
+                    )
+                )
+            }
+        }
+    }
+
     fun resetDynamicSystemBassStrength() {
         viewModelScope.launch {
             viperRepository.updateEffectsState {

@@ -59,6 +59,7 @@ import com.viperplayer.presentation.ktx.bottom
 fun StorageSettingsScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: StorageSettingsViewModel = hiltViewModel()
 ) {
@@ -131,7 +132,7 @@ fun StorageSettingsScreen(
                     title = stringResource(R.string.storage_downloaded_songs),
                     description = formatBytes(uiState.downloadedSongsSize),
                     icon = Icons.Default.Download,
-                    onClick = { }
+                    onClick = onNavigateToDownloads
                 )
             }
             item {

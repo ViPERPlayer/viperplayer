@@ -15,6 +15,7 @@ fun DynamicSystemEffect(
     state: DynamicSystemState,
     onEnabledChange: (Boolean) -> Unit,
     onDeviceTypeChange: (DynamicSystemDeviceType) -> Unit,
+    onDeviceTypeReset: () -> Unit,
     onBassStrengthChange: (Int) -> Unit,
     onBassStrengthReset: () -> Unit
 ) {
@@ -34,7 +35,7 @@ fun DynamicSystemEffect(
             values = DynamicSystemDeviceType.entries.map { it.name }.toTypedArray(),
             selectedIndex = state.deviceType.ordinal,
             onSelectedIndexChange = { onDeviceTypeChange(DynamicSystemDeviceType.entries[it]) },
-            onSelectedIndexReset = {}
+            onSelectedIndexReset = onDeviceTypeReset
         )
         ValueSlider(
             title = stringResource(R.string.dynamic_system_dynamic_bass_strength),
