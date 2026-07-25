@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +40,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,6 +59,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.model.navigableAlbum
 import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.domain.model.toEntity
+import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.player.PlayerViewModel
 
 private const val HeaderArtworkCorner = 14
@@ -320,9 +325,18 @@ private fun ExplicitBadge() {
         Text(
             text = "E",
             fontSize = 10.sp,
-            lineHeight = 10.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            // Drop font padding and center the line box so the single glyph sits dead-center in the
+            // 15dp badge (default line metrics push it visually low/off-center).
+            style = LocalTextStyle.current.copy(
+                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both,
+                ),
+            ),
         )
     }
 }
@@ -636,6 +650,9 @@ private fun NavigationRow(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(21.dp)
             )
+            // A circular thumb with no image is an artist byline (an ArtistRef carries no artwork):
+            // show the generic person-glyph avatar rather than a blank circle.
+            thumbCircular && thumbUrl == null -> PersonGlyphAvatar(size = NavThumbSize.dp)
             else -> AsyncImage(
                 model = thumbUrl,
                 contentDescription = null,
@@ -645,6 +662,8 @@ private fun NavigationRow(
                 contentScale = ContentScale.Crop
             )
         }
+        // Title takes the flexible space so the trailing value + chevron sit flush to the row end
+        // (the 14dp row spacing supplies the gaps); a long context value is capped + ellipsized.
         Text(
             text = title,
             fontSize = 14.5.sp,
@@ -652,18 +671,16 @@ private fun NavigationRow(
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = if (trailingText != null) Modifier else Modifier.weight(1f)
+            modifier = Modifier.weight(1f)
         )
         if (trailingText != null) {
-            Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = trailingText,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.widthIn(max = 180.dp)
             )
         }
         if (chevron) {
