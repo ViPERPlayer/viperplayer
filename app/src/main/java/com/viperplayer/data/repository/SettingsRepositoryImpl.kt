@@ -29,6 +29,7 @@ import com.viperplayer.domain.repository.SEEK_INCREMENT_DEFAULT_SECONDS
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.SwipeSensitivity
 import com.viperplayer.domain.repository.deriveReplayGainMode
 import com.viperplayer.domain.repository.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -71,6 +72,8 @@ class SettingsRepositoryImpl(
         private val SEEK_INCREMENT_SECONDS_KEY = intPreferencesKey("seek_increment_seconds")
         private val STOP_ON_TASK_REMOVED_KEY = booleanPreferencesKey("stop_on_task_removed")
         private val KEEP_SCREEN_ON_PLAYER_KEY = booleanPreferencesKey("keep_screen_on_player")
+        private val SWIPE_TO_CHANGE_SONG_KEY = booleanPreferencesKey("swipe_to_change_song")
+        private val SWIPE_SENSITIVITY_KEY = stringPreferencesKey("swipe_sensitivity")
         private val PAUSE_WHEN_MUTED_KEY = booleanPreferencesKey("pause_when_muted")
         private val RESUME_ON_BLUETOOTH_KEY = booleanPreferencesKey("resume_on_bluetooth")
         private val SLEEP_TIMER_FADE_OUT_KEY = booleanPreferencesKey("sleep_timer_fade_out")
@@ -371,6 +374,32 @@ class SettingsRepositoryImpl(
     override suspend fun setKeepScreenOnPlayer(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[KEEP_SCREEN_ON_PLAYER_KEY] = enabled
+        }
+    }
+
+    override val swipeToChangeSong: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[SWIPE_TO_CHANGE_SONG_KEY] ?: true // Default to enabled
+    }
+
+    override suspend fun setSwipeToChangeSong(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SWIPE_TO_CHANGE_SONG_KEY] = enabled
+        }
+    }
+
+    override val swipeSensitivity: Flow<SwipeSensitivity> = dataStore.data.mapDistinct { preferences ->
+        preferences[SWIPE_SENSITIVITY_KEY]?.let {
+            try {
+                SwipeSensitivity.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                SwipeSensitivity.MEDIUM
+            }
+        } ?: SwipeSensitivity.MEDIUM
+    }
+
+    override suspend fun setSwipeSensitivity(sensitivity: SwipeSensitivity) {
+        dataStore.edit { preferences ->
+            preferences[SWIPE_SENSITIVITY_KEY] = sensitivity.name
         }
     }
 

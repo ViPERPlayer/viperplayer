@@ -26,6 +26,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.SwipeSensitivity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -585,6 +586,18 @@ class PlayerViewModel @Inject constructor(
     val sleepTimerFadeOut: StateFlow<Boolean> = settingsRepository.sleepTimerFadeOut
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /**
+     * Swipe-to-change-song preferences for the artwork pager: whether a swipe commits a track change,
+     * and how easily it does so (sensitivity → pager snap threshold). Combined into one snapshot so the
+     * screen reads a single flow.
+     */
+    val swipeSettings: StateFlow<SwipeSettings> = combine(
+        settingsRepository.swipeToChangeSong,
+        settingsRepository.swipeSensitivity
+    ) { enabled, sensitivity ->
+        SwipeSettings(enabled = enabled, sensitivity = sensitivity)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SwipeSettings())
+
     /** Playback speed (tempo) and pitch, adjustable independently. */
     val playbackSpeed: StateFlow<Float> = playerRepository.playbackSpeed
     val playbackPitch: StateFlow<Float> = playerRepository.playbackPitch
@@ -661,4 +674,15 @@ data class SessionUiState(
 
 /** Whether the shared session clock has synced (so the playhead can be placed) or is still syncing. */
 enum class SyncState { Syncing, Synced }
+
+/**
+ * Swipe-to-change-song settings for the now-playing artwork pager.
+ *
+ * @property enabled when false, a swipe never commits a track change (the pager still shows the queue).
+ * @property sensitivity how easily a swipe commits, mapped to the pager's snap threshold.
+ */
+data class SwipeSettings(
+    val enabled: Boolean = true,
+    val sensitivity: SwipeSensitivity = SwipeSensitivity.MEDIUM,
+)
 

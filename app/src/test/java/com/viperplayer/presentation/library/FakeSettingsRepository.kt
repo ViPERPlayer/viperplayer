@@ -13,6 +13,7 @@ import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.SwipeSensitivity
 import com.viperplayer.domain.repository.ThemeMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -93,6 +94,10 @@ class FakeSettingsRepository(
     override suspend fun setStopOnTaskRemoved(enabled: Boolean) = unused()
     override val keepScreenOnPlayer: Flow<Boolean> get() = unused()
     override suspend fun setKeepScreenOnPlayer(enabled: Boolean) = unused()
+    override val swipeToChangeSong: Flow<Boolean> get() = unused()
+    override suspend fun setSwipeToChangeSong(enabled: Boolean) = unused()
+    override val swipeSensitivity: Flow<SwipeSensitivity> get() = unused()
+    override suspend fun setSwipeSensitivity(sensitivity: SwipeSensitivity) = unused()
     override val pauseWhenMuted: Flow<Boolean> get() = unused()
     override suspend fun setPauseWhenMuted(enabled: Boolean) = unused()
     override val resumeOnBluetooth: Flow<Boolean> get() = unused()

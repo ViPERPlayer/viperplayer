@@ -919,6 +919,31 @@
     <string name="widget_play_pause_cd">Play or pause</string>
     <string name="widget_next_cd">Next track</string>
 
+    <!-- Now-playing player widget -->
+    <string name="widget_player_label">ViPER Player</string>
+    <string name="widget_player_description">Control the current track</string>
+
+    <!-- Playlist / quick-launch widget -->
+    <string name="widget_playlists_label">ViPER Playlists</string>
+    <string name="widget_playlists_description">Tap a playlist to start playing</string>
+    <string name="widget_playlists_title">Playlists</string>
+    <string name="widget_playlists_empty">No playlists yet</string>
+    <string name="widget_playlists_song_count">%1$d songs</string>
+    <string name="widget_playlists_artwork_cd">Playlist artwork</string>
+
+    <!-- Lyric widget -->
+    <string name="widget_lyric_label">ViPER Lyrics</string>
+    <string name="widget_lyric_description">Shows the current line of lyrics</string>
+    <string name="widget_lyric_no_lyrics">No lyrics available</string>
+
+    <!-- Player: swipe to change song -->
+    <string name="player_swipe_to_change_song">Swipe to change song</string>
+    <string name="player_swipe_to_change_song_desc">Swipe the artwork left or right to skip between tracks</string>
+    <string name="player_swipe_sensitivity">Swipe sensitivity</string>
+    <string name="player_swipe_sensitivity_low">Low</string>
+    <string name="player_swipe_sensitivity_medium">Medium</string>
+    <string name="player_swipe_sensitivity_high">High</string>
+
     <!-- Alarm clock -->
     <string name="settings_alarms">Alarms</string>
     <string name="settings_alarms_desc">Wake up to music at scheduled times</string>

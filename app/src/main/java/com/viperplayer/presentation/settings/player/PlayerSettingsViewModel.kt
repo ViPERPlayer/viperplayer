@@ -9,6 +9,7 @@ import com.viperplayer.domain.repository.SEEK_INCREMENT_DEFAULT_SECONDS
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.domain.repository.SettingsRepository
+import com.viperplayer.domain.repository.SwipeSensitivity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,7 +40,9 @@ data class PlayerSettingsUiState(
     val preventDuplicateQueue: Boolean = false,
     val persistentQueueEnabled: Boolean = true,
     val keepScreenOnPlayer: Boolean = false,
-    val blockScreenshots: Boolean = false
+    val blockScreenshots: Boolean = false,
+    val swipeToChangeSong: Boolean = true,
+    val swipeSensitivity: SwipeSensitivity = SwipeSensitivity.MEDIUM
 )
 
 @HiltViewModel
@@ -159,6 +162,16 @@ class PlayerSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.blockScreenshots.collect { enabled ->
                 _uiState.update { it.copy(blockScreenshots = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.swipeToChangeSong.collect { enabled ->
+                _uiState.update { it.copy(swipeToChangeSong = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.swipeSensitivity.collect { sensitivity ->
+                _uiState.update { it.copy(swipeSensitivity = sensitivity) }
             }
         }
     }
@@ -295,6 +308,18 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setBlockScreenshots(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBlockScreenshots(enabled)
+        }
+    }
+
+    fun setSwipeToChangeSong(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSwipeToChangeSong(enabled)
+        }
+    }
+
+    fun setSwipeSensitivity(sensitivity: SwipeSensitivity) {
+        viewModelScope.launch {
+            settingsRepository.setSwipeSensitivity(sensitivity)
         }
     }
 }

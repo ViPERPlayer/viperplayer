@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -154,6 +155,7 @@ import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
+import com.viperplayer.domain.repository.snapPositionalThresholdFor
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.ListItem
@@ -193,6 +195,7 @@ fun PlayerScreen(
     val queue by viewModel.queue.collectAsStateWithLifecycle()
     val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
     val isPlayingState by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val swipeSettings by viewModel.swipeSettings.collectAsStateWithLifecycle()
 
     // Poll position. Reset to 0 only when the song actually changes; while on the same song, ignore
     // transient 0 readings (the media controller briefly reports 0 as it re-syncs when the app returns
@@ -261,6 +264,8 @@ fun PlayerScreen(
     // currentSong, queue and pager position are three independent flows that settle at different
     // times; read the index live so the settle handler below never compares against a stale value.
     val liveCurrentIndex = rememberUpdatedState(currentIndex)
+    // Read swipe settings live so toggling them takes effect without re-launching the settle collector.
+    val liveSwipeSettings = rememberUpdatedState(swipeSettings)
     val pagerState = rememberPagerState(initialPage = currentIndex) { pagerSongs.size }
     // External track change (skip buttons / auto-advance) -> move the pager to match. Instant, not
     // animated: on open the queue arrives after the current song, and animating across the loading
@@ -285,6 +290,9 @@ fun PlayerScreen(
             .collect {
                 if (!userDragged) return@collect
                 userDragged = false
+                // Honor the user's preference: when swipe-to-change-song is off, the pager still moves
+                // visually but a settled page never drives playback.
+                if (!liveSwipeSettings.value.enabled) return@collect
                 val page = pagerState.currentPage
                 if (page != liveCurrentIndex.value && page in pagerSongs.indices) {
                     viewModel.playFromQueue(page)
@@ -308,6 +316,12 @@ fun PlayerScreen(
         ) {
             HorizontalPager(
                 state = pagerState,
+                // Sensitivity tunes the snap threshold: how far the user must drag past a page's edge
+                // before the pager settles onto the next page (higher = larger swipe required).
+                flingBehavior = PagerDefaults.flingBehavior(
+                    state = pagerState,
+                    snapPositionalThreshold = snapPositionalThresholdFor(swipeSettings.sensitivity)
+                ),
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 AsyncImage(

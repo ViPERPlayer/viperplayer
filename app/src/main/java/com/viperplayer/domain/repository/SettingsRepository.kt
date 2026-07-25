@@ -39,6 +39,31 @@ enum class DynamicThemeMode {
 }
 
 /**
+ * How easily an artwork swipe on the player commits a track change. Maps to the pager fling's
+ * [snapPositionalThresholdFor] — the fraction of a page the user must drag past before it settles
+ * onto the next page. [LOW] needs a larger swipe; [HIGH] flips on a small one.
+ */
+enum class SwipeSensitivity {
+    LOW,
+    MEDIUM,
+    HIGH
+}
+
+/**
+ * The positional snap threshold (0f..1f) for the player's artwork pager at [sensitivity]: the
+ * fraction of a page's width the drag must pass before the pager settles onto the adjacent page.
+ * A higher threshold means the user must swipe further, i.e. lower sensitivity.
+ *
+ * Pure and Android-free so it can be unit-tested directly. Compose's default is 0.5f, which we use
+ * for [SwipeSensitivity.MEDIUM].
+ */
+fun snapPositionalThresholdFor(sensitivity: SwipeSensitivity): Float = when (sensitivity) {
+    SwipeSensitivity.LOW -> 0.65f
+    SwipeSensitivity.MEDIUM -> 0.5f
+    SwipeSensitivity.HIGH -> 0.3f
+}
+
+/**
  * ReplayGain track/album gain selection.
  * - [TRACK]: always per-track gain.
  * - [ALBUM]: always per-album gain.
@@ -164,6 +189,20 @@ interface SettingsRepository {
     /** Keep the screen awake while the full-screen player is expanded. Default off. */
     val keepScreenOnPlayer: Flow<Boolean>
     suspend fun setKeepScreenOnPlayer(enabled: Boolean)
+
+    /**
+     * Whether swiping the full-screen player's artwork changes the track. When off, the artwork pager
+     * still shows the queue but a swipe never commits a track change. Default on.
+     */
+    val swipeToChangeSong: Flow<Boolean>
+    suspend fun setSwipeToChangeSong(enabled: Boolean)
+
+    /**
+     * How easily an artwork swipe commits a track change (tunes the pager's snap threshold).
+     * Only meaningful when [swipeToChangeSong] is on. Default [SwipeSensitivity.MEDIUM].
+     */
+    val swipeSensitivity: Flow<SwipeSensitivity>
+    suspend fun setSwipeSensitivity(sensitivity: SwipeSensitivity)
 
     /** Pause playback when the media (music) stream volume drops to zero. Default off. */
     val pauseWhenMuted: Flow<Boolean>

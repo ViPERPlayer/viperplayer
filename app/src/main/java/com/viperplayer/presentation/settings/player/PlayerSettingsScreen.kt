@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Swipe
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,6 +64,7 @@ import com.viperplayer.R
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
+import com.viperplayer.domain.repository.SwipeSensitivity
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.presentation.common.ViperScaffold
@@ -221,6 +223,14 @@ fun PlayerSettingsScreen(
                     icon = Icons.Default.Bluetooth,
                     checked = uiState.resumeOnBluetooth,
                     onCheckedChange = viewModel::setResumeOnBluetooth
+                )
+            }
+            item {
+                SwipeToChangeSongItem(
+                    enabled = uiState.swipeToChangeSong,
+                    sensitivity = uiState.swipeSensitivity,
+                    onEnabledChange = viewModel::setSwipeToChangeSong,
+                    onSensitivityChange = viewModel::setSwipeSensitivity
                 )
             }
 
@@ -629,6 +639,108 @@ private fun SettingsSwitchItem(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         )
+    }
+}
+
+/**
+ * Swipe-to-change-song control: a toggle for whether an artwork swipe changes the track, and — only
+ * when enabled — a Low/Medium/High sensitivity selector that tunes the pager's snap threshold.
+ * Stateless: renders [enabled]/[sensitivity] and forwards events.
+ */
+@Composable
+private fun SwipeToChangeSongItem(
+    enabled: Boolean,
+    sensitivity: SwipeSensitivity,
+    onEnabledChange: (Boolean) -> Unit,
+    onSensitivityChange: (SwipeSensitivity) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column {
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Swipe,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.player_swipe_to_change_song),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.player_swipe_to_change_song_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = onEnabledChange
+                    )
+                },
+                colors = ListItemDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            )
+
+            if (enabled) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.player_swipe_sensitivity),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    SwipeSensitivitySelector(
+                        selected = sensitivity,
+                        onSelected = onSensitivityChange
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SwipeSensitivitySelector(
+    selected: SwipeSensitivity,
+    onSelected: (SwipeSensitivity) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf(
+        SwipeSensitivity.LOW to stringResource(R.string.player_swipe_sensitivity_low),
+        SwipeSensitivity.MEDIUM to stringResource(R.string.player_swipe_sensitivity_medium),
+        SwipeSensitivity.HIGH to stringResource(R.string.player_swipe_sensitivity_high)
+    )
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { (value, label) ->
+            FilterChip(
+                selected = value == selected,
+                onClick = { onSelected(value) },
+                label = { Text(label) }
+            )
+        }
     }
 }
 

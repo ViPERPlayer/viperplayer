@@ -123,7 +123,8 @@
         <!-- Home-screen player widget -->
         <receiver
             android:name=".presentation.widget.PlayerWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_player_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.viperplayer.widget.ACTION_PREV" />
@@ -134,6 +135,40 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info" />
+        </receiver>
+
+        <!-- Home-screen playlist / quick-launch widget -->
+        <receiver
+            android:name=".presentation.widget.PlaylistWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_playlists_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.viperplayer.widget.ACTION_PLAY_PLAYLIST" />
+                <action android:name="com.viperplayer.widget.ACTION_PLAYLIST_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/playlist_widget_info" />
+        </receiver>
+
+        <!-- Collection-widget data source for the playlist widget -->
+        <service
+            android:name=".presentation.widget.PlaylistWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Home-screen lyric widget -->
+        <receiver
+            android:name=".presentation.widget.LyricWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_lyric_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lyric_widget_info" />
         </receiver>
     </application>
 
