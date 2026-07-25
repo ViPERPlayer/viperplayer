@@ -31,6 +31,11 @@
     <string name="search_section_playlists">Playlists</string>
     <string name="search_open">Open</string>
 
+    <!-- Browse category contents -->
+    <string name="category_title_fallback">Category</string>
+    <string name="category_empty">Nothing here yet</string>
+    <string name="category_load_failed">Couldn\'t load this category</string>
+
     <!-- ViPER effects -->
     <string name="viper_bass">ViPER bass</string>
     <string name="natural_bass">Natural bass</string>

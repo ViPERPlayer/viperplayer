@@ -25,6 +25,8 @@ import com.viperplayer.presentation.player.PlayerScreen
 import com.viperplayer.presentation.analytics.AnalyticsScreen
 import com.viperplayer.presentation.detail.AlbumDetailScreen
 import com.viperplayer.presentation.detail.AlbumDetailViewModel
+import com.viperplayer.presentation.detail.CategoryContentsScreen
+import com.viperplayer.presentation.detail.CategoryContentsViewModel
 import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.ArtistDetailViewModel
 import com.viperplayer.presentation.detail.GenreDetailScreen
@@ -202,6 +204,18 @@ data class GenreDetail(
     val initialName: String = "",
 ) : NavKey
 
+/**
+ * A browse category's contents (reached from Home's "Browse categories" tiles). Carries the owning
+ * [pluginId] + the plugin's own [categoryId] so [PluginRepository.getCategoryContents] can fetch the
+ * page, plus the [name] to title the screen before anything loads.
+ */
+@Serializable
+data class CategoryDetail(
+    val pluginId: String,
+    val categoryId: String,
+    val name: String = "",
+) : NavKey
+
 @Serializable
 data class SongInfo(
     val mediaId: MediaId,
@@ -252,6 +266,9 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
+                onNavigateToCategory = { category ->
+                    navigator.navigate(CategoryDetail(category.pluginId, category.id, category.name))
+                },
                 onNavigateToYou = { navigator.navigate(You) },
                 onNavigateToNotifications = { navigator.navigate(FriendActivity) },
             )
@@ -301,6 +318,26 @@ fun ViperNavDisplay(
             GenreDetailScreen(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
+                viewModel = viewModel,
+            )
+        }
+
+        entry<CategoryDetail> { key ->
+            val viewModel = hiltViewModel<CategoryContentsViewModel, CategoryContentsViewModel.Factory>(
+                creationCallback = { factory -> factory.create(key) }
+            )
+            CategoryContentsScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToAlbum = { album ->
+                    navigator.navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
+                },
+                onNavigateToArtist = { artist ->
+                    navigator.navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
+                },
+                onNavigateToPlaylist = { playlist ->
+                    navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
+                },
                 viewModel = viewModel,
             )
         }

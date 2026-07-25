@@ -106,6 +106,7 @@ fun HomeScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToCategory: (BrowseCategory) -> Unit,
     onNavigateToYou: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
@@ -158,6 +159,7 @@ fun HomeScreen(
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToPlaylist = onNavigateToPlaylist,
+        onNavigateToCategory = onNavigateToCategory,
         onNavigateToYou = onNavigateToYou,
         onNavigateToNotifications = onNavigateToNotifications,
         onRefresh = viewModel::refresh,
@@ -179,6 +181,7 @@ private fun HomeScreenContent(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToCategory: (BrowseCategory) -> Unit = {},
     onNavigateToYou: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onRefresh: () -> Unit,
@@ -374,11 +377,9 @@ private fun HomeScreenContent(
                                         CategoryCard(
                                             category = category,
                                             modifier = Modifier.revealOnAppear(index),
-                                            // Deliberate no-op: there is no category-browse destination
-                                            // yet (no CategoryDetail screen; Search is a query-less top
-                                            // tab). Wire this to a category-contents screen — backed by
-                                            // PluginRepository.getCategoryContents — when one is added.
-                                            onClick = {}
+                                            // Opens the category-contents screen (CategoryDetail),
+                                            // backed by PluginRepository.getCategoryContents.
+                                            onClick = { onNavigateToCategory(category) }
                                         )
                                     }
                                 }
