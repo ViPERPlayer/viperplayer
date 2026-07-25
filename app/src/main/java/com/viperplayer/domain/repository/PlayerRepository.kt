@@ -46,6 +46,13 @@ interface PlayerRepository {
     suspend fun getBufferedPosition(): Long
 
     /**
+     * Whether playback is currently going to a Google Cast device. While true the local DSP chain
+     * (ViPER FX) is bypassed — casting sends the plain progressive stream to the receiver — so the
+     * UI surfaces a "ViPER FX unavailable while casting" notice.
+     */
+    val isCasting: StateFlow<Boolean>
+
+    /**
      * Flow of current queue.
      */
     val queue: Flow<List<Song>>

@@ -1,12 +1,15 @@
 package com.viperplayer.data.player
 
+import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
+import com.viperplayer.data.player.cast.CastSessionCommands
 import androidx.core.net.toUri
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -57,6 +60,23 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
         private const val PREFIX_ARTIST = "artist/"
         private const val PREFIX_ALBUM = "album/"
         private const val PREFIX_PLAYLIST = "playlist/"
+    }
+
+    /**
+     * Grant every connecting controller the custom casting-state command on top of the default set,
+     * so the service can [MediaSession.broadcastCustomCommand] the "casting changed" signal and the
+     * app's [androidx.media3.session.MediaController] receives it (the standard Player interface has
+     * no cast signal). Media playback commands are left at their defaults.
+     */
+    override fun onConnect(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo
+    ): MediaSession.ConnectionResult {
+        val default = super.onConnect(session, controller)
+        val sessionCommands = default.availableSessionCommands.buildUpon()
+            .add(SessionCommand(CastSessionCommands.ACTION_CASTING_CHANGED, Bundle.EMPTY))
+            .build()
+        return MediaSession.ConnectionResult.accept(sessionCommands, default.availablePlayerCommands)
     }
 
     /**

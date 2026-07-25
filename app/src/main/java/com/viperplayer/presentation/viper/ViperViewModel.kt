@@ -16,6 +16,7 @@ import com.viperplayer.domain.model.ViperDefaults
 import com.viperplayer.domain.model.ViperEffectsState
 
 
+import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.ViperAssetRepository
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,7 +37,12 @@ data class ViperUiState(
     val effectsState: ViperEffectsState = ViperEffectsState.default(),
     val activeDeviceId: String? = null,
     val ddcFiles: List<File> = emptyList(),
-    val kernelFiles: List<File> = emptyList()
+    val kernelFiles: List<File> = emptyList(),
+    /**
+     * Whether playback is currently going to a Google Cast device. While true the local DSP chain is
+     * bypassed, so the screen shows a "ViPER FX unavailable while casting" notice.
+     */
+    val isCasting: Boolean = false,
 )
 
 /**
@@ -49,18 +55,21 @@ data class ViperUiState(
 class ViperViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val viperRepository: ViperRepository,
-    private val viperAssetRepository: ViperAssetRepository
+    private val viperAssetRepository: ViperAssetRepository,
+    private val playerRepository: PlayerRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<ViperUiState> = combine(
         viperRepository.effectsState,
         viperAssetRepository.ddcFiles,
-        viperAssetRepository.kernelFiles
-    ) { effectsState, ddcFiles, kernelFiles ->
+        viperAssetRepository.kernelFiles,
+        playerRepository.isCasting,
+    ) { effectsState, ddcFiles, kernelFiles, isCasting ->
         ViperUiState(
             effectsState = effectsState,
             ddcFiles = ddcFiles,
-            kernelFiles = kernelFiles
+            kernelFiles = kernelFiles,
+            isCasting = isCasting,
         )
     }.stateIn(
         scope = viewModelScope,

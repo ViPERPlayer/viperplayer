@@ -185,6 +185,7 @@ open class UnsupportedPlayerRepository : PlayerRepository {
     override val duration: StateFlow<Long> get() = TODO()
     override suspend fun getCurrentPosition(): Long = TODO()
     override suspend fun getBufferedPosition(): Long = TODO()
+    override val isCasting: StateFlow<Boolean> get() = TODO()
     override val queue: Flow<List<Song>> get() = TODO()
     override suspend fun play(song: Song, context: PlaybackContext?) = TODO()
     override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) = TODO()

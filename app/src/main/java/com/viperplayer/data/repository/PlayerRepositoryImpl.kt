@@ -171,6 +171,10 @@ class PlayerRepositoryImpl @Inject constructor(
                 initialValue = PlaybackInfo()
             )
 
+    // Casting state is owned by the MediaControllerManager (it holds the MediaController.Listener
+    // that receives the service's custom casting-state broadcast). Delegate straight through.
+    override val isCasting: StateFlow<Boolean> = mediaControllerManager.isCasting
+
     override val playbackSpeed: StateFlow<Float> =
         controllerStateFlow.map { it.playbackParameters.speed }
             .distinctUntilChanged()

@@ -56,7 +56,25 @@
         
         <meta-data android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc"/>
-        
+
+        <!--
+            Google Cast: names the OptionsProvider the Cast framework loads to configure the receiver
+            app id (default media receiver). CastContext.getSharedInstance(...) — used by both the
+            media3 cast button and the CastPlayer — reads this to self-initialize.
+        -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.viperplayer.data.player.cast.CastOptionsProvider" />
+
+        <!--
+            Enables the system output-switcher path for the media route button (Android 11+); the
+            media3 Compose MediaRouteButton queries for this receiver to decide whether it can defer
+            to the system dialog.
+        -->
+        <receiver
+            android:name="androidx.mediarouter.media.MediaTransferReceiver"
+            android:exported="true" />
+
         <activity
             android:name="com.viperplayer.MainActivity"
             android:exported="true">

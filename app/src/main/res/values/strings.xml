@@ -202,6 +202,11 @@
     <string name="player_no_song">No song playing</string>
     <string name="player_collapse">Collapse player</string>
     <string name="player_more_options">More options</string>
+    <!-- Google Cast -->
+    <string name="cast_button_description">Cast to a device</string>
+    <string name="cast_track_not_castable">This track can\'t be cast</string>
+    <string name="cast_viper_fx_unavailable">ViPER FX is unavailable while casting</string>
+    <string name="cast_viper_fx_unavailable_detail">Casting sends the original stream straight to the device, so audio effects are applied there, not here.</string>
     <string name="player_go_to_album">Go to album</string>
     <string name="song_details">Song details</string>
     <string name="action_previous">Previous</string>

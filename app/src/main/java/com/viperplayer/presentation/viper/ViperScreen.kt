@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.Icon
@@ -100,6 +101,16 @@ fun ViperScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
             )
+
+            AnimatedVisibility(visible = state.isCasting) {
+                CastingUnavailableBanner(
+                    modifier = Modifier.padding(
+                        start = ScreenHorizontalPadding,
+                        end = ScreenHorizontalPadding,
+                        top = 16.dp,
+                    )
+                )
+            }
 
             Spacer(Modifier.height(20.dp))
 
@@ -470,6 +481,46 @@ private fun EffectCard(
     )
     SurfaceCard(modifier = Modifier.alpha(cardAlpha)) {
         content()
+    }
+}
+
+/**
+ * An unobtrusive notice shown at the top of the ViPER FX screen while casting: the local DSP chain
+ * is bypassed because casting sends the original stream straight to the receiver, so effects can't
+ * be applied on this device. Purely presentational — the casting state comes from the ViewModel.
+ */
+@Composable
+private fun CastingUnavailableBanner(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Cast,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.size(12.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.cast_viper_fx_unavailable),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.size(2.dp))
+                Text(
+                    text = stringResource(R.string.cast_viper_fx_unavailable_detail),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
     }
 }
 

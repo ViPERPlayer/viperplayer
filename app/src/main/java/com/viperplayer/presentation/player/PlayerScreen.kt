@@ -384,7 +384,11 @@ fun PlayerScreen(
 
                 ContextChip(context = playbackState.playbackContext)
 
-                Box {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Cast route button — renders nothing until a cast device is on the network.
+                    CastButton()
+
+                    Box {
                     IconButton(onClick = { showOverflowMenu = true }) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
@@ -490,6 +494,7 @@ fun PlayerScreen(
                                 shareSong(context, song)
                             }
                         )
+                    }
                     }
                 }
             }

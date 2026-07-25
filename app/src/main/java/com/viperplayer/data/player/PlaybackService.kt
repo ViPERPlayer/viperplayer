@@ -10,7 +10,9 @@ import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Bundle
 import android.os.IBinder
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -50,8 +52,11 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
 import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
+import com.viperplayer.data.player.cast.CastPlayerConnection
+import com.viperplayer.data.player.cast.CastSessionCommands
 import com.viperplayer.data.player.resumption.LastSession
 import com.viperplayer.data.player.resumption.LastSessionCodec
 import com.viperplayer.data.player.resumption.LastSessionItem
@@ -135,6 +140,14 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     private lateinit var player: ExoPlayer
     private lateinit var mediaLibrarySession: MediaLibrarySession
+
+    /**
+     * Bridges to a Google Cast device. Null until [onCreate] wires it (and its internal [CastPlayer]
+     * is itself null when Google Play Services / the Cast framework is unavailable, in which case
+     * casting is simply never offered). While a cast session is active the media session's player is
+     * swapped to the CastPlayer and the local DSP chain (ViPER FX) is bypassed — see [isCasting].
+     */
+    private var castPlayerConnection: CastPlayerConnection? = null
 
     private val mediaMetadata = MutableStateFlow(MediaMetadata.EMPTY)
 
@@ -224,6 +237,10 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
         // Create MediaSession
         mediaLibrarySession = createMediaLibrarySession()
+
+        // Wire Google Cast: swap the session's player to a CastPlayer while casting, transferring the
+        // queue/position, and bypass the local DSP chain (ViPER FX unavailable while casting).
+        setupCast()
 
         // Set MediaSessionService listener
         setListener(mediaSessionServiceListener)
@@ -369,6 +386,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         closeAudioEffectControlSession()
         unregisterVolumeReceiver()
         unregisterBluetoothReceiver()
+        castPlayerConnection?.release()
         mediaLibrarySession.release()
         player.release()
         super.onDestroy()
@@ -530,6 +548,48 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             .setBitmapLoader(CoilBitmapLoader(this))
             .setSessionActivity(createMediaLibrarySessionSessionActivity())
             .build()
+    }
+
+    /**
+     * Sets up the Google Cast handover. The [CastPlayerConnection] listens for cast session
+     * availability and, on connect, swaps the media session's player to a [androidx.media3.cast.CastPlayer]
+     * (transferring the queue + index + position + play-when-ready), then back to the local ExoPlayer
+     * on disconnect. On connect/disconnect it broadcasts the casting state so the UI can show the
+     * "ViPER FX unavailable while casting" notice, and it notifies the user of any track that could
+     * not be cast (local/DRM/DASH). A no-op when the Cast framework is unavailable.
+     */
+    private fun setupCast() {
+        val connection = CastPlayerConnection(
+            context = this,
+            localPlayer = player,
+            pluginDataSource = pluginDataSource,
+            mainScope = lifecycleScope,
+            setSessionPlayer = { target -> mediaLibrarySession.player = target },
+            onCastingChanged = { casting -> broadcastCastingState(casting) },
+            onTrackSkipped = {
+                Toast.makeText(this, R.string.cast_track_not_castable, Toast.LENGTH_SHORT).show()
+            },
+        )
+        castPlayerConnection = connection
+        connection.start()
+    }
+
+    /**
+     * Broadcasts the current casting state to every connected controller (the app UI layer) via a
+     * custom session command — the standard Player interface has no "am I casting?" signal. The
+     * app receives it in `MediaController.Listener.onCustomCommand` and exposes it as a StateFlow.
+     */
+    private fun broadcastCastingState(isCasting: Boolean) {
+        if (!::mediaLibrarySession.isInitialized) return
+        val extras = Bundle().apply {
+            putBoolean(CastSessionCommands.EXTRA_IS_CASTING, isCasting)
+        }
+        runCatching {
+            mediaLibrarySession.broadcastCustomCommand(
+                SessionCommand(CastSessionCommands.ACTION_CASTING_CHANGED, Bundle.EMPTY),
+                extras,
+            )
+        }.onFailure { Timber.w(it, "Failed to broadcast casting state") }
     }
 
     private fun createMediaLibrarySessionSessionActivity(): PendingIntent {
