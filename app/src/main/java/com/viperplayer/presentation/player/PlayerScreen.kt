@@ -156,6 +156,7 @@ import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.snapPositionalThresholdFor
+import com.viperplayer.presentation.common.AddToPlaylistController
 import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.ListItem
@@ -188,13 +189,14 @@ fun PlayerScreen(
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
+    // The top scope collects ONLY the infrequently-changing flows it needs to gate/route: the current
+    // song (null-gate + pager identity + AnimatedContent target), the queue + swipe settings (the pager
+    // lives here), and lyrics (presence gate). Every frequently-changing value — shuffle / repeat /
+    // isPlaying / playbackContext / isLiked / duration — is read INSIDE its own isolated leaf below, so
+    // toggling those never recomposes this scope, the artwork pager, or the scrims.
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
-    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val duration by viewModel.duration.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val queue by viewModel.queue.collectAsStateWithLifecycle()
-    val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
-    val isPlayingState by viewModel.isPlaying.collectAsStateWithLifecycle()
     val swipeSettings by viewModel.swipeSettings.collectAsStateWithLifecycle()
 
     // Poll position. Reset to 0 only when the song actually changes; while on the same song, ignore
@@ -223,15 +225,9 @@ fun PlayerScreen(
     var showListenTogether by remember { mutableStateOf(false) }
     var showShareInvite by remember { mutableStateOf(false) }
     var showQr by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     val addToPlaylistController = rememberAddToPlaylistController()
-    val context = LocalContext.current
-    val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
-    val downloadStartedMessage = stringResource(R.string.toast_download_started)
-    val downloadUnavailableMessage = stringResource(R.string.toast_download_unavailable)
-    val songRadioName = stringResource(R.string.action_song_radio)
     val sleepTimerMode by viewModel.sleepTimerMode.collectAsStateWithLifecycle()
     val sleepTimerFadeOut by viewModel.sleepTimerFadeOut.collectAsStateWithLifecycle()
 
@@ -252,110 +248,18 @@ fun PlayerScreen(
         return
     }
 
-    // For a session follower, the play/pause state reflects the shared timeline (the follower loop
-    // drives the local player and briefly lags); otherwise it's the local player's own state.
-    val isPlaying = isPlayingState
-    val isFollower = sessionState.isFollower
-
-    // Artwork pager over the queue: swipe to preview/switch tracks. Falls back to the single song
-    // when the queue is empty so there's always exactly one page.
-    val pagerSongs = if (queue.isEmpty()) listOf(song) else queue
-    val currentIndex = pagerSongs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-    // currentSong, queue and pager position are three independent flows that settle at different
-    // times; read the index live so the settle handler below never compares against a stale value.
-    val liveCurrentIndex = rememberUpdatedState(currentIndex)
-    // Read swipe settings live so toggling them takes effect without re-launching the settle collector.
-    val liveSwipeSettings = rememberUpdatedState(swipeSettings)
-    val pagerState = rememberPagerState(initialPage = currentIndex) { pagerSongs.size }
-    // External track change (skip buttons / auto-advance) -> move the pager to match. Instant, not
-    // animated: on open the queue arrives after the current song, and animating across the loading
-    // gap looked like the player was flipping through tracks.
-    LaunchedEffect(currentIndex) {
-        if (currentIndex != pagerState.currentPage && !pagerState.isScrollInProgress) {
-            pagerState.scrollToPage(currentIndex)
-        }
-    }
-    // Change the track ONLY on a genuine user swipe. Playback must be driven by intent, not by page
-    // position — a programmatic scroll (above) and a queue re-emission both move settledPage without
-    // any drag, and reacting to those caused random song changes when the player opened.
-    LaunchedEffect(pagerState) {
-        var userDragged = false
-        launch {
-            pagerState.interactionSource.interactions.collect { interaction ->
-                if (interaction is DragInteraction.Start) userDragged = true
-            }
-        }
-        snapshotFlow { pagerState.isScrollInProgress }
-            .filter { scrolling -> !scrolling } // wait until the pager has settled
-            .collect {
-                if (!userDragged) return@collect
-                userDragged = false
-                // Honor the user's preference: when swipe-to-change-song is off, the pager still moves
-                // visually but a settled page never drives playback.
-                if (!liveSwipeSettings.value.enabled) return@collect
-                val page = pagerState.currentPage
-                if (page != liveCurrentIndex.value && page in pagerSongs.indices) {
-                    viewModel.playFromQueue(page)
-                }
-            }
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
-        // Full-bleed artwork (also the seed for the dynamic theme), over a gradient placeholder.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-                    )
-                )
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                // Sensitivity tunes the snap threshold: how far the user must drag past a page's edge
-                // before the pager settles onto the next page (higher = larger swipe required).
-                flingBehavior = PagerDefaults.flingBehavior(
-                    state = pagerState,
-                    snapPositionalThreshold = snapPositionalThresholdFor(swipeSettings.sensitivity)
-                ),
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                AsyncImage(
-                    model = pagerSongs[page].artworkUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
+        // Full-bleed artwork pager over the queue (also the seed for the dynamic theme). Isolated into
+        // its own composable reading only song/queue/swipeSettings so no transport toggle repaints it.
+        PlayerArtworkPager(
+            song = song,
+            queue = queue,
+            swipeSettings = swipeSettings,
+            onPlayFromQueue = viewModel::playFromQueue,
+        )
 
-        // Top scrim for status-bar / context legibility.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(220.dp)
-                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent)))
-        )
-        // Bottom scrim behind the controls cluster.
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(560.dp)
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.28f to Color.Black.copy(alpha = 0.15f),
-                        0.58f to Color.Black.copy(alpha = 0.62f),
-                        1f to Color.Black.copy(alpha = 0.86f)
-                    )
-                )
-        )
+        // Top + bottom scrims (stateless, no dynamic reads).
+        PlayerScrims()
 
         Column(
             modifier = Modifier
@@ -365,145 +269,26 @@ fun PlayerScreen(
             // Grab handle: a downward drag (or tap) collapses the player back to the mini-player.
             DragToDismissHandle(onDismiss = onCollapse)
 
-            // Top bar: collapse · context chip · overflow
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, end = 8.dp, top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onCollapse) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.player_collapse),
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                ContextChip(context = playbackState.playbackContext)
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Cast route button — renders nothing until a cast device is on the network.
-                    CastButton()
-
-                    Box {
-                    IconButton(onClick = { showOverflowMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = stringResource(R.string.player_more_options),
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showOverflowMenu,
-                        onDismissRequest = { showOverflowMenu = false },
-                        shape = RoundedCornerShape(22.dp),
-                    ) {
-                        song.navigableArtist()?.toEntity()?.let { artist ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_view_artist)) },
-                                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onNavigateToArtist(artist)
-                                }
-                            )
-                        }
-                        song.navigableAlbum()?.let { album ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.player_go_to_album)) },
-                                leadingIcon = { Icon(Icons.Filled.Album, contentDescription = null) },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onNavigateToAlbum(album)
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.song_info_title)) },
-                            leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                onNavigateToSongInfo(song)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_song_radio)) },
-                            leadingIcon = { Icon(Icons.Filled.Sensors, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                // Open the generated radio in the standard playlist detail screen
-                                // (issue #7): no auto-play — the user plays from the list there.
-                                viewModel.currentSongRadioMediaId()?.let { radioId ->
-                                    onNavigateToPlaylist(radioId, songRadioName, song.artworkUrl)
-                                }
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_playback_speed)) },
-                            leadingIcon = { Icon(Icons.Filled.Speed, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                showSpeedDialog = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_add_to_library)) },
-                            leadingIcon = { Icon(Icons.Filled.LibraryAdd, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                viewModel.addCurrentSongToLibrary()
-                                Toast.makeText(context, addedToLibraryMessage, Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_add_to_playlist)) },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                addToPlaylistController.show(song)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_download)) },
-                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                val started = viewModel.downloadCurrentSong()
-                                val message = if (started) downloadStartedMessage else downloadUnavailableMessage
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_sleep_timer)) },
-                            leadingIcon = { Icon(Icons.Filled.Bedtime, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                showSleepTimerDialog = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_share)) },
-                            leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                shareSong(context, song)
-                            }
-                        )
-                    }
-                    }
-                }
-            }
+            // Top bar: collapse · context chip · overflow. The context chip reads its own flow.
+            PlayerTopBar(
+                song = song,
+                viewModel = viewModel,
+                addToPlaylistController = addToPlaylistController,
+                onNavigateToArtist = onNavigateToArtist,
+                onNavigateToAlbum = onNavigateToAlbum,
+                onNavigateToSongInfo = onNavigateToSongInfo,
+                onNavigateToPlaylist = onNavigateToPlaylist,
+                onCollapse = onCollapse,
+                onShowSpeedDialog = { showSpeedDialog = true },
+                onShowSleepTimerDialog = { showSleepTimerDialog = true },
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
             // Bottom cluster
             Column(modifier = Modifier.padding(horizontal = 26.dp, vertical = 26.dp)) {
-                // Current lyric line — only when the track actually has lyrics.
+                // Current lyric line — only when the track actually has lyrics. Its own scope: a 60fps
+                // position tick only recomposes the line when the *line text* changes (derivedStateOf).
                 lyrics?.let { lyricsData ->
                     LyricLine(
                         lyrics = lyricsData,
@@ -513,174 +298,30 @@ fun PlayerScreen(
                     )
                 }
 
-                // Title + artist/album + like
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    AnimatedContent(
-                        targetState = song,
-                        transitionSpec = {
-                            (fadeIn(tween(280)) + slideInVertically(tween(280)) { it / 4 }) togetherWith
-                                (fadeOut(tween(160)) + slideOutVertically(tween(160)) { -it / 4 })
-                        },
-                        label = "trackInfo",
-                        modifier = Modifier.weight(1f)
-                    ) { current ->
-                        Column {
-                            Text(
-                                text = current.title,
-                                color = Color.White,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = (-0.6).sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.infiniteBasicMarquee()
-                            )
-                            ArtistAlbumSubtitle(
-                                song = current,
-                                onArtistClick = onNavigateToArtist,
-                                modifier = Modifier.padding(top = 5.dp)
-                            )
-                        }
-                    }
-                    ConnectedLikeButton(viewModel = viewModel)
-                }
-
-                // Listen-together (synced playback) indicator: shown whenever in a session. Reflects the
-                // sync state and, for a follower, that the host is in control.
-                if (sessionState.inSession) {
-                    ListeningTogetherIndicator(
-                        syncState = sessionState.syncState,
-                        isFollower = isFollower,
-                        trackUnavailable = sessionState.trackUnavailable,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // For a follower the transport cluster + seek bar are dimmed and inert — the follower
-                // loop owns playback; a subtle dim conveys "controlled by the host".
-                val transportEnabled = !isFollower
-                val transportAlpha by animateFloatAsState(
-                    if (transportEnabled) 1f else 0.45f,
-                    label = "transportAlpha"
+                // Title + artist/album + like. AnimatedContent(song) recomposes only on a song change;
+                // the like button reads its own isLiked flow.
+                PlayerTrackInfo(
+                    song = song,
+                    viewModel = viewModel,
+                    onNavigateToArtist = onNavigateToArtist,
                 )
 
-                WavySeekBar(
+                // Listen-together (synced playback) indicator + the dimmed/inert-for-follower transport
+                // cluster and seek bar. Reads sessionState here so a session change only recomposes this
+                // wrapper (not the artwork/top bar/output bar).
+                PlayerTransport(
+                    viewModel = viewModel,
                     position = { currentPosition },
                     bufferedPosition = { bufferedPosition },
-                    duration = duration,
-                    isPlaying = isPlaying,
-                    onSeek = { if (transportEnabled) viewModel.seekTo(it) },
-                    modifier = Modifier.graphicsLayer { alpha = transportAlpha }
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Transport cluster
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { alpha = transportAlpha },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ToggleIconButton(
-                        icon = Icons.Filled.Shuffle,
-                        contentDescription = stringResource(if (playbackState.shuffleEnabled) R.string.player_shuffle_on else R.string.player_shuffle_off),
-                        active = playbackState.shuffleEnabled,
-                        onClick = { if (transportEnabled) viewModel.toggleShuffle() }
-                    )
-                    SkipPill(
-                        icon = Icons.Filled.SkipPrevious,
-                        contentDescription = stringResource(R.string.action_previous),
-                        onClick = { if (transportEnabled) viewModel.skipToPrevious() }
-                    )
-                    MorphPlayButton(
-                        isPlaying = isPlaying,
-                        onClick = { if (transportEnabled) viewModel.togglePlayPause() }
-                    )
-                    SkipPill(
-                        icon = Icons.Filled.SkipNext,
-                        contentDescription = stringResource(R.string.action_next),
-                        onClick = { if (transportEnabled) viewModel.skipToNext() }
-                    )
-                    ToggleIconButton(
-                        icon = if (playbackState.repeatMode == RepeatMode.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                        contentDescription = when (playbackState.repeatMode) {
-                            RepeatMode.OFF -> stringResource(R.string.player_repeat_off)
-                            RepeatMode.ONE -> stringResource(R.string.player_repeat_one)
-                            RepeatMode.ALL -> stringResource(R.string.player_repeat_all)
-                        },
-                        active = playbackState.repeatMode != RepeatMode.OFF,
-                        onClick = { if (transportEnabled) viewModel.cycleRepeatMode() }
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Output + queue bar
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(Color.White.copy(alpha = 0.14f))
-                            .clickable { showListenTogether = true }
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Speaker,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.player_output_this_phone),
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                lineHeight = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = stringResource(R.string.player_output_device),
-                                color = Color.White.copy(alpha = 0.65f),
-                                fontSize = 12.sp,
-                                lineHeight = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(Color.White.copy(alpha = 0.16f))
-                            .clickable { showQueueBottomSheet = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = stringResource(R.string.action_queue),
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
+                // Output + queue bar (no dynamic playback reads).
+                PlayerOutputQueueBar(
+                    onOpenListenTogether = { showListenTogether = true },
+                    onOpenQueue = { showQueueBottomSheet = true },
+                )
             }
         }
     }
@@ -778,6 +419,545 @@ fun PlayerScreen(
             onDismiss = { showSpeedDialog = false },
         )
     }
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Decomposed player chrome. Each block is its own composable so that PlayerScreen recomposing (on a
+// song change or a sheet toggle) doesn't cascade into siblings, and — crucially — every frequently-
+// changing playback value is read INSIDE the leaf that renders it (a "Connected" leaf that collects
+// its own StateFlow, mirroring the existing ConnectedLikeButton). Toggling shuffle / repeat / play-
+// pause / the context therefore recomposes ONLY that control.
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * Full-bleed artwork [HorizontalPager] over the queue: swipe to preview/switch tracks. Falls back to
+ * the single [song] when the queue is empty so there's always exactly one page. Reads only song /
+ * queue / swipe settings, so no transport toggle ever repaints the (expensive) artwork.
+ */
+@Composable
+private fun PlayerArtworkPager(
+    song: Song,
+    queue: List<Song>,
+    swipeSettings: SwipeSettings,
+    onPlayFromQueue: (Int) -> Unit,
+) {
+    val pagerSongs = if (queue.isEmpty()) listOf(song) else queue
+    val currentIndex = pagerSongs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+    // currentSong, queue and pager position are three independent flows that settle at different
+    // times; read the index live so the settle handler below never compares against a stale value.
+    val liveCurrentIndex = rememberUpdatedState(currentIndex)
+    // Read swipe settings live so toggling them takes effect without re-launching the settle collector.
+    val liveSwipeSettings = rememberUpdatedState(swipeSettings)
+    val pagerState = rememberPagerState(initialPage = currentIndex) { pagerSongs.size }
+    // External track change (skip buttons / auto-advance) -> move the pager to match. Instant, not
+    // animated: on open the queue arrives after the current song, and animating across the loading
+    // gap looked like the player was flipping through tracks.
+    LaunchedEffect(currentIndex) {
+        if (currentIndex != pagerState.currentPage && !pagerState.isScrollInProgress) {
+            pagerState.scrollToPage(currentIndex)
+        }
+    }
+    // Change the track ONLY on a genuine user swipe. Playback must be driven by intent, not by page
+    // position — a programmatic scroll (above) and a queue re-emission both move settledPage without
+    // any drag, and reacting to those caused random song changes when the player opened.
+    LaunchedEffect(pagerState) {
+        var userDragged = false
+        launch {
+            pagerState.interactionSource.interactions.collect { interaction ->
+                if (interaction is DragInteraction.Start) userDragged = true
+            }
+        }
+        snapshotFlow { pagerState.isScrollInProgress }
+            .filter { scrolling -> !scrolling } // wait until the pager has settled
+            .collect {
+                if (!userDragged) return@collect
+                userDragged = false
+                // Honor the user's preference: when swipe-to-change-song is off, the pager still moves
+                // visually but a settled page never drives playback.
+                if (!liveSwipeSettings.value.enabled) return@collect
+                val page = pagerState.currentPage
+                if (page != liveCurrentIndex.value && page in pagerSongs.indices) {
+                    onPlayFromQueue(page)
+                }
+            }
+    }
+
+    // Full-bleed artwork (also the seed for the dynamic theme), over a gradient placeholder.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                )
+            )
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            // Sensitivity tunes the snap threshold: how far the user must drag past a page's edge
+            // before the pager settles onto the next page (higher = larger swipe required).
+            flingBehavior = PagerDefaults.flingBehavior(
+                state = pagerState,
+                snapPositionalThreshold = snapPositionalThresholdFor(swipeSettings.sensitivity)
+            ),
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AsyncImage(
+                model = pagerSongs[page].artworkUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+/** Top scrim (status-bar / context legibility) + bottom scrim (behind the controls). Static. */
+@Composable
+private fun PlayerScrims() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(220.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent)))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(560.dp)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.28f to Color.Black.copy(alpha = 0.15f),
+                        0.58f to Color.Black.copy(alpha = 0.62f),
+                        1f to Color.Black.copy(alpha = 0.86f)
+                    )
+                )
+        )
+    }
+}
+
+/**
+ * Top bar: collapse · [ConnectedContextChip] · cast · overflow. Owns its own overflow-expanded state
+ * so opening the menu doesn't recompose the rest of the player.
+ */
+@Composable
+private fun PlayerTopBar(
+    song: Song,
+    viewModel: PlayerViewModel,
+    addToPlaylistController: AddToPlaylistController,
+    onNavigateToArtist: (Artist) -> Unit,
+    onNavigateToAlbum: (Album) -> Unit,
+    onNavigateToSongInfo: (Song) -> Unit,
+    onNavigateToPlaylist: (MediaId, String, String?) -> Unit,
+    onCollapse: () -> Unit,
+    onShowSpeedDialog: () -> Unit,
+    onShowSleepTimerDialog: () -> Unit,
+) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val addedToLibraryMessage = stringResource(R.string.toast_added_to_library)
+    val downloadStartedMessage = stringResource(R.string.toast_download_started)
+    val downloadUnavailableMessage = stringResource(R.string.toast_download_unavailable)
+    val songRadioName = stringResource(R.string.action_song_radio)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onCollapse) {
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowDown,
+                contentDescription = stringResource(R.string.player_collapse),
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        ConnectedContextChip(viewModel = viewModel)
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Cast route button — renders nothing until a cast device is on the network.
+            CastButton()
+
+            Box {
+                IconButton(onClick = { showOverflowMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.player_more_options),
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showOverflowMenu,
+                    onDismissRequest = { showOverflowMenu = false },
+                    shape = RoundedCornerShape(22.dp),
+                ) {
+                    song.navigableArtist()?.toEntity()?.let { artist ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_view_artist)) },
+                            leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onNavigateToArtist(artist)
+                            }
+                        )
+                    }
+                    song.navigableAlbum()?.let { album ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.player_go_to_album)) },
+                            leadingIcon = { Icon(Icons.Filled.Album, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onNavigateToAlbum(album)
+                            }
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.song_info_title)) },
+                        leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onNavigateToSongInfo(song)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_song_radio)) },
+                        leadingIcon = { Icon(Icons.Filled.Sensors, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            // Open the generated radio in the standard playlist detail screen
+                            // (issue #7): no auto-play — the user plays from the list there.
+                            viewModel.currentSongRadioMediaId()?.let { radioId ->
+                                onNavigateToPlaylist(radioId, songRadioName, song.artworkUrl)
+                            }
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_playback_speed)) },
+                        leadingIcon = { Icon(Icons.Filled.Speed, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onShowSpeedDialog()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_add_to_library)) },
+                        leadingIcon = { Icon(Icons.Filled.LibraryAdd, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            viewModel.addCurrentSongToLibrary()
+                            Toast.makeText(context, addedToLibraryMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_add_to_playlist)) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            addToPlaylistController.show(song)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_download)) },
+                        leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            val started = viewModel.downloadCurrentSong()
+                            val message = if (started) downloadStartedMessage else downloadUnavailableMessage
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_sleep_timer)) },
+                        leadingIcon = { Icon(Icons.Filled.Bedtime, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onShowSleepTimerDialog()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_share)) },
+                        leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            shareSong(context, song)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Title (marquee) + [ArtistAlbumSubtitle] + [ConnectedLikeButton]. The title/subtitle change only on a
+ * song change (AnimatedContent target); the like button reads its own isLiked flow, so tapping like
+ * recomposes ONLY the button.
+ */
+@Composable
+private fun PlayerTrackInfo(
+    song: Song,
+    viewModel: PlayerViewModel,
+    onNavigateToArtist: (Artist) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        AnimatedContent(
+            targetState = song,
+            transitionSpec = {
+                (fadeIn(tween(280)) + slideInVertically(tween(280)) { it / 4 }) togetherWith
+                    (fadeOut(tween(160)) + slideOutVertically(tween(160)) { -it / 4 })
+            },
+            label = "trackInfo",
+            modifier = Modifier.weight(1f)
+        ) { current ->
+            Column {
+                Text(
+                    text = current.title,
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.6).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.infiniteBasicMarquee()
+                )
+                ArtistAlbumSubtitle(
+                    song = current,
+                    onArtistClick = onNavigateToArtist,
+                    modifier = Modifier.padding(top = 5.dp)
+                )
+            }
+        }
+        ConnectedLikeButton(viewModel = viewModel)
+    }
+}
+
+/**
+ * The follower-aware transport region: listen-together indicator + wavy seek bar + the transport row.
+ * Reads [PlayerViewModel.sessionState] here so a session change recomposes only this wrapper. The
+ * follower dim is applied via a deferred [graphicsLayer] alpha. Each dynamic control below reads its
+ * own flow (or a position provider) so shuffle / repeat / play-pause / seek recompose in isolation.
+ */
+@Composable
+private fun PlayerTransport(
+    viewModel: PlayerViewModel,
+    position: () -> Long,
+    bufferedPosition: () -> Long,
+) {
+    val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
+    val isFollower = sessionState.isFollower
+
+    // Listen-together (synced playback) indicator: shown whenever in a session. Reflects the sync
+    // state and, for a follower, that the host is in control.
+    if (sessionState.inSession) {
+        ListeningTogetherIndicator(
+            syncState = sessionState.syncState,
+            isFollower = isFollower,
+            trackUnavailable = sessionState.trackUnavailable,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+    }
+
+    Spacer(modifier = Modifier.height(18.dp))
+
+    // For a follower the transport cluster + seek bar are dimmed and inert — the follower loop owns
+    // playback; a subtle dim conveys "controlled by the host".
+    val transportEnabled = !isFollower
+    val transportAlpha by animateFloatAsState(
+        if (transportEnabled) 1f else 0.45f,
+        label = "transportAlpha"
+    )
+
+    ConnectedSeekBar(
+        viewModel = viewModel,
+        position = position,
+        bufferedPosition = bufferedPosition,
+        transportEnabled = transportEnabled,
+        modifier = Modifier.graphicsLayer { alpha = transportAlpha }
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // Transport cluster. Only the toggled control recomposes: shuffle/repeat/play-pause each collect
+    // their own flow; the skip pills are inert w.r.t. playback state.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { alpha = transportAlpha },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ConnectedShuffleButton(viewModel = viewModel, transportEnabled = transportEnabled)
+        SkipPill(
+            icon = Icons.Filled.SkipPrevious,
+            contentDescription = stringResource(R.string.action_previous),
+            onClick = { if (transportEnabled) viewModel.skipToPrevious() }
+        )
+        ConnectedPlayPauseButton(viewModel = viewModel, transportEnabled = transportEnabled)
+        SkipPill(
+            icon = Icons.Filled.SkipNext,
+            contentDescription = stringResource(R.string.action_next),
+            onClick = { if (transportEnabled) viewModel.skipToNext() }
+        )
+        ConnectedRepeatButton(viewModel = viewModel, transportEnabled = transportEnabled)
+    }
+}
+
+/** Output + queue bar (this-phone output → listen-together sheet; queue icon → queue sheet). Static. */
+@Composable
+private fun PlayerOutputQueueBar(
+    onOpenListenTogether: () -> Unit,
+    onOpenQueue: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color.White.copy(alpha = 0.14f))
+                .clickable(onClick = onOpenListenTogether)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Speaker,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.player_output_this_phone),
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.player_output_device),
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 12.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color.White.copy(alpha = 0.16f))
+                .clickable(onClick = onOpenQueue),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                contentDescription = stringResource(R.string.action_queue),
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+// --- Connected leaves: each collects ONLY its own narrow flow, so it is the sole recomposition scope
+//     woken when that value changes (mirrors the existing ConnectedLikeButton). ------------------------
+
+/** Reads the playback context in its own scope so a source change recomposes only the chip. */
+@Composable
+private fun ConnectedContextChip(viewModel: PlayerViewModel) {
+    val context by viewModel.playbackContext.collectAsStateWithLifecycle()
+    ContextChip(context = context)
+}
+
+/** Reads shuffle-enabled in its own scope so toggling shuffle recomposes only this button. */
+@Composable
+private fun ConnectedShuffleButton(viewModel: PlayerViewModel, transportEnabled: Boolean) {
+    val shuffleEnabled by viewModel.shuffleEnabled.collectAsStateWithLifecycle()
+    ToggleIconButton(
+        icon = Icons.Filled.Shuffle,
+        contentDescription = stringResource(if (shuffleEnabled) R.string.player_shuffle_on else R.string.player_shuffle_off),
+        active = shuffleEnabled,
+        onClick = { if (transportEnabled) viewModel.toggleShuffle() }
+    )
+}
+
+/** Reads the repeat mode in its own scope so cycling repeat recomposes only this button. */
+@Composable
+private fun ConnectedRepeatButton(viewModel: PlayerViewModel, transportEnabled: Boolean) {
+    val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle()
+    ToggleIconButton(
+        icon = if (repeatMode == RepeatMode.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+        contentDescription = when (repeatMode) {
+            RepeatMode.OFF -> stringResource(R.string.player_repeat_off)
+            RepeatMode.ONE -> stringResource(R.string.player_repeat_one)
+            RepeatMode.ALL -> stringResource(R.string.player_repeat_all)
+        },
+        active = repeatMode != RepeatMode.OFF,
+        onClick = { if (transportEnabled) viewModel.cycleRepeatMode() }
+    )
+}
+
+/**
+ * Reads isPlaying in its own scope so play/pause recomposes only the morph button (and the seek bar's
+ * wave, which legitimately depends on isPlaying and reads it separately in [ConnectedSeekBar]).
+ */
+@Composable
+private fun ConnectedPlayPauseButton(viewModel: PlayerViewModel, transportEnabled: Boolean) {
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    MorphPlayButton(
+        isPlaying = isPlaying,
+        onClick = { if (transportEnabled) viewModel.togglePlayPause() }
+    )
+}
+
+/**
+ * Reads duration + isPlaying (for the wave) in its own scope and forwards the position/buffered
+ * providers, so seeking, position ticks, a duration change or a play/pause all recompose only the
+ * seek bar — never the surrounding transport row.
+ */
+@Composable
+private fun ConnectedSeekBar(
+    viewModel: PlayerViewModel,
+    position: () -> Long,
+    bufferedPosition: () -> Long,
+    transportEnabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    WavySeekBar(
+        position = position,
+        bufferedPosition = bufferedPosition,
+        duration = duration,
+        isPlaying = isPlaying,
+        onSeek = { if (transportEnabled) viewModel.seekTo(it) },
+        modifier = modifier
+    )
 }
 
 /**
@@ -1043,7 +1223,7 @@ private fun ConnectedLikeButton(viewModel: PlayerViewModel) {
  * Like toggle: Favorite glyph, white → primary, with a press-scale (0.82) bounce.
  */
 @Composable
-private fun LikeButton(
+internal fun LikeButton(
     isLiked: Boolean,
     onClick: () -> Unit
 ) {
@@ -1075,7 +1255,7 @@ private fun LikeButton(
  * Shuffle / repeat icon button: primary when active, white @ 85% when off.
  */
 @Composable
-private fun ToggleIconButton(
+internal fun ToggleIconButton(
     icon: ImageVector,
     contentDescription: String,
     active: Boolean,
@@ -1127,7 +1307,7 @@ private fun SkipPill(
  * squircle (playing) with a bouncy spring, plus a press-scale.
  */
 @Composable
-private fun MorphPlayButton(
+internal fun MorphPlayButton(
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {

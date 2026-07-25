@@ -14,6 +14,7 @@ import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
@@ -316,6 +317,7 @@ private class FakePluginRepository : PluginRepository {
     override suspend fun getArtist(mediaId: MediaId): Result<ArtistDetail> = error("unused")
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> = error("unused")
     override suspend fun getLyrics(song: Song): Result<Lyrics?> = error("unused")
+    override suspend fun searchLyrics(title: String, artist: String?): List<LyricsCandidate> = emptyList()
     override suspend fun getArtistSongs(artistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Song>> = error("unused")
     override suspend fun getArtistAlbums(artistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Album>> = error("unused")
     override suspend fun getPlaylistSongs(playlistId: MediaId, cursor: String?, limit: Int): Result<PagedResult<Song>> = error("unused")

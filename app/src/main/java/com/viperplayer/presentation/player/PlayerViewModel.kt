@@ -13,6 +13,7 @@ import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.LyricsOffset
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.RepeatMode
@@ -129,6 +130,37 @@ class PlayerViewModel @Inject constructor(
 
     val currentSong: StateFlow<Song?> = playerRepository.currentSong
     val duration: StateFlow<Long> = playerRepository.duration
+
+    // Narrow projections of [playbackState] so each transport control observes ONLY the field it
+    // renders. Toggling shuffle (or repeat, or the playback source) then recomposes just its own
+    // isolated leaf instead of every composable that would read the bundled PlaybackInfo. Each is
+    // distinctUntilChanged so an unrelated field change (e.g. repeat) never wakes the shuffle flow.
+    val shuffleEnabled: StateFlow<Boolean> = playbackState
+        .map { it.shuffleEnabled }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = playbackState.value.shuffleEnabled
+        )
+
+    val repeatMode: StateFlow<RepeatMode> = playbackState
+        .map { it.repeatMode }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = playbackState.value.repeatMode
+        )
+
+    val playbackContext: StateFlow<PlaybackContext?> = playbackState
+        .map { it.playbackContext }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = playbackState.value.playbackContext
+        )
 
     // Last successfully-resolved lyrics keyed by song id. Lets a re-subscription (the sheet reopening
     // after WhileSubscribed's timeout, on the *same* song) reuse the resolved result instead of
