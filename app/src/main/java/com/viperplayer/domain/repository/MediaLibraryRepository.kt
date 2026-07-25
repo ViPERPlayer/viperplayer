@@ -3,6 +3,7 @@ package com.viperplayer.domain.repository
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistDetail
+import com.viperplayer.domain.model.Genre
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
@@ -142,6 +143,13 @@ interface MediaLibraryRepository {
     suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean)
     suspend fun isPlaylistSaved(mediaId: MediaId): Boolean
     suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean)
+
+    // Genres
+    /** The local genres that have at least one song, each with its song count, ordered by name. */
+    fun getGenres(): Flow<List<Genre>>
+
+    /** The songs tagged with the genre identified by [genreId], ordered by title. */
+    fun getSongsForGenre(genreId: Long): Flow<List<Song>>
 
     // Local Files
     suspend fun scanLocalFiles()

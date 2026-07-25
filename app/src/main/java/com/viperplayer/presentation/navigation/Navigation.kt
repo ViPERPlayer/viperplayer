@@ -27,6 +27,8 @@ import com.viperplayer.presentation.detail.AlbumDetailScreen
 import com.viperplayer.presentation.detail.AlbumDetailViewModel
 import com.viperplayer.presentation.detail.ArtistDetailScreen
 import com.viperplayer.presentation.detail.ArtistDetailViewModel
+import com.viperplayer.presentation.detail.GenreDetailScreen
+import com.viperplayer.presentation.detail.GenreDetailViewModel
 import com.viperplayer.presentation.detail.PlaylistDetailScreen
 import com.viperplayer.presentation.detail.PlaylistDetailViewModel
 import com.viperplayer.presentation.detail.SongInfoScreen
@@ -193,6 +195,13 @@ data class PlaylistDetail(
     val initialArtworkUrl: String? = null,
 ) : NavKey
 
+/** A local library genre's song list (reached from the Library's Genres tab). Keyed by the genre row id. */
+@Serializable
+data class GenreDetail(
+    val genreId: Long,
+    val initialName: String = "",
+) : NavKey
+
 @Serializable
 data class SongInfo(
     val mediaId: MediaId,
@@ -275,10 +284,24 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
+                onNavigateToGenre = { genre ->
+                    navigator.navigate(GenreDetail(genre.id, genre.name))
+                },
                 onNavigateToDownloads = { navigator.navigate(Downloads) },
                 onNavigateToFollowing = { navigator.navigate(Following) },
                 onNavigateToCustomizeTabs = { navigator.navigate(CustomizeTabs) },
                 onNavigateToSearch = { navigator.navigate(Search) }
+            )
+        }
+
+        entry<GenreDetail> { key ->
+            val viewModel = hiltViewModel<GenreDetailViewModel, GenreDetailViewModel.Factory>(
+                creationCallback = { factory -> factory.create(key) }
+            )
+            GenreDetailScreen(
+                rootPadding = rootPadding,
+                onNavigateBack = { navigator.goBack() },
+                viewModel = viewModel,
             )
         }
 

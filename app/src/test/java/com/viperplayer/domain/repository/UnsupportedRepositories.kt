@@ -4,6 +4,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.Genre
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.LibraryTabsConfig
@@ -92,6 +93,8 @@ open class UnsupportedMediaLibraryRepository : MediaLibraryRepository {
     override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean) = TODO()
     override suspend fun isPlaylistSaved(mediaId: MediaId): Boolean = TODO()
     override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean) = TODO()
+    override fun getGenres(): Flow<List<Genre>> = TODO()
+    override fun getSongsForGenre(genreId: Long): Flow<List<Song>> = TODO()
     override suspend fun scanLocalFiles() = TODO()
     override suspend fun exportPlaylistToM3u(mediaId: MediaId): String? = TODO()
     override suspend fun importPlaylistFromM3u(playlistName: String, content: String): M3uImportResult = TODO()

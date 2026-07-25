@@ -10,6 +10,9 @@ sealed class PlaybackContext {
     data class Artist(val mediaId: MediaId, val name: String) : PlaybackContext()
     data class Playlist(val mediaId: MediaId, val name: String) : PlaybackContext()
 
+    /** Playback started from a local library genre; [genreId] is its Room row id, [name] its label. */
+    data class Genre(val genreId: Long, val name: String) : PlaybackContext()
+
     /**
      * Auto-loaded related songs are playing — the original queue ran out and autoplay took over
      * (also used for home quick picks). Derived while the current item carries the suggestion

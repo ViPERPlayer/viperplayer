@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tune
@@ -82,6 +83,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.Genre
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
@@ -152,6 +154,7 @@ fun LibraryScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
+    onNavigateToGenre: (Genre) -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
     onNavigateToFollowing: () -> Unit = {},
     onNavigateToCustomizeTabs: () -> Unit = {},
@@ -311,6 +314,22 @@ fun LibraryScreen(
                                 onOrderChange = { viewModel.setSortOrder(SortView.LIBRARY_ARTISTS, it) },
                                 onNavigateToArtist = onNavigateToArtist,
                                 onArtistMore = { optionsController.show(it) },
+                                onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
+                                onNavigateToDownloads = onNavigateToDownloads,
+                                onNavigateToFollowing = onNavigateToFollowing,
+                            )
+                        }
+                    }
+
+                    LibraryTab.GENRES -> {
+                        if (uiState.genres.isEmpty()) {
+                            EmptyLibraryContent(stringResource(R.string.library_empty_genres))
+                        } else {
+                            GenresLibraryList(
+                                genres = uiState.genres,
+                                shortcutCounts = shortcutCounts,
+                                contentPadding = listContentPadding,
+                                onNavigateToGenre = onNavigateToGenre,
                                 onLiked = { viewModel.selectTab(LibraryTab.PLAYLISTS) },
                                 onNavigateToDownloads = onNavigateToDownloads,
                                 onNavigateToFollowing = onNavigateToFollowing,
@@ -621,6 +640,55 @@ private fun ArtistsLibraryList(
                     .revealOnAppear(index)
                     .fillMaxWidth()
                     .padding(end = rowEndPadding),
+            )
+        }
+    }
+}
+
+/**
+ * The Genres tab: the local library genres (each with its song count), ordered by name from the DAO.
+ * Tapping a genre opens its detail screen. There is no sort control or A-Z rail — genres are a compact,
+ * already-name-ordered browse index — so it passes `sort = null` to the shared header like the unified
+ * feed does.
+ */
+@Composable
+private fun GenresLibraryList(
+    genres: List<Genre>,
+    shortcutCounts: LibraryShortcutCounts,
+    contentPadding: PaddingValues,
+    onNavigateToGenre: (Genre) -> Unit,
+    onLiked: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+    ) {
+        item(key = "genres_header") {
+            LibraryListHeader(
+                countLabel = pluralStringResource(
+                    R.plurals.library_genre_count,
+                    genres.size,
+                    genres.size,
+                ),
+                shortcutCounts = shortcutCounts,
+                sort = null,
+                sortOptions = emptyList(),
+                onOrderChange = {},
+                onLiked = onLiked,
+                onNavigateToDownloads = onNavigateToDownloads,
+                onNavigateToFollowing = onNavigateToFollowing,
+            )
+        }
+        itemsIndexed(genres, key = { _, genre -> genre.id }) { index, genre ->
+            GenreRow(
+                genre = genre,
+                onClick = onNavigateToGenre,
+                modifier = Modifier
+                    .animateItem()
+                    .revealOnAppear(index)
+                    .fillMaxWidth(),
             )
         }
     }
@@ -1199,6 +1267,44 @@ fun EmptyLibraryContent(message: String, modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+/**
+ * One row for a library genre: a music-note tile, the genre name, and a localized song-count subtitle.
+ * Uses the shared leading-content [ListItem] with no trailing "more" button — a genre has no per-item
+ * options, only navigation to its detail screen on tap.
+ */
+@Composable
+fun GenreRow(
+    genre: Genre,
+    onClick: (Genre) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ListItem(
+        title = genre.name,
+        badges = emptyList(),
+        subtitle = pluralStringResource(R.plurals.library_song_count, genre.songCount, genre.songCount),
+        isActive = false,
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
+        trailingContent = {},
+        onClick = { onClick(genre) },
+        modifier = modifier,
+    )
 }
 
 /** A small section header (e.g. "Auto-playlists") for a list of library items. */

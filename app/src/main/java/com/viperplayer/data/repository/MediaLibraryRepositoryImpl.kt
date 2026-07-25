@@ -26,6 +26,7 @@ import com.viperplayer.data.local.entity.PlayEventEntity
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
 import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
+import com.viperplayer.data.local.entity.SongGenreCrossRef
 import com.viperplayer.data.local.mapper.EntityMapper.toDomain
 import com.viperplayer.data.local.mapper.EntityMapper.toEntity
 import com.viperplayer.data.local.mapper.EntityMapper.toRef
@@ -42,6 +43,7 @@ import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.ArtistDetail
+import com.viperplayer.domain.model.Genre
 import com.viperplayer.domain.model.toArtist
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.MediaId
@@ -245,6 +247,44 @@ class MediaLibraryRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    /**
+     * Replace [songId]'s genre links with [genres]: each genre name is find-or-created in `genres`
+     * and joined to the song via `song_genres`. Old links for this song are cleared first so a
+     * re-save reflects the latest tags without duplicating rows.
+     */
+    private suspend fun saveSongGenres(songId: Long, genres: List<String>) {
+        crossRefDao.deleteSongGenres(songId)
+        genres.forEach { rawName ->
+            val genreName = rawName.trim()
+            if (genreName.isEmpty()) return@forEach
+            val genreId = genreDao.getIdByName(genreName)
+                ?: genreDao.insert(GenreEntity(name = genreName)).takeIf { it != -1L }
+                ?: genreDao.getIdByName(genreName)
+                ?: return@forEach
+            crossRefDao.insertSongGenre(
+                SongGenreCrossRef(
+                    songId = songId,
+                    genreId = genreId
+                )
+            )
+        }
+    }
+
+    // Genres
+    override fun getGenres(): Flow<List<Genre>> =
+        genreDao.getGenresWithSongCounts().map { rows ->
+            rows.map { Genre(id = it.id, name = it.name, songCount = it.songCount) }
+        }
+
+    override fun getSongsForGenre(genreId: Long): Flow<List<Song>> =
+        genreDao.getSongsForGenre(genreId).map { entities ->
+            entities.map { entity ->
+                val artists = songByline(entity)
+                val album = entity.albumId?.let { albumDao.getByIdSync(it)?.toDomain() }
+                entity.toDomain(album = album, artists = artists)
+            }
+        }
 
     // Artists
     override fun getArtist(mediaId: MediaId): Flow<Artist?> {
@@ -679,6 +719,14 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     )
                 )
             }
+        }
+
+        // Rewrite the song's genre links only when the incoming song carries genres, so a partial
+        // re-save (empty genres) doesn't strip an existing genre association. Each genre name is
+        // find-or-created in `genres` and joined via `song_genres` — this is what populates the
+        // Library Genres tab.
+        if (song.genres.isNotEmpty()) {
+            saveSongGenres(songId, song.genres)
         }
     }
 

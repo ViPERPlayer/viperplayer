@@ -101,8 +101,9 @@ class CustomizeTabsViewModelTest {
         val viewModel = CustomizeTabsViewModel(repo)
         advanceUntilIdle()
 
-        // Move the last tab (PLAYLISTS, index 3) to the front.
-        viewModel.moveTab(from = 3, to = 0)
+        // Move the last tab (PLAYLISTS, the final index) to the front.
+        val lastIndex = LibraryTab.entries.lastIndex
+        viewModel.moveTab(from = lastIndex, to = 0)
 
         assertEquals(
             listOf(
@@ -110,6 +111,7 @@ class CustomizeTabsViewModelTest {
                 LibraryTab.SONGS,
                 LibraryTab.ALBUMS,
                 LibraryTab.ARTISTS,
+                LibraryTab.GENRES,
             ),
             viewModel.tabs.value.map { it.tab },
         )
@@ -147,8 +149,16 @@ class CustomizeTabsViewModelTest {
         advanceUntilIdle()
 
         // Editor shows every tab (including the hidden SONGS) in the stored order, with SONGS off.
+        // Tabs missing from the stored config (e.g. GENRES, added after this config was written) are
+        // appended in natural order — see reconcileTabsConfig.
         assertEquals(
-            listOf(LibraryTab.PLAYLISTS, LibraryTab.SONGS, LibraryTab.ARTISTS, LibraryTab.ALBUMS),
+            listOf(
+                LibraryTab.PLAYLISTS,
+                LibraryTab.SONGS,
+                LibraryTab.ARTISTS,
+                LibraryTab.ALBUMS,
+                LibraryTab.GENRES,
+            ),
             viewModel.tabs.value.map { it.tab },
         )
         assertEquals(false, visibilityOf(viewModel.tabs.value)[LibraryTab.SONGS])

@@ -26,10 +26,11 @@ class ResolveVisibleTabsTest {
                 LibraryTabSetting(LibraryTab.SONGS.name, false),
                 LibraryTabSetting(LibraryTab.ARTISTS.name, true),
                 LibraryTabSetting(LibraryTab.ALBUMS.name, true),
+                LibraryTabSetting(LibraryTab.GENRES.name, false),
             )
         )
 
-        // SONGS hidden → dropped; the rest kept in the stored order.
+        // SONGS + GENRES hidden → dropped; the rest kept in the stored order.
         assertEquals(
             listOf(LibraryTab.PLAYLISTS, LibraryTab.ARTISTS, LibraryTab.ALBUMS),
             resolveVisibleTabs(cfg),

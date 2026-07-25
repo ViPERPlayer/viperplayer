@@ -95,6 +95,7 @@ object PluginMapper {
         replayGainDb = replayGainDb,
         peakAmplitude = peakAmplitude,
         isVideo = false,
+        genres = genres,
     )
 
     fun SdkVideo.toDomain(pluginId: String): Song = Song(

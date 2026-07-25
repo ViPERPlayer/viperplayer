@@ -964,6 +964,7 @@ private fun ContextChip(
         is PlaybackContext.Album -> Icons.Filled.Album to context.name
         is PlaybackContext.Artist -> Icons.Filled.Person to context.name
         is PlaybackContext.Playlist -> Icons.AutoMirrored.Filled.QueueMusic to context.name
+        is PlaybackContext.Genre -> Icons.Filled.MusicNote to context.name
         is PlaybackContext.Search ->
             Icons.Filled.Search to context.query.ifBlank { stringResource(R.string.player_context_search) }
         PlaybackContext.Suggestions ->

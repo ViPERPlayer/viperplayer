@@ -143,6 +143,7 @@
     <string name="library_tab_albums">Albums</string>
     <string name="library_tab_artists">Artists</string>
     <string name="library_tab_playlists">Playlists</string>
+    <string name="library_tab_genres">Genres</string>
     <string name="library_customize_tabs">Customize tabs</string>
     <string name="library_customize_tabs_title">Customize tabs</string>
     <string name="library_customize_tabs_hint">Drag to reorder. Toggle to show or hide a tab. At least one tab must stay visible.</string>
@@ -157,6 +158,13 @@
     <string name="library_empty_albums">No albums in your library</string>
     <string name="library_empty_artists">No artists in your library</string>
     <string name="library_empty_playlists">No playlists in your library</string>
+    <string name="library_empty_genres">No genres in your library</string>
+    <!-- Genre browse -->
+    <string name="genre_empty">No songs in this genre</string>
+    <plurals name="library_genre_count">
+        <item quantity="one">%d genre</item>
+        <item quantity="other">%d genres</item>
+    </plurals>
     <plurals name="library_song_count">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>

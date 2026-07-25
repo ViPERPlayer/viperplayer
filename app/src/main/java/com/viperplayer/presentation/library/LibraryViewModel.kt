@@ -11,6 +11,7 @@ import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.repository.NetworkConnectivityChecker
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.Genre
 import com.viperplayer.domain.model.HistoryEntry
 import com.viperplayer.domain.model.LibraryTabSetting
 import com.viperplayer.domain.model.LibraryTabsConfig
@@ -59,6 +60,7 @@ enum class LibraryTab(@param:StringRes val labelRes: Int) {
     SONGS(R.string.library_tab_songs),
     ALBUMS(R.string.library_tab_albums),
     ARTISTS(R.string.library_tab_artists),
+    GENRES(R.string.library_tab_genres),
     PLAYLISTS(R.string.library_tab_playlists);
 
     companion object {
@@ -105,6 +107,8 @@ data class LibraryUiState(
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
+    /** Local library genres (name + song count), for the Genres tab. Ordered by name from the DAO. */
+    val genres: List<Genre> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     /**
      * The unified all-types feed shown when [selectedTab] is `null`: songs/albums/artists/playlists
@@ -413,6 +417,7 @@ class LibraryViewModel @Inject constructor(
                     LibraryTab.SONGS -> loadSongs(rebuildUnified = false)
                     LibraryTab.ALBUMS -> loadAlbums(rebuildUnified = false)
                     LibraryTab.ARTISTS -> loadArtists(rebuildUnified = false)
+                    LibraryTab.GENRES -> loadGenres()
                     LibraryTab.PLAYLISTS -> loadPlaylists(rebuildUnified = false)
                 }
             } catch (e: Exception) {
@@ -557,6 +562,23 @@ class LibraryViewModel @Inject constructor(
             throw e
         } catch (e: Exception) {
             if (!rebuildUnified) reportLoadError(e)
+        }
+    }
+
+    /**
+     * Load the local library genres (name + song count) into [LibraryUiState.genres]. Genres are a
+     * local-DB browse index (populated from saved songs' genre tags), not a plugin list and not part of
+     * the unified recency feed, so this collects the reactive DAO flow directly. Runs until cancelled.
+     */
+    private suspend fun loadGenres() {
+        try {
+            mediaLibraryRepository.getGenres().collect { genres ->
+                _uiState.update { it.copy(isLoading = false, genres = genres) }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            reportLoadError(e)
         }
     }
 

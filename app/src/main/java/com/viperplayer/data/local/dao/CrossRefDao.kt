@@ -9,6 +9,7 @@ import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.PlaylistSongCrossRef
 import com.viperplayer.data.local.entity.QueueSongCrossRef
 import com.viperplayer.data.local.entity.SongArtistCrossRef
+import com.viperplayer.data.local.entity.SongGenreCrossRef
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -114,6 +115,22 @@ interface CrossRefDao {
 
     @Query("DELETE FROM artist_genres WHERE genreId = :genreId")
     suspend fun deleteGenreArtists(genreId: Long)
+
+    // Song-Genre relationships
+    @Query("SELECT genreId FROM song_genres WHERE songId = :songId")
+    suspend fun getGenreIdsForSong(songId: Long): List<Long>
+
+    @Query("SELECT songId FROM song_genres WHERE genreId = :genreId")
+    suspend fun getSongIdsForGenre(genreId: Long): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSongGenre(crossRef: SongGenreCrossRef)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSongGenres(crossRefs: List<SongGenreCrossRef>)
+
+    @Query("DELETE FROM song_genres WHERE songId = :songId")
+    suspend fun deleteSongGenres(songId: Long)
 
     // Queue-Song relationships
     @Query("SELECT songId FROM queue_songs ORDER BY position ASC")

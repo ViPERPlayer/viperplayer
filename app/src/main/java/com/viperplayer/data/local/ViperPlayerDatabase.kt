@@ -27,6 +27,7 @@ import com.viperplayer.data.local.entity.QueueSongCrossRef
 import com.viperplayer.data.local.entity.SearchHistoryEntity
 import com.viperplayer.data.local.entity.SongArtistCrossRef
 import com.viperplayer.data.local.entity.SongEntity
+import com.viperplayer.data.local.entity.SongGenreCrossRef
 import com.viperplayer.data.local.entity.ViperDdcCoeffEntity
 import com.viperplayer.data.local.entity.ViperPresetEntity
 import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConverter
@@ -45,6 +46,7 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         AlbumArtistCrossRef::class,
         PlaylistSongCrossRef::class,
         ArtistGenreCrossRef::class,
+        SongGenreCrossRef::class,
         SearchHistoryEntity::class,
         QueueSongCrossRef::class,
         ViperPresetEntity::class,
@@ -54,8 +56,9 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
     ],
     // v3: MediaId sealed refactor (#12) — songs/albums/artists/playlists gain an `idType`
     // discriminator column and their unique identity index becomes (idType, pluginId, sourceId).
+    // v4: song_genres cross-ref for the Library Genres tab (per-song genre browse).
     // Destructive migration (DatabaseModule fallbackToDestructiveMigration) drops + recreates.
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(

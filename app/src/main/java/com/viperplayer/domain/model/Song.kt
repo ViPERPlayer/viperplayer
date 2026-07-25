@@ -29,6 +29,8 @@ data class Song(
     val isDownloaded: Boolean = false,
     /** True if this playable's source is a video (resolved through the plugin's video endpoint). */
     val isVideo: Boolean = false,
+    /** Genre tags carried by the source (plugin metadata / local file tags); persisted for the Genres tab. */
+    val genres: List<String> = emptyList(),
 ) : MediaItem, Parcelable {
     val artistNames: String?
         get() = artists.joinToString { it.name }.takeIf { it.isNotEmpty() }
