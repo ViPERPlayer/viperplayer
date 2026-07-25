@@ -32,7 +32,11 @@ data class ViperPlayerAppUiState(
     val hasCurrentSong: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicThemeMode: DynamicThemeMode = DynamicThemeMode.DYNAMIC,
-    val pureBlack: Boolean = false
+    val pureBlack: Boolean = false,
+    /** Keep the screen awake while the full-screen player is expanded (applied by the UI). */
+    val keepScreenOnPlayer: Boolean = false,
+    /** Block screenshots / screen capture via FLAG_SECURE (applied by the UI). */
+    val blockScreenshots: Boolean = false
 )
 
 @HiltViewModel
@@ -102,6 +106,16 @@ class ViperPlayerAppViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.accentColor.collect { argb ->
                 _uiState.update { it.copy(accentColor = argb?.let(::Color)) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.keepScreenOnPlayer.collect { enabled ->
+                _uiState.update { it.copy(keepScreenOnPlayer = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.blockScreenshots.collect { enabled ->
+                _uiState.update { it.copy(blockScreenshots = enabled) }
             }
         }
     }

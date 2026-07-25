@@ -690,6 +690,10 @@ class PlayerRepositoryImpl @Inject constructor(
 
         val controller = mediaControllerManager.controllerFlow.first()
         val mediaItem = song.toMediaItem()
+        if (!allowQueueAdd(controller, mediaItem.mediaId)) {
+            Timber.d("Skipping add-to-queue: ${mediaItem.mediaId} already queued (prevent-duplicates on)")
+            return
+        }
         controller.addMediaItem(mediaItem)
     }
 
@@ -699,8 +703,25 @@ class PlayerRepositoryImpl @Inject constructor(
 
         val controller = mediaControllerManager.controllerFlow.first()
         val mediaItem = song.toMediaItem()
+        if (!allowQueueAdd(controller, mediaItem.mediaId)) {
+            Timber.d("Skipping play-next: ${mediaItem.mediaId} already queued (prevent-duplicates on)")
+            return
+        }
         val nextIndex = controller.currentMediaItemIndex + 1
         controller.addMediaItem(nextIndex, mediaItem)
+    }
+
+    /**
+     * Whether [mediaId] may be added to the queue, honoring the prevent-duplicate-in-queue setting.
+     * Delegates the decision to the pure [PlayerQueueLogic.shouldAddToQueue]; this only gathers the
+     * current queue ids and the setting value.
+     */
+    private suspend fun allowQueueAdd(controller: Player, mediaId: String): Boolean {
+        val preventDuplicates = settingsRepository.preventDuplicateQueue.first()
+        if (!preventDuplicates) return true
+        val existing = (0 until controller.mediaItemCount)
+            .map { controller.getMediaItemAt(it).mediaId }
+        return PlayerQueueLogic.shouldAddToQueue(mediaId, existing, preventDuplicates = true)
     }
 
     override suspend fun duplicateInQueue(index: Int) {

@@ -60,6 +60,17 @@ object PlayerQueueLogic {
         return result
     }
 
+    // --- Prevent-duplicate-in-queue (settings toggle) ---
+
+    /**
+     * Whether a track with id [candidateId] should be appended to a queue whose current member ids are
+     * [existingIds]. When [preventDuplicates] is off it is always allowed; when on it is skipped if the
+     * id is already present. Pure id math so the add-to-queue guard is unit-testable without a
+     * MediaController.
+     */
+    fun <ID> shouldAddToQueue(candidateId: ID, existingIds: Collection<ID>, preventDuplicates: Boolean): Boolean =
+        !preventDuplicates || candidateId !in existingIds
+
     // --- Wavy seek bar geometry (issue #10) ---
 
     /**

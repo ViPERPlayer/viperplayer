@@ -74,6 +74,11 @@ fun deriveReplayGainMode(explicit: ReplayGainMode?, legacyAlbumMode: Boolean?): 
         else -> ReplayGainMode.SMART
     }
 
+/** Seek-increment bounds and default (seconds), shared by the repository, ViewModel, and the slider. */
+const val SEEK_INCREMENT_MIN_SECONDS = 5
+const val SEEK_INCREMENT_MAX_SECONDS = 60
+const val SEEK_INCREMENT_DEFAULT_SECONDS = 10
+
 interface SettingsRepository {
     // Appearance
     val dynamicThemeMode: Flow<DynamicThemeMode>
@@ -139,6 +144,42 @@ interface SettingsRepository {
     /** Crossfade duration in seconds (0 = off). Implemented as a track-change volume fade. */
     val crossfadeDurationSeconds: Flow<Int>
     suspend fun setCrossfadeDurationSeconds(seconds: Int)
+
+    /** On a playback error, skip to the next queue item instead of stalling on the broken one. Default on. */
+    val skipOnError: Flow<Boolean>
+    suspend fun setSkipOnError(enabled: Boolean)
+
+    /**
+     * Forward/back seek increment in seconds (5..60). Read once when the player is built
+     * ([SEEK_INCREMENT_MIN_SECONDS]..[SEEK_INCREMENT_MAX_SECONDS]); a change takes effect on the next
+     * service start. Default [SEEK_INCREMENT_DEFAULT_SECONDS].
+     */
+    val seekIncrementSeconds: Flow<Int>
+    suspend fun setSeekIncrementSeconds(seconds: Int)
+
+    /** Stop playback and the media service when the app is swiped from Recents. Default off. */
+    val stopOnTaskRemoved: Flow<Boolean>
+    suspend fun setStopOnTaskRemoved(enabled: Boolean)
+
+    /** Keep the screen awake while the full-screen player is expanded. Default off. */
+    val keepScreenOnPlayer: Flow<Boolean>
+    suspend fun setKeepScreenOnPlayer(enabled: Boolean)
+
+    /** Pause playback when the media (music) stream volume drops to zero. Default off. */
+    val pauseWhenMuted: Flow<Boolean>
+    suspend fun setPauseWhenMuted(enabled: Boolean)
+
+    /** Resume paused playback when a Bluetooth audio device connects. Default off. */
+    val resumeOnBluetooth: Flow<Boolean>
+    suspend fun setResumeOnBluetooth(enabled: Boolean)
+
+    /** Skip adding a track to the queue when the same MediaId is already queued. Default off. */
+    val preventDuplicateQueue: Flow<Boolean>
+    suspend fun setPreventDuplicateQueue(enabled: Boolean)
+
+    /** Block screenshots / screen recording by setting FLAG_SECURE on the window. Default off. */
+    val blockScreenshots: Flow<Boolean>
+    suspend fun setBlockScreenshots(enabled: Boolean)
 
     // Content
     val showExplicitContent: Flow<Boolean>

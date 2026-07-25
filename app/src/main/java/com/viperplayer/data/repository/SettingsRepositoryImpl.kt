@@ -25,6 +25,9 @@ import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.DynamicThemeMode
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
+import com.viperplayer.domain.repository.SEEK_INCREMENT_DEFAULT_SECONDS
+import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
+import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.deriveReplayGainMode
 import com.viperplayer.domain.repository.ThemeMode
@@ -64,6 +67,14 @@ class SettingsRepositoryImpl(
         private val REPLAY_GAIN_ALBUM_MODE_KEY = booleanPreferencesKey("replay_gain_album_mode")
         private val AUTO_LOAD_MORE_KEY = booleanPreferencesKey("auto_load_more")
         private val CROSSFADE_DURATION_SECONDS_KEY = intPreferencesKey("crossfade_duration_seconds")
+        private val SKIP_ON_ERROR_KEY = booleanPreferencesKey("skip_on_error")
+        private val SEEK_INCREMENT_SECONDS_KEY = intPreferencesKey("seek_increment_seconds")
+        private val STOP_ON_TASK_REMOVED_KEY = booleanPreferencesKey("stop_on_task_removed")
+        private val KEEP_SCREEN_ON_PLAYER_KEY = booleanPreferencesKey("keep_screen_on_player")
+        private val PAUSE_WHEN_MUTED_KEY = booleanPreferencesKey("pause_when_muted")
+        private val RESUME_ON_BLUETOOTH_KEY = booleanPreferencesKey("resume_on_bluetooth")
+        private val PREVENT_DUPLICATE_QUEUE_KEY = booleanPreferencesKey("prevent_duplicate_queue")
+        private val BLOCK_SCREENSHOTS_KEY = booleanPreferencesKey("block_screenshots")
         private val REPLAY_GAIN_MODE_KEY = stringPreferencesKey("replay_gain_mode")
         private val REPLAY_GAIN_UNTAGGED_PREAMP_DB_KEY = floatPreferencesKey("replay_gain_untagged_preamp_db")
         private val REPLAY_GAIN_DRC_ENABLED_KEY = booleanPreferencesKey("replay_gain_drc_enabled")
@@ -314,6 +325,88 @@ class SettingsRepositoryImpl(
     override suspend fun setCrossfadeDurationSeconds(seconds: Int) {
         dataStore.edit { preferences ->
             preferences[CROSSFADE_DURATION_SECONDS_KEY] = seconds
+        }
+    }
+
+    override val skipOnError: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[SKIP_ON_ERROR_KEY] ?: true // Default to enabled: don't stall on a broken track
+    }
+
+    override suspend fun setSkipOnError(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SKIP_ON_ERROR_KEY] = enabled
+        }
+    }
+
+    override val seekIncrementSeconds: Flow<Int> = dataStore.data.mapDistinct { preferences ->
+        (preferences[SEEK_INCREMENT_SECONDS_KEY] ?: SEEK_INCREMENT_DEFAULT_SECONDS)
+            .coerceIn(SEEK_INCREMENT_MIN_SECONDS, SEEK_INCREMENT_MAX_SECONDS)
+    }
+
+    override suspend fun setSeekIncrementSeconds(seconds: Int) {
+        dataStore.edit { preferences ->
+            preferences[SEEK_INCREMENT_SECONDS_KEY] =
+                seconds.coerceIn(SEEK_INCREMENT_MIN_SECONDS, SEEK_INCREMENT_MAX_SECONDS)
+        }
+    }
+
+    override val stopOnTaskRemoved: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[STOP_ON_TASK_REMOVED_KEY] ?: false // Default to disabled: keep playing after swipe-away
+    }
+
+    override suspend fun setStopOnTaskRemoved(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[STOP_ON_TASK_REMOVED_KEY] = enabled
+        }
+    }
+
+    override val keepScreenOnPlayer: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[KEEP_SCREEN_ON_PLAYER_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setKeepScreenOnPlayer(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEEP_SCREEN_ON_PLAYER_KEY] = enabled
+        }
+    }
+
+    override val pauseWhenMuted: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[PAUSE_WHEN_MUTED_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setPauseWhenMuted(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PAUSE_WHEN_MUTED_KEY] = enabled
+        }
+    }
+
+    override val resumeOnBluetooth: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[RESUME_ON_BLUETOOTH_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setResumeOnBluetooth(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[RESUME_ON_BLUETOOTH_KEY] = enabled
+        }
+    }
+
+    override val preventDuplicateQueue: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[PREVENT_DUPLICATE_QUEUE_KEY] ?: false // Default to disabled: allow duplicates
+    }
+
+    override suspend fun setPreventDuplicateQueue(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PREVENT_DUPLICATE_QUEUE_KEY] = enabled
+        }
+    }
+
+    override val blockScreenshots: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[BLOCK_SCREENSHOTS_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setBlockScreenshots(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[BLOCK_SCREENSHOTS_KEY] = enabled
         }
     }
 

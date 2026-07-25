@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
+import com.viperplayer.domain.repository.SEEK_INCREMENT_DEFAULT_SECONDS
+import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
+import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +30,15 @@ data class PlayerSettingsUiState(
     val replayGainMode: ReplayGainMode = ReplayGainMode.SMART,
     val replayGainUntaggedPreampDb: Float = 0f,
     val replayGainDrcEnabled: Boolean = false,
-    val replayGainPostAmpDb: Float = 0f
+    val replayGainPostAmpDb: Float = 0f,
+    val skipOnError: Boolean = true,
+    val seekIncrementSeconds: Int = SEEK_INCREMENT_DEFAULT_SECONDS,
+    val stopOnTaskRemoved: Boolean = false,
+    val pauseWhenMuted: Boolean = false,
+    val resumeOnBluetooth: Boolean = false,
+    val preventDuplicateQueue: Boolean = false,
+    val keepScreenOnPlayer: Boolean = false,
+    val blockScreenshots: Boolean = false
 )
 
 @HiltViewModel
@@ -102,6 +113,46 @@ class PlayerSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.replayGainPostAmpDb.collect { postAmpDb ->
                 _uiState.update { it.copy(replayGainPostAmpDb = postAmpDb) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.skipOnError.collect { enabled ->
+                _uiState.update { it.copy(skipOnError = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.seekIncrementSeconds.collect { seconds ->
+                _uiState.update { it.copy(seekIncrementSeconds = seconds) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.stopOnTaskRemoved.collect { enabled ->
+                _uiState.update { it.copy(stopOnTaskRemoved = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.pauseWhenMuted.collect { enabled ->
+                _uiState.update { it.copy(pauseWhenMuted = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.resumeOnBluetooth.collect { enabled ->
+                _uiState.update { it.copy(resumeOnBluetooth = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.preventDuplicateQueue.collect { enabled ->
+                _uiState.update { it.copy(preventDuplicateQueue = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.keepScreenOnPlayer.collect { enabled ->
+                _uiState.update { it.copy(keepScreenOnPlayer = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.blockScreenshots.collect { enabled ->
+                _uiState.update { it.copy(blockScreenshots = enabled) }
             }
         }
     }
@@ -182,6 +233,56 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setReplayGainPostAmpDb(postAmpDb: Float) {
         viewModelScope.launch {
             settingsRepository.setReplayGainPostAmpDb(postAmpDb.coerceIn(-12f, 12f))
+        }
+    }
+
+    fun setSkipOnError(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSkipOnError(enabled)
+        }
+    }
+
+    fun setSeekIncrementSeconds(seconds: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSeekIncrementSeconds(
+                seconds.coerceIn(SEEK_INCREMENT_MIN_SECONDS, SEEK_INCREMENT_MAX_SECONDS)
+            )
+        }
+    }
+
+    fun setStopOnTaskRemoved(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setStopOnTaskRemoved(enabled)
+        }
+    }
+
+    fun setPauseWhenMuted(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setPauseWhenMuted(enabled)
+        }
+    }
+
+    fun setResumeOnBluetooth(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setResumeOnBluetooth(enabled)
+        }
+    }
+
+    fun setPreventDuplicateQueue(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setPreventDuplicateQueue(enabled)
+        }
+    }
+
+    fun setKeepScreenOnPlayer(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setKeepScreenOnPlayer(enabled)
+        }
+    }
+
+    fun setBlockScreenshots(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBlockScreenshots(enabled)
         }
     }
 }

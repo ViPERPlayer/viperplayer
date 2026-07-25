@@ -138,6 +138,14 @@ fun ViperPlayerApp(
 
             var showPlayerBottomSheet by remember { mutableStateOf(false) }
 
+            // Apply the UI-owned window flags: block screenshots while enabled, and keep the screen on
+            // only while the full-screen player is expanded AND that setting is on. The composable just
+            // mirrors state onto the window; the settings are collected in the ViewModel.
+            PlayerWindowFlags(
+                blockScreenshots = uiState.blockScreenshots,
+                keepScreenOn = uiState.keepScreenOnPlayer && showPlayerBottomSheet
+            )
+
             val bottomNavItems = listOf(
                 BottomNavItem(Home, stringResource(R.string.nav_home), Icons.Rounded.Home),
                 BottomNavItem(Search, stringResource(R.string.nav_search), Icons.Rounded.Search),

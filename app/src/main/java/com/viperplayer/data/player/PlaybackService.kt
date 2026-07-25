@@ -1,8 +1,12 @@
 package com.viperplayer.data.player
 
 import android.app.PendingIntent
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -143,6 +147,19 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     private var isAudioEffectControlSessionOpen = false
 
+    /**
+     * Receiver for media-volume changes (STREAM_MUSIC). When "Pause when muted" is on and the music
+     * stream hits zero while playing, we pause. Registered with the service lifecycle. Nullable so
+     * unregister is a no-op if registration failed.
+     */
+    private var volumeReceiver: BroadcastReceiver? = null
+
+    /**
+     * Receiver for Bluetooth audio device connection. When "Resume on Bluetooth" is on and playback is
+     * currently paused, a connect resumes it. Registered with the service lifecycle.
+     */
+    private var bluetoothReceiver: BroadcastReceiver? = null
+
     /** Last track we auto-loaded related songs for, so we don't re-fetch on repeated transitions. */
     private var lastAutoLoadSongId: String? = null
 
@@ -157,6 +174,28 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     /** Current crossfade fade duration in ms (0 = crossfade off). Updated from settings. */
     @Volatile
     private var crossfadeMs: Long = 0L
+
+    /**
+     * Cached [SettingsRepository.skipOnError] value so [onPlayerError] (main thread) can decide the
+     * recovery path without blocking on the flow. Kept in sync by a collector in [observeAudioSettings].
+     * Defaults to the setting's own default (skip on error) until the first emission lands.
+     */
+    @Volatile
+    private var skipOnError: Boolean = true
+
+    /**
+     * Cached [SettingsRepository.pauseWhenMuted] value, read by the volume observer to decide whether a
+     * zero media-stream volume should pause playback. Kept in sync by a collector in [observeAudioSettings].
+     */
+    @Volatile
+    private var pauseWhenMuted: Boolean = false
+
+    /**
+     * Cached [SettingsRepository.resumeOnBluetooth] value, read by the Bluetooth-connect receiver to
+     * decide whether to resume paused playback. Kept in sync by a collector in [observeAudioSettings].
+     */
+    @Volatile
+    private var resumeOnBluetooth: Boolean = false
 
     /**
      * mediaId of the item we last attempted an out-of-range seek recovery on, so a recovery that
@@ -189,6 +228,11 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
         // Wire audio settings (skip-silence + ReplayGain) reactively to the player.
         observeAudioSettings()
+
+        // Pause-when-muted + resume-on-Bluetooth: gated inside the receivers by their cached settings
+        // so registration is cheap and the toggles take effect without re-registering.
+        registerVolumeReceiver()
+        registerBluetoothReceiver()
 
         // Drive the crossfade track-boundary fade (kept consistent with gapless) as the single
         // volume owner alongside ReplayGain.
@@ -270,6 +314,27 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         return mediaLibrarySession
     }
 
+    /**
+     * When "Stop when app is closed" is enabled, swiping the app away from Recents pauses playback and
+     * stops the service (which releases the player via [onDestroy]). When disabled we keep media3's
+     * default (playback survives the task removal so the notification/session stays alive). The setting
+     * is read with a short [runBlocking] first() — this is a one-shot lifecycle callback, not a hot path.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Timber.d("onTaskRemoved() called")
+        val stop = runCatching { runBlocking { settingsRepository.stopOnTaskRemoved.first() } }
+            .getOrDefault(false)
+        if (stop) {
+            Timber.d("Stop-on-task-removed enabled; pausing and stopping the service")
+            runCatching {
+                player.pause()
+                player.stop()
+            }.onFailure { Timber.w(it, "Failed to stop player on task removed") }
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         Timber.d("onDestroy() called")
         dispatcher.onServicePreSuperOnDestroy()
@@ -287,6 +352,8 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         // Close the global audio-effect session before releasing the player, otherwise it stays
         // registered with system equalizer apps (leak).
         closeAudioEffectControlSession()
+        unregisterVolumeReceiver()
+        unregisterBluetoothReceiver()
         mediaLibrarySession.release()
         player.release()
         super.onDestroy()
@@ -300,8 +367,18 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             }
     }
 
+    /**
+     * Builds the player. The forward/back seek increment is read once here from
+     * [SettingsRepository.seekIncrementSeconds] because media3 fixes both increments at build time
+     * ([ExoPlayer.Builder.setSeekForwardIncrementMs]/[ExoPlayer.Builder.setSeekBackIncrementMs] have
+     * no live setter). A change to that setting therefore takes effect on the NEXT service start, not
+     * mid-session — an acceptable trade for not tearing down and rebuilding the player on every edit.
+     */
     private fun createExoPlayer(): ExoPlayer {
+        val seekIncrementMs = runBlocking { settingsRepository.seekIncrementSeconds.first() } * 1000L
         return ExoPlayer.Builder(this)
+            .setSeekForwardIncrementMs(seekIncrementMs)
+            .setSeekBackIncrementMs(seekIncrementMs)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setAudioAttributes(
@@ -662,6 +739,17 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 settingsRepository.replayGainPostAmpDb,
             ) { _, _ -> }.collect { applyReplayGain() }
         }
+        // Cache small booleans consumed by main-thread callbacks / broadcast receivers so they never
+        // block on the flow at the point of use.
+        lifecycleScope.launch {
+            settingsRepository.skipOnError.collect { skipOnError = it }
+        }
+        lifecycleScope.launch {
+            settingsRepository.pauseWhenMuted.collect { pauseWhenMuted = it }
+        }
+        lifecycleScope.launch {
+            settingsRepository.resumeOnBluetooth.collect { resumeOnBluetooth = it }
+        }
     }
 
     /**
@@ -817,8 +905,14 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             Timber.e(error, "onPlayerError() called with: error = $error")
         }
 
-        // Try to skip to next song if available. After a fatal error the player is in STATE_IDLE,
-        // so it must be re-prepared or it stays frozen on the next item.
+        // Skip-on-error (default on): advance past the broken track. After a fatal error the player is
+        // in STATE_IDLE, so it must be re-prepared or it stays frozen on the next item. When the user
+        // turns this off, don't auto-advance — leave the queue on the failed item (the player has
+        // already stopped) so it doesn't silently jump tracks.
+        if (!skipOnError) {
+            Timber.d("Skip-on-error disabled; leaving playback stopped on the failed item")
+            return
+        }
         if (player.hasNextMediaItem()) {
             Timber.d("Skipping to next song due to playback error")
             player.seekToNextMediaItem()
@@ -906,6 +1000,78 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         }
     }
 
+    /**
+     * Registers a receiver for the (hidden but broadcast) media-volume change action. On each change
+     * we re-read STREAM_MUSIC; when "Pause when muted" is on, the stream is at zero, and we're playing,
+     * we pause. The receiver is always registered — the toggle is checked per-event via [pauseWhenMuted]
+     * — so flipping the setting takes effect immediately without re-registration.
+     */
+    private fun registerVolumeReceiver() {
+        val audioManager = getSystemService(AudioManager::class.java) ?: return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != VOLUME_CHANGED_ACTION) return
+                // Only react to the music stream. The extra key is stable across versions even though
+                // the action itself is not part of the public SDK.
+                val streamType = intent.getIntExtra(EXTRA_VOLUME_STREAM_TYPE, -1)
+                if (streamType != AudioManager.STREAM_MUSIC) return
+                if (!pauseWhenMuted) return
+                val volume = runCatching { audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) }
+                    .getOrDefault(-1)
+                if (volume == 0 && player.isPlaying) {
+                    Timber.d("Media volume muted; pausing playback (pause-when-muted)")
+                    player.pause()
+                }
+            }
+        }
+        runCatching {
+            registerReceiver(receiver, IntentFilter(VOLUME_CHANGED_ACTION))
+            volumeReceiver = receiver
+        }.onFailure { Timber.w(it, "Failed to register volume receiver") }
+    }
+
+    private fun unregisterVolumeReceiver() {
+        volumeReceiver?.let { receiver ->
+            runCatching { unregisterReceiver(receiver) }
+                .onFailure { Timber.w(it, "Failed to unregister volume receiver") }
+        }
+        volumeReceiver = null
+    }
+
+    /**
+     * Registers a receiver for Bluetooth audio device connection ([BluetoothDevice.ACTION_ACL_CONNECTED]).
+     * When "Resume on Bluetooth" is on and playback is currently paused (has a queue but isn't playing),
+     * a connect resumes it. Gated per-event via [resumeOnBluetooth] so the toggle takes effect without
+     * re-registration. Uses the already-held BLUETOOTH_CONNECT permission (see the A2DP codec reader).
+     */
+    private fun registerBluetoothReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != BluetoothDevice.ACTION_ACL_CONNECTED) return
+                if (!resumeOnBluetooth) return
+                // Resume only when we're stopped/paused mid-session (something is queued but not playing);
+                // never start from an empty queue.
+                if (!player.isPlaying && player.mediaItemCount > 0) {
+                    Timber.d("Bluetooth device connected; resuming playback (resume-on-Bluetooth)")
+                    if (player.playbackState == Player.STATE_IDLE) player.prepare()
+                    player.play()
+                }
+            }
+        }
+        runCatching {
+            registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
+            bluetoothReceiver = receiver
+        }.onFailure { Timber.w(it, "Failed to register Bluetooth receiver") }
+    }
+
+    private fun unregisterBluetoothReceiver() {
+        bluetoothReceiver?.let { receiver ->
+            runCatching { unregisterReceiver(receiver) }
+                .onFailure { Timber.w(it, "Failed to unregister Bluetooth receiver") }
+        }
+        bluetoothReceiver = null
+    }
+
     private fun openAudioEffectControlSession() {
         if (isAudioEffectControlSessionOpen) return
         isAudioEffectControlSessionOpen = true
@@ -934,6 +1100,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
     private companion object {
         /** How often the crossfade loop re-applies the fade volume while crossfade is active. */
         private const val CROSSFADE_TICK_MS = 100L
+
+        /**
+         * System media-volume change broadcast. Not part of the public SDK but has been broadcast by
+         * AudioManager for many releases; used (best-effort) to detect the user muting the music stream.
+         */
+        private const val VOLUME_CHANGED_ACTION = "android.media.VOLUME_CHANGED_ACTION"
+
+        /** Extra on [VOLUME_CHANGED_ACTION] carrying the affected stream type (AudioManager.STREAM_*). */
+        private const val EXTRA_VOLUME_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
 
         /**
          * How far before a known duration to re-clamp when recovering from an out-of-range seek —

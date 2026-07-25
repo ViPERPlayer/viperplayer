@@ -13,13 +13,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ScreenLockPortrait
+import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,6 +62,8 @@ import com.viperplayer.R
 import com.viperplayer.domain.repository.AudioQuality
 import com.viperplayer.domain.repository.HistoryDuration
 import com.viperplayer.domain.repository.ReplayGainMode
+import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
+import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import java.util.Locale
@@ -149,6 +159,84 @@ fun PlayerSettingsScreen(
                     seconds = uiState.crossfadeDurationSeconds,
                     icon = Icons.Default.GraphicEq,
                     onSecondsChanged = viewModel::setCrossfadeDurationSeconds
+                )
+            }
+            item {
+                SeekIncrementSliderItem(
+                    seconds = uiState.seekIncrementSeconds,
+                    icon = Icons.Default.Forward10,
+                    onSecondsChanged = viewModel::setSeekIncrementSeconds
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_skip_on_error),
+                    description = stringResource(R.string.player_skip_on_error_desc),
+                    icon = Icons.Default.ErrorOutline,
+                    checked = uiState.skipOnError,
+                    onCheckedChange = viewModel::setSkipOnError
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_prevent_duplicate_queue),
+                    description = stringResource(R.string.player_prevent_duplicate_queue_desc),
+                    icon = Icons.AutoMirrored.Default.PlaylistAddCheck,
+                    checked = uiState.preventDuplicateQueue,
+                    onCheckedChange = viewModel::setPreventDuplicateQueue
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_stop_on_task_removed),
+                    description = stringResource(R.string.player_stop_on_task_removed_desc),
+                    icon = Icons.Default.Stop,
+                    checked = uiState.stopOnTaskRemoved,
+                    onCheckedChange = viewModel::setStopOnTaskRemoved
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_pause_when_muted),
+                    description = stringResource(R.string.player_pause_when_muted_desc),
+                    icon = Icons.AutoMirrored.Default.VolumeOff,
+                    checked = uiState.pauseWhenMuted,
+                    onCheckedChange = viewModel::setPauseWhenMuted
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_resume_on_bluetooth),
+                    description = stringResource(R.string.player_resume_on_bluetooth_desc),
+                    icon = Icons.Default.Bluetooth,
+                    checked = uiState.resumeOnBluetooth,
+                    onCheckedChange = viewModel::setResumeOnBluetooth
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                SettingsCategory(stringResource(R.string.player_category_privacy))
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_keep_screen_on),
+                    description = stringResource(R.string.player_keep_screen_on_desc),
+                    icon = Icons.Default.ScreenLockPortrait,
+                    checked = uiState.keepScreenOnPlayer,
+                    onCheckedChange = viewModel::setKeepScreenOnPlayer
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_block_screenshots),
+                    description = stringResource(R.string.player_block_screenshots_desc),
+                    icon = Icons.Default.Screenshot,
+                    checked = uiState.blockScreenshots,
+                    onCheckedChange = viewModel::setBlockScreenshots
                 )
             }
 
@@ -693,6 +781,86 @@ private fun CrossfadeSliderItem(
                     onValueChange = { value -> onSecondsChanged(value.roundToInt()) },
                     valueRange = 0f..12f,
                     steps = 11, // 12 steps for 13 integer values (0..12)
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeekIncrementSliderItem(
+    seconds: Int,
+    icon: ImageVector,
+    onSecondsChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val clamped = seconds.coerceIn(SEEK_INCREMENT_MIN_SECONDS, SEEK_INCREMENT_MAX_SECONDS)
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column {
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.player_seek_increment),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.player_seek_increment_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Text(
+                        text = stringResource(R.string.player_seek_increment_seconds, clamped),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                colors = ListItemDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Slider(
+                    value = clamped.toFloat(),
+                    onValueChange = { value ->
+                        onSecondsChanged(
+                            value.roundToInt()
+                                .coerceIn(SEEK_INCREMENT_MIN_SECONDS, SEEK_INCREMENT_MAX_SECONDS)
+                        )
+                    },
+                    // 5..60 in 5s steps: 11 discrete stops (5,10,...,60) = 12 values, 11 steps.
+                    valueRange = SEEK_INCREMENT_MIN_SECONDS.toFloat()..SEEK_INCREMENT_MAX_SECONDS.toFloat(),
+                    steps = ((SEEK_INCREMENT_MAX_SECONDS - SEEK_INCREMENT_MIN_SECONDS) / 5) - 1,
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary,

@@ -337,4 +337,34 @@ class PlayerQueueLogicTest {
     fun waveAmplitudeTarget_flatUnderReducedMotion() {
         assertEquals(0f, PlayerQueueLogic.waveAmplitudeTarget(isPlaying = true, isDragging = false, motionEnabled = false), 0.0001f)
     }
+
+    // --- shouldAddToQueue (prevent-duplicate-in-queue toggle) ---
+
+    @Test
+    fun shouldAddToQueue_allowsWhenSettingOff_evenIfDuplicate() {
+        assertTrue(
+            PlayerQueueLogic.shouldAddToQueue("a", listOf("a", "b"), preventDuplicates = false)
+        )
+    }
+
+    @Test
+    fun shouldAddToQueue_skipsDuplicateWhenSettingOn() {
+        assertFalse(
+            PlayerQueueLogic.shouldAddToQueue("a", listOf("a", "b"), preventDuplicates = true)
+        )
+    }
+
+    @Test
+    fun shouldAddToQueue_allowsNewIdWhenSettingOn() {
+        assertTrue(
+            PlayerQueueLogic.shouldAddToQueue("c", listOf("a", "b"), preventDuplicates = true)
+        )
+    }
+
+    @Test
+    fun shouldAddToQueue_allowsIntoEmptyQueue() {
+        assertTrue(
+            PlayerQueueLogic.shouldAddToQueue("a", emptyList(), preventDuplicates = true)
+        )
+    }
 }
