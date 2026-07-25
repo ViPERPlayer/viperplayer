@@ -39,6 +39,22 @@ class CastEligibilityTest {
     }
 
     @Test
+    fun `header-authed progressive url is not castable`() {
+        // The default receiver fetches the raw URL with no custom headers, so an Origin-allowlisted
+        // proxy stream (a proxied source) would 403 on-device — must be reported not castable.
+        val source = UrlStream(
+            url = "https://proxy.example.com/track",
+            mimeType = "audio/mpeg",
+            headers = mapOf("Origin" to "https://app.example.com"),
+        )
+        val result = CastEligibility.evaluate(source, isDownloadedLocalFile = false)
+        assertEquals(
+            CastEligibility.Result.NotCastable(CastEligibility.Reason.HEADER_AUTH),
+            result,
+        )
+    }
+
+    @Test
     fun `content uri url is not castable`() {
         val source = UrlStream(url = "content://media/audio/42")
         val result = CastEligibility.evaluate(source, isDownloadedLocalFile = false)

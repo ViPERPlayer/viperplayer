@@ -186,6 +186,10 @@
         <item quantity="one">%d artist</item>
         <item quantity="other">%d artists</item>
     </plurals>
+    <plurals name="cast_tracks_not_castable">
+        <item quantity="one">%d track can\'t be cast</item>
+        <item quantity="other">%d tracks can\'t be cast</item>
+    </plurals>
     <plurals name="library_playlist_count">
         <item quantity="one">%d playlist</item>
         <item quantity="other">%d playlists</item>
@@ -204,7 +208,7 @@
     <string name="player_more_options">More options</string>
     <!-- Google Cast -->
     <string name="cast_button_description">Cast to a device</string>
-    <string name="cast_track_not_castable">This track can\'t be cast</string>
+    <string name="cast_nothing_castable">Nothing in the queue can be cast</string>
     <string name="cast_viper_fx_unavailable">ViPER FX is unavailable while casting</string>
     <string name="cast_viper_fx_unavailable_detail">Casting sends the original stream straight to the device, so audio effects are applied there, not here.</string>
     <string name="player_go_to_album">Go to album</string>

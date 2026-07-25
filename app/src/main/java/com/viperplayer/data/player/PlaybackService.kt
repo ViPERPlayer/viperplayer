@@ -57,6 +57,7 @@ import com.viperplayer.R
 import com.viperplayer.data.player.MediaItemMapper.toMediaItem
 import com.viperplayer.data.player.cast.CastPlayerConnection
 import com.viperplayer.data.player.cast.CastSessionCommands
+import com.viperplayer.data.player.cast.CastStateHolder
 import com.viperplayer.data.player.resumption.LastSession
 import com.viperplayer.data.player.resumption.LastSessionCodec
 import com.viperplayer.data.player.resumption.LastSessionItem
@@ -80,6 +81,8 @@ import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.presentation.widget.LyricWidgetUpdater
 import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -133,6 +136,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var lastfmScrobbler: LastfmScrobbler
+
+    @Inject
+    lateinit var castStateHolder: CastStateHolder
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle
@@ -564,10 +570,18 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             localPlayer = player,
             pluginDataSource = pluginDataSource,
             mainScope = lifecycleScope,
+            // Initialize the Cast framework off the main thread (shared IO pool) so a non-casting
+            // user's playback start never pays the Play-Services Cast init on the main thread.
+            initExecutor = Dispatchers.IO.asExecutor(),
             setSessionPlayer = { target -> mediaLibrarySession.player = target },
             onCastingChanged = { casting -> broadcastCastingState(casting) },
-            onTrackSkipped = {
-                Toast.makeText(this, R.string.cast_track_not_castable, Toast.LENGTH_SHORT).show()
+            onUncastableTracks = { count, nothingCastable ->
+                val message = if (nothingCastable) {
+                    getString(R.string.cast_nothing_castable)
+                } else {
+                    resources.getQuantityString(R.plurals.cast_tracks_not_castable, count, count)
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             },
         )
         castPlayerConnection = connection
@@ -580,6 +594,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
      * app receives it in `MediaController.Listener.onCustomCommand` and exposes it as a StateFlow.
      */
     private fun broadcastCastingState(isCasting: Boolean) {
+        // Record the authoritative state first so a controller connecting mid-cast can read it in
+        // ViperMediaLibrarySessionCallback.onPostConnect (it misses this one-shot broadcast).
+        castStateHolder.isCasting = isCasting
         if (!::mediaLibrarySession.isInitialized) return
         val extras = Bundle().apply {
             putBoolean(CastSessionCommands.EXTRA_IS_CASTING, isCasting)

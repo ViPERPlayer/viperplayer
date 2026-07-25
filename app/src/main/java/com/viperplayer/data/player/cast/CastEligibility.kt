@@ -38,6 +38,13 @@ object CastEligibility {
         /** A `content://`/`file://` (or otherwise non-http) URL — the receiver can't reach it. */
         NON_HTTP_URL,
 
+        /**
+         * A progressive URL that requires custom request headers (e.g. an Origin-allowlisted proxy
+         * like a proxied source). The default Cast receiver fetches the raw URL with no custom
+         * headers, so such a stream would 403/fail on the device — treat it as not castable.
+         */
+        HEADER_AUTH,
+
         /** A DRM/ClearKey-protected stream — the default receiver can't decrypt it. */
         DRM_PROTECTED,
 
@@ -69,6 +76,10 @@ object CastEligibility {
                     Result.NotCastable(Reason.DRM_PROTECTED)
                 } else if (!isHttpUrl(source.url)) {
                     Result.NotCastable(Reason.NON_HTTP_URL)
+                } else if (source.headers.isNotEmpty()) {
+                    // The receiver fetches the raw URL with no custom headers, so a header-authed
+                    // proxy stream (e.g. Origin-allowlisted a proxied source) would 403 on-device.
+                    Result.NotCastable(Reason.HEADER_AUTH)
                 } else {
                     Result.Castable(source.url, source.mimeType)
                 }

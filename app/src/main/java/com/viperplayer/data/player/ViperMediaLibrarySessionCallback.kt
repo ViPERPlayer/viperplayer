@@ -10,6 +10,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import com.viperplayer.data.player.cast.CastSessionCommands
+import com.viperplayer.data.player.cast.CastStateHolder
 import androidx.core.net.toUri
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -46,6 +47,7 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
     private val pluginRepository: PluginRepository,
     private val lastSessionStore: LastSessionStore,
     private val stringProvider: StringProvider,
+    private val castStateHolder: CastStateHolder,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -77,6 +79,26 @@ class ViperMediaLibrarySessionCallback @Inject constructor(
             .add(SessionCommand(CastSessionCommands.ACTION_CASTING_CHANGED, Bundle.EMPTY))
             .build()
         return MediaSession.ConnectionResult.accept(sessionCommands, default.availablePlayerCommands)
+    }
+
+    /**
+     * Send the CURRENT casting state to a controller that just connected. The service only broadcasts
+     * casting changes on connect/disconnect, so a controller that connects *mid-cast* (e.g. the app
+     * process relaunched while casting) would otherwise never learn it's casting — the "ViPER FX
+     * unavailable" notice wouldn't show and the FX UI would look active while audio plays unprocessed.
+     */
+    override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+        if (!castStateHolder.isCasting) return
+        val extras = Bundle().apply {
+            putBoolean(CastSessionCommands.EXTRA_IS_CASTING, true)
+        }
+        runCatching {
+            session.sendCustomCommand(
+                controller,
+                SessionCommand(CastSessionCommands.ACTION_CASTING_CHANGED, Bundle.EMPTY),
+                extras,
+            )
+        }.onFailure { Timber.w(it, "Failed to send initial casting state to controller") }
     }
 
     /**

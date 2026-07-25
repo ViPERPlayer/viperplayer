@@ -16,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.concurrent.Executor
 
 /**
  * Owns the [CastPlayer] and drives the local↔cast handover for the media session.
@@ -34,27 +35,35 @@ import timber.log.Timber
  * to IO.
  */
 class CastPlayerConnection(
-    context: Context,
+    private val context: Context,
     private val localPlayer: Player,
     private val pluginDataSource: PluginDataSource,
     private val mainScope: CoroutineScope,
+    /**
+     * Executor the Cast framework uses to initialize the [CastContext] off the calling thread, so a
+     * non-casting user's playback start never pays the (potentially heavy) Play-Services Cast init on
+     * the main thread. Callbacks post back to the main thread via [mainScope].
+     */
+    private val initExecutor: Executor,
     /** Applies the swapped player to the media session (`mediaLibrarySession.setPlayer`). */
     private val setSessionPlayer: (Player) -> Unit,
-    /** Reports whether we are currently casting, plus a human-facing note count of skipped tracks. */
+    /** Reports whether we are currently casting so the UI can show the ViPER-FX-unavailable notice. */
     private val onCastingChanged: (isCasting: Boolean) -> Unit,
-    /** Invoked (main thread) when a track in the queue could not be cast, so it was dropped. */
-    private val onTrackSkipped: () -> Unit,
+    /**
+     * Invoked once per switch-to-cast when one or more queued tracks could not be cast (local/DRM/
+     * header-authed/etc), with how many were dropped ([count]). [count] is 0 when the whole queue is
+     * un-castable so nothing could be sent to the receiver.
+     */
+    private val onUncastableTracks: (count: Int, nothingCastable: Boolean) -> Unit,
 ) {
     /**
-     * The Cast player, or null when Google Play Services / the Cast framework is unavailable on this
-     * device (in which case casting is simply never offered and the local player is always used).
+     * The Cast player, or null until (and unless) the Cast framework initializes. Stays null when
+     * Google Play Services / the Cast framework is unavailable on this device, in which case casting
+     * is simply never offered and the local player is always used. Assigned on the main thread once
+     * the async [CastContext] init resolves.
      */
-    val castPlayer: CastPlayer? = runCatching {
-        val castContext = CastContext.getSharedInstance(context)
-        CastPlayer(castContext)
-    }.onFailure {
-        Timber.w(it, "Cast framework unavailable; casting disabled")
-    }.getOrNull()
+    var castPlayer: CastPlayer? = null
+        private set
 
     /** True once we have handed the session over to the [castPlayer]. Main thread only. */
     private var isCasting = false
@@ -62,11 +71,35 @@ class CastPlayerConnection(
     /** In-flight queue-transfer coroutine, cancelled if another switch supersedes it. */
     private var transferJob: Job? = null
 
+    /** True after [release]; guards the async init callback from resurrecting a dead connection. */
+    private var released = false
+
     /**
-     * Starts listening for cast session availability. Safe to call when [castPlayer] is null (no-op).
+     * Initializes the Cast framework off the main thread and, once ready, starts listening for cast
+     * session availability. A no-op degradation (never assigns [castPlayer]) when Play Services / the
+     * Cast framework is unavailable, so those devices simply never see casting.
      */
     fun start() {
-        val player = castPlayer ?: return
+        runCatching {
+            CastContext.getSharedInstance(context, initExecutor)
+                .addOnSuccessListener(initExecutor) { castContext ->
+                    // Hop to the main thread: CastPlayer creation and session listening are main-only.
+                    mainScope.launch { onCastContextReady(castContext) }
+                }
+                .addOnFailureListener(initExecutor) {
+                    Timber.w(it, "Cast framework unavailable; casting disabled")
+                }
+        }.onFailure {
+            Timber.w(it, "Cast framework unavailable; casting disabled")
+        }
+    }
+
+    private fun onCastContextReady(castContext: CastContext) {
+        if (released) return
+        val player = runCatching { CastPlayer(castContext) }
+            .onFailure { Timber.w(it, "Failed to create CastPlayer; casting disabled") }
+            .getOrNull() ?: return
+        castPlayer = player
         player.setSessionAvailabilityListener(object : SessionAvailabilityListener {
             override fun onCastSessionAvailable() {
                 Timber.i("Cast session available; switching to CastPlayer")
@@ -86,6 +119,7 @@ class CastPlayerConnection(
 
     /** Releases the Cast player and its listener. */
     fun release() {
+        released = true
         transferJob?.cancel()
         castPlayer?.setSessionAvailabilityListener(null)
         castPlayer?.release()
@@ -94,24 +128,34 @@ class CastPlayerConnection(
     private fun switchToCast() {
         val castPlayer = castPlayer ?: return
         if (isCasting) return
-        isCasting = true
-        onCastingChanged(true)
 
+        // Snapshot the local queue, but do NOT pause/swap yet — resolve the castable set first so we
+        // never leave the session on an empty CastPlayer with dead controls when the whole queue is
+        // un-castable (all local/DRM/header-authed).
         val transfer = snapshotTransfer(localPlayer)
-        // Stop local playback so it doesn't keep playing on the phone while we cast.
-        localPlayer.pause()
-
-        // Hand the session over to the cast player immediately so transport controls target it, then
-        // populate its queue asynchronously (URL resolution is off-main).
-        setSessionPlayer(castPlayer)
 
         transferJob?.cancel()
         transferJob = mainScope.launch {
             val castItems = resolveCastItems(transfer)
+            // A session may have arrived+departed during resolution; bail if it's gone.
+            if (!castPlayer.isCastSessionAvailable) return@launch
+
             if (castItems.items.isEmpty()) {
-                Timber.w("No castable tracks in the queue; nothing to send to the receiver")
+                // Nothing in the queue can be cast: stay local, tell the user, keep isCasting=false.
+                Timber.w("No castable tracks in the queue; staying on the local player")
+                onUncastableTracks(0, /* nothingCastable = */ true)
                 return@launch
             }
+            if (castItems.skipped > 0) {
+                onUncastableTracks(castItems.skipped, /* nothingCastable = */ false)
+            }
+
+            // Commit the switch now that we have a non-empty castable queue.
+            isCasting = true
+            onCastingChanged(true)
+            localPlayer.pause() // don't keep playing on the phone while we cast
+            setSessionPlayer(castPlayer)
+
             castPlayer.setMediaItems(castItems.items, castItems.startIndex, transfer.safePositionMs)
             castPlayer.playWhenReady = transfer.playWhenReady
             castPlayer.prepare()
@@ -158,13 +202,17 @@ class CastPlayerConnection(
         return -1
     }
 
-    /** A resolved cast queue plus the index the current item maps to after un-castable drops. */
-    private data class CastItems(val items: List<MediaItem>, val startIndex: Int)
+    /**
+     * A resolved cast queue: the surviving castable [items], the [startIndex] the current item maps
+     * to after un-castable drops, and how many tracks were [skipped].
+     */
+    private data class CastItems(val items: List<MediaItem>, val startIndex: Int, val skipped: Int)
 
     /**
      * Resolves each queued item to a castable progressive [MediaItem], dropping ones that can't be
-     * cast (local files, DRM/DASH/HLS/PCM). Returns the surviving items plus the index the currently
-     * playing item maps to among them (clamped). Runs URL resolution on IO.
+     * cast (local files, DRM/DASH/HLS/PCM, header-authed proxies). Returns the surviving items, the
+     * index the currently playing item maps to among them (clamped), and the skipped count. Runs URL
+     * resolution on IO.
      */
     private suspend fun resolveCastItems(transfer: PlayerTransfer): CastItems {
         val local = localPlayer
@@ -186,9 +234,6 @@ class CastPlayerConnection(
             if (i < current) survivorsBeforeCurrent++
             built.add(castItem)
         }
-        if (skipped > 0) {
-            withContext(Dispatchers.Main) { repeat(skipped) { onTrackSkipped() } }
-        }
         // If the current item survived, resume on it; otherwise fall back to the nearest kept item
         // that preceded it (clamped into range).
         val startIndex = if (built.isEmpty()) {
@@ -198,7 +243,7 @@ class CastPlayerConnection(
         } else {
             survivorsBeforeCurrent.coerceIn(0, built.lastIndex)
         }
-        return CastItems(built, startIndex)
+        return CastItems(built, startIndex, skipped)
     }
 
     /**
