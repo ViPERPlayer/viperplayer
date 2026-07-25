@@ -28,6 +28,8 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.Allocator
 import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import com.viperplayer.data.local.dao.SongDao
+import com.viperplayer.data.local.dao.getByMediaId
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.plugin.model.DashStream
@@ -56,6 +58,7 @@ import java.util.UUID
 class ViperMediaSource(
     private val context: Context,
     private val pluginDataSource: PluginDataSource,
+    private val songDao: SongDao,
     private val defaultMediaSource: MediaSource,
     private val dashMediaSource: DashMediaSource,
     private val defaultMediaSourceFactory: DefaultMediaSourceFactory,
@@ -73,6 +76,7 @@ class ViperMediaSource(
     class Factory(
         private val context: Context,
         private val pluginDataSource: PluginDataSource,
+        private val songDao: SongDao,
         private val defaultMediaSourceFactory: DefaultMediaSourceFactory,
         private val dashMediaSourceFactory: DashMediaSource.Factory,
         private val dataSourceFactory: DataSource.Factory,
@@ -99,8 +103,8 @@ class ViperMediaSource(
             val defaultMediaSource = defaultMediaSourceFactory.createMediaSource(mediaItem)
             val dashMediaSource = dashMediaSourceFactory.createMediaSource(mediaItem)
             return ViperMediaSource(
-                context, pluginDataSource, defaultMediaSource, dashMediaSource, defaultMediaSourceFactory,
-                dataSourceFactory,
+                context, pluginDataSource, songDao, defaultMediaSource, dashMediaSource,
+                defaultMediaSourceFactory, dataSourceFactory,
             )
         }
     }
@@ -151,6 +155,22 @@ class ViperMediaSource(
                 val mediaId = MediaId.decode(mediaItem.mediaId)
                     ?: throw IllegalStateException("Unresolvable mediaId: ${mediaItem.mediaId}")
                 val isVideo = mediaItem.mediaMetadata.extras?.getBoolean("isVideo") == true
+
+                // Offline-first: if this song was downloaded, play the on-disk file directly and skip
+                // stream resolution entirely (works without network). Downloads are always a
+                // progressive http(s) file (DownloadManager marks DASH/HLS/PCM UNSUPPORTED), so a
+                // plain ProgressiveMediaSource over the file:// URI is all that's needed. Track-level
+                // ReplayGain rides along on the MediaItem extras already set by MediaItemMapper, so it
+                // still applies to downloaded playback.
+                val localSource = prepareLocalFileSource(mediaId)
+                if (localSource != null) {
+                    withContext(playbackDispatcher) {
+                        chosenMediaSource = localSource
+                        localSource.prepareSource(caller, playerId, bandwidthMeter)
+                    }
+                    return@launch
+                }
+
                 val resolved = pluginDataSource.getStream(mediaId, isVideo).getOrThrow()
                 val source = resolved.source
                 Timber.i(
@@ -253,6 +273,28 @@ class ViperMediaSource(
                 sourceInfoRefreshError = IOException("Failed to prepare source", e)
             }
         }
+    }
+
+    /**
+     * If [mediaId] resolves to a completed on-disk download, build a progressive [MediaSource] over
+     * its `file://` URI (no plugin resolution, no network); otherwise return null so playback falls
+     * through to the normal stream-resolution path. Runs on the IO [sourceScope], so the Room read is
+     * off the playback thread. The MediaItem keeps its existing metadata/extras (including the
+     * track-level ReplayGain that [MediaItemMapper] persisted), mirroring the streaming construction.
+     */
+    private suspend fun prepareLocalFileSource(mediaId: MediaId): MediaSource? {
+        val song = runCatching { songDao.getByMediaId(mediaId) }
+            .onFailure { Timber.w(it, "Local download lookup failed for %s", mediaId) }
+            .getOrNull()
+            ?: return null
+        val downloadPath = song.downloadPath
+        val file = downloadPath?.let(::File)
+        if (!shouldUseLocalFile(song.isDownloaded, downloadPath, fileExists = file?.exists() == true)) {
+            return null
+        }
+        Timber.i("ViperMediaSource playing downloaded file for %s: %s", mediaId, downloadPath)
+        val item = mediaItem.buildUpon().setUri(Uri.fromFile(file)).build()
+        return defaultMediaSourceFactory.createMediaSource(item)
     }
 
     override fun maybeThrowSourceInfoRefreshError() {

@@ -58,6 +58,7 @@ import com.viperplayer.data.player.resumption.LastSessionItem
 import com.viperplayer.data.player.resumption.LastSessionMediaMapper
 import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.data.lastfm.LastfmScrobbler
+import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.source.PluginDataSource
 import com.viperplayer.data.stats.PlayHistoryRecorder
 import com.viperplayer.domain.audio.NetworkType
@@ -114,6 +115,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var mediaLibraryRepository: MediaLibraryRepository
+
+    @Inject
+    lateinit var songDao: SongDao
 
     @Inject
     lateinit var lastSessionStore: LastSessionStore
@@ -462,7 +466,7 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             .setConstantBitrateSeekingEnabled(true)
         val base = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
         val dash = DashMediaSource.Factory(dataSourceFactory)
-        return ViperMediaSource.Factory(this, pluginDataSource, base, dash, dataSourceFactory)
+        return ViperMediaSource.Factory(this, pluginDataSource, songDao, base, dash, dataSourceFactory)
     }
 
     private fun createExoPlayerDataSourceFactory(): DataSource.Factory {
