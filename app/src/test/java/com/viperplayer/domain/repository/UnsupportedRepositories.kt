@@ -10,6 +10,7 @@ import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.LibraryTabsConfig
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsAlignment
+import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.LyricsFontSize
 import com.viperplayer.domain.model.LyricsFontWeight
 import com.viperplayer.domain.model.LyricsHighlightColor
@@ -162,6 +163,7 @@ open class UnsupportedPluginRepository : PluginRepository {
     override suspend fun getArtist(mediaId: MediaId): Result<ArtistDetail> = TODO()
     override suspend fun getPlaylist(mediaId: MediaId): Result<Playlist> = TODO()
     override suspend fun getLyrics(song: Song): Result<Lyrics?> = TODO()
+    override suspend fun searchLyrics(title: String, artist: String?): List<LyricsCandidate> = TODO()
     override suspend fun getArtistSongs(
         artistId: MediaId,
         cursor: String?,

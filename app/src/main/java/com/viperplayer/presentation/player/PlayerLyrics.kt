@@ -30,10 +30,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ManageSearch
 import androidx.compose.material.icons.filled.Abc
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicOff
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +51,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,6 +83,7 @@ import com.viperplayer.domain.model.LyricsAlignment
 import com.viperplayer.domain.model.LyricsBehavior
 import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsLine
+import com.viperplayer.domain.model.LyricsOffset
 import com.viperplayer.domain.model.LyricsSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -151,11 +160,17 @@ fun LyricsSheet(
     val romanizationEnabled by viewModel.romanizationEnabled.collectAsStateWithLifecycle()
     val romanizedLines by viewModel.romanizedLines.collectAsStateWithLifecycle()
     val settings by viewModel.lyricsSettings.collectAsStateWithLifecycle()
+    val offsetMs by viewModel.lyricsOffsetMs.collectAsStateWithLifecycle()
+    val overridden by viewModel.lyricsOverridden.collectAsStateWithLifecycle()
+    val searchState by viewModel.lyricsSearch.collectAsStateWithLifecycle()
 
+    // The line-selection position already carries the per-song timing offset (applied in the
+    // ViewModel), so the renderer stays free of that logic. Re-polled when the offset changes so a
+    // nudge takes effect immediately rather than at the next line boundary.
     var position by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(offsetMs) {
         while (isActive) {
-            position = viewModel.getCurrentPosition()
+            position = viewModel.getEffectiveLyricsPosition()
             // Poll faster for word-by-word lyrics so the highlight tracks each word smoothly.
             delay(if (lyrics?.wordSynced == true) 90L else 200L)
         }
@@ -170,9 +185,24 @@ fun LyricsSheet(
         romanizationEnabled = romanizationEnabled,
         romanizedLines = romanizedLines,
         settings = settings,
+        offsetMs = offsetMs,
+        overridden = overridden,
         onToggleTranslation = viewModel::toggleTranslation,
         onToggleRomanization = viewModel::toggleRomanization,
+        onAdjustOffset = viewModel::adjustLyricsOffset,
+        onResetOffset = viewModel::resetLyricsOffset,
+        onOpenSearch = viewModel::openLyricsSearch,
+        onRevertToAuto = viewModel::revertToAutoLyrics,
         onSeek = onSeek,
+    )
+
+    LyricsSearchSheet(
+        state = searchState,
+        onTitleChange = viewModel::updateLyricsSearchTitle,
+        onArtistChange = viewModel::updateLyricsSearchArtist,
+        onSearch = viewModel::searchLyrics,
+        onPick = viewModel::pickLyricsCandidate,
+        onDismiss = viewModel::dismissLyricsSearch,
     )
 }
 
@@ -201,6 +231,12 @@ fun LyricsSheetContent(
     onSeek: (Long) -> Unit,
     loading: Boolean = false,
     settings: LyricsSettings = LyricsSettings(),
+    offsetMs: Long = 0L,
+    overridden: Boolean = false,
+    onAdjustOffset: (Int) -> Unit = {},
+    onResetOffset: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
+    onRevertToAuto: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -241,6 +277,20 @@ fun LyricsSheetContent(
                     }
                 )
             }
+            LyricsOverflowMenu(
+                overridden = overridden,
+                onOpenSearch = onOpenSearch,
+                onRevertToAuto = onRevertToAuto,
+            )
+        }
+
+        // The per-song timing offset stepper — only meaningful for line-synced lyrics.
+        if (lyrics?.synced == true && lyrics.lines.isNotEmpty()) {
+            LyricsOffsetControl(
+                offsetMs = offsetMs,
+                onAdjustOffset = onAdjustOffset,
+                onResetOffset = onResetOffset,
+            )
         }
 
         when {
@@ -266,6 +316,102 @@ fun LyricsSheetContent(
                     modifier = Modifier
                         .heightIn(max = 520.dp)
                         .verticalScroll(rememberScrollState())
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The lyrics overflow menu: "Search lyrics…" (the manual lyric-match picker) and, when a manual
+ * override is active, "Use automatic lyrics" to revert.
+ */
+@Composable
+private fun LyricsOverflowMenu(
+    overridden: Boolean,
+    onOpenSearch: () -> Unit,
+    onRevertToAuto: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.lyrics_more_actions),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.lyrics_search_action)) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ManageSearch, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onOpenSearch()
+                },
+            )
+            if (overridden) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.lyrics_use_automatic)) },
+                    leadingIcon = { Icon(Icons.Filled.Restore, contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onRevertToAuto()
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Inline +/- stepper for the per-song lyrics timing offset. Steps by [LyricsOffset.STEP_MS] each
+ * press; shows the current offset (signed, in seconds) and — when non-zero — a reset affordance.
+ */
+@Composable
+private fun LyricsOffsetControl(
+    offsetMs: Long,
+    onAdjustOffset: (Int) -> Unit,
+    onResetOffset: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.lyrics_offset_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = { onAdjustOffset(-1) }) {
+            Icon(
+                imageVector = Icons.Filled.Remove,
+                contentDescription = stringResource(R.string.lyrics_offset_decrease),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Text(
+            text = stringResource(R.string.lyrics_offset_value, offsetMs / 1000f),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        IconButton(onClick = { onAdjustOffset(1) }) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.lyrics_offset_increase),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        if (offsetMs != 0L) {
+            IconButton(onClick = onResetOffset) {
+                Icon(
+                    imageVector = Icons.Filled.Restore,
+                    contentDescription = stringResource(R.string.lyrics_offset_reset),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

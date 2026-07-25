@@ -1,6 +1,7 @@
 package com.viperplayer.data.lyrics
 
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.LyricsLine
 import com.viperplayer.domain.model.LyricsWord
 import com.viperplayer.domain.model.Song
@@ -34,6 +35,10 @@ class LrcLibLyricsProvider @Inject constructor(
 
     @Serializable
     private data class LrcLibRecord(
+        val trackName: String? = null,
+        val artistName: String? = null,
+        val albumName: String? = null,
+        val duration: Double? = null,
         val syncedLyrics: String? = null,
         val plainLyrics: String? = null,
         val instrumental: Boolean = false,
@@ -72,14 +77,47 @@ class LrcLibLyricsProvider @Inject constructor(
     }
 
     private suspend fun search(title: String, artist: String?): LrcLibRecord? {
+        val results = searchRecords(title, artist)
+        return results.firstOrNull { !it.syncedLyrics.isNullOrBlank() } ?: results.firstOrNull()
+    }
+
+    /**
+     * Manual lyric-match search: return the LRCLIB candidates for [title]/[artist] with their
+     * display metadata and already-parsed lyrics, so the caller can present a picker and apply a
+     * chosen result with no second round-trip. Instrumental and empty-lyric records are dropped; the
+     * list is ordered synced-first (best matches on top). Returns an empty list on any miss/error.
+     */
+    suspend fun searchLyrics(title: String, artist: String?): List<LyricsCandidate> {
+        val trackName = title.takeIf { it.isNotBlank() } ?: return emptyList()
+        val records = runCatching { searchRecords(trackName, artist?.takeIf { it.isNotBlank() }) }
+            .onFailure { Timber.w(it, "LRCLIB manual search failed for '$trackName'") }
+            .getOrDefault(emptyList())
+        return records.mapNotNull { record ->
+            if (record.instrumental) return@mapNotNull null
+            val text = record.syncedLyrics?.takeIf { it.isNotBlank() }
+                ?: record.plainLyrics?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            val lyrics = toDomain(text)
+            if (lyrics.isEmpty) return@mapNotNull null
+            LyricsCandidate(
+                trackName = record.trackName?.takeIf { it.isNotBlank() } ?: trackName,
+                artistName = record.artistName?.takeIf { it.isNotBlank() },
+                albumName = record.albumName?.takeIf { it.isNotBlank() },
+                durationMs = record.duration?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+                synced = lyrics.synced,
+                lyrics = lyrics,
+            )
+        }.sortedByDescending { it.synced }
+    }
+
+    private suspend fun searchRecords(title: String, artist: String?): List<LrcLibRecord> {
         val response = httpClient.get(SEARCH_URL) {
             header("User-Agent", USER_AGENT)
             parameter("track_name", title)
             if (artist != null) parameter("artist_name", artist)
         }
-        if (!response.status.isSuccess()) return null
-        val results = json.decodeFromString<List<LrcLibRecord>>(response.bodyAsText())
-        return results.firstOrNull { !it.syncedLyrics.isNullOrBlank() } ?: results.firstOrNull()
+        if (!response.status.isSuccess()) return emptyList()
+        return json.decodeFromString<List<LrcLibRecord>>(response.bodyAsText())
     }
 
     private fun toDomain(text: String): Lyrics {

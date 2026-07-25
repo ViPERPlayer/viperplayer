@@ -62,5 +62,8 @@ object DatabaseModule {
 
     @Provides
     fun provideOutboxDao(database: ViperPlayerDatabase) = database.outboxDao()
+
+    @Provides
+    fun provideLyricsPrefsDao(database: ViperPlayerDatabase) = database.lyricsPrefsDao()
 }
 

@@ -850,6 +850,25 @@
     <string name="lyrics_translate">Translate lyrics</string>
     <string name="lyrics_romanize">Romanize lyrics</string>
     <string name="lyrics_none">No lyrics available for this track</string>
+    <string name="lyrics_more_actions">More lyric actions</string>
+
+    <!-- Lyrics timing offset -->
+    <string name="lyrics_offset_label">Timing offset</string>
+    <string name="lyrics_offset_value">%1$+.1fs</string>
+    <string name="lyrics_offset_decrease">Lyrics earlier</string>
+    <string name="lyrics_offset_increase">Lyrics later</string>
+    <string name="lyrics_offset_reset">Reset timing offset</string>
+
+    <!-- Manual lyric-match search -->
+    <string name="lyrics_search_action">Search lyrics…</string>
+    <string name="lyrics_use_automatic">Use automatic lyrics</string>
+    <string name="lyrics_search_title">Search lyrics</string>
+    <string name="lyrics_search_field_title">Title</string>
+    <string name="lyrics_search_field_artist">Artist</string>
+    <string name="lyrics_search_button">Search</string>
+    <string name="lyrics_search_no_results">No matching lyrics found</string>
+    <string name="lyrics_search_synced">Synced</string>
+    <string name="lyrics_search_plain">Plain</string>
 
     <!-- Lyrics settings -->
     <string name="settings_lyrics">Lyrics</string>

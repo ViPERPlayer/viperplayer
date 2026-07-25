@@ -4,6 +4,7 @@ import com.viperplayer.data.account.AccountRepositoryImpl
 import com.viperplayer.data.librarysync.LibrarySyncRepositoryImpl
 import com.viperplayer.data.repository.AutoPlaylistRepositoryImpl
 import com.viperplayer.data.repository.CacheRepositoryImpl
+import com.viperplayer.data.repository.LyricsPreferencesRepositoryImpl
 import com.viperplayer.data.repository.MockListenTogetherRepositoryImpl
 import com.viperplayer.data.repository.RealListenTogetherRepositoryImpl
 import com.viperplayer.data.social.DeviceIdStore
@@ -27,6 +28,7 @@ import com.viperplayer.domain.librarysync.LibrarySyncRepository
 import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.CacheRepository
 import com.viperplayer.domain.repository.ListenTogetherRepository
+import com.viperplayer.domain.repository.LyricsPreferencesRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -96,6 +98,12 @@ abstract class DataModule {
     abstract fun bindMediaLibraryRepository(
         impl: MediaLibraryRepositoryImpl
     ): MediaLibraryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLyricsPreferencesRepository(
+        impl: LyricsPreferencesRepositoryImpl
+    ): LyricsPreferencesRepository
 
     @Binds
     @Singleton

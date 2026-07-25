@@ -6,6 +6,7 @@ import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.Playlist
@@ -199,6 +200,13 @@ interface PluginRepository {
      * Returns success with `null` when no plugin can provide lyrics for the track.
      */
     suspend fun getLyrics(song: Song): Result<Lyrics?>
+
+    /**
+     * Manual lyric-match search: query the lyrics provider by [title] (and optional [artist]) and
+     * return the candidate matches so the user can pick the right one when the auto-fetched lyrics
+     * are wrong. Returns an empty list on any miss or error.
+     */
+    suspend fun searchLyrics(title: String, artist: String?): List<LyricsCandidate>
 
     /**
      * Get artist songs.

@@ -9,6 +9,8 @@ import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
 import com.viperplayer.data.player.SleepTimerMode
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsCandidate
+import com.viperplayer.domain.model.LyricsOffset
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackInfo
@@ -19,6 +21,7 @@ import com.viperplayer.domain.radio.RadioPlaylist
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.data.social.SessionPlaybackCoordinator
 import com.viperplayer.domain.repository.ListenTogetherRepository
+import com.viperplayer.domain.repository.LyricsPreferencesRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
@@ -55,6 +58,7 @@ class PlayerViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val listenTogetherRepository: ListenTogetherRepository,
     private val sessionPlaybackCoordinator: SessionPlaybackCoordinator,
+    private val lyricsPreferencesRepository: LyricsPreferencesRepository,
 ) : ViewModel() {
 
     /** User-configured lyrics appearance + behavior, applied by the lyrics renderer. */
@@ -158,14 +162,135 @@ class PlayerViewModel @Inject constructor(
             initialValue = LyricsResult.Loading
         )
 
-    /** Lyrics for the current track from a lyrics-capable plugin, or null when none are available. */
-    val lyrics: StateFlow<Lyrics?> = lyricsResult
-        .map { (it as? LyricsResult.Loaded)?.lyrics }
+    // A manually-picked lyric-match override for the current song (feature-parity gap B), keyed by
+    // MediaId and persisted. When present it replaces the auto-fetched lyrics; null means "use auto".
+    private val lyricsOverride: StateFlow<Lyrics?> = currentSong
+        .flatMapLatest { song ->
+            if (song == null) flowOf(null) else lyricsPreferencesRepository.override(song.id)
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
+
+    /**
+     * Lyrics for the current track: the user's manual override when one is set for this song,
+     * otherwise the auto-fetched (plugin/LRCLIB) result, or null when none are available.
+     */
+    val lyrics: StateFlow<Lyrics?> = combine(
+        lyricsResult.map { (it as? LyricsResult.Loaded)?.lyrics },
+        lyricsOverride,
+    ) { fetched, override -> override ?: fetched }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    /** True when the shown lyrics come from a manual override rather than the auto-fetched result. */
+    val lyricsOverridden: StateFlow<Boolean> = lyricsOverride
+        .map { it != null }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    // --- Per-song lyrics timing offset (feature-parity gap A) ---
+
+    /**
+     * The persisted per-song timing offset (ms, may be negative) applied to synced-lyric line
+     * selection. Keyed by [MediaId] so it survives re-opening; `0` when the song was never nudged.
+     */
+    val lyricsOffsetMs: StateFlow<Long> = currentSong
+        .flatMapLatest { song ->
+            if (song == null) flowOf(0L) else lyricsPreferencesRepository.offset(song.id)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0L
+        )
+
+    /** Nudge the current song's lyrics offset by [steps] +/- steps of [LyricsOffset.STEP_MS]. */
+    fun adjustLyricsOffset(steps: Int) {
+        val song = currentSong.value ?: return
+        val next = LyricsOffset.nudged(lyricsOffsetMs.value, steps)
+        viewModelScope.launch { lyricsPreferencesRepository.setOffset(song.id, next) }
+    }
+
+    /** Reset the current song's lyrics offset back to 0. */
+    fun resetLyricsOffset() {
+        val song = currentSong.value ?: return
+        viewModelScope.launch { lyricsPreferencesRepository.setOffset(song.id, LyricsOffset.NONE_MS) }
+    }
+
+    // --- Manual lyric-match picker (feature-parity gap B) ---
+
+    private val _lyricsSearch = MutableStateFlow(LyricsSearchState())
+
+    /** State of the manual lyric-match search sheet (editable query + phase + results). */
+    val lyricsSearch: StateFlow<LyricsSearchState> = _lyricsSearch.asStateFlow()
+
+    /** Open the search sheet, prefilling the query from the current song. */
+    fun openLyricsSearch() {
+        val song = currentSong.value
+        _lyricsSearch.value = LyricsSearchState(
+            isOpen = true,
+            title = song?.title.orEmpty(),
+            artist = song?.artistNames.orEmpty(),
+        )
+    }
+
+    /** Close the search sheet, discarding its transient state. */
+    fun dismissLyricsSearch() {
+        _lyricsSearch.value = LyricsSearchState()
+    }
+
+    /** Update the editable search title. */
+    fun updateLyricsSearchTitle(title: String) {
+        _lyricsSearch.value = _lyricsSearch.value.copy(title = title)
+    }
+
+    /** Update the editable search artist. */
+    fun updateLyricsSearchArtist(artist: String) {
+        _lyricsSearch.value = _lyricsSearch.value.copy(artist = artist)
+    }
+
+    /** Run the lyric-match search for the current query; no-op for a blank title. */
+    fun searchLyrics() {
+        val state = _lyricsSearch.value
+        val title = state.title.trim()
+        if (title.isEmpty()) return
+        val artist = state.artist.trim().takeIf { it.isNotEmpty() }
+        _lyricsSearch.value = state.copy(phase = LyricsSearchState.Phase.Searching)
+        viewModelScope.launch {
+            val results = pluginRepository.searchLyrics(title, artist)
+            _lyricsSearch.value = _lyricsSearch.value.copy(
+                phase = LyricsSearchState.Phase.Results(results)
+            )
+        }
+    }
+
+    /**
+     * Persist [candidate]'s lyrics as the manual override for the current song, so subsequent opens
+     * (and this one) show the picked lyrics instead of the auto-fetched result, then close the sheet.
+     */
+    fun pickLyricsCandidate(candidate: LyricsCandidate) {
+        val song = currentSong.value ?: return
+        viewModelScope.launch {
+            lyricsPreferencesRepository.setOverride(song.id, candidate.lyrics)
+        }
+        _lyricsSearch.value = LyricsSearchState()
+    }
+
+    /** Drop any manual override for the current song, reverting to the auto-fetched lyrics. */
+    fun revertToAutoLyrics() {
+        val song = currentSong.value ?: return
+        viewModelScope.launch { lyricsPreferencesRepository.clearOverride(song.id) }
+    }
 
     /** True while the current track's lyrics are still being fetched (drives the loading shimmer). */
     val lyricsLoading: StateFlow<Boolean> = lyricsResult
@@ -279,6 +404,15 @@ class PlayerViewModel @Inject constructor(
      * Use this for polling-based position updates where the UI controls the polling frequency.
      */
     suspend fun getCurrentPosition(): Long = playerRepository.getCurrentPosition()
+
+    /**
+     * The playback position (ms) the lyrics renderer should use to pick/scroll the active line: the
+     * real position shifted by the current song's persisted timing offset (feature-parity gap A). The
+     * offset is applied here in the state layer, not in the composable, so the position→line mapping
+     * stays testable and the UI just renders. Tap-to-seek still uses the untouched line timestamps.
+     */
+    suspend fun getEffectiveLyricsPosition(): Long =
+        LyricsOffset.effectivePosition(playerRepository.getCurrentPosition(), lyricsOffsetMs.value)
 
     /** Buffered position in ms (how far ahead of the playhead is loaded) for the seek bar. */
     suspend fun getBufferedPosition(): Long = playerRepository.getBufferedPosition()

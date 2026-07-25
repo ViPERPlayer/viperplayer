@@ -7,6 +7,7 @@ import com.viperplayer.data.local.dao.AlbumDao
 import com.viperplayer.data.local.dao.ArtistDao
 import com.viperplayer.data.local.dao.CrossRefDao
 import com.viperplayer.data.local.dao.GenreDao
+import com.viperplayer.data.local.dao.LyricsPrefsDao
 import com.viperplayer.data.local.dao.PlayEventDao
 import com.viperplayer.data.local.dao.OutboxDao
 import com.viperplayer.data.local.dao.PlaylistDao
@@ -19,6 +20,7 @@ import com.viperplayer.data.local.entity.AlbumTypeConverter
 import com.viperplayer.data.local.entity.ArtistEntity
 import com.viperplayer.data.local.entity.ArtistGenreCrossRef
 import com.viperplayer.data.local.entity.GenreEntity
+import com.viperplayer.data.local.entity.LyricsPrefsEntity
 import com.viperplayer.data.local.entity.OutboxEntity
 import com.viperplayer.data.local.entity.PlayEventEntity
 import com.viperplayer.data.local.entity.PlaylistEntity
@@ -52,13 +54,15 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
         ViperPresetEntity::class,
         ViperDdcCoeffEntity::class,
         PlayEventEntity::class,
-        OutboxEntity::class
+        OutboxEntity::class,
+        LyricsPrefsEntity::class
     ],
     // v3: MediaId sealed refactor (#12) — songs/albums/artists/playlists gain an `idType`
     // discriminator column and their unique identity index becomes (idType, pluginId, sourceId).
     // v4: song_genres cross-ref for the Library Genres tab (per-song genre browse).
+    // v5: lyrics_prefs — per-song timing offset + manual lyric-match override.
     // Destructive migration (DatabaseModule fallbackToDestructiveMigration) drops + recreates.
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(
@@ -76,5 +80,6 @@ abstract class ViperPlayerDatabase : RoomDatabase() {
     abstract fun viperPresetDao(): ViperPresetDao
     abstract fun playEventDao(): PlayEventDao
     abstract fun outboxDao(): OutboxDao
+    abstract fun lyricsPrefsDao(): LyricsPrefsDao
 }
 

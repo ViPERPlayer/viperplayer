@@ -15,6 +15,7 @@ import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.Lyrics
+import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PagedResult
@@ -388,6 +389,11 @@ class PluginRepositoryImpl @Inject constructor(
             .getOrNull()?.takeUnless { it.isEmpty }
         return Result.success(fallback?.takeIf { it.synced } ?: fromPlugin ?: fallback)
     }
+
+    override suspend fun searchLyrics(title: String, artist: String?): List<LyricsCandidate> =
+        runCatching { lrcLib.searchLyrics(title, artist) }
+            .onFailure { Timber.e(it, "LRCLIB lyric-match search threw for '$title'") }
+            .getOrDefault(emptyList())
 
     override suspend fun getArtistSongs(
         artistId: MediaId,
