@@ -243,25 +243,28 @@ fun SongInfoScreen(
                 }
             }
 
-            // Track
+            // Track — rendered only when at least one track field is present, so the section label
+            // never dangles over an empty card for a song with no album/track/disc/duration tags.
             item {
-                SectionLabel(stringResource(R.string.song_info_track), top = 18.dp)
-                RowsCard {
-                    val rows = buildList {
-                        song.album?.let { add(stringResource(R.string.song_detail_album) to it.name) }
-                        song.trackNumber?.let { track ->
-                            val total = song.album?.trackCount?.takeIf { it > 0 }
-                            add(
-                                stringResource(R.string.song_detail_track_number) to
-                                    (total?.let { stringResource(R.string.song_info_number_of, track, it) } ?: track.toString())
-                            )
-                        }
-                        song.discNumber?.let { add(stringResource(R.string.song_detail_disc_number) to it.toString()) }
-                        song.durationMs?.takeIf { it > 0 }?.let { add(stringResource(R.string.song_detail_duration) to formatDuration(it)) }
+                val rows = buildList {
+                    song.album?.let { add(stringResource(R.string.song_detail_album) to it.name) }
+                    song.trackNumber?.let { track ->
+                        val total = song.album?.trackCount?.takeIf { it > 0 }
+                        add(
+                            stringResource(R.string.song_detail_track_number) to
+                                (total?.let { stringResource(R.string.song_info_number_of, track, it) } ?: track.toString())
+                        )
                     }
-                    rows.forEachIndexed { i, (label, value) -> InfoRow(label, value, divider = i < rows.lastIndex) }
+                    song.discNumber?.let { add(stringResource(R.string.song_detail_disc_number) to it.toString()) }
+                    song.durationMs?.takeIf { it > 0 }?.let { add(stringResource(R.string.song_detail_duration) to formatDuration(it)) }
                 }
-                Spacer(Modifier.height(12.dp))
+                if (rows.isNotEmpty()) {
+                    SectionLabel(stringResource(R.string.song_info_track), top = 18.dp)
+                    RowsCard {
+                        rows.forEachIndexed { i, (label, value) -> InfoRow(label, value, divider = i < rows.lastIndex) }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
             }
         }
     }
