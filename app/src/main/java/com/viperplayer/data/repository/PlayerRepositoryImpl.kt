@@ -587,7 +587,9 @@ class PlayerRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Observes player state changes and persists them.
+     * Observes player state changes and persists them, gated by the persistent-queue setting.
+     * When the setting is off we never write the queue and clear any previously-saved state, so a
+     * later cold start begins with an empty player and no stale queue is left behind.
      */
     private fun observeAndPersistPlayerState() {
         // Combine all state that needs to be persisted.
@@ -597,24 +599,32 @@ class PlayerRepositoryImpl @Inject constructor(
         // that moves the current item; a pure non-current reorder persists on the next playback event.)
         combine(
             playbackState,
-            mediaControllerManager.controllerFlow
-        ) { playback, controller ->
+            mediaControllerManager.controllerFlow,
+            settingsRepository.persistentQueueEnabled,
+        ) { playback, controller, persistentQueueEnabled ->
             // Get current position and queue position from controller
             val position = controller.currentPosition.coerceAtLeast(0)
             val queuePosition = controller.currentMediaItemIndex.coerceAtLeast(0)
 
-            PersistedPlayerState(
+            val state = PersistedPlayerState(
                 currentSongMediaId = extractMediaIdFromController(controller)?.toString(),
                 currentPositionMs = position,
                 queuePosition = queuePosition,
                 shuffleEnabled = playback.shuffleEnabled,
                 repeatMode = playback.repeatMode.name,
-            ) to extractQueueMediaIds(controller) // state + ordered queue ids (no hydration)
+            )
+            // state + ordered queue ids (no hydration), plus the gate for the write below
+            Triple(state, extractQueueMediaIds(controller), persistentQueueEnabled)
         }
             .debounce(2000) // Save at most every 2 seconds to avoid excessive writes
-            .onEach { (state, queueMediaIds) ->
-                // saveState writes the queue order (ids) to Room and settings to DataStore
-                playerStatePersistence.saveState(state, queueMediaIds)
+            .onEach { (state, queueMediaIds, persistentQueueEnabled) ->
+                if (persistentQueueEnabled) {
+                    // saveState writes the queue order (ids) to Room and settings to DataStore
+                    playerStatePersistence.saveState(state, queueMediaIds)
+                } else {
+                    // Setting off: drop any previously-persisted queue so nothing is restored later.
+                    playerStatePersistence.clear()
+                }
             }
             .launchIn(scope)
     }

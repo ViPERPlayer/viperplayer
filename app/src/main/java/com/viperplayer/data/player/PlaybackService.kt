@@ -252,6 +252,14 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
      */
     private fun restorePlayerState() {
         lifecycleScope.launch {
+            // Persistent queue (default on): when the user turns it off, cold start with an empty
+            // player and never rehydrate the saved queue into the in-app now-playing/queue.
+            if (!settingsRepository.persistentQueueEnabled.first()) {
+                Timber.d("Persistent queue disabled; starting with an empty player")
+                player.prepare()
+                return@launch
+            }
+
             val (savedState, queueSongs) = playerStatePersistence.loadState()
             if (savedState == null || queueSongs.isEmpty()) {
                 Timber.d("No saved player state or queue to restore")

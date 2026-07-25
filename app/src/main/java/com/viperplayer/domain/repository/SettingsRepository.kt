@@ -181,6 +181,14 @@ interface SettingsRepository {
     val preventDuplicateQueue: Flow<Boolean>
     suspend fun setPreventDuplicateQueue(enabled: Boolean)
 
+    /**
+     * Restore the last playback queue (all tracks, in order, at the last-played track and position,
+     * paused) when the app is reopened after being fully closed. When off, cold start begins with an
+     * empty player and the queue is not persisted. Default on.
+     */
+    val persistentQueueEnabled: Flow<Boolean>
+    suspend fun setPersistentQueueEnabled(enabled: Boolean)
+
     /** Block screenshots / screen recording by setting FLAG_SECURE on the window. Default off. */
     val blockScreenshots: Flow<Boolean>
     suspend fun setBlockScreenshots(enabled: Boolean)

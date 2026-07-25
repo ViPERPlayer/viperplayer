@@ -101,6 +101,8 @@ class FakeSettingsRepository(
     override suspend fun setSleepTimerFadeOut(enabled: Boolean) = unused()
     override val preventDuplicateQueue: Flow<Boolean> get() = unused()
     override suspend fun setPreventDuplicateQueue(enabled: Boolean) = unused()
+    override val persistentQueueEnabled: Flow<Boolean> get() = unused()
+    override suspend fun setPersistentQueueEnabled(enabled: Boolean) = unused()
     override val blockScreenshots: Flow<Boolean> get() = unused()
     override suspend fun setBlockScreenshots(enabled: Boolean) = unused()
     override val showExplicitContent: Flow<Boolean> get() = unused()

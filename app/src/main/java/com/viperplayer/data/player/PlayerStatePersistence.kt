@@ -120,6 +120,21 @@ class PlayerStatePersistence @Inject constructor(
         }
 
     /**
+     * Clears any persisted player state: empties the Room queue and wipes the DataStore keys so a
+     * later [loadState] returns nothing. Used when the persistent-queue setting is turned off so no
+     * stale queue lingers to be restored on the next cold start.
+     */
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        try {
+            crossRefDao.clearQueue()
+            dataStore.edit { it.clear() }
+            Timber.d("PlayerStatePersistence: cleared persisted state")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to clear player state")
+        }
+    }
+
+    /**
      * Loads the persisted player state.
      * Queue is loaded from Room (via QueueSongCrossRef -> SongEntity), simple settings from DataStore.
      * Returns the state and the full queue of Song objects loaded from database.

@@ -450,6 +450,8 @@
     <string name="player_skip_on_error_desc">Skip to the next track when one fails to play</string>
     <string name="player_prevent_duplicate_queue">Prevent duplicates in queue</string>
     <string name="player_prevent_duplicate_queue_desc">Don\'t add a track that\'s already in the queue</string>
+    <string name="player_persistent_queue">Restore last queue</string>
+    <string name="player_persistent_queue_desc">Reopen the app with your last queue, paused where you left off</string>
     <string name="player_stop_on_task_removed">Stop when app is closed</string>
     <string name="player_stop_on_task_removed_desc">Stop playback when the app is swiped away from Recents</string>
     <string name="player_pause_when_muted">Pause when muted</string>

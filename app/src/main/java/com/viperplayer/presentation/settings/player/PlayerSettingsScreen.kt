@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.SkipNext
@@ -184,6 +185,15 @@ fun PlayerSettingsScreen(
                     icon = Icons.AutoMirrored.Default.PlaylistAddCheck,
                     checked = uiState.preventDuplicateQueue,
                     onCheckedChange = viewModel::setPreventDuplicateQueue
+                )
+            }
+            item {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.player_persistent_queue),
+                    description = stringResource(R.string.player_persistent_queue_desc),
+                    icon = Icons.Default.Restore,
+                    checked = uiState.persistentQueueEnabled,
+                    onCheckedChange = viewModel::setPersistentQueueEnabled
                 )
             }
             item {

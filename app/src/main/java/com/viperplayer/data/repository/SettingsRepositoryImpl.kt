@@ -75,6 +75,7 @@ class SettingsRepositoryImpl(
         private val RESUME_ON_BLUETOOTH_KEY = booleanPreferencesKey("resume_on_bluetooth")
         private val SLEEP_TIMER_FADE_OUT_KEY = booleanPreferencesKey("sleep_timer_fade_out")
         private val PREVENT_DUPLICATE_QUEUE_KEY = booleanPreferencesKey("prevent_duplicate_queue")
+        private val PERSISTENT_QUEUE_ENABLED_KEY = booleanPreferencesKey("persistent_queue_enabled")
         private val BLOCK_SCREENSHOTS_KEY = booleanPreferencesKey("block_screenshots")
         private val REPLAY_GAIN_MODE_KEY = stringPreferencesKey("replay_gain_mode")
         private val REPLAY_GAIN_UNTAGGED_PREAMP_DB_KEY = floatPreferencesKey("replay_gain_untagged_preamp_db")
@@ -408,6 +409,16 @@ class SettingsRepositoryImpl(
     override suspend fun setPreventDuplicateQueue(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[PREVENT_DUPLICATE_QUEUE_KEY] = enabled
+        }
+    }
+
+    override val persistentQueueEnabled: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[PERSISTENT_QUEUE_ENABLED_KEY] ?: true // Default to enabled: restore last queue on cold start
+    }
+
+    override suspend fun setPersistentQueueEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PERSISTENT_QUEUE_ENABLED_KEY] = enabled
         }
     }
 

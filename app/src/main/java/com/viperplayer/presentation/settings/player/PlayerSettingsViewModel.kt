@@ -37,6 +37,7 @@ data class PlayerSettingsUiState(
     val pauseWhenMuted: Boolean = false,
     val resumeOnBluetooth: Boolean = false,
     val preventDuplicateQueue: Boolean = false,
+    val persistentQueueEnabled: Boolean = true,
     val keepScreenOnPlayer: Boolean = false,
     val blockScreenshots: Boolean = false
 )
@@ -143,6 +144,11 @@ class PlayerSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.preventDuplicateQueue.collect { enabled ->
                 _uiState.update { it.copy(preventDuplicateQueue = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.persistentQueueEnabled.collect { enabled ->
+                _uiState.update { it.copy(persistentQueueEnabled = enabled) }
             }
         }
         viewModelScope.launch {
@@ -271,6 +277,12 @@ class PlayerSettingsViewModel @Inject constructor(
     fun setPreventDuplicateQueue(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setPreventDuplicateQueue(enabled)
+        }
+    }
+
+    fun setPersistentQueueEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setPersistentQueueEnabled(enabled)
         }
     }
 

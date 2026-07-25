@@ -268,6 +268,8 @@ open class UnsupportedSettingsRepository : SettingsRepository {
     override suspend fun setSleepTimerFadeOut(enabled: Boolean) = TODO()
     override val preventDuplicateQueue: Flow<Boolean> get() = TODO()
     override suspend fun setPreventDuplicateQueue(enabled: Boolean) = TODO()
+    override val persistentQueueEnabled: Flow<Boolean> get() = TODO()
+    override suspend fun setPersistentQueueEnabled(enabled: Boolean) = TODO()
     override val blockScreenshots: Flow<Boolean> get() = TODO()
     override suspend fun setBlockScreenshots(enabled: Boolean) = TODO()
     override val showExplicitContent: Flow<Boolean> get() = TODO()
