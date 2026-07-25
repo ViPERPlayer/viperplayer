@@ -110,6 +110,7 @@ import com.viperplayer.presentation.common.AddToPlaylistSheetHost
 import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
+import com.viperplayer.presentation.common.OfflineBanner
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.SelectableChip
 import com.viperplayer.presentation.common.components.SurfaceCard
@@ -136,6 +137,7 @@ fun SearchScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+    val offlineMode by viewModel.offlineMode.collectAsStateWithLifecycle()
 
     val optionsController = rememberMediaItemOptionsController()
     val addToPlaylistController = rememberAddToPlaylistController()
@@ -252,6 +254,13 @@ fun SearchScreen(
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp)
             )
+
+            // Offline mode is on: tell the user why remote search results are hidden.
+            if (offlineMode) {
+                OfflineBanner(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
 
             ExpandedFullScreenSearchBar(
                 state = searchBarState,

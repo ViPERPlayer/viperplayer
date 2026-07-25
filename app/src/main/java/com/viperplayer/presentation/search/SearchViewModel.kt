@@ -18,6 +18,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SearchRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.usecase.search.SearchUseCase
 import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.presentation.search.model.ItemBadge
@@ -71,6 +72,7 @@ class SearchViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
     private val mediaLibraryRepository: MediaLibraryRepository,
     private val searchUseCase: SearchUseCase,
+    settingsRepository: SettingsRepository,
     private val stringProvider: StringProvider
 ) : ViewModel() {
     // Expose current song and playing state from player repository
@@ -98,6 +100,10 @@ class SearchViewModel @Inject constructor(
 
     private val _selectedFilter = MutableStateFlow<SearchFilter?>(null)
     val selectedFilter = _selectedFilter.asStateFlow()
+
+    /** Whether offline mode is on, so Search can surface an unobtrusive "Offline" banner. */
+    val offlineMode: StateFlow<Boolean> = settingsRepository.offlineMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private var nextCursor: String? = null
     private var isSearchingMore = false

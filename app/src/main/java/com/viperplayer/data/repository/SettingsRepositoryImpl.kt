@@ -84,6 +84,8 @@ class SettingsRepositoryImpl(
 
         // Content
         private val SHOW_EXPLICIT_CONTENT_KEY = booleanPreferencesKey("show_explicit_content")
+        private val OFFLINE_MODE_KEY = booleanPreferencesKey("offline_mode")
+        private val AUTO_DOWNLOAD_ON_LIKE_KEY = booleanPreferencesKey("auto_download_on_like")
 
         // Storage
         private val MAX_SONG_CACHE_SIZE_KEY = longPreferencesKey("max_song_cache_size")
@@ -440,6 +442,26 @@ class SettingsRepositoryImpl(
     override suspend fun setShowExplicitContent(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SHOW_EXPLICIT_CONTENT_KEY] = enabled
+        }
+    }
+
+    override val offlineMode: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[OFFLINE_MODE_KEY] ?: false // Default to disabled: remote fetches allowed
+    }
+
+    override suspend fun setOfflineMode(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[OFFLINE_MODE_KEY] = enabled
+        }
+    }
+
+    override val autoDownloadOnLike: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[AUTO_DOWNLOAD_ON_LIKE_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setAutoDownloadOnLike(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AUTO_DOWNLOAD_ON_LIKE_KEY] = enabled
         }
     }
 

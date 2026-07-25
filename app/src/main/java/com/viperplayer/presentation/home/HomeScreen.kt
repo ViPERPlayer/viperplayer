@@ -94,6 +94,7 @@ import com.viperplayer.presentation.plugins.PluginActionsViewModel
 import com.viperplayer.presentation.plugins.rememberPluginActionResolver
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.common.OfflineBanner
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.AvatarRing
 import com.viperplayer.presentation.common.components.InitialsAvatar
@@ -114,6 +115,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val topBarState by viewModel.topBarState.collectAsStateWithLifecycle()
+    val offlineMode by viewModel.offlineMode.collectAsStateWithLifecycle()
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -151,6 +153,7 @@ fun HomeScreen(
     HomeScreenContent(
         uiState = uiState,
         topBarState = topBarState,
+        offlineMode = offlineMode,
         currentSongId = currentSong?.id,
         isPlaying = isPlaying,
         pendingActions = pendingActions,
@@ -173,6 +176,7 @@ fun HomeScreen(
 private fun HomeScreenContent(
     uiState: HomeUiState,
     topBarState: HomeTopBarState = HomeTopBarState(),
+    offlineMode: Boolean = false,
     currentSongId: MediaId? = null,
     isPlaying: Boolean = false,
     pendingActions: List<PluginPendingAction> = emptyList(),
@@ -315,6 +319,15 @@ private fun HomeScreenContent(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = rootPadding
                     ) {
+                        // Offline mode is on: tell the user why remote content is hidden.
+                        if (offlineMode) {
+                            item(key = "offline-banner") {
+                                OfflineBanner(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+
                         // Plugins that need the user to act (sign in, grant a permission...).
                         if (pendingActions.isNotEmpty() && !bannerDismissed) {
                             item(key = "plugin-actions-banner") {

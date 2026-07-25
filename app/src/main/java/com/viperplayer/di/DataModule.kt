@@ -1,6 +1,8 @@
 package com.viperplayer.di
 
 import com.viperplayer.data.account.AccountRepositoryImpl
+import com.viperplayer.data.download.AutoDownloader
+import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.librarysync.LibrarySyncRepositoryImpl
 import com.viperplayer.data.repository.AutoPlaylistRepositoryImpl
 import com.viperplayer.data.repository.CacheRepositoryImpl
@@ -140,6 +142,13 @@ abstract class DataModule {
     abstract fun bindLibraryPushOutbox(
         impl: RoomLibraryPushOutbox
     ): LibraryPushOutbox
+
+    /** Auto-download-on-like seam: the media library repo enqueues via this, backed by DownloadManager. */
+    @Binds
+    @Singleton
+    abstract fun bindAutoDownloader(
+        impl: DownloadManager
+    ): AutoDownloader
 
     companion object {
         /**

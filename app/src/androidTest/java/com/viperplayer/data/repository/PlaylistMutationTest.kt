@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.viperplayer.data.download.AutoDownloader
 import com.viperplayer.data.local.ViperPlayerDatabase
 import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.data.sync.push.LibraryPushOutbox
@@ -24,6 +25,7 @@ import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PluginRepository
+import dagger.Lazy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -67,6 +69,9 @@ class PlaylistMutationTest {
             localMediaDataSource = LocalMediaDataSource(context),
             libraryPushOutbox = LibraryPushOutbox.NOOP,
             stringProvider = { id, args -> context.getString(id, *args) },
+            settingsRepository = SettingsRepositoryImpl(context),
+            // These tests never like a downloadable song, so the auto-downloader is never touched.
+            autoDownloader = Lazy { object : AutoDownloader { override fun enqueue(song: Song) {} } },
         )
     }
 

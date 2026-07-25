@@ -44,7 +44,7 @@ class DownloadManager @Inject constructor(
     private val pluginDataSource: PluginDataSource,
     private val httpClient: HttpClient,
     private val mediaLibraryRepository: MediaLibraryRepository,
-) {
+) : AutoDownloader {
     /** State of a single download. */
     enum class State { QUEUED, RUNNING, COMPLETED, FAILED, UNSUPPORTED }
 
@@ -109,7 +109,7 @@ class DownloadManager @Inject constructor(
      * bytes to internal storage reporting progress; otherwise marks it [State.UNSUPPORTED]. On
      * success the song row is persisted and flagged downloaded; on error the partial file is deleted.
      */
-    fun enqueue(song: Song) {
+    override fun enqueue(song: Song) {
         val mediaId = song.id
         // Ignore a re-enqueue of something already in flight.
         val existing = _downloads.value[mediaId]?.state

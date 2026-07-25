@@ -12,7 +12,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ContentSettingsUiState(
-    val showExplicitContent: Boolean = true
+    val showExplicitContent: Boolean = true,
+    val offlineMode: Boolean = false,
+    val autoDownloadOnLike: Boolean = false
 )
 
 @HiltViewModel
@@ -29,6 +31,16 @@ class ContentSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(showExplicitContent = enabled) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.offlineMode.collect { enabled ->
+                _uiState.update { it.copy(offlineMode = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.autoDownloadOnLike.collect { enabled ->
+                _uiState.update { it.copy(autoDownloadOnLike = enabled) }
+            }
+        }
     }
 
     fun setShowExplicitContent(enabled: Boolean) {
@@ -36,5 +48,16 @@ class ContentSettingsViewModel @Inject constructor(
             settingsRepository.setShowExplicitContent(enabled)
         }
     }
-}
 
+    fun setOfflineMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setOfflineMode(enabled)
+        }
+    }
+
+    fun setAutoDownloadOnLike(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoDownloadOnLike(enabled)
+        }
+    }
+}

@@ -16,6 +16,7 @@ import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.social.FriendActivityItem
 import com.viperplayer.domain.social.FriendActivityRepository
 import com.viperplayer.domain.social.FriendsRepository
@@ -88,11 +89,16 @@ class HomeViewModel @Inject constructor(
     friendActivityRepository: FriendActivityRepository,
     sharedPlaylistsRepository: SharedPlaylistsRepository,
     socialFeatures: SocialFeatures,
+    settingsRepository: SettingsRepository,
     private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    /** Whether offline mode is on, so Home can surface an unobtrusive "Offline" banner. */
+    val offlineMode: StateFlow<Boolean> = settingsRepository.offlineMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     // The currently-playing track + play state, so home item cards can show the now-playing indicator.
     val currentSong: StateFlow<Song?> = playerRepository.currentSong

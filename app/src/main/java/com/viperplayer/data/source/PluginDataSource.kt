@@ -366,9 +366,23 @@ class PluginDataSource @Inject constructor(
             ?: throw PluginException(PluginErrorCode.INTERNAL, "Couldn't connect to $name")
     }
 
-    private suspend fun source(pluginId: String): SourceClient =
-        awaitPlugin(pluginId).client.source
+    /**
+     * Resolve the source client for [pluginId], first enforcing user-toggled **offline mode**: when the
+     * setting is on and [pluginId] is a REMOTE plugin (anything but the embedded local library), the
+     * call is rejected with a typed [PluginException] ([PluginErrorCode.NETWORK]) BEFORE any binder
+     * round-trip — so every read op that funnels through here (search/browse/home/library/detail) fails
+     * gracefully into its `runCatching` wrapper as `Result.failure` instead of hitting the network. The
+     * on-device local library is never gated (it's inherently offline). Stream resolution passes
+     * [allowOffline] = true so already-downloaded content can still be played offline; a truly
+     * remote-only track then fails at the network layer rather than being pre-empted here.
+     */
+    private suspend fun source(pluginId: String, allowOffline: Boolean = false): SourceClient {
+        if (shouldBlockForOffline(pluginId, settingsRepository.offlineMode.first(), allowOffline)) {
+            throw PluginException(PluginErrorCode.NETWORK, "Offline mode is on")
+        }
+        return awaitPlugin(pluginId).client.source
             ?: throw PluginException(PluginErrorCode.UNSUPPORTED, "Plugin is not a source: $pluginId")
+    }
 
     suspend fun search(
         pluginId: String,
@@ -382,6 +396,11 @@ class PluginDataSource @Inject constructor(
     }.onFailure { Timber.e(it, "search failed for $pluginId") }
 
     fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestions>>> = channelFlow {
+        // Offline mode: suggestions are a remote fetch — emit nothing rather than reaching out.
+        if (settingsRepository.offlineMode.first()) {
+            trySend(emptyList())
+            return@channelFlow
+        }
         val results = mutableListOf<Result<SearchSuggestions>>()
         _connectedPlugins.value.forEach { (pluginId, plugin) ->
             val sourceClient = plugin.client.source ?: return@forEach
@@ -442,32 +461,35 @@ class PluginDataSource @Inject constructor(
         return if (source.capabilities.libraryWrite) WriteCapability.SUPPORTED else WriteCapability.UNSUPPORTED
     }
 
+    // Write/push ops pass allowOffline = true: the library-sync push outbox owns its own
+    // queue-and-retry, so offline mode must not pre-empt it here (its calls fail on the real network
+    // and are retried by the outbox as before, rather than being suppressed by the offline gate).
     override suspend fun setLiked(pluginId: String, trackId: String, liked: Boolean): Result<Unit> =
-        runCatching { source(pluginId).setLiked(trackId, liked) }
+        runCatching { source(pluginId, allowOffline = true).setLiked(trackId, liked) }
             .onFailure { Timber.e(it, "setLiked failed for $pluginId/$trackId") }
 
     override suspend fun setFollowed(pluginId: String, artistId: String, followed: Boolean): Result<Unit> =
-        runCatching { source(pluginId).setFollowed(artistId, followed) }
+        runCatching { source(pluginId, allowOffline = true).setFollowed(artistId, followed) }
             .onFailure { Timber.e(it, "setFollowed failed for $pluginId/$artistId") }
 
     override suspend fun createPlaylist(pluginId: String, name: String): Result<String> =
-        runCatching { source(pluginId).createPlaylist(name) }
+        runCatching { source(pluginId, allowOffline = true).createPlaylist(name) }
             .onFailure { Timber.e(it, "createPlaylist failed for $pluginId") }
 
     override suspend fun renamePlaylist(pluginId: String, playlistId: String, name: String): Result<Unit> =
-        runCatching { source(pluginId).renamePlaylist(playlistId, name) }
+        runCatching { source(pluginId, allowOffline = true).renamePlaylist(playlistId, name) }
             .onFailure { Timber.e(it, "renamePlaylist failed for $pluginId/$playlistId") }
 
     override suspend fun deletePlaylist(pluginId: String, playlistId: String): Result<Unit> =
-        runCatching { source(pluginId).deletePlaylist(playlistId) }
+        runCatching { source(pluginId, allowOffline = true).deletePlaylist(playlistId) }
             .onFailure { Timber.e(it, "deletePlaylist failed for $pluginId/$playlistId") }
 
     override suspend fun addTrackToPlaylist(pluginId: String, playlistId: String, trackId: String): Result<Unit> =
-        runCatching { source(pluginId).addTrackToPlaylist(playlistId, trackId) }
+        runCatching { source(pluginId, allowOffline = true).addTrackToPlaylist(playlistId, trackId) }
             .onFailure { Timber.e(it, "addTrackToPlaylist failed for $pluginId/$playlistId") }
 
     override suspend fun removeTrackFromPlaylist(pluginId: String, playlistId: String, trackId: String): Result<Unit> =
-        runCatching { source(pluginId).removeTrackFromPlaylist(playlistId, trackId) }
+        runCatching { source(pluginId, allowOffline = true).removeTrackFromPlaylist(playlistId, trackId) }
             .onFailure { Timber.e(it, "removeTrackFromPlaylist failed for $pluginId/$playlistId") }
 
     /**
@@ -483,7 +505,9 @@ class PluginDataSource @Inject constructor(
      */
     override suspend fun likedTrackIds(pluginId: String, limit: Int): RemoteSet? =
         runCatching {
-            val page = source(pluginId).getLibrarySongs(PageRequest(null, limit))
+            // allowOffline = true: this is a push-sync reconciliation read owned by the outbox, not a
+            // user-facing browse — the offline gate must not suppress it (see write-op note above).
+            val page = source(pluginId, allowOffline = true).getLibrarySongs(PageRequest(null, limit))
             // Complete only if there's no next page — otherwise an absent id is inconclusive.
             RemoteSet(page.items.map { it.id }.toSet(), complete = page.nextCursor == null)
         }.getOrNull()
@@ -500,7 +524,8 @@ class PluginDataSource @Inject constructor(
      */
     override suspend fun followedArtistIds(pluginId: String, limit: Int): RemoteSet? =
         runCatching {
-            val page = source(pluginId).getLibraryArtists(PageRequest(null, limit))
+            // allowOffline = true: push-sync reconciliation read (see likedTrackIds), not gated offline.
+            val page = source(pluginId, allowOffline = true).getLibraryArtists(PageRequest(null, limit))
             RemoteSet(page.items.map { it.id }.toSet(), complete = page.nextCursor == null)
         }.getOrNull()
 
@@ -577,7 +602,9 @@ class PluginDataSource @Inject constructor(
     suspend fun getStream(mediaId: MediaId, isVideo: Boolean): Result<ResolvedStream> = runCatching {
         val type = if (isVideo) MediaType.VIDEO else MediaType.SONG
         val maxBitrateKbps = maxBitrateKbpsFor(settingsRepository.audioQuality.first())
-        source(mediaId.routingPluginId).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
+        // allowOffline: don't pre-empt stream resolution in offline mode — a downloaded/cached track may
+        // still resolve, and a remote-only track fails at the network layer (graceful) rather than here.
+        source(mediaId.routingPluginId, allowOffline = true).resolveStream(mediaId.sourceId, type, maxBitrateKbps)
     }.onFailure {
         Timber.e(it, "getStream failed for $mediaId")
         // Playback-time auth failures usually mean the plugin now has a pending action to show;

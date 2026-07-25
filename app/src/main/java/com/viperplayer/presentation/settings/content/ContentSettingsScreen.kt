@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.Explicit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -19,10 +21,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -65,48 +67,88 @@ fun ContentSettingsScreen(
                 SettingsCategory(stringResource(R.string.content_category_filters))
             }
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-                ) {
-                    ListItem(
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Explicit,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.content_show_explicit),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = stringResource(R.string.content_show_explicit_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = uiState.showExplicitContent,
-                                onCheckedChange = viewModel::setShowExplicitContent
-                            )
-                        },
-                        colors = ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        )
-                    )
-                }
+                SettingsSwitchRow(
+                    icon = Icons.Default.Explicit,
+                    title = stringResource(R.string.content_show_explicit),
+                    description = stringResource(R.string.content_show_explicit_desc),
+                    checked = uiState.showExplicitContent,
+                    onCheckedChange = viewModel::setShowExplicitContent
+                )
+            }
+
+            item {
+                SettingsCategory(stringResource(R.string.content_category_offline))
+            }
+            item {
+                SettingsSwitchRow(
+                    icon = Icons.Default.CloudOff,
+                    title = stringResource(R.string.content_offline_mode),
+                    description = stringResource(R.string.content_offline_mode_desc),
+                    checked = uiState.offlineMode,
+                    onCheckedChange = viewModel::setOfflineMode
+                )
+            }
+            item {
+                SettingsSwitchRow(
+                    icon = Icons.Default.Downloading,
+                    title = stringResource(R.string.content_auto_download_on_like),
+                    description = stringResource(R.string.content_auto_download_on_like_desc),
+                    checked = uiState.autoDownloadOnLike,
+                    onCheckedChange = viewModel::setAutoDownloadOnLike
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        ListItem(
+            leadingContent = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            headlineContent = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange
+                )
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        )
     }
 }
 
@@ -124,4 +166,3 @@ private fun SettingsCategory(
             .padding(horizontal = 16.dp, vertical = 12.dp)
     )
 }
-

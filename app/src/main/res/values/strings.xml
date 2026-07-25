@@ -512,6 +512,14 @@
     <string name="content_category_filters">Content Filters</string>
     <string name="content_show_explicit">Show Explicit Content</string>
     <string name="content_show_explicit_desc">Display songs marked as explicit</string>
+    <string name="content_category_offline">Offline</string>
+    <string name="content_offline_mode">Offline mode</string>
+    <string name="content_offline_mode_desc">Hide online content and browse only local and downloaded songs</string>
+    <string name="content_auto_download_on_like">Auto-download liked songs</string>
+    <string name="content_auto_download_on_like_desc">Download a song for offline playback when you like it</string>
+
+    <!-- Offline mode banner (Home / Search) -->
+    <string name="offline_banner_message">Offline mode is on — showing local and downloaded music only</string>
 
     <!-- About settings -->
     <string name="about_category_app_info">App Information</string>

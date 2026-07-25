@@ -33,6 +33,8 @@ import com.viperplayer.data.local.mapper.EntityMapper.toRef
 import com.viperplayer.data.local.mapper.entityPluginId
 import com.viperplayer.data.local.mapper.idType
 import com.viperplayer.data.local.mapper.mediaIdFromColumns
+import com.viperplayer.data.download.AutoDownloader
+import com.viperplayer.data.download.shouldAutoDownloadOnLike
 import com.viperplayer.data.playlist.M3uSerializer
 import com.viperplayer.data.playlist.PlaylistOrdering
 import com.viperplayer.data.resources.StringProvider
@@ -55,6 +57,8 @@ import com.viperplayer.domain.model.StatsSummary
 import com.viperplayer.domain.repository.M3uImportResult
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
+import dagger.Lazy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -91,6 +95,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     private val localMediaDataSource: LocalMediaDataSource,
     private val libraryPushOutbox: LibraryPushOutbox,
     private val stringProvider: StringProvider,
+    private val settingsRepository: SettingsRepository,
+    // Lazy breaks the Hilt cycle: the DownloadManager backing AutoDownloader depends on
+    // MediaLibraryRepository, so we can't hold an eager instance here. Only touched when
+    // auto-download-on-like actually fires.
+    private val autoDownloader: Lazy<AutoDownloader>,
 ) : MediaLibraryRepository {
 
     // Scope for fire-and-forget background work (e.g. artwork caching) that must not block callers
@@ -750,6 +759,14 @@ class MediaLibraryRepositoryImpl @Inject constructor(
                     localPath?.let {
                         songDao.updateLocalArtworkPath(mediaId, it)
                     }
+                }
+
+                // Auto-download on like: when enabled, enqueue the just-liked track for offline
+                // download if its source is downloadable (a remote plugin, not already downloaded).
+                // Un-liking never deletes a download (this only runs on the isLiked branch), and
+                // DownloadManager.enqueue additionally ignores an already in-flight re-enqueue.
+                if (shouldAutoDownloadOnLike(song, settingsRepository.autoDownloadOnLike.first())) {
+                    autoDownloader.get().enqueue(song!!)
                 }
             } else {
                 // Optionally delete artwork when unliked (or keep it for offline access)

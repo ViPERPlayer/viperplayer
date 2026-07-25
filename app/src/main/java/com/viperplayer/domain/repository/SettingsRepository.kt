@@ -197,6 +197,22 @@ interface SettingsRepository {
     val showExplicitContent: Flow<Boolean>
     suspend fun setShowExplicitContent(enabled: Boolean)
 
+    /**
+     * Offline mode: when on, remote plugin fetches (browse/search/home/stream resolution) are gated at
+     * the plugin boundary so the app degrades gracefully to on-device (local + downloaded) content
+     * instead of hitting the network. Does not suppress background queues (scrobble/library-sync outbox).
+     * Default off.
+     */
+    val offlineMode: Flow<Boolean>
+    suspend fun setOfflineMode(enabled: Boolean)
+
+    /**
+     * Auto-download a track when it is liked, if its source is downloadable (not the local plugin and
+     * not already downloaded). Un-liking never deletes the download. Default off.
+     */
+    val autoDownloadOnLike: Flow<Boolean>
+    suspend fun setAutoDownloadOnLike(enabled: Boolean)
+
     // Storage (settings only - cache operations are in CacheRepository)
     val maxSongCacheSize: Flow<Long> // In bytes
     suspend fun setMaxSongCacheSize(size: Long)
