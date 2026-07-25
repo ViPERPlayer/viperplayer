@@ -146,6 +146,7 @@ import com.viperplayer.R
 import com.viperplayer.data.player.SleepTimerMode
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
+import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.isNavigable
@@ -248,28 +249,29 @@ fun PlayerScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Full-bleed artwork pager over the queue (also the seed for the dynamic theme). Isolated into
-        // its own composable reading only song/queue/swipeSettings so no transport toggle repaints it.
-        PlayerArtworkPager(
-            song = song,
-            queue = queue,
-            swipeSettings = swipeSettings,
-            onPlayFromQueue = viewModel::playFromQueue,
-        )
-
-        // Top + bottom scrims (stateless, no dynamic reads).
-        PlayerScrims()
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(contentWindowInsets)
-        ) {
-            // Grab handle: a downward drag (or tap) collapses the player back to the mini-player.
-            DragToDismissHandle(onDismiss = onCollapse)
-
-            // Top bar: collapse · context chip · overflow. The context chip reads its own flow.
+    // The whole visible chrome is a STATELESS [PlayerContent]: it takes narrow immutable values
+    // (song/queue/lyrics/swipe settings), position PROVIDERS (`() -> Long`), stable callbacks, and SLOT
+    // composables for the dynamic controls — never the ViewModel directly in the hot path. Each dynamic
+    // control is a thin `Connected*` wrapper that collects ONLY its own StateFlow, so a control change
+    // wakes just that wrapper's leaf. Because [PlayerContent] itself reads no per-action state, a
+    // top-level recompose (song change / sheet toggle) never cascades into the siblings.
+    PlayerContent(
+        song = song,
+        queue = queue,
+        lyrics = lyrics,
+        swipeSettings = swipeSettings,
+        position = { currentPosition },
+        bufferedPosition = { bufferedPosition },
+        contentWindowInsets = contentWindowInsets,
+        onPlayFromQueue = viewModel::playFromQueue,
+        onOpenLyrics = { showLyrics = true },
+        onOpenListenTogether = { showListenTogether = true },
+        onOpenQueue = { showQueueBottomSheet = true },
+        onNavigateToArtist = onNavigateToArtist,
+        onCollapse = onCollapse,
+        topBar = { modifier ->
+            // The top bar keeps a ViewModel reference (overflow-menu actions + toasts) but sits outside
+            // the hot path; it stays skippable thanks to @Stable PlayerViewModel.
             PlayerTopBar(
                 song = song,
                 viewModel = viewModel,
@@ -281,50 +283,20 @@ fun PlayerScreen(
                 onCollapse = onCollapse,
                 onShowSpeedDialog = { showSpeedDialog = true },
                 onShowSleepTimerDialog = { showSleepTimerDialog = true },
+                modifier = modifier,
             )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Bottom cluster
-            Column(modifier = Modifier.padding(horizontal = 26.dp, vertical = 26.dp)) {
-                // Current lyric line — only when the track actually has lyrics. Its own scope: a 60fps
-                // position tick only recomposes the line when the *line text* changes (derivedStateOf).
-                lyrics?.let { lyricsData ->
-                    LyricLine(
-                        lyrics = lyricsData,
-                        positionMs = { currentPosition },
-                        onClick = { showLyrics = true },
-                        modifier = Modifier.padding(bottom = 18.dp)
-                    )
-                }
-
-                // Title + artist/album + like. AnimatedContent(song) recomposes only on a song change;
-                // the like button reads its own isLiked flow.
-                PlayerTrackInfo(
-                    song = song,
-                    viewModel = viewModel,
-                    onNavigateToArtist = onNavigateToArtist,
-                )
-
-                // Listen-together (synced playback) indicator + the dimmed/inert-for-follower transport
-                // cluster and seek bar. Reads sessionState here so a session change only recomposes this
-                // wrapper (not the artwork/top bar/output bar).
-                PlayerTransport(
-                    viewModel = viewModel,
-                    position = { currentPosition },
-                    bufferedPosition = { bufferedPosition },
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Output + queue bar (no dynamic playback reads).
-                PlayerOutputQueueBar(
-                    onOpenListenTogether = { showListenTogether = true },
-                    onOpenQueue = { showQueueBottomSheet = true },
-                )
-            }
-        }
-    }
+        },
+        likeButton = { ConnectedLikeButton(viewModel = viewModel) },
+        transport = { pos, buffered ->
+            // The follower-aware seek bar + transport cluster + listen-together indicator. Collects only
+            // session/shuffle/repeat/isPlaying/duration internally, each in its own leaf.
+            PlayerTransport(
+                viewModel = viewModel,
+                position = pos,
+                bufferedPosition = buffered,
+            )
+        },
+    )
 
     if (showDetailsBottomSheet) {
         ModalBottomSheet(
@@ -428,6 +400,101 @@ fun PlayerScreen(
 // its own StateFlow, mirroring the existing ConnectedLikeButton). Toggling shuffle / repeat / play-
 // pause / the context therefore recomposes ONLY that control.
 // ---------------------------------------------------------------------------------------------------
+
+/**
+ * The **stateless** visible player chrome: artwork pager, scrims, top bar, lyric line, track info,
+ * transport, and output/queue bar. It takes only immutable values ([song] / [queue] / [lyrics] /
+ * [swipeSettings]), position PROVIDERS ([position] / [bufferedPosition], read only inside the seek bar
+ * and lyric line), stable callbacks, and SLOT composables for the dynamic regions ([topBar] — which
+ * hosts the context chip — [likeButton], and [transport]).
+ *
+ * Because this function reads NO per-action playback state itself, a recomposition of the host
+ * [PlayerScreen] (on a song change or a sheet toggle) can't cascade into these siblings, and — since
+ * each slot is a `Connected*` wrapper that collects only its own flow — a like / shuffle / repeat /
+ * play-pause / seek wakes just that one leaf. This is also the seam the full-tree recomposition test
+ * drives, feeding the real leaves fake state to prove no cascade.
+ */
+@Composable
+internal fun PlayerContent(
+    song: Song,
+    queue: List<Song>,
+    lyrics: Lyrics?,
+    swipeSettings: SwipeSettings,
+    position: () -> Long,
+    bufferedPosition: () -> Long,
+    contentWindowInsets: WindowInsets,
+    onPlayFromQueue: (Int) -> Unit,
+    onOpenLyrics: () -> Unit,
+    onOpenListenTogether: () -> Unit,
+    onOpenQueue: () -> Unit,
+    onNavigateToArtist: (Artist) -> Unit,
+    onCollapse: () -> Unit,
+    topBar: @Composable (Modifier) -> Unit,
+    likeButton: @Composable () -> Unit,
+    transport: @Composable (position: () -> Long, bufferedPosition: () -> Long) -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Full-bleed artwork pager over the queue (also the seed for the dynamic theme). Isolated into
+        // its own composable reading only song/queue/swipeSettings so no transport toggle repaints it.
+        PlayerArtworkPager(
+            song = song,
+            queue = queue,
+            swipeSettings = swipeSettings,
+            onPlayFromQueue = onPlayFromQueue,
+        )
+
+        // Top + bottom scrims (stateless, no dynamic reads).
+        PlayerScrims()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(contentWindowInsets)
+        ) {
+            // Grab handle: a downward drag (or tap) collapses the player back to the mini-player.
+            DragToDismissHandle(onDismiss = onCollapse)
+
+            // Top bar slot: collapse · context chip · overflow (fills its own context-chip slot).
+            topBar(Modifier)
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Bottom cluster
+            Column(modifier = Modifier.padding(horizontal = 26.dp, vertical = 26.dp)) {
+                // Current lyric line — only when the track actually has lyrics. Its own scope: a 60fps
+                // position tick only recomposes the line when the *line text* changes (derivedStateOf).
+                lyrics?.let { lyricsData ->
+                    LyricLine(
+                        lyrics = lyricsData,
+                        positionMs = position,
+                        onClick = onOpenLyrics,
+                        modifier = Modifier.padding(bottom = 18.dp)
+                    )
+                }
+
+                // Title + artist/album + like. AnimatedContent(song) recomposes only on a song change;
+                // the like button slot reads its own isLiked flow.
+                PlayerTrackInfo(
+                    song = song,
+                    onNavigateToArtist = onNavigateToArtist,
+                    likeButton = likeButton,
+                )
+
+                // Listen-together indicator + the dimmed/inert-for-follower transport cluster and seek
+                // bar. The slot reads sessionState so a session change only recomposes that wrapper.
+                transport(position, bufferedPosition)
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Output + queue bar (no dynamic playback reads).
+                PlayerOutputQueueBar(
+                    onOpenListenTogether = onOpenListenTogether,
+                    onOpenQueue = onOpenQueue,
+                )
+            }
+        }
+    }
+}
 
 /**
  * Full-bleed artwork [HorizontalPager] over the queue: swipe to preview/switch tracks. Falls back to
@@ -559,6 +626,7 @@ private fun PlayerTopBar(
     onCollapse: () -> Unit,
     onShowSpeedDialog: () -> Unit,
     onShowSleepTimerDialog: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -568,7 +636,7 @@ private fun PlayerTopBar(
     val songRadioName = stringResource(R.string.action_song_radio)
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(start = 8.dp, end = 8.dp, top = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -702,15 +770,15 @@ private fun PlayerTopBar(
 }
 
 /**
- * Title (marquee) + [ArtistAlbumSubtitle] + [ConnectedLikeButton]. The title/subtitle change only on a
- * song change (AnimatedContent target); the like button reads its own isLiked flow, so tapping like
- * recomposes ONLY the button.
+ * Title (marquee) + [ArtistAlbumSubtitle] + like-button slot. Stateless: the title/subtitle change only
+ * on a song change (AnimatedContent target); the [likeButton] slot (a `ConnectedLikeButton` in
+ * production) reads its own isLiked flow, so tapping like recomposes ONLY the button — never the title.
  */
 @Composable
 private fun PlayerTrackInfo(
     song: Song,
-    viewModel: PlayerViewModel,
     onNavigateToArtist: (Artist) -> Unit,
+    likeButton: @Composable () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -743,7 +811,7 @@ private fun PlayerTrackInfo(
                 )
             }
         }
-        ConnectedLikeButton(viewModel = viewModel)
+        likeButton()
     }
 }
 

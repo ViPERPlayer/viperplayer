@@ -1,5 +1,6 @@
 package com.viperplayer.presentation.player
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.data.download.DownloadManager
@@ -48,6 +49,15 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
 
+/**
+ * [Stable] because every public member is either a read-only [StateFlow] `val` (an observable whose
+ * *identity* never changes for the lifetime of the ViewModel) or a method — the Compose compiler can
+ * therefore treat a `PlayerViewModel` parameter as stable and skip a composable whose only changed
+ * input is an unrelated sibling's state. The visible transport leaves don't take the ViewModel at all
+ * (they take narrow immutable values + stable callbacks); this annotation only covers the few wrappers
+ * that still hold a reference (top bar overflow, sheets, dialogs), keeping them skippable too.
+ */
+@Stable
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
