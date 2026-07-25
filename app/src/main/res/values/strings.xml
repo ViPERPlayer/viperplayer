@@ -152,6 +152,10 @@
     <string name="library_customize_tabs_show">Show %1$s</string>
     <string name="library_customize_tabs_hide">Hide %1$s</string>
     <string name="library_search">Search</string>
+    <string name="library_search_hint">Filter this list</string>
+    <string name="library_search_clear">Clear filter</string>
+    <string name="library_search_close">Close filter</string>
+    <string name="library_search_no_results">No matches for \"%1$s\"</string>
     <string name="library_more_options">More options</string>
     <string name="library_liked">Liked</string>
     <string name="library_empty_songs">No songs in your library</string>
@@ -721,6 +725,8 @@
     <!-- Sleep timer -->
     <string name="sleep_timer_off">Off</string>
     <string name="sleep_timer_minutes">%1$d minutes</string>
+    <string name="sleep_timer_end_of_track">End of current track</string>
+    <string name="sleep_timer_fade_out">Fade out before pausing</string>
 
     <!-- Song info -->
     <string name="song_info_title">Song info</string>

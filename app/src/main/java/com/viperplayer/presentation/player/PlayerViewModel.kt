@@ -7,6 +7,7 @@ import com.viperplayer.data.lyrics.IcuTransliterator
 import com.viperplayer.data.lyrics.LyricsRomanizer
 import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
+import com.viperplayer.data.player.SleepTimerMode
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.domain.model.MediaId
@@ -440,8 +441,15 @@ class PlayerViewModel @Inject constructor(
 
     // --- Overflow-menu actions ---
 
-    /** Currently-armed sleep timer duration in minutes, or null when off. */
+    /** Currently-armed sleep timer duration in minutes, or null when off / in end-of-track mode. */
     val sleepTimerMinutes: StateFlow<Int?> = sleepTimerManager.activeMinutes
+
+    /** The armed sleep-timer mode (off / minutes / end-of-track), so the picker can tick the choice. */
+    val sleepTimerMode: StateFlow<SleepTimerMode> = sleepTimerManager.mode
+
+    /** Whether the sleep timer fades the volume out before pausing. Persisted via SettingsRepository. */
+    val sleepTimerFadeOut: StateFlow<Boolean> = settingsRepository.sleepTimerFadeOut
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /** Playback speed (tempo) and pitch, adjustable independently. */
     val playbackSpeed: StateFlow<Float> = playerRepository.playbackSpeed
@@ -486,8 +494,19 @@ class PlayerViewModel @Inject constructor(
         return true
     }
 
-    /** Arm (or, with a non-positive value, cancel) the sleep timer. */
+    /** Arm (or, with a non-positive value, cancel) the sleep timer for a fixed number of minutes. */
     fun setSleepTimer(minutes: Int) = sleepTimerManager.schedule(minutes)
+
+    /** Arm the sleep timer to pause when the current track finishes. */
+    fun setSleepTimerEndOfTrack() = sleepTimerManager.scheduleEndOfCurrentTrack()
+
+    /** Cancel any armed sleep timer. */
+    fun cancelSleepTimer() = sleepTimerManager.cancel()
+
+    /** Persist whether the sleep timer should fade the volume out before it pauses. */
+    fun setSleepTimerFadeOut(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setSleepTimerFadeOut(enabled) }
+    }
 }
 
 /**

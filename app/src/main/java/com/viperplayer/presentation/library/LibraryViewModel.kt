@@ -126,6 +126,15 @@ data class LibraryUiState(
     val albumsSort: SortOrder = SortOrder.DEFAULT,
     val artistsSort: SortOrder = SortOrder.DEFAULT,
     val playlistsSort: SortOrder = SortOrder.DEFAULT,
+    /**
+     * The in-place library filter query, driven by the expandable toolbar search field. Blank (the
+     * default) means the filter is off and each tab shows its full, sorted list. When non-blank, the
+     * currently-visible lists are narrowed by [LibraryFilter] (case-insensitive substring over the
+     * display name/title; songs also match the artist name) while keeping the active sort applied.
+     * This is a purely on-device narrowing of the CURRENT tab — reaching the global Search screen is a
+     * separate affordance.
+     */
+    val searchQuery: String = "",
     val error: String? = null
 )
 
@@ -171,6 +180,7 @@ class LibraryViewModel @Inject constructor(
     private var rawAlbums: List<Album> = emptyList()
     private var rawArtists: List<Artist> = emptyList()
     private var rawPlaylists: List<Playlist> = emptyList()
+    private var rawGenres: List<Genre> = emptyList()
 
     // Newest-first listening history (the recency signal for the unified feed). Kept up to date by a
     // perpetual observer so the unified order tracks new plays without a reload.
@@ -256,15 +266,48 @@ class LibraryViewModel @Inject constructor(
     /** Recompute the unified recency feed from the current raw lists + history and publish it. */
     private fun rebuildUnifiedFeed() {
         _uiState.update {
+            val feed = buildUnifiedRecencyFeed(
+                songs = rawSongs,
+                albums = rawAlbums,
+                artists = rawArtists,
+                playlists = rawPlaylists,
+                history = rawHistory,
+            )
             it.copy(
                 isLoading = false,
-                unified = buildUnifiedRecencyFeed(
-                    songs = rawSongs,
-                    albums = rawAlbums,
-                    artists = rawArtists,
-                    playlists = rawPlaylists,
-                    history = rawHistory,
-                )
+                unified = LibraryFilter.unified(feed, it.searchQuery)
+            )
+        }
+    }
+
+    /**
+     * Update the in-place library filter [query] and re-derive the currently-visible lists from the
+     * raw (unfiltered) lists — sort first, then filter — so the narrowing composes with the active sort
+     * and an empty query restores the full list. All matching lives in [LibraryFilter] (MVVM: the
+     * composable only forwards the text); this is a purely local narrowing of the CURRENT tab, distinct
+     * from navigating to the global Search screen.
+     */
+    fun onSearchQueryChange(query: String) {
+        _uiState.update { state ->
+            state.copy(
+                searchQuery = query,
+                songs = LibraryFilter.songs(MediaSorter.sortSongs(rawSongs, currentSongsSort), query),
+                albums = LibraryFilter.albums(MediaSorter.sortAlbums(rawAlbums, currentAlbumsSort), query),
+                artists = LibraryFilter.artists(MediaSorter.sortArtists(rawArtists, currentArtistsSort), query),
+                playlists = LibraryFilter.playlists(
+                    MediaSorter.sortPlaylists(rawPlaylists, currentPlaylistsSort), query
+                ),
+                genres = LibraryFilter.genres(rawGenres, query),
+                unified = LibraryFilter.unified(
+                    buildUnifiedRecencyFeed(
+                        songs = rawSongs,
+                        albums = rawAlbums,
+                        artists = rawArtists,
+                        playlists = rawPlaylists,
+                        history = rawHistory,
+                    ),
+                    query
+                ),
             )
         }
     }
@@ -349,25 +392,47 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.sortOrder(SortView.LIBRARY_SONGS).collect { order ->
                 currentSongsSort = order
-                _uiState.update { it.copy(songsSort = order, songs = MediaSorter.sortSongs(rawSongs, order)) }
+                _uiState.update {
+                    it.copy(
+                        songsSort = order,
+                        songs = LibraryFilter.songs(MediaSorter.sortSongs(rawSongs, order), it.searchQuery)
+                    )
+                }
             }
         }
         viewModelScope.launch {
             settingsRepository.sortOrder(SortView.LIBRARY_ALBUMS).collect { order ->
                 currentAlbumsSort = order
-                _uiState.update { it.copy(albumsSort = order, albums = MediaSorter.sortAlbums(rawAlbums, order)) }
+                _uiState.update {
+                    it.copy(
+                        albumsSort = order,
+                        albums = LibraryFilter.albums(MediaSorter.sortAlbums(rawAlbums, order), it.searchQuery)
+                    )
+                }
             }
         }
         viewModelScope.launch {
             settingsRepository.sortOrder(SortView.LIBRARY_ARTISTS).collect { order ->
                 currentArtistsSort = order
-                _uiState.update { it.copy(artistsSort = order, artists = MediaSorter.sortArtists(rawArtists, order)) }
+                _uiState.update {
+                    it.copy(
+                        artistsSort = order,
+                        artists = LibraryFilter.artists(MediaSorter.sortArtists(rawArtists, order), it.searchQuery)
+                    )
+                }
             }
         }
         viewModelScope.launch {
             settingsRepository.sortOrder(SortView.LIBRARY_PLAYLISTS).collect { order ->
                 currentPlaylistsSort = order
-                _uiState.update { it.copy(playlistsSort = order, playlists = MediaSorter.sortPlaylists(rawPlaylists, order)) }
+                _uiState.update {
+                    it.copy(
+                        playlistsSort = order,
+                        playlists = LibraryFilter.playlists(
+                            MediaSorter.sortPlaylists(rawPlaylists, order), it.searchQuery
+                        )
+                    )
+                }
             }
         }
     }
@@ -469,7 +534,9 @@ class LibraryViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            songs = MediaSorter.sortSongs(songsWithPlayability, currentSongsSort)
+                            songs = LibraryFilter.songs(
+                                MediaSorter.sortSongs(songsWithPlayability, currentSongsSort), it.searchQuery
+                            )
                         )
                     }
                 }
@@ -492,7 +559,9 @@ class LibraryViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        albums = MediaSorter.sortAlbums(rawAlbums, currentAlbumsSort)
+                        albums = LibraryFilter.albums(
+                            MediaSorter.sortAlbums(rawAlbums, currentAlbumsSort), it.searchQuery
+                        )
                     )
                 }
             }
@@ -514,7 +583,9 @@ class LibraryViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        artists = MediaSorter.sortArtists(rawArtists, currentArtistsSort)
+                        artists = LibraryFilter.artists(
+                            MediaSorter.sortArtists(rawArtists, currentArtistsSort), it.searchQuery
+                        )
                     )
                 }
             }
@@ -553,7 +624,9 @@ class LibraryViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            playlists = MediaSorter.sortPlaylists(allPlaylists, currentPlaylistsSort)
+                            playlists = LibraryFilter.playlists(
+                                MediaSorter.sortPlaylists(allPlaylists, currentPlaylistsSort), it.searchQuery
+                            )
                         )
                     }
                 }
@@ -573,7 +646,10 @@ class LibraryViewModel @Inject constructor(
     private suspend fun loadGenres() {
         try {
             mediaLibraryRepository.getGenres().collect { genres ->
-                _uiState.update { it.copy(isLoading = false, genres = genres) }
+                rawGenres = genres
+                _uiState.update {
+                    it.copy(isLoading = false, genres = LibraryFilter.genres(genres, it.searchQuery))
+                }
             }
         } catch (e: CancellationException) {
             throw e

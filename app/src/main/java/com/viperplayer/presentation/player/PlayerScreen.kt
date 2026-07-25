@@ -95,6 +95,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.surfaceColorAtElevation
@@ -141,6 +142,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.R
+import com.viperplayer.data.player.SleepTimerMode
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
@@ -227,7 +229,8 @@ fun PlayerScreen(
     val downloadStartedMessage = stringResource(R.string.toast_download_started)
     val downloadUnavailableMessage = stringResource(R.string.toast_download_unavailable)
     val songRadioName = stringResource(R.string.action_song_radio)
-    val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
+    val sleepTimerMode by viewModel.sleepTimerMode.collectAsStateWithLifecycle()
+    val sleepTimerFadeOut by viewModel.sleepTimerFadeOut.collectAsStateWithLifecycle()
 
     val song = currentSong
     if (song == null) {
@@ -726,11 +729,21 @@ fun PlayerScreen(
 
     if (showSleepTimerDialog) {
         SleepTimerDialog(
-            activeMinutes = sleepTimerMinutes,
-            onSelect = {
+            mode = sleepTimerMode,
+            fadeOut = sleepTimerFadeOut,
+            onSelectMinutes = {
                 viewModel.setSleepTimer(it)
                 showSleepTimerDialog = false
             },
+            onSelectEndOfTrack = {
+                viewModel.setSleepTimerEndOfTrack()
+                showSleepTimerDialog = false
+            },
+            onCancel = {
+                viewModel.cancelSleepTimer()
+                showSleepTimerDialog = false
+            },
+            onFadeOutChange = { viewModel.setSleepTimerFadeOut(it) },
             onDismiss = { showSleepTimerDialog = false },
         )
     }
@@ -1548,39 +1561,65 @@ private fun DetailRow(
     }
 }
 
-/** Sleep-timer picker: choose a duration after which playback pauses (or turn it off). */
+/**
+ * Sleep-timer picker: choose "Off", a minute preset, or "End of current track" for when playback
+ * pauses, plus a fade-out toggle that ramps the volume down before the pause. The composable only
+ * renders [mode]/[fadeOut] and forwards the chosen action — arming and the fade live in the manager.
+ */
 @Composable
 private fun SleepTimerDialog(
-    activeMinutes: Int?,
-    onSelect: (Int) -> Unit,
+    mode: SleepTimerMode,
+    fadeOut: Boolean,
+    onSelectMinutes: (Int) -> Unit,
+    onSelectEndOfTrack: () -> Unit,
+    onCancel: () -> Unit,
+    onFadeOutChange: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val options = listOf(0, 15, 30, 45, 60)
+    val minuteOptions = listOf(15, 30, 45, 60)
+    val activeMinutes = (mode as? SleepTimerMode.Minutes)?.count
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.action_sleep_timer)) },
         text = {
             Column {
-                options.forEach { minutes ->
-                    val label = if (minutes == 0) {
-                        stringResource(R.string.sleep_timer_off)
-                    } else {
-                        stringResource(R.string.sleep_timer_minutes, minutes)
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelect(minutes) }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = (activeMinutes ?: 0) == minutes,
-                            onClick = { onSelect(minutes) },
-                        )
-                        Text(label, modifier = Modifier.padding(start = 8.dp))
-                    }
+                // Off
+                SleepTimerOptionRow(
+                    label = stringResource(R.string.sleep_timer_off),
+                    selected = mode is SleepTimerMode.Off,
+                    onClick = onCancel,
+                )
+                // Minute presets
+                minuteOptions.forEach { minutes ->
+                    SleepTimerOptionRow(
+                        label = stringResource(R.string.sleep_timer_minutes, minutes),
+                        selected = activeMinutes == minutes,
+                        onClick = { onSelectMinutes(minutes) },
+                    )
+                }
+                // End of current track
+                SleepTimerOptionRow(
+                    label = stringResource(R.string.sleep_timer_end_of_track),
+                    selected = mode is SleepTimerMode.EndOfTrack,
+                    onClick = onSelectEndOfTrack,
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Fade-out toggle (persisted): applies to whichever timer is armed.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onFadeOutChange(!fadeOut) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.sleep_timer_fade_out),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(checked = fadeOut, onCheckedChange = onFadeOutChange)
                 }
             }
         },
@@ -1588,6 +1627,26 @@ private fun SleepTimerDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         },
     )
+}
+
+/** A single selectable sleep-timer choice: a radio button + label in a tappable row. */
+@Composable
+private fun SleepTimerOptionRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(label, modifier = Modifier.padding(start = 8.dp))
+    }
 }
 
 /** Fire the Android system share sheet for a track. */

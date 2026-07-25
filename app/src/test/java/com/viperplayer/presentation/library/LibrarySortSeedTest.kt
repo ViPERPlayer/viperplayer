@@ -99,6 +99,8 @@ class LibrarySortSeedTest {
         override suspend fun setPauseWhenMuted(enabled: Boolean) = unused()
         override val resumeOnBluetooth: Flow<Boolean> get() = unused()
         override suspend fun setResumeOnBluetooth(enabled: Boolean) = unused()
+        override val sleepTimerFadeOut: Flow<Boolean> get() = unused()
+        override suspend fun setSleepTimerFadeOut(enabled: Boolean) = unused()
         override val preventDuplicateQueue: Flow<Boolean> get() = unused()
         override suspend fun setPreventDuplicateQueue(enabled: Boolean) = unused()
         override val blockScreenshots: Flow<Boolean> get() = unused()

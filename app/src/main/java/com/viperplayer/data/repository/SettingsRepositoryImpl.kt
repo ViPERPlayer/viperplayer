@@ -73,6 +73,7 @@ class SettingsRepositoryImpl(
         private val KEEP_SCREEN_ON_PLAYER_KEY = booleanPreferencesKey("keep_screen_on_player")
         private val PAUSE_WHEN_MUTED_KEY = booleanPreferencesKey("pause_when_muted")
         private val RESUME_ON_BLUETOOTH_KEY = booleanPreferencesKey("resume_on_bluetooth")
+        private val SLEEP_TIMER_FADE_OUT_KEY = booleanPreferencesKey("sleep_timer_fade_out")
         private val PREVENT_DUPLICATE_QUEUE_KEY = booleanPreferencesKey("prevent_duplicate_queue")
         private val BLOCK_SCREENSHOTS_KEY = booleanPreferencesKey("block_screenshots")
         private val REPLAY_GAIN_MODE_KEY = stringPreferencesKey("replay_gain_mode")
@@ -387,6 +388,16 @@ class SettingsRepositoryImpl(
     override suspend fun setResumeOnBluetooth(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[RESUME_ON_BLUETOOTH_KEY] = enabled
+        }
+    }
+
+    override val sleepTimerFadeOut: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[SLEEP_TIMER_FADE_OUT_KEY] ?: false // Default to disabled
+    }
+
+    override suspend fun setSleepTimerFadeOut(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SLEEP_TIMER_FADE_OUT_KEY] = enabled
         }
     }
 

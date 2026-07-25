@@ -264,6 +264,8 @@ open class UnsupportedSettingsRepository : SettingsRepository {
     override suspend fun setPauseWhenMuted(enabled: Boolean) = TODO()
     override val resumeOnBluetooth: Flow<Boolean> get() = TODO()
     override suspend fun setResumeOnBluetooth(enabled: Boolean) = TODO()
+    override val sleepTimerFadeOut: Flow<Boolean> get() = TODO()
+    override suspend fun setSleepTimerFadeOut(enabled: Boolean) = TODO()
     override val preventDuplicateQueue: Flow<Boolean> get() = TODO()
     override suspend fun setPreventDuplicateQueue(enabled: Boolean) = TODO()
     override val blockScreenshots: Flow<Boolean> get() = TODO()

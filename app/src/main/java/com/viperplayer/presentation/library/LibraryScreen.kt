@@ -37,6 +37,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
@@ -49,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -64,6 +67,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -200,7 +205,8 @@ fun LibraryScreen(
         ) {
             LibraryToolbar(
                 showImport = uiState.selectedTab == LibraryTab.PLAYLISTS,
-                onSearch = onNavigateToSearch,
+                searchQuery = uiState.searchQuery,
+                onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
                 onImport = {
                     importLauncher.launch(
                         arrayOf(
@@ -234,6 +240,12 @@ fun LibraryScreen(
                 ) {
                     LoadingIndicator()
                 }
+            } else if (uiState.searchQuery.isNotBlank() && isCurrentTabFilteredEmpty(uiState)) {
+                // The in-place filter matched nothing on the current tab — a distinct no-results state
+                // (not the "your library is empty" copy) so the user knows to broaden the query.
+                EmptyLibraryContent(
+                    stringResource(R.string.library_search_no_results, uiState.searchQuery)
+                )
             } else {
                 val listContentPadding = PaddingValues(top = 8.dp) + rootPadding.bottom()
                 when (uiState.selectedTab) {
@@ -414,6 +426,22 @@ fun LibraryScreen(
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
         AddToPlaylistSheetHost(controller = addToPlaylistController)
     }
+}
+
+/**
+ * True when the currently-selected tab's already-filtered list is empty. Read only to decide whether to
+ * show the "no results" state for a non-blank filter query; which list is relevant is a pure function of
+ * the selected tab, so this carries no data logic (the filtering itself happened in the ViewModel).
+ */
+private fun isCurrentTabFilteredEmpty(uiState: LibraryUiState): Boolean = when (uiState.selectedTab) {
+    null -> uiState.unified.isEmpty()
+    LibraryTab.SONGS -> uiState.songs.isEmpty()
+    LibraryTab.ALBUMS -> uiState.albums.isEmpty()
+    LibraryTab.ARTISTS -> uiState.artists.isEmpty()
+    LibraryTab.GENRES -> uiState.genres.isEmpty()
+    // Auto-playlists (Recently Added / Most Played …) aren't name-filtered, so only claim "no results"
+    // when both the filtered playlists and the auto section are empty.
+    LibraryTab.PLAYLISTS -> uiState.playlists.isEmpty() && uiState.autoPlaylists.isEmpty()
 }
 
 /**
@@ -950,18 +978,40 @@ private fun String.railLetter(): Char {
 }
 
 /**
- * The collapsed top toolbar: the "Library" title, a search affordance, and an overflow menu holding
- * the low-frequency actions (import playlist — only on the Playlists tab — plus Customize tabs and
- * Refresh). Frequently-used shortcuts (Liked/Downloads/Following) live in the pinned tiles instead.
+ * The collapsed top toolbar: the "Library" title, an in-place search affordance, and an overflow menu
+ * holding the low-frequency actions (import playlist — only on the Playlists tab — plus Customize tabs
+ * and Refresh). Frequently-used shortcuts (Liked/Downloads/Following) live in the pinned tiles instead.
+ *
+ * Tapping the search icon expands the title row into an inline filter field ([LibrarySearchField]) that
+ * narrows the CURRENT tab's on-device list via [onSearchQueryChange] — it does not leave Library. The
+ * global Search screen stays reachable from the bottom bar. The back/clear affordance empties the query
+ * and collapses back to the title. All filtering lives in the ViewModel; this only forwards the text.
  */
 @Composable
 private fun LibraryToolbar(
     showImport: Boolean,
-    onSearch: () -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onImport: () -> Unit,
     onCustomizeTabs: () -> Unit,
     onRefresh: () -> Unit,
 ) {
+    var searchActive by remember { mutableStateOf(false) }
+    // Keep the field open whenever there is a query (e.g. after a config change re-composes the row).
+    val expanded = searchActive || searchQuery.isNotEmpty()
+
+    if (expanded) {
+        LibrarySearchField(
+            query = searchQuery,
+            onQueryChange = onSearchQueryChange,
+            onClose = {
+                onSearchQueryChange("")
+                searchActive = false
+            },
+        )
+        return
+    }
+
     var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -976,7 +1026,7 @@ private fun LibraryToolbar(
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        IconButton(onClick = onSearch) {
+        IconButton(onClick = { searchActive = true }) {
             Icon(
                 imageVector = Icons.Rounded.Search,
                 contentDescription = stringResource(R.string.library_search),
@@ -1029,6 +1079,56 @@ private fun LibraryToolbar(
                 )
             }
         }
+    }
+}
+
+/**
+ * The inline library filter field the toolbar expands into. A back affordance closes it (clearing the
+ * query via [onClose]); a trailing clear button empties a non-blank query while keeping the field open.
+ * The field only forwards text to [onQueryChange]; the actual narrowing lives in the ViewModel. Auto-
+ * focuses on first show so the keyboard opens without a second tap.
+ */
+@Composable
+private fun LibrarySearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClose) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = stringResource(R.string.library_search_close),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
+            singleLine = true,
+            placeholder = { Text(stringResource(R.string.library_search_hint)) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.library_search_clear),
+                        )
+                    }
+                }
+            },
+        )
+        Spacer(modifier = Modifier.width(4.dp))
     }
 }
 

@@ -173,6 +173,10 @@ interface SettingsRepository {
     val resumeOnBluetooth: Flow<Boolean>
     suspend fun setResumeOnBluetooth(enabled: Boolean)
 
+    /** Fade the volume out over the last few seconds before the sleep timer pauses playback. Default off. */
+    val sleepTimerFadeOut: Flow<Boolean>
+    suspend fun setSleepTimerFadeOut(enabled: Boolean)
+
     /** Skip adding a track to the queue when the same MediaId is already queued. Default off. */
     val preventDuplicateQueue: Flow<Boolean>
     suspend fun setPreventDuplicateQueue(enabled: Boolean)
