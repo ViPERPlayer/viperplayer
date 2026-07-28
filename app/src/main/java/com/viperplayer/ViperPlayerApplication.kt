@@ -7,6 +7,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.Process
 import android.util.Log
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -35,9 +37,20 @@ import kotlin.system.exitProcess
 private const val TAG = "ViperPlayerApplication"
 
 @HiltAndroidApp
-class ViperPlayerApplication : Application(), SingletonImageLoader.Factory {
+class ViperPlayerApplication : Application(), SingletonImageLoader.Factory, Configuration.Provider {
     @Inject
     lateinit var settingsRepository: SettingsRepository
+
+    // WorkManager uses on-demand initialization (the default WorkManagerInitializer is removed in
+    // the manifest) so it takes this Hilt-supplied factory — required for @HiltWorker workers such as
+    // ClapModelDownloadWorker to receive their @Inject dependencies.
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     @Inject
     lateinit var mediaLibraryRepository: MediaLibraryRepository

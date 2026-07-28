@@ -200,6 +200,12 @@ dependencies {
     // Full package (ships prebuilt .so per ABI: arm64-v8a for devices, x86_64 for the emulator).
     implementation(libs.onnxruntime.android)
 
+    // WorkManager — the opt-in CLAP recommender-model download runs as a Wi-Fi-constrained worker;
+    // hilt-work lets the worker take @Inject dependencies via the app's HiltWorkerFactory.
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
     // Media3 / ExoPlayer
     implementation("androidx.media3:media3-exoplayer:1.10.0")
     implementation("androidx.media3:media3-exoplayer-dash:1.10.0")
@@ -243,6 +249,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.androidx.work.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

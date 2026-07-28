@@ -316,4 +316,6 @@ open class UnsupportedSettingsRepository : SettingsRepository {
     override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) = TODO()
     override val homeSignInCardDismissed: Flow<Boolean> get() = TODO()
     override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) = TODO()
+    override val recommendationsEnabled: Flow<Boolean> get() = TODO()
+    override suspend fun setRecommendationsEnabled(enabled: Boolean) = TODO()
 }

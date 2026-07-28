@@ -118,6 +118,9 @@ class SettingsRepositoryImpl(
 
         // Social (backend-gated UI)
         private val HOME_SIGN_IN_CARD_DISMISSED_KEY = booleanPreferencesKey("home_sign_in_card_dismissed")
+
+        // Recommendations (on-device, opt-in)
+        private val RECOMMENDATIONS_ENABLED_KEY = booleanPreferencesKey("recommendations_enabled")
     }
 
     /** map + distinctUntilChanged — DataStore emits the whole snapshot on any edit, so de-dupe each setting. */
@@ -666,6 +669,17 @@ class SettingsRepositoryImpl(
     override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) {
         dataStore.edit { preferences ->
             preferences[HOME_SIGN_IN_CARD_DISMISSED_KEY] = dismissed
+        }
+    }
+
+    // Recommendations (on-device, opt-in) — default OFF.
+    override val recommendationsEnabled: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[RECOMMENDATIONS_ENABLED_KEY] ?: false // Default: recommendations off (opt-in)
+    }
+
+    override suspend fun setRecommendationsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[RECOMMENDATIONS_ENABLED_KEY] = enabled
         }
     }
 

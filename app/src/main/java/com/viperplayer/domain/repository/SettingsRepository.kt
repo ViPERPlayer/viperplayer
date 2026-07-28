@@ -315,5 +315,14 @@ interface SettingsRepository {
      */
     val homeSignInCardDismissed: Flow<Boolean>
     suspend fun setHomeSignInCardDismissed(dismissed: Boolean)
+
+    // Recommendations (on-device, opt-in)
+    /**
+     * Whether audio-based smart recommendations are enabled. **Default OFF** — it downloads a large
+     * on-device model (Wi-Fi only) and analyzes the user's library, so it must be opted into. Enabling
+     * it triggers the CLAP model download; disabling cancels/removes it. Persists across restarts.
+     */
+    val recommendationsEnabled: Flow<Boolean>
+    suspend fun setRecommendationsEnabled(enabled: Boolean)
 }
 

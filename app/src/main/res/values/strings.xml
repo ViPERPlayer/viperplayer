@@ -527,6 +527,26 @@
     <string name="content_auto_download_on_like">Auto-download liked songs</string>
     <string name="content_auto_download_on_like_desc">Download a song for offline playback when you like it</string>
 
+    <!-- Smart (audio-based) recommendations -->
+    <string name="content_category_recommendations">Recommendations</string>
+    <string name="content_smart_recommendations">Smart recommendations</string>
+    <string name="content_smart_recommendations_desc">Analyze your music on your device to suggest similar songs. Downloads a model over Wi-Fi; nothing about your listening leaves your phone.</string>
+    <!-- Status lines shown under the toggle -->
+    <string name="rec_status_off">Off</string>
+    <string name="rec_status_ready">Ready</string>
+    <string name="rec_status_waiting_wifi">Waiting for Wi-Fi to download the model…</string>
+    <string name="rec_status_downloading">Downloading model… %1$d%%</string>
+    <string name="rec_status_downloading_indeterminate">Downloading model…</string>
+    <string name="rec_status_update_available">A newer model is available</string>
+    <string name="rec_status_app_outdated">Update the app to use the latest recommendation model</string>
+    <!-- Failure reasons -->
+    <string name="rec_error_backend_not_configured">Recommendations are not available in this build</string>
+    <string name="rec_error_manifest_unavailable">Couldn\'t reach the model server. Check your connection and try again.</string>
+    <string name="rec_error_checksum">The downloaded model was corrupted. Try again.</string>
+    <string name="rec_error_network">Download failed. Check your connection and try again.</string>
+    <string name="rec_error_needs_wifi">Connect to Wi-Fi to download the model</string>
+    <string name="rec_action_retry">Retry</string>
+
     <!-- Offline mode banner (Home / Search) -->
     <string name="offline_banner_message">Offline mode is on — showing local and downloaded music only</string>
 
