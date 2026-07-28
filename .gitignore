@@ -14,3 +14,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# CLAP audio-tower ONNX models are large (73MB int8 / 277MB fp32) and are NOT committed. Drop them
+# in locally to run the full embedding-parity androidTest (see RECSYS_TESTING.md).
+*.onnx

@@ -38,6 +38,16 @@ suspend fun SongDao.updateLocalArtworkPath(id: MediaId, localArtworkPath: String
 suspend fun SongDao.incrementPlayCount(id: MediaId) =
     incrementPlayCount(id.idType, id.entityPluginId, id.sourceId)
 
+suspend fun SongDao.setEmbedding(
+    id: MediaId,
+    embedding: ByteArray?,
+    modelVersion: String?,
+    computedAtMs: Long?
+) = setEmbedding(id.idType, id.entityPluginId, id.sourceId, embedding, modelVersion, computedAtMs)
+
+suspend fun SongDao.getEmbedding(id: MediaId): ByteArray? =
+    getEmbedding(id.idType, id.entityPluginId, id.sourceId)
+
 suspend fun SongDao.delete(id: MediaId) =
     delete(id.idType, id.entityPluginId, id.sourceId)
 

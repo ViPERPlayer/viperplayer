@@ -105,6 +105,13 @@ android {
         prefab = true
     }
 
+    // ONNX Runtime memory-maps the CLAP audio-tower model and the parity test reads raw float32
+    // golden vectors; AAPT compression would bloat install size and slow first load. Keep both
+    // uncompressed. (Also applies to any *.onnx model shipped under the app's own assets later.)
+    androidResources {
+        noCompress += listOf("onnx", "bin")
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -188,6 +195,10 @@ dependencies {
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
+
+    // ONNX Runtime — on-device CLAP audio-embedding runtime (mel front-end -> 512-d embedding).
+    // Full package (ships prebuilt .so per ABI: arm64-v8a for devices, x86_64 for the emulator).
+    implementation(libs.onnxruntime.android)
 
     // Media3 / ExoPlayer
     implementation("androidx.media3:media3-exoplayer:1.10.0")

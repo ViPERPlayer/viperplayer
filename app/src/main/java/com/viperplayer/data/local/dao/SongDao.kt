@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.viperplayer.data.local.entity.SongEntity
+import com.viperplayer.data.local.entity.relation.SongEmbeddingRow
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -105,6 +106,76 @@ interface SongDao {
         sourceId: String,
         timestamp: Long = System.currentTimeMillis()
     )
+
+    // -------------------------------------------------------------------------------------------
+    // On-device CLAP audio embeddings (recommender, v6). audioEmbedding is the 512-float32 LE BLOB
+    // (2048 bytes); embeddingModelVersion is ClapModel.MODEL_VERSION; embeddingComputedAtMs is the
+    // wall-clock ms it was computed. All three are set together (or all NULL when absent).
+    // -------------------------------------------------------------------------------------------
+
+    /** Store (or replace) the audio embedding for the song identified by (idType, pluginId, sourceId). */
+    @Query(
+        """
+        UPDATE songs
+        SET audioEmbedding = :embedding,
+            embeddingModelVersion = :modelVersion,
+            embeddingComputedAtMs = :computedAtMs
+        WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId
+        """
+    )
+    suspend fun setEmbedding(
+        idType: String,
+        pluginId: String,
+        sourceId: String,
+        embedding: ByteArray?,
+        modelVersion: String?,
+        computedAtMs: Long?
+    )
+
+    /** Read just the stored embedding BLOB for a song (NULL if none computed). */
+    @Query("SELECT audioEmbedding FROM songs WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId LIMIT 1")
+    suspend fun getEmbedding(idType: String, pluginId: String, sourceId: String): ByteArray?
+
+    /**
+     * Songs that still need an embedding computed: either they have none, or theirs was produced by a
+     * different (stale) model version than [currentModelVersion]. Feeds the background indexer (later
+     * wave). Ordered by id so paging is stable.
+     */
+    @Query(
+        """
+        SELECT * FROM songs
+        WHERE audioEmbedding IS NULL
+           OR embeddingModelVersion IS NULL
+           OR embeddingModelVersion != :currentModelVersion
+        ORDER BY id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getSongsMissingEmbedding(currentModelVersion: String, limit: Int = 200): List<SongEntity>
+
+    /** Count of songs still needing an embedding for [currentModelVersion] (indexer progress UI later). */
+    @Query(
+        """
+        SELECT COUNT(*) FROM songs
+        WHERE audioEmbedding IS NULL
+           OR embeddingModelVersion IS NULL
+           OR embeddingModelVersion != :currentModelVersion
+        """
+    )
+    fun countSongsMissingEmbedding(currentModelVersion: String): Flow<Int>
+
+    /**
+     * All (id, embedding) pairs with a current-version embedding, for building the local kNN index.
+     * Rows without an embedding or with a stale version are excluded, so every returned BLOB is a
+     * 512-float32 LE vector produced by [currentModelVersion].
+     */
+    @Query(
+        """
+        SELECT id AS songId, audioEmbedding AS embedding FROM songs
+        WHERE audioEmbedding IS NOT NULL AND embeddingModelVersion = :currentModelVersion
+        """
+    )
+    suspend fun getAllEmbeddings(currentModelVersion: String): List<SongEmbeddingRow>
 
     @Query("DELETE FROM songs WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId")
     suspend fun delete(idType: String, pluginId: String, sourceId: String)

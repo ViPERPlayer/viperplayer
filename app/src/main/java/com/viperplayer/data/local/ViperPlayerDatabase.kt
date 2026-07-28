@@ -61,8 +61,10 @@ import com.viperplayer.data.local.entity.converter.DynamicSystemDeviceTypeConver
     // discriminator column and their unique identity index becomes (idType, pluginId, sourceId).
     // v4: song_genres cross-ref for the Library Genres tab (per-song genre browse).
     // v5: lyrics_prefs — per-song timing offset + manual lyric-match override.
+    // v6: songs gain on-device CLAP audio-embedding columns (audioEmbedding BLOB +
+    //     embeddingModelVersion + embeddingComputedAtMs) for the recommender.
     // Destructive migration (DatabaseModule fallbackToDestructiveMigration) drops + recreates.
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(

@@ -29,6 +29,7 @@ camerax = "1.4.2"
 mlkitTranslate = "17.0.3"
 mlkitLanguageId = "17.0.6"
 reorderable = "2.5.1"
+onnxruntimeAndroid = "1.28.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -113,6 +114,9 @@ mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.
 
 # Reorderable — drag-to-reorder for LazyColumn (playlist edit mode)
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
+
+# ONNX Runtime (Android, full package incl. NNAPI/XNNPACK) — on-device CLAP audio-embedding runtime
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntimeAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

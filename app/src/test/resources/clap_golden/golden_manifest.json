@@ -1,0 +1,47 @@
+{
+  "sine_440_5s": {
+    "pcm_samples": 240000,
+    "pcm_f32le_bin": "sine_440_5s.pcm_f32le.bin",
+    "pcm_npy": "sine_440_5s.pcm.npy",
+    "mel_shape": [
+      1001,
+      64
+    ],
+    "mel_npy": "sine_440_5s.mel.npy",
+    "mel_f32le_bin": "sine_440_5s.mel_f32le.bin",
+    "ref_embedding_npy": "sine_440_5s.ref_embedding.npy",
+    "embedding_dim": 512,
+    "crop_idx": 0,
+    "end_to_end_cos_numpymel_onnx_vs_pytorch_ref": 0.9999999999998825
+  },
+  "white_noise_10s": {
+    "pcm_samples": 480000,
+    "pcm_f32le_bin": "white_noise_10s.pcm_f32le.bin",
+    "pcm_npy": "white_noise_10s.pcm.npy",
+    "mel_shape": [
+      1001,
+      64
+    ],
+    "mel_npy": "white_noise_10s.mel.npy",
+    "mel_f32le_bin": "white_noise_10s.mel_f32le.bin",
+    "ref_embedding_npy": "white_noise_10s.ref_embedding.npy",
+    "embedding_dim": 512,
+    "crop_idx": 0,
+    "end_to_end_cos_numpymel_onnx_vs_pytorch_ref": 0.9999999999983435
+  },
+  "long_mixed_14s": {
+    "pcm_samples": 672000,
+    "pcm_f32le_bin": "long_mixed_14s.pcm_f32le.bin",
+    "pcm_npy": "long_mixed_14s.pcm.npy",
+    "mel_shape": [
+      1001,
+      64
+    ],
+    "mel_npy": "long_mixed_14s.mel.npy",
+    "mel_f32le_bin": "long_mixed_14s.mel_f32le.bin",
+    "ref_embedding_npy": "long_mixed_14s.ref_embedding.npy",
+    "embedding_dim": 512,
+    "crop_idx": 43567,
+    "end_to_end_cos_numpymel_onnx_vs_pytorch_ref": 0.9999999999994368
+  }
+}
