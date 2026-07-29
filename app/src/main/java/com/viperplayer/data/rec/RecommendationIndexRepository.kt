@@ -36,6 +36,15 @@ sealed interface IndexingStatus {
 }
 
 /**
+ * The narrow read-only slice of the indexer that the recommender ([RecommendationRepository]) needs: the
+ * live [indexingStatus]. Extracted as an interface (implemented by [RecommendationIndexRepository]) so
+ * the recommender can be unit-tested with a trivial fake instead of a WorkManager-backed singleton.
+ */
+interface IndexingStatusProvider {
+    val indexingStatus: Flow<IndexingStatus>
+}
+
+/**
  * Owns the WorkManager-backed [LibraryIndexWorker]: enqueues it (unique work, KEEP, battery-not-low)
  * when the model is ready + recommendations enabled, and surfaces a live [indexingStatus] the Settings
  * "Smart recommendations" row can render. All WorkManager/DB glue lives here (not the ViewModel), per
@@ -52,7 +61,7 @@ class RecommendationIndexRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val clapModelRepository: ClapModelRepository,
     private val songDao: SongDao,
-) {
+) : IndexingStatusProvider {
 
     private val workManager get() = WorkManager.getInstance(context)
 
@@ -128,7 +137,7 @@ class RecommendationIndexRepository @Inject constructor(
      * else [IndexingStatus.Idle]. Derived by [deriveStatus] from the missing-count + the worker's
      * WorkInfo so the derivation is pure and unit-testable.
      */
-    val indexingStatus: Flow<IndexingStatus> =
+    override val indexingStatus: Flow<IndexingStatus> =
         combine(
             songDao.countSongsMissingEmbedding(ClapModel.MODEL_VERSION),
             workManager.getWorkInfosForUniqueWorkFlow(LibraryIndexWorker.UNIQUE_WORK_NAME),

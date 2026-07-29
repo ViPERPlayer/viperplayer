@@ -166,6 +166,7 @@ fun LibraryScreen(
     onNavigateToCustomizeTabs: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onViewDetails: (MediaItem) -> Unit = {},
+    onMoreLikeThis: (Song) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -424,6 +425,7 @@ fun LibraryScreen(
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
             onViewDetails = onViewDetails,
+            onMoreLikeThis = { if (it is Song) onMoreLikeThis(it) },
         )
 
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).

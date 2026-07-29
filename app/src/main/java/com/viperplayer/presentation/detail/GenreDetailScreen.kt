@@ -72,6 +72,7 @@ fun GenreDetailScreen(
     rootPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onViewDetails: (MediaItem) -> Unit,
+    onMoreLikeThis: (Song) -> Unit = {},
     viewModel: GenreDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -137,6 +138,7 @@ fun GenreDetailScreen(
             onAddToQueue = { if (it is Song) viewModel.addToQueue(it) },
             onAddToPlaylist = { if (it is Song) addToPlaylistController.show(it) },
             onViewDetails = onViewDetails,
+            onMoreLikeThis = { if (it is Song) onMoreLikeThis(it) },
         )
         AddToPlaylistSheetHost(controller = addToPlaylistController)
     }

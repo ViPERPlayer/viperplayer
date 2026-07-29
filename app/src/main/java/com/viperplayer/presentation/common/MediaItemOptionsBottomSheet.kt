@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
@@ -88,6 +89,7 @@ fun MediaItemOptionsBottomSheet(
     onAddToPlaylist: () -> Unit = {},
     onShuffle: () -> Unit = {},
     onStartRadio: () -> Unit = {},
+    onMoreLikeThis: () -> Unit = {},
     onLike: () -> Unit = {},
     onDownload: () -> Unit = {},
     onShare: () -> Unit = {},
@@ -125,6 +127,7 @@ fun MediaItemOptionsBottomSheet(
                 SongGroupedCards(
                     song = item,
                     onStartRadio = onStartRadio,
+                    onMoreLikeThis = onMoreLikeThis,
                     onDownload = onDownload,
                     onViewArtist = item.navigableArtist()?.toEntity()?.let { artist -> { onViewArtist(artist) } },
                     onViewAlbum = item.navigableAlbum()?.let { album -> { onViewAlbum(album) } },
@@ -483,13 +486,21 @@ private fun RowDivider() {
 private fun SongGroupedCards(
     song: Song,
     onStartRadio: () -> Unit,
+    onMoreLikeThis: () -> Unit,
     onDownload: () -> Unit,
     onViewArtist: (() -> Unit)?,
     onViewAlbum: (() -> Unit)?,
     onViewDetails: () -> Unit
 ) {
-    // Utility card: Start radio + Download.
+    // Utility card: More like this + Start radio + Download.
     GroupedCard {
+        NavigationRow(
+            title = stringResource(R.string.action_more_like_this),
+            leadingIcon = Icons.Rounded.AutoAwesome,
+            onClick = onMoreLikeThis,
+            chevron = false
+        )
+        RowDivider()
         NavigationRow(
             title = stringResource(R.string.action_start_radio),
             leadingIcon = Icons.Rounded.Radio,

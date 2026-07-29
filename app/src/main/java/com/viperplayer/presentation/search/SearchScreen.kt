@@ -131,6 +131,7 @@ fun SearchScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onViewDetails: (MediaItem) -> Unit,
+    onMoreLikeThis: (Song) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val searchSuggestionsState by viewModel.searchSuggestionsState.collectAsStateWithLifecycle()
@@ -486,6 +487,7 @@ fun SearchScreen(
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
             onViewDetails = onViewDetails,
+            onMoreLikeThis = { if (it is Song) onMoreLikeThis(it) },
         )
 
         // Add-to-playlist picker for a song's options sheet (existing playlists + create new).

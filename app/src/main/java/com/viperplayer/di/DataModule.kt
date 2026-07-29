@@ -16,7 +16,10 @@ import com.viperplayer.data.source.AndroidTagDetailsReader
 import com.viperplayer.data.repository.MediaLibraryRepositoryImpl
 import com.viperplayer.data.repository.PlayerRepositoryImpl
 import com.viperplayer.data.repository.PluginRepositoryImpl
+import com.viperplayer.data.rec.IndexingStatusProvider
+import com.viperplayer.data.rec.RecommendationIndexRepository
 import com.viperplayer.data.repository.RadioPlaylistRepositoryImpl
+import com.viperplayer.data.repository.RecommendationRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.repository.SettingsRepositoryImpl
@@ -35,6 +38,7 @@ import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.RadioPlaylistRepository
+import com.viperplayer.domain.repository.RecommendationRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.TagDetailsReader
@@ -100,6 +104,18 @@ abstract class DataModule {
     abstract fun bindMediaLibraryRepository(
         impl: MediaLibraryRepositoryImpl
     ): MediaLibraryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRecommendationRepository(
+        impl: RecommendationRepositoryImpl
+    ): RecommendationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindIndexingStatusProvider(
+        impl: RecommendationIndexRepository
+    ): IndexingStatusProvider
 
     @Binds
     @Singleton

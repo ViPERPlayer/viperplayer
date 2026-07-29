@@ -24,6 +24,14 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE id = :id LIMIT 1")
     suspend fun getByIdSync(id: Long): SongEntity?
 
+    /**
+     * The song rows for the given autoincrement [ids], in an unspecified order (SQLite `IN` does not
+     * preserve argument order — the caller re-orders by [ids] if ranking matters). Feeds the local kNN
+     * recommender, which resolves a batch of ranked embedding-row ids back to full rows in one query.
+     */
+    @Query("SELECT * FROM songs WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<Long>): List<SongEntity>
+
     @Query("SELECT * FROM songs WHERE idType = :idType AND pluginId = :pluginId AND sourceId = :sourceId")
     fun getByMediaIdFlow(idType: String, pluginId: String, sourceId: String): Flow<SongEntity?>
 

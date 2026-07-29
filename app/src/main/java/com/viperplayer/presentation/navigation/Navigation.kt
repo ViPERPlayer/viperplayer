@@ -42,6 +42,9 @@ import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
 import com.viperplayer.presentation.detail.TagDetailsScreen
 import com.viperplayer.presentation.detail.TagDetailsViewModel
+import com.viperplayer.presentation.rec.ForYouScreen
+import com.viperplayer.presentation.rec.SimilarSongsScreen
+import com.viperplayer.presentation.rec.SimilarSongsViewModel
 import com.viperplayer.follows.ui.FollowingScreen
 import com.viperplayer.presentation.downloads.DownloadsScreen
 import com.viperplayer.presentation.history.HistoryScreen
@@ -229,6 +232,22 @@ data class SongInfo(
     val initialArtworkUrl: String? = null,
 ) : NavKey
 
+/**
+ * "More like this" — the ranked similar songs for a seed track, from the on-device audio-embedding kNN
+ * (with a plugin related-songs fallback). Carries the seed's [seedTitle]/[seedArtworkUrl] so the header
+ * renders before results load.
+ */
+@Serializable
+data class SimilarSongs(
+    val seedMediaId: MediaId,
+    val seedTitle: String = "",
+    val seedArtworkUrl: String? = null,
+) : NavKey
+
+/** "For You" — a taste-based mix built from the local library (reached from the You hub). */
+@Serializable
+object ForYou : NavKey
+
 /** Full tag / metadata detail viewer for a local file (reached from [SongInfo]). Local songs only. */
 @Serializable
 data class TagDetails(
@@ -259,6 +278,14 @@ object Player : NavKey
  *  - [Album] → [AlbumDetail], [Artist] → [ArtistDetail], [Playlist] → [PlaylistDetail]
  * mirroring the existing onNavigateToAlbum/Artist/Playlist keys those screens already use.
  */
+/**
+ * Pushes the "More like this" (similar songs) destination for [song] via [navigate]. Defined here so
+ * every options-sheet host maps the action identically instead of duplicating the [SimilarSongs] key.
+ */
+fun navigateToSimilarSongs(navigate: (NavKey) -> Unit, song: Song) {
+    navigate(SimilarSongs(song.id, song.title, song.artworkUrl))
+}
+
 fun navigateToMediaItemDetails(navigate: (NavKey) -> Unit, item: MediaItem) {
     when (item) {
         is Song -> navigate(
@@ -310,7 +337,8 @@ fun ViperNavDisplay(
                 onNavigateToPlaylist = { playlist ->
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
-                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) }
+                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) },
+                onMoreLikeThis = { song -> navigateToSimilarSongs(navigator::navigate, song) },
             )
         }
 
@@ -333,7 +361,8 @@ fun ViperNavDisplay(
                 onNavigateToFollowing = { navigator.navigate(Following) },
                 onNavigateToCustomizeTabs = { navigator.navigate(CustomizeTabs) },
                 onNavigateToSearch = { navigator.navigate(Search) },
-                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) }
+                onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) },
+                onMoreLikeThis = { song -> navigateToSimilarSongs(navigator::navigate, song) },
             )
         }
 
@@ -345,6 +374,7 @@ fun ViperNavDisplay(
                 rootPadding = rootPadding,
                 onNavigateBack = { navigator.goBack() },
                 onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) },
+                onMoreLikeThis = { song -> navigateToSimilarSongs(navigator::navigate, song) },
                 viewModel = viewModel,
             )
         }
@@ -366,6 +396,7 @@ fun ViperNavDisplay(
                     navigator.navigate(PlaylistDetail(playlist.id, playlist.name, playlist.artworkUrl))
                 },
                 onViewDetails = { item -> navigateToMediaItemDetails(navigator::navigate, item) },
+                onMoreLikeThis = { song -> navigateToSimilarSongs(navigator::navigate, song) },
                 viewModel = viewModel,
             )
         }
@@ -430,6 +461,7 @@ fun ViperNavDisplay(
                 onNavigateToPlugins = { navigator.navigate(Plugins) },
                 onNavigateToHistory = { navigator.navigate(History) },
                 onNavigateToListeningStats = { navigator.navigate(ListeningStats) },
+                onNavigateToForYou = { navigator.navigate(ForYou) },
                 onNavigateToDownloads = { navigator.navigate(Downloads) },
                 onNavigateToLastfm = { navigator.navigate(SettingsLastfm) },
                 onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
@@ -674,6 +706,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
                 navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
             },
             onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
             viewModel = viewModel
         )
     }
@@ -695,6 +728,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
                 navigate(ArtistDetail(artist.id, artist.name, artist.imageUrl))
             },
             onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
             viewModel = viewModel
         )
     }
@@ -713,6 +747,7 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
                 navigate(AlbumDetail(album.id, album.name, album.artworkUrl))
             },
             onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
             viewModel = viewModel
         )
     }
@@ -767,6 +802,28 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
             onNavigateToJoin = { navigate(JoinSession()) },
         )
     }
+
+    entry<SimilarSongs> { key ->
+        val viewModel = hiltViewModel<SimilarSongsViewModel, SimilarSongsViewModel.Factory>(
+            creationCallback = { factory -> factory.create(key) }
+        )
+        SimilarSongsScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
+            viewModel = viewModel,
+        )
+    }
+
+    entry<ForYou> {
+        ForYouScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
+        )
+    }
 }
 
 /**
@@ -809,6 +866,7 @@ fun PlayerBottomSheetNavHost(
                 onNavigateToPlaylist = { playlistId, name, artworkUrl ->
                     navigate(PlaylistDetail(playlistId, name, artworkUrl))
                 },
+                onNavigateToSimilarSongs = { song -> navigateToSimilarSongs(navigate, song) },
                 onNavigateToJoinSession = { navigate(JoinSession()) },
                 onCollapse = onDismiss,
             )

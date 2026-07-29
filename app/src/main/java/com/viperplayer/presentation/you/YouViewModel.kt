@@ -12,6 +12,7 @@ import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.lastfm.LastfmRepository
 import com.viperplayer.domain.repository.PluginRepository
+import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.social.FriendActivityItem
 import com.viperplayer.domain.social.FriendActivityRepository
 import com.viperplayer.domain.social.SharedPlaylistsRepository
@@ -76,6 +77,8 @@ data class YouUiState(
     val lastfm: LastfmStatus = LastfmStatus(),
     val librarySyncStatus: LibrarySyncStatusUi = LibrarySyncStatusUi(),
     val listeningThisMonth: String = "",
+    /** Smart-recommendations opt-in — gates the "For You" row in the Music section. */
+    val recommendationsEnabled: Boolean = false,
 )
 
 /**
@@ -95,6 +98,7 @@ class YouViewModel @Inject constructor(
     private val librarySync: LibrarySync,
     librarySyncStatusStore: LibrarySyncStatusStore,
     playHistoryDao: PlayHistoryDao,
+    settingsRepository: SettingsRepository,
     socialFeatures: SocialFeatures,
 ) : ViewModel() {
 
@@ -120,7 +124,8 @@ class YouViewModel @Inject constructor(
             lastfmRepository.settings,
             librarySyncStatusStore.status,
             listeningThisMonth,
-        ) { updates, lastfm, syncStatus, thisMonth ->
+            settingsRepository.recommendationsEnabled,
+        ) { updates, lastfm, syncStatus, thisMonth, recommendationsEnabled ->
             YouDerived(
                 updateCount = updates.size,
                 lastfm = LastfmStatus(
@@ -129,6 +134,7 @@ class YouViewModel @Inject constructor(
                 ),
                 librarySyncStatus = syncStatus.toUi(),
                 listeningThisMonth = thisMonth,
+                recommendationsEnabled = recommendationsEnabled,
             )
         },
     ) { account, activity, sharedUnread, connectedPlugins, derived ->
@@ -144,6 +150,7 @@ class YouViewModel @Inject constructor(
             lastfm = derived.lastfm,
             librarySyncStatus = derived.librarySyncStatus,
             listeningThisMonth = derived.listeningThisMonth,
+            recommendationsEnabled = derived.recommendationsEnabled,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), YouUiState(socialEnabled = socialEnabled))
 
@@ -182,5 +189,6 @@ class YouViewModel @Inject constructor(
         val lastfm: LastfmStatus,
         val librarySyncStatus: LibrarySyncStatusUi,
         val listeningThisMonth: String,
+        val recommendationsEnabled: Boolean,
     )
 }

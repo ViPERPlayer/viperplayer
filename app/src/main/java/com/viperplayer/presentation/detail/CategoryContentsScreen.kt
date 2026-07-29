@@ -59,6 +59,7 @@ fun CategoryContentsScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onViewDetails: (MediaItem) -> Unit,
+    onMoreLikeThis: (Song) -> Unit = {},
     viewModel: CategoryContentsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -164,6 +165,7 @@ fun CategoryContentsScreen(
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
             onViewDetails = onViewDetails,
+            onMoreLikeThis = { if (it is Song) onMoreLikeThis(it) },
         )
         AddToPlaylistSheetHost(controller = addToPlaylistController)
     }

@@ -185,6 +185,7 @@ fun PlayerScreen(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToSongInfo: (Song) -> Unit = {},
     onNavigateToPlaylist: (MediaId, String, String?) -> Unit = { _, _, _ -> },
+    onNavigateToSimilarSongs: (Song) -> Unit = {},
     onNavigateToJoinSession: () -> Unit = {},
     onCollapse: () -> Unit = {},
     contentWindowInsets: WindowInsets = BottomSheetDefaults.windowInsets,
@@ -280,6 +281,7 @@ fun PlayerScreen(
                 onNavigateToAlbum = onNavigateToAlbum,
                 onNavigateToSongInfo = onNavigateToSongInfo,
                 onNavigateToPlaylist = onNavigateToPlaylist,
+                onNavigateToSimilarSongs = onNavigateToSimilarSongs,
                 onCollapse = onCollapse,
                 onShowSpeedDialog = { showSpeedDialog = true },
                 onShowSleepTimerDialog = { showSleepTimerDialog = true },
@@ -623,6 +625,7 @@ private fun PlayerTopBar(
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToSongInfo: (Song) -> Unit,
     onNavigateToPlaylist: (MediaId, String, String?) -> Unit,
+    onNavigateToSimilarSongs: (Song) -> Unit,
     onCollapse: () -> Unit,
     onShowSpeedDialog: () -> Unit,
     onShowSleepTimerDialog: () -> Unit,
@@ -697,6 +700,14 @@ private fun PlayerTopBar(
                         onClick = {
                             showOverflowMenu = false
                             onNavigateToSongInfo(song)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_more_like_this)) },
+                        leadingIcon = { Icon(Icons.Filled.AutoAwesome, contentDescription = null) },
+                        onClick = {
+                            showOverflowMenu = false
+                            onNavigateToSimilarSongs(song)
                         }
                     )
                     DropdownMenuItem(

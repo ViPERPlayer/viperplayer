@@ -548,6 +548,22 @@
     <string name="rec_error_needs_wifi">Connect to Wi-Fi to download the model</string>
     <string name="rec_action_retry">Retry</string>
 
+    <!-- P1d: local kNN recommendation surfaces ("More like this" / "For You") -->
+    <string name="action_more_like_this">More like this</string>
+    <string name="rec_similar_songs_title">Similar songs</string>
+    <string name="rec_similar_to">Similar to %1$s</string>
+    <string name="rec_for_you_title">For You</string>
+    <string name="you_for_you">For You</string>
+    <string name="you_for_you_subtitle">A mix picked for your taste</string>
+    <!-- Subtle note when the list fell back to the source plugin\'s related songs -->
+    <string name="rec_fallback_note">Showing related songs from the source</string>
+    <!-- Empty / explanatory states -->
+    <string name="rec_empty_no_results">No similar songs yet</string>
+    <string name="rec_empty_disabled">Turn on smart recommendations in Settings to see this.</string>
+    <string name="rec_empty_not_indexed">Your library isn\'t analyzed yet. Recommendations appear once analysis finishes.</string>
+    <string name="rec_indexing_progress">Analyzing your library… %1$d/%2$d</string>
+    <string name="rec_empty_error">Something went wrong loading recommendations.</string>
+
     <!-- Offline mode banner (Home / Search) -->
     <string name="offline_banner_message">Offline mode is on — showing local and downloaded music only</string>
 

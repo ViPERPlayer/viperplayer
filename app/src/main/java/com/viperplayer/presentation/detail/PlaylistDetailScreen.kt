@@ -106,6 +106,7 @@ fun PlaylistDetailScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
     onViewDetails: (MediaItem) -> Unit,
+    onMoreLikeThis: (Song) -> Unit = {},
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -166,6 +167,7 @@ fun PlaylistDetailScreen(
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToAlbum = onNavigateToAlbum,
         onViewDetails = onViewDetails,
+        onMoreLikeThis = onMoreLikeThis,
     )
 
     // Add-to-playlist picker for a song's options sheet (existing playlists + create new).
@@ -198,6 +200,7 @@ internal fun PlaylistDetailScreenContent(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToAlbum: (Album) -> Unit,
     onViewDetails: (MediaItem) -> Unit = {},
+    onMoreLikeThis: (Song) -> Unit = {},
 ) {
     val optionsController = rememberMediaItemOptionsController()
     var editMode by remember { mutableStateOf(false) }
@@ -407,6 +410,7 @@ internal fun PlaylistDetailScreenContent(
             onViewArtist = onNavigateToArtist,
             onViewAlbum = onNavigateToAlbum,
             onViewDetails = onViewDetails,
+            onMoreLikeThis = { if (it is Song) onMoreLikeThis(it) },
         )
 
         // Rename dialog (only reachable for editable local playlists via the overflow menu).
