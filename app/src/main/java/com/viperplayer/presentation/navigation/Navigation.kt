@@ -325,6 +325,10 @@ fun ViperNavDisplay(
                 onNavigateToCategory = { category ->
                     navigator.navigate(CategoryDetail(category.pluginId, category.id, category.name))
                 },
+                onNavigateToMoodChip = { pluginId, targetId, label ->
+                    // A mood/genre chip opens the plugin's category screen, like a Browse tile.
+                    navigator.navigate(CategoryDetail(pluginId, targetId, label))
+                },
                 onNavigateToYou = { navigator.navigate(You) },
                 onNavigateToNotifications = { navigator.navigate(FriendActivity) },
             )

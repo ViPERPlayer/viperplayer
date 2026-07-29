@@ -100,3 +100,64 @@ data class BannerSection(
 ) : HomeSection {
     override val items: List<MediaItem> get() = emptyList()
 }
+
+/**
+ * A big, full-bleed swipeable carousel of large artwork cards with a gradient scrim + overlaid
+ * title/subtitle (a daily-discover shelf). Rendered with M3 `HorizontalMultiBrowseCarousel`.
+ */
+data class MultiBrowseCarouselSection(
+    override val id: String,
+    override val title: String,
+    override val subtitle: String? = null,
+    override val action: SectionAction? = null,
+    override val pluginId: String = "",
+    override val items: List<MediaItem> = emptyList(),
+    val itemShape: ItemShape = ItemShape.WIDE,
+    val showBackdrop: Boolean = true,
+) : HomeSection
+
+/**
+ * A multi-row, horizontally-snapping grid of compact item rows (a quick-picks grid). [rows] is
+ * the number of stacked rows per column.
+ */
+data class QuickPicksSection(
+    override val id: String,
+    override val title: String,
+    override val subtitle: String? = null,
+    override val action: SectionAction? = null,
+    override val pluginId: String = "",
+    override val items: List<MediaItem> = emptyList(),
+    val rows: Int = 4,
+) : HomeSection
+
+/** A horizontal row of LARGE rich cards for featured playlists/albums (a community shelf). */
+data class FeaturedCardsSection(
+    override val id: String,
+    override val title: String,
+    override val subtitle: String? = null,
+    override val action: SectionAction? = null,
+    override val pluginId: String = "",
+    override val items: List<MediaItem> = emptyList(),
+    val itemShape: ItemShape = ItemShape.SQUARE,
+) : HomeSection
+
+/** A mood/genre chip on a [MoodGridSection]; tapping it opens the plugin's category for [targetId]. */
+data class MoodChip(
+    val label: String,
+    val targetId: String,
+    val artworkUrl: String? = null,
+    /** Optional accent colour as an `#RRGGBB` / `#AARRGGBB` hex string. */
+    val accentColor: String? = null,
+)
+
+/** A grid of mood/genre chip cards (a mood/genre grid); carries no media items of its own. */
+data class MoodGridSection(
+    override val id: String,
+    override val title: String,
+    override val subtitle: String? = null,
+    override val action: SectionAction? = null,
+    override val pluginId: String = "",
+    val chips: List<MoodChip> = emptyList(),
+) : HomeSection {
+    override val items: List<MediaItem> get() = emptyList()
+}

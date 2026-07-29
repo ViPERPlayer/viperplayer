@@ -9,11 +9,15 @@ import com.viperplayer.domain.model.ArtistDetail
 import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.FeaturedCardsSection
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ListSection
+import com.viperplayer.domain.model.MoodGridSection
+import com.viperplayer.domain.model.MultiBrowseCarouselSection
+import com.viperplayer.domain.model.QuickPicksSection
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.MediaId
@@ -443,7 +447,11 @@ class PluginRepositoryImpl @Inject constructor(
         is CarouselSection -> copy(items = items.withoutExplicit(hide))
         is GridSection -> copy(items = items.withoutExplicit(hide))
         is ListSection -> copy(items = items.withoutExplicit(hide))
-        is HeroSection, is BannerSection -> this
+        is MultiBrowseCarouselSection -> copy(items = items.withoutExplicit(hide))
+        is QuickPicksSection -> copy(items = items.withoutExplicit(hide))
+        is FeaturedCardsSection -> copy(items = items.withoutExplicit(hide))
+        // MoodGridSection carries chips (no media items), so nothing to filter.
+        is HeroSection, is BannerSection, is MoodGridSection -> this
     }
 }
 

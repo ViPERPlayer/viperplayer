@@ -138,6 +138,8 @@
     <string name="home_quick_picks">Quick Picks</string>
     <string name="home_no_plugins_connected">No plugins connected</string>
     <string name="home_no_plugins_hint">Go to Plugins tab to connect a music source</string>
+    <!-- Home section: play button on a featured card. %1$s = card title. -->
+    <string name="home_featured_play_cd">Play %1$s</string>
     <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>
     <string name="nav_library">Library</string>
