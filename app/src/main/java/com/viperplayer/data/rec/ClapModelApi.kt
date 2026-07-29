@@ -20,9 +20,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * HTTP transport for the ViPER backend recommender-model endpoints (the `/v1/models/` routes;
- * github.com/iscle/viper-backend). Public GET (a model file is a static asset, not user data), over
- * the shared Ktor [HttpClient].
+ * HTTP transport for the on-device CLAP recommender model. The model is a PUBLIC static asset (not user
+ * data), so it is DECOUPLED from the private backend: it downloads from a dedicated public model-host
+ * manifest URL ([BuildConfig.CLAP_MODEL_MANIFEST_URL]) when configured, else falls back to the private
+ * backend's `/v1/models/manifest` ([BuildConfig.VIPER_BACKEND_URL]). Public GET, over the shared Ktor
+ * [HttpClient].
  *
  * Split into a small [fetchManifest] (JSON) and a streaming [openDownload] (which hands the caller
  * the response's [ByteReadChannel]) so the worker can stream ~73MB to a `.part` file — with resume
@@ -34,21 +36,39 @@ class ClapModelApi @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** The configured backend base URL (no trailing slash), or null when not built in. */
-    val baseUrl: String?
+    /** The configured private-backend base URL (no trailing slash), or null when not built in. */
+    private val backendBaseUrl: String?
         get() = BackendConfig.baseUrlOf(BuildConfig.VIPER_BACKEND_URL)
 
-    val isConfigured: Boolean get() = baseUrl != null
+    /**
+     * A dedicated PUBLIC model-host manifest URL (a static host — GitHub Release / CDN / object storage),
+     * or null when the build field is empty/placeholder. The model is a public static asset, so this
+     * decouples it from the private [backendBaseUrl].
+     */
+    private val modelManifestUrl: String?
+        get() = BuildConfig.CLAP_MODEL_MANIFEST_URL
+            .takeIf { it.isNotBlank() && it != BackendConfig.PLACEHOLDER }
 
     /**
-     * Fetches and parses `GET /v1/models/manifest`. Returns [ManifestResult.NotConfigured] when no
-     * backend URL is built in, [ManifestResult.Unavailable] on any transport/HTTP/parse failure (the
-     * model may simply not be placed on the server yet → 404), else [ManifestResult.Success].
+     * The manifest URL to fetch: the dedicated public model host if configured, else the private
+     * backend's `/v1/models/manifest`, else null (no model source built in).
+     */
+    private fun manifestUrl(): String? =
+        modelManifestUrl ?: backendBaseUrl?.let { "$it/v1/models/manifest" }
+
+    /** True iff SOME model source (public manifest URL or the private backend) is built into this build. */
+    val isConfigured: Boolean get() = manifestUrl() != null
+
+    /**
+     * Fetches and parses the model manifest (from the dedicated public model URL if configured, else the
+     * backend). Returns [ManifestResult.NotConfigured] when no model source is built in,
+     * [ManifestResult.Unavailable] on any transport/HTTP/parse failure (the model may simply not be
+     * placed on the host yet → 404), else [ManifestResult.Success].
      */
     suspend fun fetchManifest(): ManifestResult {
-        val base = baseUrl ?: return ManifestResult.NotConfigured
+        val url = manifestUrl() ?: return ManifestResult.NotConfigured
         val bodyText = try {
-            val response = httpClient.get("$base/v1/models/manifest") {
+            val response = httpClient.get(url) {
                 header(HttpHeaders.Accept, ContentType.Application.Json.toString())
             }
             if (!response.status.isSuccess()) {
@@ -87,8 +107,13 @@ class ClapModelApi @Inject constructor(
         resumeFromByte: Long = 0L,
         block: suspend (channel: ByteReadChannel, contentLength: Long?) -> Unit,
     ): DownloadResult {
-        val base = baseUrl ?: return DownloadResult.NotConfigured
-        val url = "$base${entry.path}"
+        // A public manifest points at an ABSOLUTE model URL (static host); a private-backend manifest uses
+        // a path relative to the backend base. Support both.
+        val path = entry.path
+        val url = when {
+            path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true) -> path
+            else -> backendBaseUrl?.plus(path) ?: return DownloadResult.NotConfigured
+        }
         return try {
             httpClient.prepareGet(url) {
                 timeout {

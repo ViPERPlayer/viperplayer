@@ -494,7 +494,9 @@ private fun HomeScreenContent(
                             }
                         }
 
-                        // Quick Picks
+                        // Quick Picks — rendered as: a multi-row (4),
+                        // horizontally-snapping grid of COMPACT song rows (thumbnail + title + artist),
+                        // not a single row of big album-art cards. Reuses the shared [QuickPicksGrid].
                         uiState.quickPicks?.let { quickPicks ->
                             if (quickPicks.isNotEmpty()) {
                                 item {
@@ -509,29 +511,24 @@ private fun HomeScreenContent(
                                         )
                                     )
                                 }
-                                item {
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        itemsIndexed(quickPicks, key = { index, item -> "${item.id}-$index" }) { index, item ->
-                                            val active = isCurrent(item, currentSongId)
-                                            MediaItemCard(
-                                                item = item,
-                                                modifier = Modifier.revealOnAppear(index),
-                                                isActive = active,
-                                                isPlaying = active && isPlaying,
-                                                onClick = {
-                                                    when (item) {
-                                                        is Album -> onNavigateToAlbum(item)
-                                                        is Artist -> onNavigateToArtist(item)
-                                                        is Playlist -> onNavigateToPlaylist(item)
-                                                        is Song -> onPlaySongFromQuickPicks(item)
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
+                                item(key = "home-quick-picks-grid") {
+                                    QuickPicksGrid(
+                                        section = QuickPicksSection(
+                                            id = "home_quick_picks",
+                                            title = "",
+                                            items = quickPicks,
+                                        ),
+                                        currentSongId = currentSongId,
+                                        isPlaying = isPlaying,
+                                        onItemClick = { item ->
+                                            when (item) {
+                                                is Album -> onNavigateToAlbum(item)
+                                                is Artist -> onNavigateToArtist(item)
+                                                is Playlist -> onNavigateToPlaylist(item)
+                                                is Song -> onPlaySongFromQuickPicks(item)
+                                            }
+                                        },
+                                    )
                                 }
                             }
                         }

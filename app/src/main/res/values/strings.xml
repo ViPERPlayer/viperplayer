@@ -549,7 +549,7 @@
     <string name="rec_status_update_available">A newer model is available</string>
     <string name="rec_status_app_outdated">Update the app to use the latest recommendation model</string>
     <!-- Failure reasons -->
-    <string name="rec_error_backend_not_configured">Recommendations are not available in this build</string>
+    <string name="rec_error_backend_not_configured">Recommendations aren\'t set up in this build — no model source is configured</string>
     <string name="rec_error_manifest_unavailable">Couldn\'t reach the model server. Check your connection and try again.</string>
     <string name="rec_error_checksum">The downloaded model was corrupted. Try again.</string>
     <string name="rec_error_network">Download failed. Check your connection and try again.</string>

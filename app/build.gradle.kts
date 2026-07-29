@@ -43,6 +43,18 @@ android {
         // real HTTPS URL is supplied here; users still update manually from their app store meanwhile.
         buildConfigField("String", "UPDATE_MANIFEST_URL", "\"REPLACE_WITH_REAL_VALUE\"")
 
+        // CLAP recommender model manifest URL — a PUBLIC static JSON manifest describing the on-device
+        // CLAP audio model (version / sha256 / bytes / absolute download URL). The model is a static
+        // public asset (not user data), so it is DECOUPLED from the private VIPER_BACKEND_URL: host the
+        // manifest + the ~73MB .onnx on any static host (a GitHub Release, a CDN, object storage) and put
+        // the manifest URL here. Manifest shape:
+        //   { "clap_audio_int8": { "version": "laion-larger_clap_music-mel1", "sha256": "<hex>",
+        //     "bytes": <n>, "path": "https://.../clap_audio_tower.int8.onnx" } }
+        // (the "path" may be an absolute URL for a static host, or a backend-relative path). Leave empty
+        // to fall back to VIPER_BACKEND_URL's /v1/models/manifest; when NEITHER is set, on-device
+        // recommendations stay unavailable (the model can't be fetched).
+        buildConfigField("String", "CLAP_MODEL_MANIFEST_URL", "\"\"")
+
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
