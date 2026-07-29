@@ -86,7 +86,13 @@ class RecommendationIndexRepository @Inject constructor(
                     when {
                         !enabled -> cancel()
                         modelState is ClapModelState.Ready -> enqueue()
-                        // enabled but model not ready yet: wait — a later Ready emission re-triggers.
+                        // Enabled but no model yet (fresh, or a prior build that couldn't download): make
+                        // sure a model is installed. With the model bundled in the APK this installs it
+                        // instantly from the asset; otherwise it enqueues a download. A later Ready
+                        // emission then enqueues indexing. Absent/Failed only (don't interrupt a download).
+                        modelState is ClapModelState.Absent || modelState is ClapModelState.Failed ->
+                            runCatching { clapModelRepository.ensureDownloaded() }
+                        // Downloading / VersionMismatch: wait — a later Ready emission re-triggers.
                     }
                 }
         }

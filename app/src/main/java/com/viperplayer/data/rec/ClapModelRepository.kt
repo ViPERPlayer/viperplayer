@@ -15,11 +15,14 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.viperplayer.di.RecModelPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -129,7 +132,40 @@ class ClapModelRepositoryImpl @Inject constructor(
         ) {
             return
         }
+        // Prefer the model BUNDLED with the app (instant, offline, no backend/Wi-Fi) over a download.
+        // When the ~73MB CLAP asset is present in the APK it is copied into place and stamped Ready.
+        if (installFromBundledAssetIfPresent()) return
         enqueueDownload()
+    }
+
+    /**
+     * Installs the CLAP model from the app's bundled asset ([ASSET_MODEL_PATH]) if it is present in the
+     * APK: copies it into [modelDir] (atomically via a `.part` rename) and stamps the installed version
+     * so [modelState] becomes Ready — no network, no Wi-Fi wait, no backend. Returns false (a no-op) when
+     * the asset isn't bundled, so callers fall back to the download path. Never throws.
+     */
+    private suspend fun installFromBundledAssetIfPresent(): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val version = ClapModel.MODEL_VERSION
+            val target = File(modelDir, ClapModelHandshake.installedFileName(version))
+            if (!target.isFile || target.length() == 0L) {
+                val part = File(modelDir, target.name + ".part")
+                context.assets.open(ASSET_MODEL_PATH).use { input ->
+                    part.outputStream().use { output -> input.copyTo(output) }
+                }
+                if (!part.renameTo(target)) {
+                    part.delete()
+                    return@runCatching false
+                }
+            }
+            dataStore.edit { it[INSTALLED_VERSION_KEY] = version }
+            Timber.i("CLAP model installed from bundled asset (%s)", version)
+            true
+        }.getOrElse {
+            // Most commonly the asset simply isn't bundled (FileNotFoundException) → fall back to download.
+            Timber.d("CLAP bundled-asset install unavailable: %s", it.javaClass.simpleName)
+            false
+        }
     }
 
     override fun cancel() {
@@ -178,6 +214,9 @@ class ClapModelRepositoryImpl @Inject constructor(
 
     companion object {
         private const val MODEL_SUBDIR = "rec-models"
+
+        /** Path of the optional model bundled in the APK's assets (kept uncompressed via noCompress). */
+        private const val ASSET_MODEL_PATH = "rec-model/clap_audio_tower.int8.onnx"
 
         /** Unique WorkManager name so at most one download runs; a repeat enqueue is coalesced. */
         const val UNIQUE_WORK_NAME = "clap_model_download"
