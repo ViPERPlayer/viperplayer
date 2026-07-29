@@ -531,6 +531,9 @@
     <string name="content_category_recommendations">Recommendations</string>
     <string name="content_smart_recommendations">Smart recommendations</string>
     <string name="content_smart_recommendations_desc">Analyze your music on your device to suggest similar songs. Downloads a model over Wi-Fi; nothing about your listening leaves your phone.</string>
+    <!-- Discovery: anonymized taste contribution (privacy opt-in, default OFF) -->
+    <string name="content_contribute_taste">Improve discovery for everyone</string>
+    <string name="content_contribute_taste_desc">Share an anonymized summary of your taste to help suggest new music. Only a numeric taste vector is sent — never your audio, your identity, or which songs you play.</string>
     <!-- Status lines shown under the toggle -->
     <string name="rec_status_off">Off</string>
     <string name="rec_status_ready">Ready</string>
@@ -555,6 +558,12 @@
     <string name="rec_for_you_title">For You</string>
     <string name="you_for_you">For You</string>
     <string name="you_for_you_subtitle">A mix picked for your taste</string>
+    <!-- P3: server-backed Discover (unowned songs) -->
+    <string name="discover_title">Discover</string>
+    <string name="discover_subtitle">New music picked for your taste</string>
+    <string name="discover_empty_no_results">Nothing new to discover right now. Check back soon.</string>
+    <string name="you_discover">Discover</string>
+    <string name="you_discover_subtitle">Find new songs beyond your library</string>
     <!-- Subtle note when the list fell back to the source plugin\'s related songs -->
     <string name="rec_fallback_note">Showing related songs from the source</string>
     <!-- Empty / explanatory states -->

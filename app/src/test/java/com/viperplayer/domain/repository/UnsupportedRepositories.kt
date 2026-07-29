@@ -318,4 +318,6 @@ open class UnsupportedSettingsRepository : SettingsRepository {
     override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) = TODO()
     override val recommendationsEnabled: Flow<Boolean> get() = TODO()
     override suspend fun setRecommendationsEnabled(enabled: Boolean) = TODO()
+    override val contributeAnonymizedTaste: Flow<Boolean> get() = TODO()
+    override suspend fun setContributeAnonymizedTaste(enabled: Boolean) = TODO()
 }
