@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -108,9 +109,18 @@ class RecommendationIndexRepository @Inject constructor(
         return installed.isFile && !clapModelRepository.isInstalledStale()
     }
 
-    /** Enqueues the unique, battery-not-low indexing work (KEEP-coalesced). */
+    /**
+     * Enqueues BOTH indexing runs (each unique + KEEP-coalesced):
+     *  - [LibraryIndexWorker] — LOCAL bytes (downloaded + local-library). NO network (on-device compute)
+     *    + battery-not-low.
+     *  - [StreamingIndexWorker] — STREAMING-only songs not played. UNMETERED (Wi-Fi) + battery-not-low,
+     *    since decoding a live stream spends network + power.
+     *
+     * The two workers embed disjoint partitions of the missing-embedding set (see [SongEmbedCandidates]),
+     * so running them together never double-embeds a song.
+     */
     private fun enqueue() {
-        val request = OneTimeWorkRequestBuilder<LibraryIndexWorker>()
+        val localRequest = OneTimeWorkRequestBuilder<LibraryIndexWorker>()
             .setConstraints(
                 Constraints.Builder()
                     // On-device compute — no network required. Don't drain a low battery.
@@ -122,13 +132,30 @@ class RecommendationIndexRepository @Inject constructor(
         workManager.enqueueUniqueWork(
             LibraryIndexWorker.UNIQUE_WORK_NAME,
             ExistingWorkPolicy.KEEP,
-            request,
+            localRequest,
+        )
+
+        val streamingRequest = OneTimeWorkRequestBuilder<StreamingIndexWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    // Streaming decode spends data + power: Wi-Fi only, battery-not-low.
+                    .setRequiredNetworkType(NetworkType.UNMETERED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .setInputData(Data.EMPTY)
+            .build()
+        workManager.enqueueUniqueWork(
+            StreamingIndexWorker.UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            streamingRequest,
         )
     }
 
-    /** Cancels any pending/running indexing run (e.g. recommendations turned off). */
+    /** Cancels any pending/running indexing runs (both workers), e.g. recommendations turned off. */
     fun cancel() {
         workManager.cancelUniqueWork(LibraryIndexWorker.UNIQUE_WORK_NAME)
+        workManager.cancelUniqueWork(StreamingIndexWorker.UNIQUE_WORK_NAME)
     }
 
     /**
@@ -139,22 +166,48 @@ class RecommendationIndexRepository @Inject constructor(
      */
     override val indexingStatus: Flow<IndexingStatus> =
         combine(
+            // `countSongsMissingEmbedding` counts BOTH partitions (local + streaming), so `missing`
+            // already reflects the streaming backlog; we merge BOTH workers' snapshots so an active
+            // streaming run also keeps the "Analyzing…" line up.
             songDao.countSongsMissingEmbedding(ClapModel.MODEL_VERSION),
             workManager.getWorkInfosForUniqueWorkFlow(LibraryIndexWorker.UNIQUE_WORK_NAME),
-        ) { missing, workInfos ->
-            deriveStatus(missing, workInfos.firstOrNull().toIndexSnapshot())
+            workManager.getWorkInfosForUniqueWorkFlow(StreamingIndexWorker.UNIQUE_WORK_NAME),
+        ) { missing, localInfos, streamingInfos ->
+            val local = localInfos.firstOrNull()
+                .toIndexSnapshot(LibraryIndexWorker.KEY_PROCESSED, LibraryIndexWorker.KEY_TOTAL)
+            val streaming = streamingInfos.firstOrNull()
+                .toIndexSnapshot(StreamingIndexWorker.KEY_PROCESSED, StreamingIndexWorker.KEY_TOTAL)
+            deriveStatus(missing, mergeSnapshots(local, streaming))
         }.distinctUntilChanged()
 
     /** Adapts a WorkManager [WorkInfo] into the framework-free [IndexWorkSnapshot] (null when none). */
-    private fun WorkInfo?.toIndexSnapshot(): IndexWorkSnapshot? = this?.let {
+    private fun WorkInfo?.toIndexSnapshot(processedKey: String, totalKey: String): IndexWorkSnapshot? = this?.let {
         IndexWorkSnapshot(
             active = it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED,
-            processed = it.progress.getInt(LibraryIndexWorker.KEY_PROCESSED, -1).takeIf { p -> p >= 0 },
-            batchTotal = it.progress.getInt(LibraryIndexWorker.KEY_TOTAL, -1).takeIf { t -> t >= 0 },
+            processed = it.progress.getInt(processedKey, -1).takeIf { p -> p >= 0 },
+            batchTotal = it.progress.getInt(totalKey, -1).takeIf { t -> t >= 0 },
         )
     }
 
     companion object {
+        /**
+         * Merge the local + streaming worker snapshots into one for [deriveStatus]: active if EITHER is
+         * active, `processed` is the sum of both runs' processed counts (so the combined "N" advances as
+         * either worker makes progress), and `batchTotal` is the sum of known batch totals. Null only
+         * when both snapshots are null. Pure/unit-testable.
+         */
+        fun mergeSnapshots(a: IndexWorkSnapshot?, b: IndexWorkSnapshot?): IndexWorkSnapshot? {
+            if (a == null) return b
+            if (b == null) return a
+            val processed = listOfNotNull(a.processed, b.processed).takeIf { it.isNotEmpty() }?.sum()
+            val batchTotal = listOfNotNull(a.batchTotal, b.batchTotal).takeIf { it.isNotEmpty() }?.sum()
+            return IndexWorkSnapshot(
+                active = a.active || b.active,
+                processed = processed,
+                batchTotal = batchTotal,
+            )
+        }
+
         /**
          * Pure derivation of [IndexingStatus] from the count of songs still missing an embedding and a
          * framework-free worker snapshot. Kept static + free of Android so it unit-tests directly.

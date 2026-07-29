@@ -1,12 +1,12 @@
 package com.viperplayer.data.rec
 
 import android.content.Context
-import android.util.Base64
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -118,10 +118,8 @@ class PendingCaptureStore private constructor(
 
     /** On-disk name for [mediaId]: a filesystem-safe base64url of the encoded id + version + suffix. */
     private fun fileName(mediaId: String): String {
-        val key = Base64.encodeToString(
-            mediaId.toByteArray(Charsets.UTF_8),
-            Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP,
-        )
+        val key = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(mediaId.toByteArray(Charsets.UTF_8))
         return "v${captureFormatVersion}_$key$SUFFIX"
     }
 

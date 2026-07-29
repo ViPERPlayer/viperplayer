@@ -1,8 +1,10 @@
 package com.viperplayer.data.rec
 
+import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.net.Uri
 import timber.log.Timber
 import java.io.FileDescriptor
 import java.nio.ByteBuffer
@@ -60,6 +62,14 @@ interface AudioDecoder {
      * `ContentResolver`). The decoder does NOT take ownership of the FD; the caller closes it.
      */
     fun decode(fd: FileDescriptor): DecodedAudio?
+
+    /**
+     * Decode a progressive http(s) (or `content://`) [uri] with per-request [headers] (some providers
+     * allowlist by `Origin`/auth). Used by the streaming indexer's UrlStream path. Default returns null
+     * (fakes need not implement it); the production [MediaCodecAudioDecoder] overrides it via
+     * `MediaExtractor.setDataSource(context, uri, headers)`.
+     */
+    fun decode(context: Context, uri: Uri, headers: Map<String, String>): DecodedAudio? = null
 }
 
 /**
@@ -92,6 +102,9 @@ class MediaCodecAudioDecoder(
 
     override fun decode(fd: FileDescriptor): DecodedAudio? =
         runDecode { it.setDataSource(fd) }
+
+    override fun decode(context: Context, uri: Uri, headers: Map<String, String>): DecodedAudio? =
+        runDecode { it.setDataSource(context, uri, headers) }
 
     /**
      * Shared decode driver: [configureSource] points a fresh [MediaExtractor] at the input, then we

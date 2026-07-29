@@ -57,4 +57,34 @@ class RecommendationIndexStatusTest {
         assertEquals(s.total, s.total.coerceAtLeast(s.processed))
         assertEquals(true, s.processed <= s.total)
     }
+
+    // ---- mergeSnapshots: local + streaming worker snapshots folded into one ----
+
+    @Test
+    fun mergeReturnsTheOtherWhenOneIsNull() {
+        val snap = IndexWorkSnapshot(active = true, processed = 3, batchTotal = 4)
+        assertEquals(snap, RecommendationIndexRepository.mergeSnapshots(snap, null))
+        assertEquals(snap, RecommendationIndexRepository.mergeSnapshots(null, snap))
+        assertEquals(null, RecommendationIndexRepository.mergeSnapshots(null, null))
+    }
+
+    @Test
+    fun mergeIsActiveIfEitherIsActiveAndSumsProgress() {
+        val local = IndexWorkSnapshot(active = false, processed = 2, batchTotal = 5)
+        val streaming = IndexWorkSnapshot(active = true, processed = 7, batchTotal = 10)
+        val merged = RecommendationIndexRepository.mergeSnapshots(local, streaming)!!
+        assertEquals(true, merged.active)
+        assertEquals(9, merged.processed) // 2 + 7
+        assertEquals(15, merged.batchTotal) // 5 + 10
+    }
+
+    @Test
+    fun mergeHandlesNullProgressFields() {
+        val local = IndexWorkSnapshot(active = true, processed = null, batchTotal = null)
+        val streaming = IndexWorkSnapshot(active = false, processed = 4, batchTotal = 8)
+        val merged = RecommendationIndexRepository.mergeSnapshots(local, streaming)!!
+        assertEquals(true, merged.active)
+        assertEquals(4, merged.processed) // only streaming reported
+        assertEquals(8, merged.batchTotal)
+    }
 }

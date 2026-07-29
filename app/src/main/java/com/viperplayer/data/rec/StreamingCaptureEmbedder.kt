@@ -12,6 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,6 +45,17 @@ class StreamingCaptureEmbedder @Inject constructor(
     private val pendingCaptureStore: PendingCaptureStore,
 ) {
 
+    /**
+     * Opens a short-lived [AudioEmbedder] over the model at [modelFile]. Seam so the model-ready embed
+     * path is unit-testable with a fake (the production factory loads a real ONNX/ORT session).
+     */
+    fun interface MelEmbedderFactory {
+        fun open(modelFile: File): AudioEmbedder
+    }
+
+    /** Injectable for tests; defaults to the real [ClapEmbedder]. */
+    var embedderFactory: MelEmbedderFactory = MelEmbedderFactory { ClapEmbedder.fromModelFile(it) }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
@@ -52,19 +64,22 @@ class StreamingCaptureEmbedder @Inject constructor(
      * Returns immediately; never throws.
      */
     fun submit(encodedMediaId: String, monoPcm: FloatArray, sampleRate: Int) {
+        val mediaId = MediaId.decode(encodedMediaId)
+        if (mediaId !is MediaId.Plugin) return // streaming-only capture is plugin-served
         scope.launch {
-            runCatching { process(encodedMediaId, monoPcm, sampleRate) }
+            runCatching { process(mediaId, encodedMediaId, monoPcm, sampleRate) }
                 .onFailure { Timber.w(it, "StreamingCaptureEmbedder: capture handling failed") }
         }
     }
 
-    /** The actual embed-or-cache logic. Suspends; exposed at this granularity for unit tests. */
-    suspend fun process(encodedMediaId: String, monoPcm: FloatArray, sampleRate: Int) {
+    /**
+     * The actual embed-or-cache logic for an already-decoded [mediaId] (its [encodedMediaId] is the cache
+     * key). Suspends; exposed at this granularity — with a pre-decoded [mediaId] — so it is unit-testable
+     * without [MediaId.decode] (which needs `android.net.Uri`, unavailable in a plain JVM test).
+     */
+    suspend fun process(mediaId: MediaId.Plugin, encodedMediaId: String, monoPcm: FloatArray, sampleRate: Int) {
         if (!settingsRepository.recommendationsEnabled.first()) return
         if (monoPcm.isEmpty() || sampleRate <= 0) return
-
-        val mediaId = MediaId.decode(encodedMediaId) ?: return
-        if (mediaId !is MediaId.Plugin) return // streaming-only capture is plugin-served
 
         // Re-check the row: only embed a streaming-only song that still lacks a current-version embedding.
         val song = runCatching { songDao.getByMediaId(mediaId) }.getOrNull() ?: return
@@ -84,8 +99,13 @@ class StreamingCaptureEmbedder @Inject constructor(
             return
         }
 
-        // Model ready: embed now and store.
-        val embedding = ClapEmbedder.fromModelFile(modelFile).use { it.embedMel(mel) }
+        // Model ready: embed now and store. A per-capture embedder (captures are sparse).
+        val audioEmbedder = embedderFactory.open(modelFile)
+        val embedding = try {
+            audioEmbedder.embedMel(mel)
+        } finally {
+            (audioEmbedder as? AutoCloseable)?.let { runCatching { it.close() } }
+        }
         songDao.setEmbedding(
             id = mediaId,
             embedding = embeddingToBytes(embedding),
