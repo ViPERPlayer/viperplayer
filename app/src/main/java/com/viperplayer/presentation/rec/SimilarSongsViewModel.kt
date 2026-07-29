@@ -94,6 +94,15 @@ class SimilarSongsViewModel @AssistedInject constructor(
 
     fun addToQueue(song: Song) = launchSafe { playerRepository.addToQueue(song) }
 
+    /** Thumbs-up: a strong positive signal (likes the song via the repository's feedback path). */
+    fun thumbsUp(song: Song) = launchSafe { recommendationRepository.sendFeedback(song.id, positive = true) }
+
+    /** Thumbs-down: a strong negative taste nudge; dims the row immediately (idempotent). */
+    fun thumbsDown(song: Song) {
+        _uiState.update { it.copy(dislikedIds = it.dislikedIds + song.id) }
+        launchSafe { recommendationRepository.sendFeedback(song.id, positive = false) }
+    }
+
     private fun play(songs: List<Song>, index: Int) {
         if (songs.isEmpty()) return
         launchSafe { playerRepository.playAll(songs, index, PlaybackContext.Suggestions) }
@@ -127,6 +136,8 @@ internal fun RecUiState.applyResult(result: RecResult, readiness: RecReadiness?)
             emptyReason = null,
             indexingProcessed = null,
             indexingTotal = null,
+            reasons = result.reasons,
+            dislikedIds = emptySet(),
         )
 
         is RecResult.Fallback -> copy(
@@ -136,6 +147,8 @@ internal fun RecUiState.applyResult(result: RecResult, readiness: RecReadiness?)
             emptyReason = null,
             indexingProcessed = null,
             indexingTotal = null,
+            reasons = result.reasons,
+            dislikedIds = emptySet(),
         )
 
         is RecResult.Empty -> copy(
@@ -148,5 +161,7 @@ internal fun RecUiState.applyResult(result: RecResult, readiness: RecReadiness?)
                 ?.takeIf { result.reason == RecEmptyReason.NOT_INDEXED_YET },
             indexingTotal = readiness?.indexingTotal
                 ?.takeIf { result.reason == RecEmptyReason.NOT_INDEXED_YET },
+            reasons = emptyMap(),
+            dislikedIds = emptySet(),
         )
     }

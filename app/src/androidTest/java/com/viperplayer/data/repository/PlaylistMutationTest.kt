@@ -85,10 +85,14 @@ class PlaylistMutationTest {
     /** No-op [TasteRepository] so the like path's taste nudge doesn't need real learning wiring here. */
     private object NoopTasteRepository : TasteRepository {
         override suspend fun taste(): TasteState = TasteState.COLD
+        override suspend fun currentBucketTaste(): TasteState = TasteState.COLD
+        override suspend fun moodCentroids(): List<FloatArray> = emptyList()
         override suspend fun recordServed(servedIds: List<Long>) = Unit
         override suspend fun servedRecency(): Map<Long, Float> = emptyMap()
         override suspend fun servedCounts(): Map<Long, Int> = emptyMap()
         override suspend fun onInteraction(interaction: Interaction) = Unit
+        override suspend fun suppressDiscoveryId(id: String) = Unit
+        override suspend fun suppressedDiscoveryIds(): Set<String> = emptySet()
         override suspend fun invalidate() = Unit
     }
 

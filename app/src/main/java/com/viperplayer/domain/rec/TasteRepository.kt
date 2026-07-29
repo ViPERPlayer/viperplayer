@@ -18,6 +18,31 @@ interface TasteRepository {
     suspend fun taste(): TasteState
 
     /**
+     * The taste for the CURRENT time-of-day bucket (P4), rebuilding first if cold/stale like [taste].
+     * Falls back to the global [taste] when the current bucket has not warmed up yet, so a caller can
+     * always prefer the time-aware taste without a separate cold-check. Returns [TasteState.COLD] only
+     * when the global taste is also cold.
+     */
+    suspend fun currentBucketTaste(): TasteState
+
+    /**
+     * The user's **mood centroids** (P4): up to K distinct taste clusters (each L2-normalized), rebuilt
+     * with the periodic rebuild. Empty while cold or when there aren't enough distinct directions to
+     * cluster — callers then fall back to the single-vector [taste]/[currentBucketTaste] behavior.
+     */
+    suspend fun moodCentroids(): List<FloatArray>
+
+    /**
+     * Records that the user thumbed-down a server-Discovery candidate with no on-device embedding, so it
+     * is suppressed from future discovery feeds. Idempotent; bounded. (For candidates that DO have a
+     * local embedding, prefer the stronger [onInteraction] `DISLIKE` signal instead.)
+     */
+    suspend fun suppressDiscoveryId(id: String)
+
+    /** The set of thumbed-down server-Discovery ids to exclude from the feed (see [suppressDiscoveryId]). */
+    suspend fun suppressedDiscoveryIds(): Set<String>
+
+    /**
      * Records the ids just served to the user so the reranker can down-weight them on the next pass
      * (anti-repetition). Decays existing entries and adds/refreshes [servedIds].
      */

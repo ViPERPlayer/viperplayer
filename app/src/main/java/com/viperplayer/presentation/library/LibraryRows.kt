@@ -22,10 +22,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.rounded.AddToQueue
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.QueuePlayNext
+import androidx.compose.material.icons.rounded.ThumbDown
+import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +95,19 @@ fun SongRow(
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Optional "Sounds like X" recommendation reason (P4), rendered as a caption under the artist line.
+     * Null on non-recommendation surfaces (the default), so those rows are unchanged.
+     */
+    reason: String? = null,
+    /**
+     * Optional explicit-feedback callbacks (P4). When both are provided, a thumbs-up / thumbs-down pair
+     * is shown before the more button; null (the default) hides them so ordinary song rows are unchanged.
+     * [isDisliked] dims the row to confirm a thumbs-down.
+     */
+    onThumbsUp: ((Song) -> Unit)? = null,
+    onThumbsDown: ((Song) -> Unit)? = null,
+    isDisliked: Boolean = false,
 ) {
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
@@ -185,7 +201,7 @@ fun SongRow(
                 // Content sits ~16dp from the screen edge. The active row's container already adds an
                 // 8dp inset, so its inner padding is 8dp; the flat non-active row uses the full 16dp.
                 .padding(horizontal = if (isActive) 8.dp else 16.dp, vertical = 7.dp)
-                .then(if (!song.isPlayable) Modifier.alpha(0.5f) else Modifier),
+                .then(if (!song.isPlayable || isDisliked) Modifier.alpha(0.5f) else Modifier),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -222,6 +238,36 @@ fun SongRow(
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (reason != null) {
+                    Text(
+                        text = reason,
+                        modifier = Modifier.infiniteBasicMarquee(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (onThumbsUp != null && onThumbsDown != null) {
+                IconButton(onClick = { onThumbsUp(song) }) {
+                    Icon(
+                        imageVector = Icons.Rounded.ThumbUp,
+                        contentDescription = stringResource(R.string.rec_feedback_thumbs_up),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = { onThumbsDown(song) }) {
+                    Icon(
+                        imageVector = if (isDisliked) Icons.Rounded.ThumbDown else Icons.Outlined.ThumbDown,
+                        contentDescription = stringResource(R.string.rec_feedback_thumbs_down),
+                        tint = if (isDisliked) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }

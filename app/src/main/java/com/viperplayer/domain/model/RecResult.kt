@@ -13,11 +13,25 @@ package com.viperplayer.domain.model
  */
 sealed interface RecResult {
 
-    /** kNN over the local embedding index produced [songs] (best-first). */
-    data class Local(val songs: List<Song>) : RecResult
+    /**
+     * kNN over the local embedding index produced [songs] (best-first). [reasons] maps a song's
+     * [MediaId] to an optional "Sounds like X" [RecReason] (P4) — present only where an anchor could be
+     * computed; absent entries render without a reason caption.
+     */
+    data class Local(
+        val songs: List<Song>,
+        val reasons: Map<MediaId, RecReason> = emptyMap(),
+    ) : RecResult
 
-    /** The plugin's related-songs feed produced [songs] (best-effort ordering from the plugin). */
-    data class Fallback(val songs: List<Song>) : RecResult
+    /**
+     * The plugin's related-songs feed / server Discover produced [songs] (best-effort ordering).
+     * [reasons] carries the generic taste-based reason for server Discover; empty for the plugin
+     * related-songs fallback (no honest anchor to compute).
+     */
+    data class Fallback(
+        val songs: List<Song>,
+        val reasons: Map<MediaId, RecReason> = emptyMap(),
+    ) : RecResult
 
     /** Nothing to show; [reason] drives the explanatory empty state. */
     data class Empty(val reason: RecEmptyReason) : RecResult

@@ -136,9 +136,13 @@ class RecommendationViewModelTest {
         private val result: RecResult,
         private val readinessValue: RecReadiness = RecReadiness(true, true, 0),
     ) : RecommendationRepository {
+        val feedback = mutableListOf<Pair<MediaId, Boolean>>()
         override suspend fun moreLikeThis(seed: MediaId, limit: Int): RecResult = result
         override suspend fun forYouFromLibrary(limit: Int): RecResult = result
         override val readiness: Flow<RecReadiness> get() = flowOf(readinessValue)
+        override suspend fun sendFeedback(mediaId: MediaId, positive: Boolean) {
+            feedback += mediaId to positive
+        }
     }
 
     private class RecordingPlayer : PlayerRepository by UnsupportedPlayerRepository() {

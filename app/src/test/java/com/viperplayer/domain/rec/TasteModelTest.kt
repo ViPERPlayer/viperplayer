@@ -243,4 +243,85 @@ class TasteModelTest {
         val nan = PlayRecord(FloatArray(3) { Float.NaN }, timestampMs = now, completion = 1f)
         assertTrue(TasteModel.deriveTaste(listOf(nan), emptyList(), nowMs = now).isCold)
     }
+
+    // --- TimeBucket (P4) ----------------------------------------------------------------------------
+
+    @Test
+    fun timeBucket_mapsLocalHourRangesDeterministically() {
+        assertEquals(TimeBucket.NIGHT, TimeBucket.fromHour(0))
+        assertEquals(TimeBucket.NIGHT, TimeBucket.fromHour(4))
+        assertEquals(TimeBucket.MORNING, TimeBucket.fromHour(5))
+        assertEquals(TimeBucket.MORNING, TimeBucket.fromHour(11))
+        assertEquals(TimeBucket.AFTERNOON, TimeBucket.fromHour(12))
+        assertEquals(TimeBucket.AFTERNOON, TimeBucket.fromHour(16))
+        assertEquals(TimeBucket.EVENING, TimeBucket.fromHour(17))
+        assertEquals(TimeBucket.EVENING, TimeBucket.fromHour(21))
+        assertEquals(TimeBucket.NIGHT, TimeBucket.fromHour(22))
+        assertEquals(TimeBucket.NIGHT, TimeBucket.fromHour(23))
+    }
+
+    @Test
+    fun timeBucket_wrapsOutOfRangeHours() {
+        // Out-of-range hours wrap mod 24 (25 -> 1 -> NIGHT; -1 -> 23 -> NIGHT).
+        assertEquals(TimeBucket.fromHour(1), TimeBucket.fromHour(25))
+        assertEquals(TimeBucket.fromHour(23), TimeBucket.fromHour(-1))
+    }
+
+    // --- deriveMoodCentroids (P4) -------------------------------------------------------------------
+
+    @Test
+    fun moodCentroids_emptyInput_returnsEmpty() {
+        assertTrue(TasteModel.deriveMoodCentroids(emptyList(), k = 3).isEmpty())
+    }
+
+    @Test
+    fun moodCentroids_singleDirection_returnsOneCentroidTowardIt() {
+        val points = List(5) { axis(0) }
+        val centroids = TasteModel.deriveMoodCentroids(points, k = 3)
+        assertEquals("collapses to a single centroid for one direction", 1, centroids.size)
+        assertEquals("centroid is unit-norm", 1f, norm(centroids[0]), 1e-4f)
+        assertTrue(cos(centroids[0], axis(0)) > 0.99f)
+    }
+
+    @Test
+    fun moodCentroids_separatesTwoClusters() {
+        // Two well-separated clusters (axis 0 and axis 3) → two centroids, one aligned to each.
+        val points = List(4) { axis(0) } + List(4) { axis(3) }
+        val centroids = TasteModel.deriveMoodCentroids(points, k = 2)
+        assertEquals(2, centroids.size)
+        // Each cluster axis is captured by exactly one centroid at high cosine.
+        val toAxis0 = centroids.maxOf { cos(it, axis(0)) }
+        val toAxis3 = centroids.maxOf { cos(it, axis(3)) }
+        assertTrue("a centroid aligns to cluster 0", toAxis0 > 0.99f)
+        assertTrue("a centroid aligns to cluster 3", toAxis3 > 0.99f)
+        for (c in centroids) assertEquals("centroids are unit-norm", 1f, norm(c), 1e-4f)
+    }
+
+    @Test
+    fun moodCentroids_fewerDistinctThanK_returnsFewerCentroids() {
+        // Only 2 distinct directions but K=3 → at most 2 centroids (guards the degenerate case).
+        val points = List(3) { axis(0) } + List(3) { axis(1) }
+        val centroids = TasteModel.deriveMoodCentroids(points, k = 3)
+        assertTrue("no more centroids than distinct clusters", centroids.size <= 2)
+        assertTrue(centroids.isNotEmpty())
+    }
+
+    @Test
+    fun moodCentroids_isDeterministic() {
+        val points = List(4) { axis(0) } + List(4) { axis(2) } + List(4) { axis(5) }
+        val a = TasteModel.deriveMoodCentroids(points, k = 3)
+        val b = TasteModel.deriveMoodCentroids(points, k = 3)
+        assertEquals(a.size, b.size)
+        for (i in a.indices) assertTrue("same centroid $i", cos(a[i], b[i]) > 0.9999f)
+    }
+
+    @Test
+    fun moodCentroids_skipsNonFiniteAndWrongDim() {
+        // A NaN row and a wrong-dimension row are skipped; the clean axis-0 rows still yield a centroid.
+        val nan = FloatArray(dim) { Float.NaN }
+        val wrongDim = FloatArray(dim + 1) { 1f }
+        val centroids = TasteModel.deriveMoodCentroids(listOf(axis(0), nan, wrongDim, axis(0)), k = 2)
+        assertEquals(1, centroids.size)
+        assertTrue(cos(centroids[0], axis(0)) > 0.99f)
+    }
 }

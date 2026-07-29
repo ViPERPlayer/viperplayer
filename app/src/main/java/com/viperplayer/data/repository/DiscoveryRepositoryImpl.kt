@@ -8,6 +8,7 @@ import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RecEmptyReason
+import com.viperplayer.domain.model.RecReason
 import com.viperplayer.domain.model.RecResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.rec.TasteRepository
@@ -52,8 +53,12 @@ class DiscoveryRepositoryImpl @Inject constructor(
         val taste = runCatchingRec("read taste") { tasteRepository.taste() }
         val tasteVector = taste?.vector ?: return RecResult.Empty(RecEmptyReason.NOT_INDEXED_YET)
 
-        // 3) Exclude everything the user already owns so results are genuinely NEW.
-        val excludeIds = ownedExcludeIds()
+        // 3) Exclude everything the user already owns AND every thumbed-down (suppressed) id, so results
+        //    are genuinely NEW and the backend never spends a page slot on a candidate we'd only drop.
+        val suppressed = runCatchingRec("read suppressed ids") {
+            tasteRepository.suppressedDiscoveryIds()
+        }.orEmpty()
+        val excludeIds = (ownedExcludeIds() + suppressed).distinct()
 
         // 4) Ask the backend. Auth-wrapped; a 409 handshake mismatch or any transport failure is graceful.
         val apiResult = runCatchingRec("discover request") {
@@ -78,11 +83,19 @@ class DiscoveryRepositoryImpl @Inject constructor(
             else -> return RecResult.Empty(RecEmptyReason.NO_RESULTS)
         }
 
+        // Defensively drop any suppressed candidate the backend still returned (it's asked to exclude
+        // them above, but the client filter guarantees a thumbed-down id never reappears regardless).
         val songs = candidates.mapNotNull { it.toSongOrNull() }
+            .filter { song ->
+                val id = song.id
+                id !is MediaId.Plugin || "${id.pluginId}:${id.sourceId}" !in suppressed
+            }
         if (songs.isEmpty()) return RecResult.Empty(RecEmptyReason.NO_RESULTS)
         // Backend-ranked (best-first); modeled as a Fallback so the UI can note the ranking's provenance
-        // (server, not the on-device kNN) exactly like the plugin related-songs fallback does.
-        return RecResult.Fallback(songs)
+        // (server, not the on-device kNN) exactly like the plugin related-songs fallback does. Each result
+        // carries the GENERIC taste-based reason — we can't compute a specific anchor without embeddings.
+        val reasons = songs.associate { it.id to RecReason(RecReason.Kind.MATCHES_TASTE) }
+        return RecResult.Fallback(songs, reasons)
     }
 
     override suspend fun contributeTasteIfEnabled() {
@@ -96,6 +109,19 @@ class DiscoveryRepositoryImpl @Inject constructor(
                     RecommendationApi.ContributeResult.Error -> AccountApiResult.NetworkError
                 }
             }
+        }
+    }
+
+    override suspend fun sendFeedback(mediaId: MediaId, positive: Boolean) {
+        if (positive) {
+            // Thumbs up = like the discovered song (reuses the normal like path).
+            runCatchingRec("thumbs up like") { mediaLibraryRepository.setSongLiked(mediaId, true) }
+            return
+        }
+        // Thumbs down: no on-device embedding for a server candidate, so suppress its id from the feed.
+        val id = mediaId as? MediaId.Plugin ?: return
+        runCatchingRec("suppress discovery id") {
+            tasteRepository.suppressDiscoveryId("${id.pluginId}:${id.sourceId}")
         }
     }
 

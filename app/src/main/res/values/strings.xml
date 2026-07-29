@@ -573,6 +573,16 @@
     <string name="rec_indexing_progress">Analyzing your library… %1$d/%2$d</string>
     <string name="rec_empty_error">Something went wrong loading recommendations.</string>
 
+    <!-- "Sounds like X" recommendation reasons (P4) -->
+    <string name="rec_reason_sounds_like">Sounds like %1$s</string>
+    <string name="rec_reason_because_you_like">Because you like %1$s</string>
+    <string name="rec_reason_more_like">More like %1$s</string>
+    <string name="rec_reason_matches_taste">Matches your taste</string>
+
+    <!-- Explicit recommendation feedback (P4) -->
+    <string name="rec_feedback_thumbs_up">Good recommendation</string>
+    <string name="rec_feedback_thumbs_down">Not for me</string>
+
     <!-- Offline mode banner (Home / Search) -->
     <string name="offline_banner_message">Offline mode is on — showing local and downloaded music only</string>
 

@@ -1,5 +1,6 @@
 package com.viperplayer.domain.repository
 
+import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RecResult
 
 /**
@@ -37,4 +38,15 @@ interface DiscoveryRepository {
      * throws.
      */
     suspend fun contributeTasteIfEnabled()
+
+    /**
+     * Explicit user feedback (P4) on a server-Discovery candidate. Thumbs-**up** likes the song (reusing
+     * the normal like path). Thumbs-**down** suppresses the id from FUTURE discovery feeds — because
+     * server candidates have no on-device embedding, there's nothing to nudge the taste away from, so the
+     * honest behavior is to stop resurfacing it. Idempotent and fire-safe (never throws).
+     *
+     * @param mediaId the discovered song (a [com.viperplayer.domain.model.MediaId.Plugin]).
+     * @param positive true = thumbs up, false = thumbs down.
+     */
+    suspend fun sendFeedback(mediaId: MediaId, positive: Boolean)
 }

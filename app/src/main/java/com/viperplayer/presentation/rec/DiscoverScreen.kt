@@ -58,6 +58,8 @@ fun DiscoverScreen(
         onSongPlayNext = viewModel::playNext,
         onSongAddToQueue = viewModel::addToQueue,
         onRetry = viewModel::retry,
+        onThumbsUp = viewModel::thumbsUp,
+        onThumbsDown = viewModel::thumbsDown,
         noResultsMessage = stringResource(R.string.discover_empty_no_results),
         modifier = modifier,
     )
