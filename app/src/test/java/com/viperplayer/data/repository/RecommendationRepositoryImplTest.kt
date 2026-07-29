@@ -14,6 +14,9 @@ import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.RecEmptyReason
 import com.viperplayer.domain.model.RecResult
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.rec.Interaction
+import com.viperplayer.domain.rec.TasteRepository
+import com.viperplayer.domain.rec.TasteState
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.SettingsRepository
@@ -46,6 +49,15 @@ class RecommendationRepositoryImplTest {
         v[0] = x / n
         v[1] = y / n
         return embeddingToBytes(v)
+    }
+
+    /** As [bytes] but returns the 512-d unit FloatArray directly (for a warm taste vector). */
+    private fun vector(x: Float, y: Float): FloatArray {
+        val v = FloatArray(ClapModel.EMBEDDING_DIM)
+        val n = sqrt((x * x + y * y).toDouble()).toFloat().takeIf { it > 0f } ?: 1f
+        v[0] = x / n
+        v[1] = y / n
+        return v
     }
 
     private fun local(id: String) = MediaId.Local(id)
@@ -177,6 +189,51 @@ class RecommendationRepositoryImplTest {
     }
 
     @Test
+    fun forYou_warmTaste_personalizesOrderVsPlainCentroid() = runTest {
+        // A warm taste pointing along +y. Non-pool candidates: s3 (+y, on-taste) should outrank s4 (+x,
+        // off-taste). The plain centroid path (cold taste, below) builds from the +x liked pool and would
+        // prefer s4 — so the personalized order genuinely differs.
+        val dao = RecFakeSongDao(
+            embeddings = listOf(
+                SongEmbeddingRow(1L, bytes(1f, 0f)), // liked pool (points +x)
+                SongEmbeddingRow(3L, bytes(0f, 1f)), // on the +y taste
+                SongEmbeddingRow(4L, bytes(1f, 0f)), // off the +y taste
+            ),
+            entities = listOf(entity(1L, "s1"), entity(3L, "s3"), entity(4L, "s4")),
+            seedEmbeddings = emptyMap(),
+            liked = listOf(entity(1L, "s1")),
+            recent = emptyList(),
+        )
+        val media = FakeMedia(mapOf(local("s3") to song("s3"), local("s4") to song("s4")))
+        val warm = FakeTaste(TasteState(vector = vector(0f, 1f)))
+        val cold = FakeTaste(TasteState.COLD)
+
+        val personalized = (repo(dao = dao, media = media, taste = warm).forYouFromLibrary(limit = 10)
+            as RecResult.Local).songs.map { it.id }
+        val plain = (repo(dao = dao, media = media, taste = cold).forYouFromLibrary(limit = 10)
+            as RecResult.Local).songs.map { it.id }
+
+        // Personalized taste (+y) ranks s3 first; the plain +x centroid ranks s4 first.
+        assertEquals(local("s3"), personalized.first())
+        assertEquals(local("s4"), plain.first())
+        assertTrue("personalized order differs from plain kNN", personalized != plain)
+    }
+
+    @Test
+    fun forYou_recordsServedIdsForAntiRepetition() = runTest {
+        val dao = RecFakeSongDao(
+            embeddings = listOf(SongEmbeddingRow(1L, bytes(1f, 0f)), SongEmbeddingRow(3L, bytes(1f, 0.1f))),
+            entities = listOf(entity(1L, "s1"), entity(3L, "s3")),
+            seedEmbeddings = emptyMap(),
+            liked = listOf(entity(1L, "s1")),
+        )
+        val taste = FakeTaste(TasteState(vector = vector(1f, 0f)))
+        repo(dao = dao, media = FakeMedia(mapOf(local("s3") to song("s3"))), taste = taste)
+            .forYouFromLibrary(limit = 10)
+        assertTrue("served ids are recorded for anti-repetition", taste.served.isNotEmpty())
+    }
+
+    @Test
     fun forYou_disabled_returnsDisabledEmpty() = runTest {
         val dao = RecFakeSongDao(emptyList(), emptyList(), emptyMap())
         val repo = repo(dao = dao, recommendationsEnabled = false)
@@ -205,6 +262,7 @@ class RecommendationRepositoryImplTest {
         recommendationsEnabled: Boolean = true,
         modelState: ClapModelState = ClapModelState.Ready("v", File("x")),
         indexingStatus: IndexingStatus = IndexingStatus.Idle,
+        taste: TasteRepository = FakeTaste(),
     ) = RecommendationRepositoryImpl(
         songDao = dao,
         mediaLibraryRepository = media,
@@ -212,6 +270,7 @@ class RecommendationRepositoryImplTest {
         settingsRepository = FakeSettings(recommendationsEnabled),
         clapModelRepository = FakeClapModel(modelState),
         indexRepository = FakeIndex(indexingStatus),
+        tasteRepository = taste,
     )
 
     private class FakeMedia(private val songs: Map<MediaId, Song>) :
@@ -243,5 +302,19 @@ class RecommendationRepositoryImplTest {
 
     private class FakeIndex(private val status: IndexingStatus) : IndexingStatusProvider {
         override val indexingStatus: Flow<IndexingStatus> get() = flowOf(status)
+    }
+
+    /**
+     * Test [TasteRepository]. Defaults to a COLD taste (so "For You" exercises the centroid fallback),
+     * and records the ids passed to [recordServed] so a test can assert the feed was recorded.
+     */
+    class FakeTaste(private val state: TasteState = TasteState.COLD) : TasteRepository {
+        val served = mutableListOf<Long>()
+        override suspend fun taste(): TasteState = state
+        override suspend fun recordServed(servedIds: List<Long>) { served += servedIds }
+        override suspend fun servedRecency(): Map<Long, Float> = emptyMap()
+        override suspend fun servedCounts(): Map<Long, Int> = emptyMap()
+        override suspend fun onInteraction(interaction: Interaction) = Unit
+        override suspend fun invalidate() = Unit
     }
 }

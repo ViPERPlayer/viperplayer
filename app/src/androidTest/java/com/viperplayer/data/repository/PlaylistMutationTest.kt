@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.viperplayer.data.download.AutoDownloader
 import com.viperplayer.data.local.ViperPlayerDatabase
+import com.viperplayer.data.rec.TasteLearningHooks
 import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.data.sync.push.LibraryPushOutbox
 import com.viperplayer.domain.model.Album
@@ -25,6 +26,9 @@ import com.viperplayer.domain.model.SearchFilter
 import com.viperplayer.domain.model.SearchResult
 import com.viperplayer.domain.model.SearchSuggestions
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.rec.Interaction
+import com.viperplayer.domain.rec.TasteRepository
+import com.viperplayer.domain.rec.TasteState
 import com.viperplayer.domain.repository.PluginRepository
 import dagger.Lazy
 import kotlinx.coroutines.flow.Flow
@@ -73,7 +77,19 @@ class PlaylistMutationTest {
             settingsRepository = SettingsRepositoryImpl(context),
             // These tests never like a downloadable song, so the auto-downloader is never touched.
             autoDownloader = Lazy { object : AutoDownloader { override fun enqueue(song: Song) {} } },
+            // Taste learning is exercised elsewhere; a no-op taste repo keeps these mutation tests focused.
+            tasteLearningHooks = TasteLearningHooks(db.songDao(), NoopTasteRepository),
         )
+    }
+
+    /** No-op [TasteRepository] so the like path's taste nudge doesn't need real learning wiring here. */
+    private object NoopTasteRepository : TasteRepository {
+        override suspend fun taste(): TasteState = TasteState.COLD
+        override suspend fun recordServed(servedIds: List<Long>) = Unit
+        override suspend fun servedRecency(): Map<Long, Float> = emptyMap()
+        override suspend fun servedCounts(): Map<Long, Int> = emptyMap()
+        override suspend fun onInteraction(interaction: Interaction) = Unit
+        override suspend fun invalidate() = Unit
     }
 
     @After

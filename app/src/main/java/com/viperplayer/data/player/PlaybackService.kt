@@ -66,6 +66,7 @@ import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.data.lastfm.LastfmScrobbler
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.data.rec.TasteLearningHooks
 import com.viperplayer.data.stats.PlayHistoryRecorder
 import com.viperplayer.domain.audio.NetworkType
 import com.viperplayer.domain.audio.PlaybackTuning
@@ -133,6 +134,9 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var playHistoryRecorder: PlayHistoryRecorder
+
+    @Inject
+    lateinit var tasteLearningHooks: TasteLearningHooks
 
     @Inject
     lateinit var lastfmScrobbler: LastfmScrobbler
@@ -1089,6 +1093,12 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
                 runCatching { mediaLibraryRepository.recordListenedTime(mediaId, listenedMs) }
                     .onFailure { Timber.e(it, "Failed to record listened time for $mediaId") }
             }
+
+            // Feed the online taste model from the SAME session-end signal: a completed listen nudges the
+            // taste toward this song, a very short one away from it. Fire-and-forget in the data layer.
+            val durationMs = mediaItem.mediaMetadata.extras?.getLong("durationMs", 0L)?.coerceAtLeast(0L) ?: 0L
+            runCatching { tasteLearningHooks.onPlay(mediaId, listenedMs, durationMs) }
+                .onFailure { Timber.e(it, "Failed to feed taste model for $mediaId") }
         }
     }
 
