@@ -13,6 +13,10 @@ import com.viperplayer.data.rec.IndexingStatus
 import com.viperplayer.data.rec.IndexingStatusProvider
 import com.viperplayer.data.rec.bytesToEmbedding
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.rec.Candidate
+import com.viperplayer.domain.rec.RerankParams
+import com.viperplayer.domain.rec.Reranker
+import com.viperplayer.domain.rec.TasteRepository
 import com.viperplayer.domain.model.RecEmptyReason
 import com.viperplayer.domain.model.RecReadiness
 import com.viperplayer.domain.model.RecResult
@@ -45,6 +49,7 @@ class RecommendationRepositoryImpl @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val clapModelRepository: ClapModelRepository,
     private val indexRepository: IndexingStatusProvider,
+    private val tasteRepository: TasteRepository,
 ) : RecommendationRepository {
 
     override suspend fun moreLikeThis(seed: MediaId, limit: Int): RecResult {
@@ -66,18 +71,32 @@ class RecommendationRepositoryImpl @Inject constructor(
         // would otherwise crowd the head of the list with alternate pressings of the same track).
         val excluded = buildExclusionSet(candidates, seedEntity)
 
-        val ranked = EmbeddingKnn.cosineTopK(
+        // 1) A wider kNN shortlist around the seed than we finally show, so the reranker has room to
+        //    diversify / anti-repeat without dropping below `limit`.
+        val shortlist = EmbeddingKnn.cosineTopK(
             query = query,
             candidates = candidates,
-            k = limit,
+            k = limit * RERANK_POOL_FACTOR,
             excludeIds = excluded,
         )
 
-        val songs = resolveSongs(ranked.map { it.id })
+        // 2) Rerank the shortlist against the seed: relevance-to-seed with MMR diversity + anti-repetition
+        //    (no taste novelty/exploration here — "more like this" should stay close to the seed).
+        val byId = candidates.associate { it.first to it.second }
+        val rankedIds = rerank(
+            reference = query,
+            poolIds = shortlist.map { it.id },
+            byId = byId,
+            limit = limit,
+            params = MORE_LIKE_THIS_PARAMS,
+        )
+
+        val songs = resolveSongs(rankedIds)
         // Too few local hits to be a satisfying "more like this" — prefer the plugin's fuller feed.
         return if (songs.size < MIN_LOCAL_RESULTS) {
             fallback(seed, limit, localFewSongs = songs)
         } else {
+            recordServed(rankedIds)
             RecResult.Local(songs)
         }
     }
@@ -97,20 +116,49 @@ class RecommendationRepositoryImpl @Inject constructor(
         }
         val byId = candidates.associate { it.first to it.second }
 
-        // Basic taste model (P2 swaps this): the centroid of liked + recently-played embedded songs.
-        val poolIds = tastePoolIds().filter { it in byId }.take(TASTE_POOL_CAP)
-        val poolVectors = poolIds.mapNotNull { byId[it] }
-        val centroid = EmbeddingKnn.meanVector(poolVectors)
-            ?: return RecResult.Empty(RecEmptyReason.NOT_INDEXED_YET) // no taste signal yet
+        // The online-learned taste vector (P2). Cold/stale ⇒ rebuilt from history inside the repository.
+        val taste = runCatchingRec("read taste") { tasteRepository.taste() }
+        val tasteVector = taste?.vector
 
-        val ranked = EmbeddingKnn.cosineTopK(
-            query = centroid,
-            candidates = candidates,
-            k = limit,
-            excludeIds = poolIds.toSet(),
-        )
-        val songs = resolveSongs(ranked.map { it.id })
-        return if (songs.isEmpty()) RecResult.Empty(RecEmptyReason.NO_RESULTS) else RecResult.Local(songs)
+        // Exclude the taste's own pool (liked + recently played) from the feed so "For You" surfaces
+        // NEW songs, not the ones the taste was built from.
+        val poolIds = tastePoolIds().filter { it in byId }.take(TASTE_POOL_CAP).toSet()
+
+        val rankedIds: List<Long> = if (tasteVector != null) {
+            // Personalized: narrow to the taste's neighbourhood with kNN, then rerank that shortlist
+            // with novelty + exploration + MMR diversity + anti-repetition for a *mixed* feed.
+            val shortlist = EmbeddingKnn.cosineTopK(
+                query = tasteVector,
+                candidates = candidates,
+                k = limit * RERANK_POOL_FACTOR,
+                excludeIds = poolIds,
+            ).map { it.id }
+            // Vary the exploration seed by day so the long-tail picks the Reranker surfaces rotate
+            // day-to-day (as its exploration term documents) while staying stable within a session/day.
+            rerank(
+                reference = tasteVector,
+                poolIds = shortlist,
+                byId = byId,
+                limit = limit,
+                params = FOR_YOU_PARAMS.copy(seed = explorationSeed()),
+            )
+        } else {
+            // Cold taste: fall back to the P1 centroid of the liked/recent pool (non-personalized).
+            val poolVectors = poolIds.mapNotNull { byId[it] }
+            val centroid = EmbeddingKnn.meanVector(poolVectors)
+                ?: return RecResult.Empty(RecEmptyReason.NOT_INDEXED_YET) // no taste signal yet
+            EmbeddingKnn.cosineTopK(
+                query = centroid,
+                candidates = candidates,
+                k = limit,
+                excludeIds = poolIds,
+            ).map { it.id }
+        }
+
+        val songs = resolveSongs(rankedIds)
+        if (songs.isEmpty()) return RecResult.Empty(RecEmptyReason.NO_RESULTS)
+        recordServed(rankedIds)
+        return RecResult.Local(songs)
     }
 
     override val readiness: Flow<RecReadiness> = combine(
@@ -132,6 +180,44 @@ class RecommendationRepositoryImpl @Inject constructor(
     }
 
     // --- helpers -----------------------------------------------------------------------------------
+
+    /**
+     * Reranks the kNN [poolIds] with the pure [Reranker] against [reference] (the seed or taste vector),
+     * blending relevance + novelty + exploration + MMR diversity + anti-repetition (weights per [params]).
+     * Reads the persisted served-recency/count maps for the anti-repetition/exploration terms. Falls back
+     * to the input order if reranking can't run. Returns the reranked row ids, best first.
+     */
+    private suspend fun rerank(
+        reference: FloatArray,
+        poolIds: List<Long>,
+        byId: Map<Long, FloatArray>,
+        limit: Int,
+        params: RerankParams,
+    ): List<Long> {
+        if (poolIds.isEmpty()) return emptyList()
+        val candidates = poolIds.mapNotNull { id -> byId[id]?.let { Candidate(id, it) } }
+        if (candidates.isEmpty()) return poolIds.take(limit)
+
+        val recency = runCatchingRec("read served recency") { tasteRepository.servedRecency() }.orEmpty()
+        val counts = runCatchingRec("read served counts") { tasteRepository.servedCounts() }.orEmpty()
+
+        return runCatchingRec("rerank") {
+            Reranker.rank(
+                taste = reference,
+                candidates = candidates,
+                servedRecency = recency,
+                servedCounts = counts,
+                limit = limit,
+                params = params,
+            ).map { it.id }
+        } ?: poolIds.take(limit)
+    }
+
+    /** Records the just-served row [ids] so anti-repetition can down-weight them next time. Never throws. */
+    private suspend fun recordServed(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        runCatchingRec("record served") { tasteRepository.recordServed(ids) }
+    }
 
     /** All current-version `(rowId, vector)` candidates, decoding the stored BLOBs. Never throws. */
     private suspend fun loadCandidates(): List<Pair<Long, FloatArray>> {
@@ -217,6 +303,13 @@ class RecommendationRepositoryImpl @Inject constructor(
     private suspend fun recommendationsEnabled(): Boolean =
         runCatchingRec("read setting") { settingsRepository.recommendationsEnabled.first() } ?: false
 
+    /**
+     * A day-bucketed exploration seed: deterministic within a calendar day (so a "For You" feed is
+     * stable across a browsing session) yet advancing day-to-day so the Reranker's per-(id, seed)
+     * exploration jitter surfaces different long-tail picks over time instead of the same fixed ones.
+     */
+    private fun explorationSeed(): Long = System.currentTimeMillis() / MS_PER_DAY
+
     /** Runs [block], logging and swallowing any failure to a null so recommendations never crash. */
     private inline fun <T> runCatchingRec(what: String, block: () -> T): T? =
         try {
@@ -235,5 +328,36 @@ class RecommendationRepositoryImpl @Inject constructor(
 
         /** Cap on the taste pool so the centroid stays cheap and recent-biased. */
         const val TASTE_POOL_CAP = 100
+
+        /** kNN pulls this many times `limit` as a shortlist for the reranker to diversify within. */
+        const val RERANK_POOL_FACTOR = 4
+
+        /** Milliseconds per day — the bucket size for the day-varying exploration seed. */
+        const val MS_PER_DAY = 24L * 60 * 60 * 1000
+
+        /**
+         * Rerank weights for "For You": relevance-led but with real novelty/exploration/diversity so the
+         * feed is a personalized *mix*, not just the taste's nearest neighbours (which would collapse the
+         * filter bubble). Anti-repetition is on so the feed rotates between calls.
+         */
+        val FOR_YOU_PARAMS = RerankParams(
+            relevanceWeight = 1.0f,
+            noveltyWeight = 0.15f,
+            explorationWeight = 0.12f,
+            diversityWeight = 0.30f,
+            antiRepetitionWeight = 0.50f,
+        )
+
+        /**
+         * Rerank weights for "More like this": stay CLOSE to the seed (no novelty/exploration pull), but
+         * still de-duplicate near-identical tracks (MMR) and avoid recently-served ids (anti-repetition).
+         */
+        val MORE_LIKE_THIS_PARAMS = RerankParams(
+            relevanceWeight = 1.0f,
+            noveltyWeight = 0.0f,
+            explorationWeight = 0.0f,
+            diversityWeight = 0.25f,
+            antiRepetitionWeight = 0.30f,
+        )
     }
 }

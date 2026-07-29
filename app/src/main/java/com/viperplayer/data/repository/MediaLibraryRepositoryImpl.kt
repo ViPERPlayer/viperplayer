@@ -37,6 +37,7 @@ import com.viperplayer.data.download.AutoDownloader
 import com.viperplayer.data.download.shouldAutoDownloadOnLike
 import com.viperplayer.data.playlist.M3uSerializer
 import com.viperplayer.data.playlist.PlaylistOrdering
+import com.viperplayer.data.rec.TasteLearningHooks
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.source.LocalMediaDataSource
 import com.viperplayer.data.sync.push.LibraryMutation
@@ -100,6 +101,7 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     // MediaLibraryRepository, so we can't hold an eager instance here. Only touched when
     // auto-download-on-like actually fires.
     private val autoDownloader: Lazy<AutoDownloader>,
+    private val tasteLearningHooks: TasteLearningHooks,
 ) : MediaLibraryRepository {
 
     // Scope for fire-and-forget background work (e.g. artwork caching) that must not block callers
@@ -742,6 +744,11 @@ class MediaLibraryRepositoryImpl @Inject constructor(
     override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean): Unit =
         withContext(Dispatchers.IO) {
             songDao.updateLiked(mediaId, isLiked)
+
+            // Feed the online taste model: a like nudges taste toward this song's audio embedding, an
+            // unlike mildly away. Fire-and-forget (no-op without a local embedding); kept in the data
+            // layer, off this caller's path.
+            tasteLearningHooks.onLikeChanged(mediaId, isLiked)
 
             // Propagate the like/unlike up to the originating plugin account (two-way sync push).
             // Local songs have no remote account, so only plugin content is pushed.
