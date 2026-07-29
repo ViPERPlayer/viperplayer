@@ -74,6 +74,12 @@ fun RecommendationsScreen(
     onSongAddToQueue: (Song) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Overrides the [RecEmptyReason.NO_RESULTS] empty-state message. Discover uses this for a
+     * discovery-flavored "nothing new to discover right now" (the default is "No similar songs yet",
+     * which suits the library-only surfaces). Null keeps the default.
+     */
+    noResultsMessage: String? = null,
 ) {
     ViperScaffold(
         modifier = modifier.padding(rootPadding.bottom()),
@@ -118,6 +124,7 @@ fun RecommendationsScreen(
                     reason = state.emptyReason,
                     indexingProcessed = state.indexingProcessed,
                     indexingTotal = state.indexingTotal,
+                    noResultsMessage = noResultsMessage,
                     onRetry = onRetry,
                     modifier = Modifier.align(Alignment.Center),
                 )
@@ -247,6 +254,7 @@ private fun RecEmptyState(
     indexingTotal: Int?,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    noResultsMessage: String? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp),
@@ -268,7 +276,8 @@ private fun RecEmptyState(
                     stringResource(R.string.rec_empty_not_indexed)
                 }
             RecEmptyReason.ERROR -> stringResource(R.string.rec_empty_error)
-            RecEmptyReason.NO_RESULTS, null -> stringResource(R.string.rec_empty_no_results)
+            RecEmptyReason.NO_RESULTS, null ->
+                noResultsMessage ?: stringResource(R.string.rec_empty_no_results)
         }
         Text(
             text = message,

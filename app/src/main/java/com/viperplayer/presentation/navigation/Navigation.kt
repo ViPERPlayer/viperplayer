@@ -42,6 +42,7 @@ import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
 import com.viperplayer.presentation.detail.TagDetailsScreen
 import com.viperplayer.presentation.detail.TagDetailsViewModel
+import com.viperplayer.presentation.rec.DiscoverScreen
 import com.viperplayer.presentation.rec.ForYouScreen
 import com.viperplayer.presentation.rec.SimilarSongsScreen
 import com.viperplayer.presentation.rec.SimilarSongsViewModel
@@ -247,6 +248,10 @@ data class SimilarSongs(
 /** "For You" — a taste-based mix built from the local library (reached from the You hub). */
 @Serializable
 object ForYou : NavKey
+
+/** "Discover" — server-backed recommendations of songs the user doesn't own (reached from the You hub). */
+@Serializable
+object Discover : NavKey
 
 /** Full tag / metadata detail viewer for a local file (reached from [SongInfo]). Local songs only. */
 @Serializable
@@ -462,6 +467,7 @@ fun ViperNavDisplay(
                 onNavigateToHistory = { navigator.navigate(History) },
                 onNavigateToListeningStats = { navigator.navigate(ListeningStats) },
                 onNavigateToForYou = { navigator.navigate(ForYou) },
+                onNavigateToDiscover = { navigator.navigate(Discover) },
                 onNavigateToDownloads = { navigator.navigate(Downloads) },
                 onNavigateToLastfm = { navigator.navigate(SettingsLastfm) },
                 onNavigateToAlarms = { navigator.navigate(SettingsAlarms) },
@@ -818,6 +824,15 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
 
     entry<ForYou> {
         ForYouScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
+        )
+    }
+
+    entry<Discover> {
+        DiscoverScreen(
             rootPadding = rootPadding,
             onNavigateBack = goBack,
             onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },

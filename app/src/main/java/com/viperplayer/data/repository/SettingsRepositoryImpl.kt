@@ -121,6 +121,8 @@ class SettingsRepositoryImpl(
 
         // Recommendations (on-device, opt-in)
         private val RECOMMENDATIONS_ENABLED_KEY = booleanPreferencesKey("recommendations_enabled")
+        // Discovery: contribute anonymized taste vector to the backend (opt-in, default OFF).
+        private val CONTRIBUTE_ANONYMIZED_TASTE_KEY = booleanPreferencesKey("contribute_anonymized_taste")
     }
 
     /** map + distinctUntilChanged — DataStore emits the whole snapshot on any edit, so de-dupe each setting. */
@@ -680,6 +682,17 @@ class SettingsRepositoryImpl(
     override suspend fun setRecommendationsEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[RECOMMENDATIONS_ENABLED_KEY] = enabled
+        }
+    }
+
+    // Discovery: anonymized taste contribution (opt-in) — default OFF.
+    override val contributeAnonymizedTaste: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[CONTRIBUTE_ANONYMIZED_TASTE_KEY] ?: false // Default: don't contribute (opt-in)
+    }
+
+    override suspend fun setContributeAnonymizedTaste(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[CONTRIBUTE_ANONYMIZED_TASTE_KEY] = enabled
         }
     }
 

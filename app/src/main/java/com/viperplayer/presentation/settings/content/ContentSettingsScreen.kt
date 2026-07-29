@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.Explicit
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -115,6 +116,19 @@ fun ContentSettingsScreen(
                     onCheckedChange = viewModel::setRecommendationsEnabled,
                     onRetry = viewModel::retryRecommendationsDownload
                 )
+            }
+            // Anonymized-taste discovery contribution (privacy opt-in). Only meaningful once smart
+            // recommendations are on (the shared taste model produces the vector), so it's gated on it.
+            if (uiState.recommendationsEnabled) {
+                item {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Insights,
+                        title = stringResource(R.string.content_contribute_taste),
+                        description = stringResource(R.string.content_contribute_taste_desc),
+                        checked = uiState.contributeAnonymizedTaste,
+                        onCheckedChange = viewModel::setContributeAnonymizedTaste
+                    )
+                }
             }
         }
     }

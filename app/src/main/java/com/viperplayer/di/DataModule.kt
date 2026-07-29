@@ -6,6 +6,7 @@ import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.librarysync.LibrarySyncRepositoryImpl
 import com.viperplayer.data.repository.AutoPlaylistRepositoryImpl
 import com.viperplayer.data.repository.CacheRepositoryImpl
+import com.viperplayer.data.repository.DiscoveryRepositoryImpl
 import com.viperplayer.data.repository.LyricsPreferencesRepositoryImpl
 import com.viperplayer.data.repository.MockListenTogetherRepositoryImpl
 import com.viperplayer.data.repository.RealListenTogetherRepositoryImpl
@@ -35,6 +36,7 @@ import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.librarysync.LibrarySyncRepository
 import com.viperplayer.domain.repository.AutoPlaylistRepository
 import com.viperplayer.domain.repository.CacheRepository
+import com.viperplayer.domain.repository.DiscoveryRepository
 import com.viperplayer.domain.repository.ListenTogetherRepository
 import com.viperplayer.domain.repository.LyricsPreferencesRepository
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -114,6 +116,12 @@ abstract class DataModule {
     abstract fun bindRecommendationRepository(
         impl: RecommendationRepositoryImpl
     ): RecommendationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDiscoveryRepository(
+        impl: DiscoveryRepositoryImpl
+    ): DiscoveryRepository
 
     @Binds
     @Singleton

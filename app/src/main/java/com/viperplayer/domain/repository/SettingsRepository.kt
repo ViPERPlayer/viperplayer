@@ -324,5 +324,14 @@ interface SettingsRepository {
      */
     val recommendationsEnabled: Flow<Boolean>
     suspend fun setRecommendationsEnabled(enabled: Boolean)
+
+    /**
+     * Whether to contribute the user's **anonymized** on-device taste vector to the backend to improve
+     * global discovery (P3, opt-in). **Default OFF** — only an L2-normalized taste vector is ever sent
+     * (never audio, never identity, never track ids); nothing is shared unless this is explicitly turned
+     * on. Persists across restarts.
+     */
+    val contributeAnonymizedTaste: Flow<Boolean>
+    suspend fun setContributeAnonymizedTaste(enabled: Boolean)
 }
 

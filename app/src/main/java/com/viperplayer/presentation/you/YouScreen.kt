@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.History
@@ -93,6 +94,7 @@ fun YouScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToListeningStats: () -> Unit,
     onNavigateToForYou: () -> Unit,
+    onNavigateToDiscover: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToLastfm: () -> Unit,
     onNavigateToAlarms: () -> Unit,
@@ -116,6 +118,7 @@ fun YouScreen(
         onNavigateToHistory = onNavigateToHistory,
         onNavigateToListeningStats = onNavigateToListeningStats,
         onNavigateToForYou = onNavigateToForYou,
+        onNavigateToDiscover = onNavigateToDiscover,
         onNavigateToDownloads = onNavigateToDownloads,
         onNavigateToLastfm = onNavigateToLastfm,
         onNavigateToAlarms = onNavigateToAlarms,
@@ -141,6 +144,7 @@ private fun YouContent(
     onNavigateToHistory: () -> Unit,
     onNavigateToListeningStats: () -> Unit,
     onNavigateToForYou: () -> Unit,
+    onNavigateToDiscover: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToLastfm: () -> Unit,
     onNavigateToAlarms: () -> Unit,
@@ -216,6 +220,7 @@ private fun YouContent(
                 MusicCard(
                     state = state,
                     onForYou = onNavigateToForYou,
+                    onDiscover = onNavigateToDiscover,
                     onPlugins = onNavigateToPlugins,
                     onHistory = onNavigateToHistory,
                     onStats = onNavigateToListeningStats,
@@ -492,6 +497,7 @@ private fun LockedRow(
 private fun MusicCard(
     state: YouUiState,
     onForYou: () -> Unit,
+    onDiscover: () -> Unit,
     onPlugins: () -> Unit,
     onHistory: () -> Unit,
     onStats: () -> Unit,
@@ -507,13 +513,21 @@ private fun MusicCard(
         stringResource(R.string.you_plugins_manage)
     }
     SurfaceCard {
-        // "For You" only appears when smart recommendations are opted in (the taste mix needs the model).
+        // "For You" and "Discover" only appear when smart recommendations are opted in (both need the
+        // shared taste model — For You mixes the owned library, Discover surfaces unowned catalog songs).
         if (state.recommendationsEnabled) {
             SurfaceCardRow(
                 title = stringResource(R.string.you_for_you),
                 subtitle = stringResource(R.string.you_for_you_subtitle),
                 leadingIcon = Icons.Rounded.AutoAwesome,
                 onClick = onForYou,
+            )
+            InsetDivider()
+            SurfaceCardRow(
+                title = stringResource(R.string.you_discover),
+                subtitle = stringResource(R.string.you_discover_subtitle),
+                leadingIcon = Icons.Rounded.Explore,
+                onClick = onDiscover,
             )
             InsetDivider()
         }

@@ -86,6 +86,8 @@ class FakeSettingsRepository(
     override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) = unused()
     override val recommendationsEnabled: Flow<Boolean> get() = unused()
     override suspend fun setRecommendationsEnabled(enabled: Boolean) = unused()
+    override val contributeAnonymizedTaste: Flow<Boolean> get() = unused()
+    override suspend fun setContributeAnonymizedTaste(enabled: Boolean) = unused()
     override val crossfadeDurationSeconds: Flow<Int> get() = unused()
     override suspend fun setCrossfadeDurationSeconds(seconds: Int) = unused()
     override val skipOnError: Flow<Boolean> get() = unused()
