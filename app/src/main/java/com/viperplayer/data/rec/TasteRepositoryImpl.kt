@@ -68,6 +68,11 @@ class TasteRepositoryImpl(
                 )
                 return@withLock rebuilt
             }
+            // Rebuild yielded no taste (cold/unindexed library, or a transient DB miss). Bump the
+            // rebuild stamp WITHOUT touching any existing vector, so we don't re-scan the whole
+            // history on every call while cold — we recheck at COLD_RECHECK_MS (see isStale). A
+            // previously-warm vector that transiently rebuilds cold is kept rather than wiped.
+            persist(snap.copy(rebuiltAtMs = clock()))
         }
         state
     }
@@ -109,7 +114,14 @@ class TasteRepositoryImpl(
                 recency.entries.sortedByDescending { it.value }.take(SERVED_RING_CAP)
                     .associate { it.key to it.value }
             } else recency
-            val boundedCounts = counts.filterKeys { it in boundedRecency }
+            // Counts are a longer-lived uncertainty signal (they drive the exploration term) than the
+            // short, fast-decaying recency ring, so bound them INDEPENDENTLY by their own (larger) cap
+            // rather than dropping a count the moment its id ages out of recency — otherwise a
+            // heavily-served id would be re-treated as brand-new and re-explored the instant it decays.
+            val boundedCounts = if (counts.size > SERVED_COUNTS_CAP) {
+                counts.entries.sortedByDescending { it.value }.take(SERVED_COUNTS_CAP)
+                    .associate { it.key to it.value }
+            } else counts
             persist(snap.copy(servedRecency = boundedRecency, servedCounts = boundedCounts))
         }
     }
@@ -204,8 +216,12 @@ class TasteRepositoryImpl(
             rebuiltAtMs = rebuiltAtMs,
         )
 
-    private fun isStale(state: TasteState): Boolean =
-        state.isCold || (clock() - state.rebuiltAtMs) >= REBUILD_INTERVAL_MS
+    private fun isStale(state: TasteState): Boolean {
+        // While cold, recheck often (a library that's still indexing should warm up promptly); once
+        // warm, rebuild at most daily. A stamp of 0 (never built / invalidated) is always stale.
+        val interval = if (state.isCold) COLD_RECHECK_MS else REBUILD_INTERVAL_MS
+        return (clock() - state.rebuiltAtMs) >= interval
+    }
 
     private fun encodeVector(vector: FloatArray?): String? =
         vector?.let { Base64.getEncoder().encodeToString(embeddingToBytes(it)) }
@@ -231,9 +247,16 @@ class TasteRepositoryImpl(
         val servedCounts: Map<Long, Int> = emptyMap(),
     )
 
-    private companion object {
+    internal companion object {
         /** Rebuild the taste from history at most this often (else the cached/online-updated one is used). */
         const val REBUILD_INTERVAL_MS = 24L * 60 * 60 * 1000 // 24h
+
+        /**
+         * While still cold (nothing embedded / no taste yet), recheck history this often instead of on
+         * every call — a library that's actively indexing should warm up promptly, but not at the cost
+         * of a full multi-DAO scan per `taste()` invocation.
+         */
+        const val COLD_RECHECK_MS = 5L * 60 * 1000 // 5 min
 
         /** Cap on plays folded into a rebuild (newest first) — keeps the centroid recent-biased & cheap. */
         const val HISTORY_LIMIT = 500
@@ -246,5 +269,11 @@ class TasteRepositoryImpl(
 
         /** Hard cap on the served ring size so the persisted blob stays small. */
         const val SERVED_RING_CAP = 200
+
+        /**
+         * Hard cap on the retained per-id served counts — bounded independently of (and larger than)
+         * the recency ring, since counts feed the exploration term and outlive the fast recency decay.
+         */
+        const val SERVED_COUNTS_CAP = 1000
     }
 }

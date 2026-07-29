@@ -226,4 +226,21 @@ class TasteModelTest {
         val b = TasteModel.update(start, i, nowMs = now)
         assertEquals(a, b)
     }
+
+    @Test
+    fun update_nonFiniteEmbedding_leavesTasteUnchanged() {
+        // A corrupt (NaN) embedding must NOT poison the taste — normalizeOrNull rejects a non-finite
+        // norm, so update returns the current state rather than an all-NaN "unit" vector.
+        val start = TasteState(vector = axis(0), rebuiltAtMs = now)
+        val nan = FloatArray(start.vector!!.size) { Float.NaN }
+        val next = TasteModel.update(start, Interaction(InteractionType.LIKE, nan), nowMs = now)
+        assertEquals("NaN embedding is a no-op", start, next)
+    }
+
+    @Test
+    fun deriveTaste_nonFiniteEmbeddings_returnsCold() {
+        // A rebuild fed only non-finite embeddings must degrade to COLD, not a NaN taste vector.
+        val nan = PlayRecord(FloatArray(3) { Float.NaN }, timestampMs = now, completion = 1f)
+        assertTrue(TasteModel.deriveTaste(listOf(nan), emptyList(), nowMs = now).isCold)
+    }
 }

@@ -149,6 +149,38 @@ class TasteRepositoryImplTest {
         assertTrue(r.taste().isCold)
     }
 
+    @Test
+    fun taste_coldLibrary_doesNotRescanHistoryOnEveryCall() = runTest {
+        // A cold/unindexed library must not re-run the full history scan on every taste() call — the
+        // rebuild stamp is bumped so repeated calls within COLD_RECHECK_MS reuse the cold state.
+        val counting = FakeSongDao() // empty embeddings ⇒ stays cold
+        var t = now
+        val r = repo(songDao = counting, clock = { t })
+        r.taste() // first call: one scan
+        r.taste() // within the recheck window: no additional scan
+        r.taste()
+        assertEquals("cold rechecks are throttled, not per-call", 1, counting.getAllEmbeddingsCalls)
+
+        // Advance past the cold-recheck window → it rescans once more.
+        t += TasteRepositoryImpl.COLD_RECHECK_MS + 1
+        r.taste()
+        assertEquals(2, counting.getAllEmbeddingsCalls)
+    }
+
+    @Test
+    fun servedCounts_survivePastRecencyEviction() = runTest {
+        // An id's served COUNT must persist even after it decays out of the short recency ring, so the
+        // exploration term keeps seeing it as previously-served (not brand-new) once it ages out.
+        val store = InMemoryTasteStore()
+        val r = repo(store = store)
+        r.recordServed(listOf(7L))
+        // Serve enough OTHER ids to decay 7L's recency below SERVED_MIN (0.85^n < 0.05 ⇒ n ≥ 19).
+        repeat(25) { r.recordServed(listOf(1000L + it)) }
+
+        assertFalse("7L has aged out of the recency ring", 7L in r.servedRecency())
+        assertEquals("but its served count is retained", 1, r.servedCounts()[7L])
+    }
+
     // --- fakes --------------------------------------------------------------------------------------
 
     private class InMemoryTasteStore : TasteStore {
@@ -170,7 +202,14 @@ class TasteRepositoryImplTest {
         private val rows: List<SongEntity> = emptyList(),
         private val liked: List<SongEntity> = emptyList(),
     ) : SongDao {
-        override suspend fun getAllEmbeddings(currentModelVersion: String): List<SongEmbeddingRow> = embeddings
+        /** Counts history-scan entries so tests can assert the cold-recheck throttle. */
+        var getAllEmbeddingsCalls = 0
+            private set
+
+        override suspend fun getAllEmbeddings(currentModelVersion: String): List<SongEmbeddingRow> {
+            getAllEmbeddingsCalls++
+            return embeddings
+        }
         override suspend fun getByIds(ids: List<Long>): List<SongEntity> = rows.filter { it.id in ids }
         override fun getAllLiked(): Flow<List<SongEntity>> = flowOf(liked)
 

@@ -159,6 +159,18 @@ class RerankerTest {
     }
 
     @Test
+    fun rank_nonFiniteEmbeddingsDoNotThrow() {
+        // A corrupt embedding (NaN component) makes every blended score NaN; NaN comparisons are always
+        // false, so the greedy selector can find no best candidate. It must stop gracefully rather than
+        // removeAt(-1). We accept any bounded result (possibly empty) as long as it doesn't throw.
+        val taste = unit(1f, 0f)
+        val nan = FloatArray(dim) { Float.NaN }
+        val candidates = listOf(Candidate(1L, nan), Candidate(2L, nan))
+        val ranked = Reranker.rank(taste, candidates, limit = 2, params = RerankParams.DEFAULT)
+        assertTrue("non-finite scores must not blow up selection", ranked.size <= 2)
+    }
+
+    @Test
     fun rank_limitAndEmptyGuards() {
         val taste = unit(1f, 0f)
         val candidates = listOf(cand(1L, 1f, 0f), cand(2L, 0f, 1f))

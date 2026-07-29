@@ -157,6 +157,9 @@ object Reranker {
                     bestId = p.cand.id
                 }
             }
+            // No selectable candidate (e.g. every score is NaN from a corrupt embedding): stop rather
+            // than removeAt(-1). Callers get the results selected so far instead of a thrown exception.
+            if (bestIdx < 0) break
             val chosen = remaining.removeAt(bestIdx)
             selected += Scored(
                 id = chosen.cand.id,

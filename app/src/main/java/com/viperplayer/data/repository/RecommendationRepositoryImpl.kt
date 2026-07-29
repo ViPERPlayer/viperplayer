@@ -133,12 +133,14 @@ class RecommendationRepositoryImpl @Inject constructor(
                 k = limit * RERANK_POOL_FACTOR,
                 excludeIds = poolIds,
             ).map { it.id }
+            // Vary the exploration seed by day so the long-tail picks the Reranker surfaces rotate
+            // day-to-day (as its exploration term documents) while staying stable within a session/day.
             rerank(
                 reference = tasteVector,
                 poolIds = shortlist,
                 byId = byId,
                 limit = limit,
-                params = FOR_YOU_PARAMS,
+                params = FOR_YOU_PARAMS.copy(seed = explorationSeed()),
             )
         } else {
             // Cold taste: fall back to the P1 centroid of the liked/recent pool (non-personalized).
@@ -301,6 +303,13 @@ class RecommendationRepositoryImpl @Inject constructor(
     private suspend fun recommendationsEnabled(): Boolean =
         runCatchingRec("read setting") { settingsRepository.recommendationsEnabled.first() } ?: false
 
+    /**
+     * A day-bucketed exploration seed: deterministic within a calendar day (so a "For You" feed is
+     * stable across a browsing session) yet advancing day-to-day so the Reranker's per-(id, seed)
+     * exploration jitter surfaces different long-tail picks over time instead of the same fixed ones.
+     */
+    private fun explorationSeed(): Long = System.currentTimeMillis() / MS_PER_DAY
+
     /** Runs [block], logging and swallowing any failure to a null so recommendations never crash. */
     private inline fun <T> runCatchingRec(what: String, block: () -> T): T? =
         try {
@@ -322,6 +331,9 @@ class RecommendationRepositoryImpl @Inject constructor(
 
         /** kNN pulls this many times `limit` as a shortlist for the reranker to diversify within. */
         const val RERANK_POOL_FACTOR = 4
+
+        /** Milliseconds per day — the bucket size for the day-varying exploration seed. */
+        const val MS_PER_DAY = 24L * 60 * 60 * 1000
 
         /**
          * Rerank weights for "For You": relevance-led but with real novelty/exploration/diversity so the

@@ -331,11 +331,16 @@ object TasteModel {
         for (i in acc.indices) acc[i] += v[i] * w
     }
 
-    /** L2-normalizes [v] to a unit FloatArray, or null when it is (near) all-zero / degenerate. */
+    /**
+     * L2-normalizes [v] to a unit FloatArray, or null when it is (near) all-zero / degenerate. A
+     * non-finite norm (any NaN/Inf component, e.g. from a corrupt embedding BLOB) is treated as
+     * degenerate too — `NaN <= 1e-12` is false, so it must be caught explicitly to keep a poisoned
+     * vector from ever being persisted as the taste.
+     */
     private fun normalizeOrNull(v: DoubleArray): FloatArray? {
         var norm = 0.0
         for (x in v) norm += x * x
-        if (norm <= 1e-12) return null
+        if (!norm.isFinite() || norm <= 1e-12) return null
         val inv = 1.0 / sqrt(norm)
         return FloatArray(v.size) { (v[it] * inv).toFloat() }
     }
