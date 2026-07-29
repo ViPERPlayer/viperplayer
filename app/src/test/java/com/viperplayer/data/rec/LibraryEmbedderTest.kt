@@ -52,6 +52,9 @@ class LibraryEmbedderTest {
             lastPcmSize = pcm48kMono.size
             return FloatArray(ClapModel.EMBEDDING_DIM) { 0.01f }
         }
+
+        override fun embedMel(logMel: FloatArray): FloatArray =
+            FloatArray(ClapModel.EMBEDDING_DIM) { 0.01f }
     }
 
     private val noopDecoder = object : AudioDecoder {

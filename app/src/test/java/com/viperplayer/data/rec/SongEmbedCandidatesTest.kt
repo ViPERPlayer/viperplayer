@@ -113,4 +113,57 @@ class SongEmbedCandidatesTest {
         // streamOnly dropped; downloaded (tier 0) before local (tier RECENT).
         assertEquals(listOf(2L, 3L), result.map { it.id })
     }
+
+    // ---- streaming partition (must be the exact complement of hasLocalBytes; no overlap) ----
+
+    @Test
+    fun streamingCandidateIsPluginAndNotDownloaded() {
+        assertTrue(SongEmbedCandidates.isStreamingCandidate(song(1, isLiked = true)))
+        assertTrue(SongEmbedCandidates.isStreamingCandidate(song(2, lastPlayed = 5L)))
+    }
+
+    @Test
+    fun downloadedOrLocalIsNotAStreamingCandidate() {
+        assertFalse(SongEmbedCandidates.isStreamingCandidate(song(1, isDownloaded = true, downloadPath = "/d")))
+        assertFalse(SongEmbedCandidates.isStreamingCandidate(song(2, idType = "local", pluginId = "", sourceId = "content://x")))
+        // A downloaded plugin track is the LOCAL worker's job, not the streaming worker's.
+        assertFalse(SongEmbedCandidates.isStreamingCandidate(song(3, isDownloaded = true, downloadPath = "/x", isLiked = true)))
+    }
+
+    @Test
+    fun localAndStreamingPartitionsAreAnExactComplementWithNoGap() {
+        val songs = listOf(
+            song(1, isDownloaded = true, downloadPath = "/d"),                  // local (downloaded)
+            song(2, idType = "local", pluginId = "", sourceId = "content://x"), // local (library)
+            song(3, isLiked = true),                                           // streaming
+            song(4, lastPlayed = 9L),                                          // streaming
+            song(5, isDownloaded = true, downloadPath = ""),                    // downloaded flag, blank path
+        )
+        // EXACTLY ONE partition claims each row (XOR): no overlap (no double-embed) and no gap (nothing
+        // orphaned). Every plugin row is either hasLocalBytes or isStreamingCandidate; local-library rows
+        // are always hasLocalBytes.
+        for (s in songs) {
+            val local = SongEmbedCandidates.hasLocalBytes(s)
+            val streaming = SongEmbedCandidates.isStreamingCandidate(s)
+            assertTrue("song ${s.id} must be in exactly one partition", local != streaming)
+        }
+        assertTrue(SongEmbedCandidates.hasLocalBytes(songs[0]))
+        assertTrue(SongEmbedCandidates.hasLocalBytes(songs[1]))
+        assertTrue(SongEmbedCandidates.isStreamingCandidate(songs[2]))
+        assertTrue(SongEmbedCandidates.isStreamingCandidate(songs[3]))
+        // Song 5 (downloaded flag but blank path) has NO local bytes, so the STREAMING worker claims it —
+        // the previous "embeddable by neither worker" gap is closed.
+        assertFalse(SongEmbedCandidates.hasLocalBytes(songs[4]))
+        assertTrue(SongEmbedCandidates.isStreamingCandidate(songs[4]))
+    }
+
+    @Test
+    fun streamingInPriorityOrderDropsLocalAndOrders() {
+        val downloaded = song(1, isDownloaded = true, downloadPath = "/d")     // dropped (local)
+        val local = song(2, idType = "local", pluginId = "", sourceId = "u")   // dropped (local)
+        val liked = song(3, isLiked = true)                                    // streaming, LIKED
+        val recent = song(4, lastPlayed = 500L)                                // streaming, RECENT
+        val result = SongEmbedCandidates.streamingInPriorityOrder(listOf(downloaded, local, recent, liked))
+        assertEquals(listOf(3L, 4L), result.map { it.id }) // liked before recent
+    }
 }

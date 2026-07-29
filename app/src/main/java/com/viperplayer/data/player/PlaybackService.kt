@@ -65,7 +65,11 @@ import com.viperplayer.data.player.resumption.LastSessionMediaMapper
 import com.viperplayer.data.player.resumption.LastSessionStore
 import com.viperplayer.data.lastfm.LastfmScrobbler
 import com.viperplayer.data.local.dao.SongDao
+import com.viperplayer.data.local.dao.getByMediaId
 import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.data.rec.ClapModel
+import com.viperplayer.data.rec.SongEmbedCandidates
+import com.viperplayer.data.rec.StreamingCaptureEmbedder
 import com.viperplayer.data.rec.TasteLearningHooks
 import com.viperplayer.data.stats.PlayHistoryRecorder
 import com.viperplayer.domain.audio.NetworkType
@@ -83,6 +87,7 @@ import com.viperplayer.presentation.widget.LyricWidgetUpdater
 import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -95,6 +100,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -116,6 +122,17 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
 
     @Inject
     lateinit var viperAudioProcessor: ViperAudioProcessor
+
+    /**
+     * Path A of the streaming-embedding feature: taps clean pre-DSP PCM of the current track to give a
+     * streaming-only song a CLAP embedding with no extra network. Armed/disarmed per track in
+     * [onMediaItemTransition]; its captures are embedded by [streamingCaptureEmbedder].
+     */
+    @Inject
+    lateinit var recCaptureAudioProcessor: RecCaptureAudioProcessor
+
+    @Inject
+    lateinit var streamingCaptureEmbedder: StreamingCaptureEmbedder
 
     @Inject
     lateinit var mediaLibrarySessionCallback: ViperMediaLibrarySessionCallback
@@ -531,9 +548,15 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         // ViPER + silence skipper + Sonic (all handle float).
         val sonic = SonicAudioProcessor()
         val floatSilenceSkipper = FloatSilenceSkippingAudioProcessor()
+        // The rec-capture tap runs FIRST so it sees CLEAN pre-DSP audio (unaffected by ViPER FX / speed /
+        // silence-skip). It is a pure passthrough — it never alters the samples.
+        recCaptureAudioProcessor.captureListener =
+            RecCaptureAudioProcessor.CaptureListener { mediaId, monoPcm, sampleRate ->
+                streamingCaptureEmbedder.submit(mediaId, monoPcm, sampleRate)
+            }
         return object : AudioProcessorChain {
             override fun getAudioProcessors(): Array<AudioProcessor> =
-                arrayOf<AudioProcessor>(viperAudioProcessor, floatSilenceSkipper, sonic)
+                arrayOf<AudioProcessor>(recCaptureAudioProcessor, viperAudioProcessor, floatSilenceSkipper, sonic)
 
             override fun applyPlaybackParameters(playbackParameters: PlaybackParameters): PlaybackParameters {
                 sonic.setSpeed(playbackParameters.speed)
@@ -704,9 +727,66 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
             lifecycleScope.launch { applyReplayGain() }
         }
 
+        // Path A: arm/disarm opportunistic PCM capture for on-device streaming embeddings.
+        maybeArmStreamingCapture(mediaItem)
+
         // Endless playback: top up the queue with related tracks when we reach the end.
         maybeAutoLoadMore()
     }
+
+    /**
+     * Arms [recCaptureAudioProcessor] to tap the current track's PCM when it is a streaming-only song
+     * that still lacks a current-version CLAP embedding AND recommendations are enabled; disarms it
+     * otherwise. All checks run OFF the main thread (the DB read must never block playback). The capture
+     * itself adds no network — the audio is already streaming for playback — so it is allowed on any
+     * connection while playing (unlike the Wi-Fi-only background Path B).
+     */
+    /** Latest Path-A arm job; cancelled on each new transition so a slow DB read can't arm a stale track. */
+    private var streamingArmJob: Job? = null
+
+    private fun maybeArmStreamingCapture(mediaItem: MediaItem?) {
+        // Cancel any in-flight arming from a previous transition so its (possibly slower) DB read can't
+        // land after this one and arm capture for a track that is no longer the current item.
+        streamingArmJob?.cancel()
+        // Disarm SYNCHRONOUSLY here (on the main thread, at the transition) BEFORE the async re-arm below.
+        // A gapless same-format transition gives the audio thread NO boundary signal, and arm() for the new
+        // track is async (a DB read), so without this the previous track could keep accumulating the new
+        // track's head under its own id until arm lands. Disarming now advances the capture generation
+        // immediately, so the next audio frame abandons the previous track's partial instead of splicing.
+        recCaptureAudioProcessor.disarm()
+        val encodedMediaId = mediaItem?.mediaId
+        val mediaId = encodedMediaId?.let { MediaId.decode(it) }
+        if (mediaId !is MediaId.Plugin) {
+            recCaptureAudioProcessor.disarm()
+            return
+        }
+        streamingArmJob = lifecycleScope.launch {
+            val shouldArm = runCatching { streamingCaptureEligible(mediaId) }
+                .getOrDefault(false)
+            // Re-verify on the player (main) thread that this is STILL the current item before arming, so a
+            // rapid A→B→C skip whose A read resolves last can't arm capture for A while C is playing.
+            if (shouldArm && encodedMediaId == player.currentMediaItem?.mediaId) {
+                recCaptureAudioProcessor.arm(encodedMediaId)
+            } else {
+                recCaptureAudioProcessor.disarm()
+            }
+        }
+    }
+
+    /**
+     * Off-main eligibility check for Path A: recommendations enabled, the row is a streaming-only
+     * candidate (plugin-served, not downloaded), and it does not already have a current-version
+     * embedding. Runs on IO so the Room read is off the playback thread.
+     */
+    private suspend fun streamingCaptureEligible(mediaId: MediaId.Plugin): Boolean =
+        withContext(Dispatchers.IO) {
+            if (!settingsRepository.recommendationsEnabled.first()) return@withContext false
+            val song = songDao.getByMediaId(mediaId) ?: return@withContext false
+            if (!SongEmbedCandidates.isStreamingCandidate(song)) return@withContext false
+            val hasCurrent = song.audioEmbedding != null &&
+                song.embeddingModelVersion == ClapModel.MODEL_VERSION
+            !hasCurrent
+        }
 
     /**
      * Auto Load More: when enabled and the current track is the last in the queue, append related

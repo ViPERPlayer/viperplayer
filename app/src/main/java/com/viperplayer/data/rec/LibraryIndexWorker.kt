@@ -101,9 +101,10 @@ class LibraryIndexWorker @AssistedInject constructor(
                 for (song in ordered) {
                     currentCoroutineContext().ensureActive()
                     val outcome = embedder.embedSong(song, audioDecoder, clap)
-                    processed++
                     when (outcome) {
-                        LibraryEmbedder.Outcome.EMBEDDED -> Unit // row leaves the result set on its own
+                        // Count ONLY rows that actually got an embedding — a skipped row stays in the
+                        // missing set, so counting it in `processed` would double it in the status total.
+                        LibraryEmbedder.Outcome.EMBEDDED -> processed++ // row leaves the result set on its own
                         else -> skippedThisPage++ // stays in the set; step the cursor past it
                     }
                     setProgress(progressData(processed.coerceAtMost(total), total))

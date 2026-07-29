@@ -194,6 +194,52 @@ interface SongDao {
     )
     fun countSongsMissingEmbedding(currentModelVersion: String): Flow<Int>
 
+    // -------------------------------------------------------------------------------------------
+    // Streaming-only partition of the missing-embedding set. A STREAMING-only song is a plugin-served
+    // track (idType != 'local') that is NOT downloaded (no local bytes on disk). The local
+    // [LibraryIndexWorker] embeds the complement (downloaded + local); [StreamingIndexWorker] embeds
+    // these from their live stream. The two predicates partition the missing set with no overlap, so
+    // the workers never double-embed. Ordered by id so paging is stable.
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Streaming-only songs still missing a current-version embedding, paged. As
+     * [getSongsMissingEmbeddingPaged] but restricted to the EXACT complement of the local worker's
+     * `hasLocalBytes` over plugin rows — `idType != 'local' AND NOT (isDownloaded AND downloadPath
+     * non-blank)` — so a genuinely-downloaded/local row is the local worker's job while a plugin row
+     * flagged downloaded but lacking a real path (no local bytes) still falls here rather than to neither.
+     */
+    @Query(
+        """
+        SELECT * FROM songs
+        WHERE idType != 'local'
+          AND (isDownloaded = 0 OR downloadPath IS NULL OR downloadPath = '')
+          AND (audioEmbedding IS NULL
+               OR embeddingModelVersion IS NULL
+               OR embeddingModelVersion != :currentModelVersion)
+        ORDER BY id ASC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+    suspend fun getStreamingSongsMissingEmbeddingPaged(
+        currentModelVersion: String,
+        limit: Int,
+        offset: Int,
+    ): List<SongEntity>
+
+    /** Count of STREAMING-only songs still needing an embedding for [currentModelVersion]. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM songs
+        WHERE idType != 'local'
+          AND (isDownloaded = 0 OR downloadPath IS NULL OR downloadPath = '')
+          AND (audioEmbedding IS NULL
+               OR embeddingModelVersion IS NULL
+               OR embeddingModelVersion != :currentModelVersion)
+        """
+    )
+    fun countStreamingSongsMissingEmbedding(currentModelVersion: String): Flow<Int>
+
     /**
      * All (id, embedding) pairs with a current-version embedding, for building the local kNN index.
      * Rows without an embedding or with a stale version are excluded, so every returned BLOB is a

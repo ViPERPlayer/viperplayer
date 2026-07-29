@@ -19,11 +19,19 @@ interface AudioEmbedder {
      *   the mel front-end). @return the L2-normalized 512-d embedding.
      */
     fun embed(pcm48kMono: FloatArray): FloatArray
+
+    /**
+     * Embed from a precomputed log-mel front-end buffer (row-major (1,1,1001,64)). Used by the streaming
+     * capture path, which computes the mel on the capture thread and may DEFER embedding it (Path C), so
+     * the model tower is the only step that runs at embed time. @return the L2-normalized 512-d embedding.
+     */
+    fun embedMel(logMel: FloatArray): FloatArray
 }
 
 /** Production [AudioEmbedder]: one reused [ClapAudioEncoder] session over a whole indexing run. */
 class ClapEmbedder(private val encoder: ClapAudioEncoder) : AudioEmbedder, AutoCloseable {
     override fun embed(pcm48kMono: FloatArray): FloatArray = encoder.encodePcmNormalized(pcm48kMono)
+    override fun embedMel(logMel: FloatArray): FloatArray = l2Normalize(encoder.encodeMel(logMel))
     override fun close() = encoder.close()
 
     companion object {

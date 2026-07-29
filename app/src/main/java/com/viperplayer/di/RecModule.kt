@@ -10,6 +10,8 @@ import com.viperplayer.data.rec.ClapModelRepositoryImpl
 import com.viperplayer.data.rec.MediaCodecAudioDecoder
 import com.viperplayer.data.rec.SongAudioSource
 import com.viperplayer.data.rec.SongAudioSourceResolver
+import com.viperplayer.data.rec.StreamingAudioSource
+import com.viperplayer.data.rec.StreamingAudioSourceResolver
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -40,6 +42,11 @@ abstract class RecModule {
     @Binds
     @Singleton
     abstract fun bindSongAudioSource(impl: SongAudioSourceResolver): SongAudioSource
+
+    /** The streaming-embedding pipeline (Path B) resolves plugin streams through the concrete resolver. */
+    @Binds
+    @Singleton
+    abstract fun bindStreamingAudioSource(impl: StreamingAudioSourceResolver): StreamingAudioSource
 
     companion object {
         private val Context.recModelDataStore: DataStore<Preferences> by preferencesDataStore(name = "rec_model")
