@@ -696,9 +696,10 @@ class SettingsRepositoryImpl(
         }
     }
 
-    // Discovery: anonymized taste contribution (opt-in) — default OFF.
+    // Discovery: anonymized taste contribution — default ON, but always gated behind the
+    // Smart-recommendations opt-in (nothing is ever contributed unless recommendations are enabled).
     override val contributeAnonymizedTaste: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
-        preferences[CONTRIBUTE_ANONYMIZED_TASTE_KEY] ?: false // Default: don't contribute (opt-in)
+        preferences[CONTRIBUTE_ANONYMIZED_TASTE_KEY] ?: true // Default ON (still gated by recommendationsEnabled)
     }
 
     override suspend fun setContributeAnonymizedTaste(enabled: Boolean) {

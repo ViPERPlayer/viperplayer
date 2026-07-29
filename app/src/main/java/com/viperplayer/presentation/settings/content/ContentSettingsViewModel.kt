@@ -55,8 +55,8 @@ data class ContentSettingsUiState(
     val autoDownloadOnLike: Boolean = false,
     val recommendationsEnabled: Boolean = false,
     val recommendationsStatus: RecommendationsUiStatus = RecommendationsUiStatus.Off,
-    /** Opt-in to contributing the anonymized taste vector to improve discovery (default OFF). */
-    val contributeAnonymizedTaste: Boolean = false,
+    /** Contribute the anonymized taste vector to improve discovery (default ON; gated by [recommendationsEnabled]). */
+    val contributeAnonymizedTaste: Boolean = true,
 )
 
 @HiltViewModel
@@ -145,7 +145,7 @@ class ContentSettingsViewModel @Inject constructor(
         viewModelScope.launch { clapModelRepository.enqueueDownload() }
     }
 
-    /** Toggles the anonymized-taste discovery contribution opt-in (default OFF; vectors only, no ids). */
+    /** Toggles the anonymized-taste discovery contribution (default ON, gated by recommendations; vectors only, no ids). */
     fun setContributeAnonymizedTaste(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setContributeAnonymizedTaste(enabled) }
     }

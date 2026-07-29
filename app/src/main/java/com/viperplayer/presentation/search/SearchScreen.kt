@@ -115,6 +115,8 @@ import com.viperplayer.presentation.common.OfflineBanner
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.SelectableChip
 import com.viperplayer.presentation.common.components.SurfaceCard
+import com.viperplayer.presentation.home.SuggestionsViewModel
+import com.viperplayer.presentation.home.suggestionsSearchSurface
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.ItemBadge
@@ -132,7 +134,8 @@ fun SearchScreen(
     onNavigateToPlaylist: (Playlist) -> Unit,
     onViewDetails: (MediaItem) -> Unit,
     onMoreLikeThis: (Song) -> Unit = {},
-    viewModel: SearchViewModel = hiltViewModel()
+    viewModel: SearchViewModel = hiltViewModel(),
+    suggestionsViewModel: SuggestionsViewModel = hiltViewModel(),
 ) {
     val searchSuggestionsState by viewModel.searchSuggestionsState.collectAsStateWithLifecycle()
     val searchResultsState by viewModel.searchResultsState.collectAsStateWithLifecycle()
@@ -141,6 +144,8 @@ fun SearchScreen(
     val lastSearchedQuery by viewModel.lastSearchedQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     val offlineMode by viewModel.offlineMode.collectAsStateWithLifecycle()
+    // Shared on-device "Suggested for you" surface for the empty (pre-query) Search state.
+    val suggestionsState by suggestionsViewModel.uiState.collectAsStateWithLifecycle()
 
     val optionsController = rememberMediaItemOptionsController()
     val addToPlaylistController = rememberAddToPlaylistController()
@@ -321,6 +326,18 @@ fun SearchScreen(
                                     }
                                 }
                                 .fillMaxWidth()
+                        )
+                    }
+
+                    // Pre-query "Suggested for you" (on-device, no login) — shown alongside/below the
+                    // recent searches when the field is empty. Hidden as soon as the user types.
+                    if (textFieldState.text.isEmpty()) {
+                        suggestionsSearchSurface(
+                            state = suggestionsState,
+                            currentSongId = currentSong?.id,
+                            isPlaying = isPlaying,
+                            onPlay = { suggestionsViewModel.play(it) },
+                            onEnable = { suggestionsViewModel.enable() },
                         )
                     }
 

@@ -335,9 +335,11 @@ interface SettingsRepository {
 
     /**
      * Whether to contribute the user's **anonymized** on-device taste vector to the backend to improve
-     * global discovery (P3, opt-in). **Default OFF** — only an L2-normalized taste vector is ever sent
-     * (never audio, never identity, never track ids); nothing is shared unless this is explicitly turned
-     * on. Persists across restarts.
+     * global discovery (P3). **Default ON**, but **always gated behind [recommendationsEnabled]**:
+     * nothing is ever contributed unless smart recommendations are enabled (that opt-in is what produces
+     * the shared taste model in the first place, and its UI only exposes this toggle once it's on). Only
+     * an L2-normalized taste vector is ever sent — never audio, never identity, never track ids. Persists
+     * across restarts.
      */
     val contributeAnonymizedTaste: Flow<Boolean>
     suspend fun setContributeAnonymizedTaste(enabled: Boolean)

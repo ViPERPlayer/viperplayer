@@ -588,6 +588,16 @@
     <string name="rec_feedback_thumbs_up">Good recommendation</string>
     <string name="rec_feedback_thumbs_down">Not for me</string>
 
+    <!-- "Suggested for you" on-device surface (Home + empty Search) -->
+    <string name="suggestions_title">Suggested for you</string>
+    <string name="suggestions_enable_title">Get music picked for your taste</string>
+    <string name="suggestions_enable_body">Turn on smart recommendations and we\'ll suggest songs that sound like what you love.</string>
+    <string name="suggestions_enable_how_it_works">Runs entirely on your device — downloads a ~180 MB model over Wi-Fi, and nothing about your listening ever leaves your phone.</string>
+    <string name="suggestions_enable_action">Turn on</string>
+    <string name="suggestions_dismiss">Dismiss</string>
+    <string name="suggestions_personalizing_progress">Personalizing your suggestions… analyzing %1$d/%2$d</string>
+    <string name="suggestions_personalizing_generic">Getting your suggestions ready…</string>
+
     <!-- Offline mode banner (Home / Search) -->
     <string name="offline_banner_message">Offline mode is on — showing local and downloaded music only</string>
 

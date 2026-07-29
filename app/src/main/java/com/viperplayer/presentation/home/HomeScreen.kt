@@ -159,6 +159,10 @@ fun HomeScreen(
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
 
+    // The pinned on-device "Suggested for you" surface (host-generated; no login/network).
+    val suggestionsViewModel: SuggestionsViewModel = hiltViewModel()
+    val suggestionsState by suggestionsViewModel.uiState.collectAsStateWithLifecycle()
+
     // Pending plugin actions (permission grants, sign-ins, verifications) surfaced via the bell.
     val actionsViewModel: PluginActionsViewModel = hiltViewModel()
     val pendingActions by actionsViewModel.pendingActions.collectAsStateWithLifecycle()
@@ -177,6 +181,10 @@ fun HomeScreen(
         isPlaying = isPlaying,
         pendingActions = pendingActions,
         onResolveAction = resolveAction,
+        suggestionsState = suggestionsState,
+        onPlaySuggestion = suggestionsViewModel::play,
+        onEnableSuggestions = suggestionsViewModel::enable,
+        onDismissSuggestions = suggestionsViewModel::dismiss,
         rootPadding = rootPadding,
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
@@ -203,6 +211,10 @@ private fun HomeScreenContent(
     isPlaying: Boolean = false,
     pendingActions: List<PluginPendingAction> = emptyList(),
     onResolveAction: (PluginPendingAction) -> Unit = {},
+    suggestionsState: SuggestionsUiState = SuggestionsUiState.Hidden,
+    onPlaySuggestion: (Song) -> Unit = {},
+    onEnableSuggestions: () -> Unit = {},
+    onDismissSuggestions: () -> Unit = {},
     rootPadding: PaddingValues,
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
@@ -360,6 +372,18 @@ private fun HomeScreenContent(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = rootPadding
                     ) {
+                        // Pinned host-generated "Suggested for you" surface (on-device recommender).
+                        // Sits at the very top, above the plugin sections, and is intentionally NOT part
+                        // of `uiState.sections` so the Wave 2 randomize-order shuffle can never move it.
+                        suggestionsHomeSurface(
+                            state = suggestionsState,
+                            currentSongId = currentSongId,
+                            isPlaying = isPlaying,
+                            onPlay = onPlaySuggestion,
+                            onEnable = onEnableSuggestions,
+                            onDismiss = onDismissSuggestions,
+                        )
+
                         // Offline mode is on: tell the user why remote content is hidden.
                         if (offlineMode) {
                             item(key = "offline-banner") {

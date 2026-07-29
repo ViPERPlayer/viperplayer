@@ -100,6 +100,10 @@ class DiscoveryRepositoryImpl @Inject constructor(
 
     override suspend fun contributeTasteIfEnabled() {
         runCatchingRec("contribute taste") {
+            // Gate explicitly on the recommendations opt-in: `contributeAnonymizedTaste` now defaults ON,
+            // so nothing must be contributed unless smart recommendations are also enabled (the invariant
+            // the settings UI enforces by only exposing the toggle once recommendations are on).
+            if (!recommendationsEnabled()) return
             if (!contributeAnonymizedTaste()) return
             val vector = tasteRepository.taste().vector ?: return // cold: nothing meaningful to share
             accountRepository.withBackendAuth { token ->
