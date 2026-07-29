@@ -237,6 +237,14 @@ interface SettingsRepository {
     suspend fun setShowExplicitContent(enabled: Boolean)
 
     /**
+     * Randomize the order of Home feed sections, with stable per-session weights (the order only
+     * re-rolls on an explicit Home refresh). When off, sections keep the order the plugins provide.
+     * Default ON. A "randomize home order" setting.
+     */
+    val randomizeHomeOrder: Flow<Boolean>
+    suspend fun setRandomizeHomeOrder(enabled: Boolean)
+
+    /**
      * Offline mode: when on, remote plugin fetches (browse/search/home/stream resolution) are gated at
      * the plugin boundary so the app degrades gracefully to on-device (local + downloaded) content
      * instead of hitting the network. Does not suppress background queues (scrobble/library-sync outbox).
@@ -327,9 +335,11 @@ interface SettingsRepository {
 
     /**
      * Whether to contribute the user's **anonymized** on-device taste vector to the backend to improve
-     * global discovery (P3, opt-in). **Default OFF** — only an L2-normalized taste vector is ever sent
-     * (never audio, never identity, never track ids); nothing is shared unless this is explicitly turned
-     * on. Persists across restarts.
+     * global discovery (P3). **Default ON**, but **always gated behind [recommendationsEnabled]**:
+     * nothing is ever contributed unless smart recommendations are enabled (that opt-in is what produces
+     * the shared taste model in the first place, and its UI only exposes this toggle once it's on). Only
+     * an L2-normalized taste vector is ever sent — never audio, never identity, never track ids. Persists
+     * across restarts.
      */
     val contributeAnonymizedTaste: Flow<Boolean>
     suspend fun setContributeAnonymizedTaste(enabled: Boolean)

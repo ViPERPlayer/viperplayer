@@ -19,4 +19,7 @@ sealed class PlaybackContext {
      * marker, so skipping back into the original queue restores the original context.
      */
     data object Suggestions : PlaybackContext()
+
+    /** Playback started from the on-device time-of-day daylist. */
+    data object Daylist : PlaybackContext()
 }

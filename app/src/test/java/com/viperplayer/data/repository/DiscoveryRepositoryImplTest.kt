@@ -228,6 +228,24 @@ class DiscoveryRepositoryImplTest {
         assertEquals(0, api.contributeCalls)
     }
 
+    @Test
+    fun contribute_recommendationsDisabled_doesNotCallApi() = runTest {
+        // The privacy gate: even opted-in with a warm taste, NOTHING is contributed unless the
+        // Smart-recommendations master opt-in is on. This is what makes the ON-by-default contribute
+        // setting safe — deleting/reordering the recommendationsEnabled short-circuit turns this red.
+        val api = FakeApi()
+        val repo = repo(
+            api = api,
+            recommendationsEnabled = false,
+            contributeEnabled = true,
+            taste = FakeTaste(TasteState(vector = vector(1f, 0f))),
+        )
+
+        repo.contributeTasteIfEnabled()
+
+        assertEquals(0, api.contributeCalls)
+    }
+
     // --- feedback (P4) ---
 
     @Test

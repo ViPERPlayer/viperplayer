@@ -42,6 +42,7 @@ import com.viperplayer.presentation.detail.SongInfoScreen
 import com.viperplayer.presentation.detail.SongInfoViewModel
 import com.viperplayer.presentation.detail.TagDetailsScreen
 import com.viperplayer.presentation.detail.TagDetailsViewModel
+import com.viperplayer.presentation.rec.DaylistScreen
 import com.viperplayer.presentation.rec.DiscoverScreen
 import com.viperplayer.presentation.rec.ForYouScreen
 import com.viperplayer.presentation.rec.SimilarSongsScreen
@@ -249,6 +250,10 @@ data class SimilarSongs(
 @Serializable
 object ForYou : NavKey
 
+/** The on-device time-of-day "Daylist" mix (reached from the pinned Home Daylist card). */
+@Serializable
+object Daylist : NavKey
+
 /** "Discover" — server-backed recommendations of songs the user doesn't own (reached from the You hub). */
 @Serializable
 object Discover : NavKey
@@ -325,8 +330,13 @@ fun ViperNavDisplay(
                 onNavigateToCategory = { category ->
                     navigator.navigate(CategoryDetail(category.pluginId, category.id, category.name))
                 },
+                onNavigateToMoodChip = { pluginId, targetId, label ->
+                    // A mood/genre chip opens the plugin's category screen, like a Browse tile.
+                    navigator.navigate(CategoryDetail(pluginId, targetId, label))
+                },
                 onNavigateToYou = { navigator.navigate(You) },
                 onNavigateToNotifications = { navigator.navigate(FriendActivity) },
+                onNavigateToDaylist = { navigator.navigate(Daylist) },
             )
         }
 
@@ -824,6 +834,15 @@ fun EntryProviderScope<NavKey>.mediaDetailEntries(
 
     entry<ForYou> {
         ForYouScreen(
+            rootPadding = rootPadding,
+            onNavigateBack = goBack,
+            onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },
+            onMoreLikeThis = { song -> navigateToSimilarSongs(navigate, song) },
+        )
+    }
+
+    entry<Daylist> {
+        DaylistScreen(
             rootPadding = rootPadding,
             onNavigateBack = goBack,
             onViewDetails = { item -> navigateToMediaItemDetails(navigate, item) },

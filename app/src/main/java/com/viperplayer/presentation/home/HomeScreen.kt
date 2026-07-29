@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,19 +26,24 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,11 +51,15 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.presentation.common.PlayingArtworkOverlay
@@ -76,13 +86,19 @@ import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.FeaturedCardsSection
 import com.viperplayer.domain.model.FilterState
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
+import com.viperplayer.domain.model.HomeChip
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ItemShape
 import com.viperplayer.domain.model.ListSection
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.model.MoodChip
+import com.viperplayer.domain.model.MoodGridSection
+import com.viperplayer.domain.model.MultiBrowseCarouselSection
+import com.viperplayer.domain.model.QuickPicksSection
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Plugin
@@ -100,6 +116,8 @@ import com.viperplayer.presentation.common.components.AvatarRing
 import com.viperplayer.presentation.common.components.InitialsAvatar
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 @Composable
 fun HomeScreen(
@@ -108,8 +126,10 @@ fun HomeScreen(
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToCategory: (BrowseCategory) -> Unit,
+    onNavigateToMoodChip: (pluginId: String, targetId: String, label: String) -> Unit,
     onNavigateToYou: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToDaylist: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -117,10 +137,16 @@ fun HomeScreen(
     val topBarState by viewModel.topBarState.collectAsStateWithLifecycle()
     val offlineMode by viewModel.offlineMode.collectAsStateWithLifecycle()
 
+    // The pinned on-device Daylist card (time-of-day mix; no login/network). Declared before the
+    // time-tick receiver so it can roll over with the time-of-day bucket alongside the HomeViewModel.
+    val daylistViewModel: DaylistCardViewModel = hiltViewModel()
+    val daylistState by daylistViewModel.state.collectAsStateWithLifecycle()
+
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 viewModel.onTimeChanged()
+                daylistViewModel.onTimeChanged()
             }
         }
 
@@ -131,6 +157,7 @@ fun HomeScreen(
         })
 
         viewModel.onTimeChanged()
+        daylistViewModel.onTimeChanged()
 
         onDispose {
             context.unregisterReceiver(receiver)
@@ -139,6 +166,10 @@ fun HomeScreen(
 
     val currentSong by viewModel.currentSong.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+
+    // The pinned on-device "Suggested for you" surface (host-generated; no login/network).
+    val suggestionsViewModel: SuggestionsViewModel = hiltViewModel()
+    val suggestionsState by suggestionsViewModel.uiState.collectAsStateWithLifecycle()
 
     // Pending plugin actions (permission grants, sign-ins, verifications) surfaced via the bell.
     val actionsViewModel: PluginActionsViewModel = hiltViewModel()
@@ -158,17 +189,26 @@ fun HomeScreen(
         isPlaying = isPlaying,
         pendingActions = pendingActions,
         onResolveAction = resolveAction,
+        suggestionsState = suggestionsState,
+        onPlaySuggestion = suggestionsViewModel::play,
+        onEnableSuggestions = suggestionsViewModel::enable,
+        onDismissSuggestions = suggestionsViewModel::dismiss,
+        daylistState = daylistState,
+        onNavigateToDaylist = onNavigateToDaylist,
         rootPadding = rootPadding,
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToPlaylist = onNavigateToPlaylist,
         onNavigateToCategory = onNavigateToCategory,
+        onNavigateToMoodChip = onNavigateToMoodChip,
         onNavigateToYou = onNavigateToYou,
         onNavigateToNotifications = onNavigateToNotifications,
         onRefresh = viewModel::refresh,
         onPlaySongFromQuickPicks = viewModel::playSongFromQuickPicks,
         onPlaySongFromSection = viewModel::playSongFromSection,
-        onFilterSelected = viewModel::onSectionFilterSelected
+        onFilterSelected = viewModel::onSectionFilterSelected,
+        onChipSelected = viewModel::onChipSelected,
+        onLoadMore = viewModel::loadMore,
     )
 }
 
@@ -181,17 +221,26 @@ private fun HomeScreenContent(
     isPlaying: Boolean = false,
     pendingActions: List<PluginPendingAction> = emptyList(),
     onResolveAction: (PluginPendingAction) -> Unit = {},
+    suggestionsState: SuggestionsUiState = SuggestionsUiState.Hidden,
+    onPlaySuggestion: (Song) -> Unit = {},
+    onEnableSuggestions: () -> Unit = {},
+    onDismissSuggestions: () -> Unit = {},
+    daylistState: DaylistCardState = DaylistCardState.Hidden,
+    onNavigateToDaylist: () -> Unit = {},
     rootPadding: PaddingValues,
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
     onNavigateToPlaylist: (Playlist) -> Unit,
     onNavigateToCategory: (BrowseCategory) -> Unit = {},
+    onNavigateToMoodChip: (pluginId: String, targetId: String, label: String) -> Unit = { _, _, _ -> },
     onNavigateToYou: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onRefresh: () -> Unit,
     onPlaySongFromQuickPicks: (Song) -> Unit,
     onPlaySongFromSection: (Song, String) -> Unit,
-    onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> }
+    onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> },
+    onChipSelected: (String?) -> Unit = {},
+    onLoadMore: () -> Unit = {},
 ) {
     var showActionsSheet by remember { mutableStateOf(false) }
     // Dismissal is keyed on the current action set: a new action re-shows the banner.
@@ -308,6 +357,21 @@ private fun HomeScreenContent(
             }
 
             is HomeUiState.Content -> {
+                val listState = rememberLazyListState()
+                // Infinite scroll: when the last few items are visible and more pages exist, ask for more.
+                // Uses a `lastVisibleIndex >= total - N` snapshotFlow trigger.
+                if (uiState.canLoadMore) {
+                    LaunchedEffect(listState, uiState.canLoadMore) {
+                        snapshotFlow {
+                            val layout = listState.layoutInfo
+                            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: 0
+                            lastVisible >= layout.totalItemsCount - 3
+                        }
+                            .distinctUntilChanged()
+                            .filter { it }
+                            .collect { onLoadMore() }
+                    }
+                }
                 PullToRefreshBox(
                     isRefreshing = uiState.isRefreshing,
                     onRefresh = onRefresh,
@@ -316,14 +380,45 @@ private fun HomeScreenContent(
                         .fillMaxSize()
                 ) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = rootPadding
                     ) {
+                        // Pinned host-generated "Suggested for you" surface (on-device recommender).
+                        // Sits at the very top, above the plugin sections, and is intentionally NOT part
+                        // of `uiState.sections` so the Wave 2 randomize-order shuffle can never move it.
+                        suggestionsHomeSurface(
+                            state = suggestionsState,
+                            currentSongId = currentSongId,
+                            isPlaying = isPlaying,
+                            onPlay = onPlaySuggestion,
+                            onEnable = onEnableSuggestions,
+                            onDismiss = onDismissSuggestions,
+                        )
+
+                        // Pinned on-device Daylist card (below Suggestions, also above the plugin
+                        // sections so the Wave 2 randomize-order shuffle never moves it).
+                        daylistHomeSurface(
+                            state = daylistState,
+                            onOpen = onNavigateToDaylist,
+                        )
+
                         // Offline mode is on: tell the user why remote content is hidden.
                         if (offlineMode) {
                             item(key = "offline-banner") {
                                 OfflineBanner(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+
+                        // Top-level filter chips (e.g. Relax / Workout). Dormant unless a plugin emits chips.
+                        if (uiState.chips.isNotEmpty()) {
+                            item(key = "home-chips") {
+                                HomeChipsRow(
+                                    chips = uiState.chips,
+                                    selectedChipId = uiState.selectedChipId,
+                                    onChipSelected = onChipSelected,
                                 )
                             }
                         }
@@ -448,6 +543,9 @@ private fun HomeScreenContent(
                                 currentSongId = currentSongId,
                                 isPlaying = isPlaying,
                                 onFilterSelected = onFilterSelected,
+                                onMoodChipClick = { chip ->
+                                    onNavigateToMoodChip(section.pluginId, chip.targetId, chip.label)
+                                },
                             ) { item ->
                                 when (item) {
                                     is Album -> onNavigateToAlbum(item)
@@ -455,6 +553,18 @@ private fun HomeScreenContent(
                                     is Playlist -> onNavigateToPlaylist(item)
                                     is Song -> onPlaySongFromSection(item, section.id)
                                 }
+                            }
+                        }
+
+                        // Infinite-scroll footer spinner while the next page is being fetched.
+                        if (uiState.isLoadingMore) {
+                            item(key = "home-load-more") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { LoadingIndicator() }
                             }
                         }
                     }
@@ -509,6 +619,35 @@ fun CategoryCard(
     }
 }
 
+/**
+ * The top-level Home filter-chip row (e.g. Relax / Workout). Selecting a chip re-requests the feed
+ * filtered by it; selecting the already-selected chip clears the filter (back to the base feed).
+ * Only shown when a plugin supplies chips.
+ */
+@Composable
+private fun HomeChipsRow(
+    chips: List<HomeChip>,
+    selectedChipId: String?,
+    onChipSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyRow(
+        modifier = modifier.padding(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(chips, key = { it.id }) { chip ->
+            val selected = chip.id == selectedChipId
+            FilterChip(
+                selected = selected,
+                // Re-tapping the selected chip clears it (null = base feed).
+                onClick = { onChipSelected(if (selected) null else chip.id) },
+                label = { Text(chip.title) },
+            )
+        }
+    }
+}
+
 // ============================================================================
 // Home section rendering — a distinct design per HomeSection subtype
 // ============================================================================
@@ -522,6 +661,7 @@ private fun LazyListScope.homeSection(
     currentSongId: MediaId?,
     isPlaying: Boolean,
     onFilterSelected: (HomeSection, String) -> Unit,
+    onMoodChipClick: (MoodChip) -> Unit,
     onItemClick: (MediaItem) -> Unit,
 ) {
     when (section) {
@@ -624,7 +764,7 @@ private fun LazyListScope.homeSection(
         is GridSection -> {
             sectionHeader(section.title, section.subtitle)
             val columns = section.columns.coerceAtLeast(1)
-            itemsIndexed(section.items.chunked(columns), key = { index, _ -> "${section.id}-row-$index" }) { index, rowItems ->
+            itemsIndexed(section.items.chunked(columns), key = { index, _ -> "${section.pluginId}-${section.id}-row-$index" }) { index, rowItems ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -652,7 +792,7 @@ private fun LazyListScope.homeSection(
 
         is ListSection -> {
             sectionHeader(section.title, section.subtitle)
-            itemsIndexed(section.items, key = { index, item -> "${section.id}-${item.id}-$index" }) { index, item ->
+            itemsIndexed(section.items, key = { index, item -> "${section.pluginId}-${section.id}-${item.id}-$index" }) { index, item ->
                 val active = isCurrent(item, currentSongId)
                 Box(modifier = Modifier.revealOnAppear(index)) {
                     TrackRow(
@@ -673,6 +813,80 @@ private fun LazyListScope.homeSection(
         is BannerSection -> item {
             Spacer(modifier = Modifier.height(24.dp))
             BannerCard(section = section)
+        }
+
+        is MultiBrowseCarouselSection -> {
+            sectionHeader(section.title, section.subtitle)
+            if (section.items.isNotEmpty()) {
+                item(key = "${section.pluginId}-${section.id}-multibrowse") {
+                    MultiBrowseCarousel(
+                        section = section,
+                        currentSongId = currentSongId,
+                        isPlaying = isPlaying,
+                        onItemClick = onItemClick,
+                    )
+                }
+            }
+        }
+
+        is QuickPicksSection -> {
+            sectionHeader(section.title, section.subtitle)
+            if (section.items.isNotEmpty()) {
+                item(key = "${section.pluginId}-${section.id}-quickpicks") {
+                    QuickPicksGrid(
+                        section = section,
+                        currentSongId = currentSongId,
+                        isPlaying = isPlaying,
+                        onItemClick = onItemClick,
+                    )
+                }
+            }
+        }
+
+        is FeaturedCardsSection -> {
+            sectionHeader(section.title, section.subtitle)
+            item(key = "${section.pluginId}-${section.id}-featured") {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    itemsIndexed(section.items, key = { index, item -> "${item.id}-$index" }) { index, item ->
+                        val active = isCurrent(item, currentSongId)
+                        FeaturedCard(
+                            item = item,
+                            itemShape = section.itemShape,
+                            modifier = Modifier.revealOnAppear(index),
+                            isActive = active,
+                            isPlaying = active && isPlaying,
+                            onClick = { onItemClick(item) },
+                        )
+                    }
+                }
+            }
+        }
+
+        is MoodGridSection -> {
+            sectionHeader(section.title, section.subtitle)
+            // Two-column grid of colored mood/genre chip cards (rows of 2, like GridSection).
+            itemsIndexed(
+                section.chips.chunked(2),
+                key = { index, _ -> "${section.pluginId}-${section.id}-mood-row-$index" },
+            ) { index, rowChips ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .revealOnAppear(index),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    rowChips.forEach { chip ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            MoodChipCard(chip = chip, onClick = { onMoodChipClick(chip) })
+                        }
+                    }
+                    repeat(2 - rowChips.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            }
         }
     }
 }
@@ -978,6 +1192,290 @@ private fun BannerCard(section: BannerSection) {
                 }
             }
         }
+    }
+}
+
+/**
+ * A big, full-bleed swipeable carousel of large artwork cards, each with an optional gradient scrim
+ * and an overlaid title/subtitle — used by [MultiBrowseCarouselSection] (a daily-discover shelf).
+ * Uses M3's [HorizontalMultiBrowseCarousel] so neighbouring cards peek in at the edges.
+ */
+@Composable
+private fun MultiBrowseCarousel(
+    section: MultiBrowseCarouselSection,
+    currentSongId: MediaId?,
+    isPlaying: Boolean,
+    onItemClick: (MediaItem) -> Unit,
+) {
+    val items = section.items
+    val carouselState = rememberCarouselState { items.size }
+    // Cards are taller when WIDE (16:9) than for square/circle art.
+    val cardHeight = if (section.itemShape == ItemShape.WIDE) 200.dp else 300.dp
+    HorizontalMultiBrowseCarousel(
+        state = carouselState,
+        preferredItemWidth = 320.dp,
+        itemSpacing = 12.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(cardHeight),
+    ) { index ->
+        val item = items[index]
+        val active = isCurrent(item, currentSongId)
+        MultiBrowseCard(
+            item = item,
+            showBackdrop = section.showBackdrop,
+            shape = MaterialTheme.shapes.extraLarge,
+            isActive = active,
+            isPlaying = active && isPlaying,
+            // maskClip lets the carousel clip the card to the morphing item mask as it scrolls.
+            modifier = Modifier
+                .maskClip(MaterialTheme.shapes.extraLarge)
+                .fillMaxWidth(),
+            onClick = { onItemClick(item) },
+        )
+    }
+}
+
+/** A single large scrim-over-artwork card inside [MultiBrowseCarousel]. */
+@Composable
+private fun MultiBrowseCard(
+    item: MediaItem,
+    showBackdrop: Boolean,
+    shape: androidx.compose.ui.graphics.Shape,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clip(shape)
+            .clickable(onClick = onClick),
+    ) {
+        AsyncImage(
+            model = item.displayArtworkUrl(),
+            contentDescription = item.displayTitle(),
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+        if (showBackdrop) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)),
+                        )
+                    )
+            )
+        }
+        PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(20.dp),
+        ) {
+            Text(
+                text = item.displayTitle(),
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            item.displaySubtitle()?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A multi-row, horizontally-snapping grid of compact item rows — used by [QuickPicksSection]
+ * (a quick-picks grid). Each column holds [QuickPicksSection.rows] rows and snaps into place.
+ */
+@Composable
+private fun QuickPicksGrid(
+    section: QuickPicksSection,
+    currentSongId: MediaId?,
+    isPlaying: Boolean,
+    onItemClick: (MediaItem) -> Unit,
+) {
+    val rows = section.rows.coerceAtLeast(1)
+    val gridState = rememberLazyGridState()
+    val snapFling = rememberSnapFlingBehavior(gridState)
+    LazyHorizontalGrid(
+        state = gridState,
+        rows = GridCells.Fixed(rows),
+        flingBehavior = snapFling,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height((rows * 68).dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        gridItemsIndexed(
+            section.items,
+            key = { index, item -> "${item.id}-$index" },
+        ) { _, item ->
+            val active = isCurrent(item, currentSongId)
+            CompactItemTile(
+                item = item,
+                isActive = active,
+                isPlaying = active && isPlaying,
+                onClick = { onItemClick(item) },
+            )
+        }
+    }
+}
+
+/**
+ * A large rich card (prominent artwork + title + subtitle + a play affordance) — used by
+ * [FeaturedCardsSection] (a community shelf, simplified).
+ *
+ * Fidelity note: the reference design's community card shows a 2x2 thumbnail collage plus a 3-song preview.
+ * ViPER's home [MediaItem] doesn't carry child-song previews, so this renders a single large
+ * artwork instead. When child previews land on the model, this card can be enriched to match.
+ */
+@Composable
+private fun FeaturedCard(
+    item: MediaItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    itemShape: ItemShape = ItemShape.SQUARE,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+) {
+    val artShape = if (itemShape == ItemShape.CIRCLE) CircleShape else RoundedCornerShape(16.dp)
+    val aspect = if (itemShape == ItemShape.WIDE) 16f / 9f else 1f
+    Card(
+        modifier = modifier
+            .width(260.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(aspect)
+                    .clip(artShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = item.displayArtworkUrl(),
+                    contentDescription = item.displayTitle(),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.displayTitle(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isActive) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    item.displaySubtitle()?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                FilledIconButton(onClick = onClick) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = stringResource(R.string.home_featured_play_cd, item.displayTitle()),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A colored mood/genre chip card — used by [MoodGridSection] (a mood/genre grid). */
+@Composable
+private fun MoodChipCard(chip: MoodChip, onClick: () -> Unit) {
+    val accent = remember(chip.accentColor) { parseHexColor(chip.accentColor) }
+    val hasArtwork = !chip.artworkUrl.isNullOrBlank()
+    val container = accent ?: MaterialTheme.colorScheme.secondaryContainer
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = if (hasArtwork) CardDefaults.cardColors()
+        else CardDefaults.cardColors(containerColor = container),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (hasArtwork) {
+                AsyncImage(
+                    model = chip.artworkUrl,
+                    contentDescription = chip.label,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color.Black.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.15f)),
+                            )
+                        )
+                )
+            }
+            val onColor = when {
+                hasArtwork -> Color.White
+                accent != null -> if (accent.luminance() > 0.5f) Color.Black else Color.White
+                else -> MaterialTheme.colorScheme.onSecondaryContainer
+            }
+            Text(
+                text = chip.label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = onColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(16.dp),
+            )
+        }
+    }
+}
+
+/** Parses an `#RRGGBB` / `#AARRGGBB` hex color; returns null on anything malformed. */
+private fun parseHexColor(hex: String?): Color? {
+    val raw = hex?.trim()?.removePrefix("#") ?: return null
+    return try {
+        when (raw.length) {
+            6 -> Color(0xFF000000 or raw.toLong(16))
+            8 -> Color(raw.toLong(16))
+            else -> null
+        }
+    } catch (_: NumberFormatException) {
+        null
     }
 }
 

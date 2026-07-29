@@ -593,6 +593,38 @@ class PluginDataSource @Inject constructor(
         source(pluginId).getHome().toDomain(pluginId)
     }.onFailure { Timber.e(it, "home content failed for $pluginId") }
 
+    /**
+     * Home feed filtered by a top-level chip. Chip-filtering is an OPTIONAL SDK verb: a plugin (or an
+     * older APK) that doesn't implement it answers [PluginErrorCode.UNSUPPORTED], which we catch and
+     * fall back to the base [getHome] — so a chip tap on such a plugin gracefully shows the base feed
+     * rather than erroring. [chipId] null resolves to the base feed directly.
+     */
+    suspend fun getHomeContent(pluginId: String, chipId: String?): Result<HomeContent> = runCatching {
+        val client = source(pluginId)
+        if (chipId == null) {
+            client.getHome().toDomain(pluginId)
+        } else {
+            try {
+                client.getHome(chipId).toDomain(pluginId)
+            } catch (e: PluginException) {
+                if (e.code == PluginErrorCode.UNSUPPORTED) client.getHome().toDomain(pluginId) else throw e
+            }
+        }
+    }.onFailure { Timber.e(it, "filtered home content failed for $pluginId") }
+
+    /**
+     * Fetch the next page of Home sections for [continuation] (infinite scroll). Pagination is an
+     * OPTIONAL SDK verb: a plugin (or older APK) without it answers [PluginErrorCode.UNSUPPORTED],
+     * which we degrade to a null result (no more pages) rather than surfacing an error.
+     */
+    suspend fun getHomeContinuation(pluginId: String, continuation: String): Result<HomeContent?> = runCatching {
+        try {
+            source(pluginId).getHomeContinuation(continuation).toDomain(pluginId)
+        } catch (e: PluginException) {
+            if (e.code == PluginErrorCode.UNSUPPORTED) null else throw e
+        }
+    }.onFailure { Timber.e(it, "home continuation failed for $pluginId") }
+
     suspend fun filterSection(pluginId: String, sectionId: String, filterKey: String): Result<SearchResult> =
         runCatching {
             source(pluginId).filterSection(sectionId, filterKey).toDomain(pluginId)

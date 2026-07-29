@@ -9,12 +9,18 @@ import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CategoryContentType
 import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.FeaturedCardsSection
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
+import com.viperplayer.domain.model.HomeChip
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ItemShape
 import com.viperplayer.domain.model.ListSection
+import com.viperplayer.domain.model.MoodChip
+import com.viperplayer.domain.model.MoodGridSection
+import com.viperplayer.domain.model.MultiBrowseCarouselSection
+import com.viperplayer.domain.model.QuickPicksSection
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsLine
 import com.viperplayer.domain.model.LyricsWord
@@ -42,6 +48,7 @@ import com.viperplayer.plugin.model.AlbumType as SdkAlbumType
 import com.viperplayer.plugin.model.Artist as SdkArtist
 import com.viperplayer.plugin.model.BrowseCategory as SdkBrowseCategory
 import com.viperplayer.plugin.model.CategoryContentType as SdkCategoryContentType
+import com.viperplayer.plugin.model.HomeChip as SdkHomeChip
 import com.viperplayer.plugin.model.HomeContent as SdkHomeContent
 import com.viperplayer.plugin.model.HomeSection as SdkHomeSection
 import com.viperplayer.plugin.model.Lyrics as SdkLyrics
@@ -54,10 +61,15 @@ import com.viperplayer.plugin.model.SearchResult as SdkSearchResult
 import com.viperplayer.plugin.model.SearchSuggestions as SdkSearchSuggestions
 import com.viperplayer.plugin.model.BannerSection as SdkBannerSection
 import com.viperplayer.plugin.model.CarouselSection as SdkCarouselSection
+import com.viperplayer.plugin.model.FeaturedCardsSection as SdkFeaturedCardsSection
 import com.viperplayer.plugin.model.GridSection as SdkGridSection
 import com.viperplayer.plugin.model.HeroSection as SdkHeroSection
 import com.viperplayer.plugin.model.ItemShape as SdkItemShape
 import com.viperplayer.plugin.model.ListSection as SdkListSection
+import com.viperplayer.plugin.model.MoodChip as SdkMoodChip
+import com.viperplayer.plugin.model.MoodGridSection as SdkMoodGridSection
+import com.viperplayer.plugin.model.MultiBrowseCarouselSection as SdkMultiBrowseCarouselSection
+import com.viperplayer.plugin.model.QuickPicksSection as SdkQuickPicksSection
 import com.viperplayer.plugin.model.SectionAction as SdkSectionAction
 import com.viperplayer.plugin.model.SectionFilter as SdkSectionFilter
 import com.viperplayer.plugin.model.UnknownSection as SdkUnknownSection
@@ -232,7 +244,11 @@ object PluginMapper {
     fun SdkHomeContent.toDomain(pluginId: String): HomeContent = HomeContent(
         quickPicks = quickPicks.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomain(pluginId) },
         sections = sections.mapNotNull { it.toDomain(pluginId) },
+        chips = chips.map { it.toDomain() },
+        continuation = continuation,
     )
+
+    private fun SdkHomeChip.toDomain(): HomeChip = HomeChip(id = id, title = title)
 
     /** Maps a section design 1:1; an unknown design (or a hero whose single item can't map) is dropped. */
     fun SdkHomeSection.toDomain(pluginId: String): HomeSection? = when (this) {
@@ -270,8 +286,36 @@ object PluginMapper {
             text = text, imageUrl = imageUrl,
         )
 
+        is SdkMultiBrowseCarouselSection -> MultiBrowseCarouselSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
+            items = items.mapNotNull { it.toDomain(pluginId) }, itemShape = itemShape.toDomain(),
+            showBackdrop = showBackdrop,
+        )
+
+        is SdkQuickPicksSection -> QuickPicksSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
+            items = items.mapNotNull { it.toDomain(pluginId) }, rows = rows,
+        )
+
+        is SdkFeaturedCardsSection -> FeaturedCardsSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
+            items = items.mapNotNull { it.toDomain(pluginId) }, itemShape = itemShape.toDomain(),
+        )
+
+        is SdkMoodGridSection -> MoodGridSection(
+            id = id, title = title, subtitle = subtitle, action = action?.toDomain(),
+            pluginId = pluginId,
+            chips = chips.map { it.toDomain() },
+        )
+
         is SdkUnknownSection -> null
     }
+
+    private fun SdkMoodChip.toDomain(): MoodChip =
+        MoodChip(label = label, targetId = targetId, artworkUrl = artworkUrl, accentColor = accentColor)
 
     private fun SdkSectionAction.toDomain(): SectionAction = SectionAction(label = label, targetId = targetId)
 
