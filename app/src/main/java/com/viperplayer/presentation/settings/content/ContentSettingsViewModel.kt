@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.viperplayer.data.rec.ClapModelRepository
 import com.viperplayer.data.rec.ClapModelState
 import com.viperplayer.data.rec.FailureReason
+import com.viperplayer.data.rec.IndexingStatus
+import com.viperplayer.data.rec.RecommendationIndexRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,12 @@ sealed interface RecommendationsUiStatus {
 
     /** Enabled and a model is installed + ready. */
     data object Ready : RecommendationsUiStatus
+
+    /**
+     * Enabled, model ready, and the background indexer is analyzing the library: [processed] of
+     * [total] songs embedded so far. Shown as "Analyzing your library… N/M".
+     */
+    data class Indexing(val processed: Int, val total: Int) : RecommendationsUiStatus
 
     /** Enabled; the model download is enqueued but waiting on the Wi-Fi constraint. */
     data object WaitingForWifi : RecommendationsUiStatus
@@ -52,6 +60,7 @@ data class ContentSettingsUiState(
 class ContentSettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val clapModelRepository: ClapModelRepository,
+    private val recommendationIndexRepository: RecommendationIndexRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ContentSettingsUiState())
@@ -73,13 +82,14 @@ class ContentSettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(autoDownloadOnLike = enabled) }
             }
         }
-        // Combine the opt-in flag with the live model state into a single UI status.
+        // Combine the opt-in flag with the live model state + indexing progress into a single UI status.
         viewModelScope.launch {
             combine(
                 settingsRepository.recommendationsEnabled,
                 clapModelRepository.modelState,
-            ) { enabled, modelState ->
-                enabled to toStatus(enabled, modelState)
+                recommendationIndexRepository.indexingStatus,
+            ) { enabled, modelState, indexing ->
+                enabled to toStatus(enabled, modelState, indexing)
             }.collect { (enabled, status) ->
                 _uiState.update { it.copy(recommendationsEnabled = enabled, recommendationsStatus = status) }
             }
@@ -118,8 +128,16 @@ class ContentSettingsViewModel @Inject constructor(
         viewModelScope.launch { clapModelRepository.enqueueDownload() }
     }
 
-    /** Maps the opt-in flag + model state into the UI status. Pure; no I/O. */
-    private fun toStatus(enabled: Boolean, modelState: ClapModelState): RecommendationsUiStatus {
+    /**
+     * Maps the opt-in flag + model state + indexing progress into the UI status. Pure; no I/O. Once the
+     * model is [ClapModelState.Ready], an active library index surfaces as [RecommendationsUiStatus.Indexing]
+     * ("Analyzing your library… N/M"); when there's nothing left to index it settles on [Ready].
+     */
+    private fun toStatus(
+        enabled: Boolean,
+        modelState: ClapModelState,
+        indexing: IndexingStatus,
+    ): RecommendationsUiStatus {
         if (!enabled) return RecommendationsUiStatus.Off
         return when (modelState) {
             ClapModelState.Absent -> RecommendationsUiStatus.WaitingForWifi
@@ -129,7 +147,11 @@ class ContentSettingsViewModel @Inject constructor(
                 } else {
                     RecommendationsUiStatus.Downloading((modelState.progress * 100).toInt())
                 }
-            is ClapModelState.Ready -> RecommendationsUiStatus.Ready
+            is ClapModelState.Ready -> when (indexing) {
+                is IndexingStatus.Indexing ->
+                    RecommendationsUiStatus.Indexing(indexing.processed, indexing.total)
+                IndexingStatus.Idle -> RecommendationsUiStatus.Ready
+            }
             is ClapModelState.Failed -> RecommendationsUiStatus.Failed(modelState.reason)
             is ClapModelState.VersionMismatch -> RecommendationsUiStatus.AppOutdated
         }

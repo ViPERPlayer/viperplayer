@@ -18,6 +18,7 @@ import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import com.viperplayer.BuildConfig
 import com.viperplayer.data.plugin.update.PluginUpdateManager
+import com.viperplayer.data.rec.RecommendationIndexRepository
 import com.viperplayer.data.social.SessionPlaybackCoordinator
 import com.viperplayer.data.sync.push.PushSyncManager
 import com.viperplayer.domain.repository.HistoryDuration
@@ -67,6 +68,9 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory, Conf
     @Inject
     lateinit var sessionPlaybackCoordinator: SessionPlaybackCoordinator
 
+    @Inject
+    lateinit var recommendationIndexRepository: RecommendationIndexRepository
+
     override fun onCreate() {
         super.onCreate()
         setupCrashHandler()
@@ -85,6 +89,9 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory, Conf
         // Layer 2 synced playback: observe the Jam session role and drive/mirror the player accordingly.
         // Runs regardless of whether any screen is open.
         sessionPlaybackCoordinator.start()
+        // On-device recommender: (re)index the library into CLAP embeddings whenever the model is ready
+        // and smart recommendations are enabled. Idempotent unique work (battery-not-low).
+        recommendationIndexRepository.start()
     }
 
     /**

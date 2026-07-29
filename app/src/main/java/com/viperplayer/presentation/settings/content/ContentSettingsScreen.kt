@@ -216,6 +216,8 @@ private fun RecommendationsStatusLine(
 private fun statusText(status: RecommendationsUiStatus): String? = when (status) {
     RecommendationsUiStatus.Off -> null
     RecommendationsUiStatus.Ready -> stringResource(R.string.rec_status_ready)
+    is RecommendationsUiStatus.Indexing ->
+        stringResource(R.string.rec_status_indexing, status.processed, status.total)
     RecommendationsUiStatus.WaitingForWifi -> stringResource(R.string.rec_status_waiting_wifi)
     is RecommendationsUiStatus.Downloading ->
         status.percent?.let { stringResource(R.string.rec_status_downloading, it) }

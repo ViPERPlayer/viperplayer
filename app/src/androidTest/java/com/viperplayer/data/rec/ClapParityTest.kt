@@ -31,6 +31,16 @@ import kotlin.math.sqrt
  * IMPORTANT — LATENCY IS NOT VALIDATED HERE ON EMULATORS. On an x86_64 emulator the ONNX time is not
  * representative of a real arm64 Pixel; this harness validates PARITY (mel + embedding correctness).
  *
+ * P1c NOTE (background indexer): this harness feeds golden PCM straight into [MelSpectrogram]; it does
+ * NOT exercise the P1c `MediaCodecAudioDecoder` (real `MediaExtractor`/`MediaCodec` decode from a
+ * compressed file), which is device-only and unmockable off-device. The indexer's PURE orchestration
+ * (candidate priority, has-local-bytes skip, downmix/resample/crop window handling, embed->store
+ * round-trip) is covered by the JVM `SongEmbedCandidatesTest` / `LibraryEmbedderTest` /
+ * `RecommendationIndexStatusTest` with fakes. STILL NEEDS DEVICE VALIDATION: that
+ * `MediaCodecAudioDecoder` correctly de-interleaves 16-bit vs float PCM and yields ~11s for
+ * mp3/m4a/flac/ogg/wav on a real Pixel — add an androidTest that decodes a small committed clip and
+ * asserts sampleRate/channels/frameCount when a decode fixture is available.
+ *
  * Assets (src/androidTest/assets/clap_golden/):
  *   clap_audio_tower.onnx       (NOT committed — drop in locally per RECSYS_TESTING.md)
  *   <clip>.pcm_f32le.bin        (raw float32 LE, mono, 48kHz — committed)

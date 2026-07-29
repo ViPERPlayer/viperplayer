@@ -4,8 +4,12 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.viperplayer.data.rec.AudioDecoder
 import com.viperplayer.data.rec.ClapModelRepository
 import com.viperplayer.data.rec.ClapModelRepositoryImpl
+import com.viperplayer.data.rec.MediaCodecAudioDecoder
+import com.viperplayer.data.rec.SongAudioSource
+import com.viperplayer.data.rec.SongAudioSourceResolver
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -32,6 +36,11 @@ abstract class RecModule {
     @Singleton
     abstract fun bindClapModelRepository(impl: ClapModelRepositoryImpl): ClapModelRepository
 
+    /** The library-embedding pipeline resolves local audio through the concrete resolver. */
+    @Binds
+    @Singleton
+    abstract fun bindSongAudioSource(impl: SongAudioSourceResolver): SongAudioSource
+
     companion object {
         private val Context.recModelDataStore: DataStore<Preferences> by preferencesDataStore(name = "rec_model")
 
@@ -40,6 +49,15 @@ abstract class RecModule {
         @RecModelPreferences
         fun provideRecModelDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
             context.recModelDataStore
+
+        /**
+         * The on-device audio decoder used by the library-embedding indexer. Provided (not
+         * constructor-injected) because [MediaCodecAudioDecoder] has a defaulted constructor param;
+         * this pins the default decode budget and keeps the interface swap in one place.
+         */
+        @Provides
+        @Singleton
+        fun provideAudioDecoder(): AudioDecoder = MediaCodecAudioDecoder()
     }
 }
 

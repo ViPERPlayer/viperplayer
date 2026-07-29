@@ -153,6 +153,28 @@ interface SongDao {
     )
     suspend fun getSongsMissingEmbedding(currentModelVersion: String, limit: Int = 200): List<SongEntity>
 
+    /**
+     * As [getSongsMissingEmbedding] but with an [offset], so the indexer can page PAST songs it can
+     * never embed (streaming-only rows never gain an embedding and would otherwise re-appear at the
+     * head of every un-offset page, starving later local songs). The indexer advances the offset by the
+     * count of skipped (un-embeddable) rows; embedded rows drop out of the result set on their own.
+     */
+    @Query(
+        """
+        SELECT * FROM songs
+        WHERE audioEmbedding IS NULL
+           OR embeddingModelVersion IS NULL
+           OR embeddingModelVersion != :currentModelVersion
+        ORDER BY id ASC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+    suspend fun getSongsMissingEmbeddingPaged(
+        currentModelVersion: String,
+        limit: Int,
+        offset: Int,
+    ): List<SongEntity>
+
     /** Count of songs still needing an embedding for [currentModelVersion] (indexer progress UI later). */
     @Query(
         """

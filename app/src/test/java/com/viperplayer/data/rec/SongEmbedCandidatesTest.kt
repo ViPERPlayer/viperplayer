@@ -1,0 +1,116 @@
+package com.viperplayer.data.rec
+
+import com.viperplayer.data.local.entity.SongEntity
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Pure-JVM tests for the two indexer policy decisions in [SongEmbedCandidates]: which songs have local
+ * bytes (streaming-only is skipped) and in what order they're embedded (downloaded > liked > recent >
+ * other). No device, codec or model involved.
+ */
+class SongEmbedCandidatesTest {
+
+    private fun song(
+        id: Long,
+        idType: String = "plugin",
+        pluginId: String = "testsource",
+        sourceId: String = "s$id",
+        isDownloaded: Boolean = false,
+        downloadPath: String? = null,
+        isLiked: Boolean = false,
+        lastPlayed: Long? = null,
+    ) = SongEntity(
+        id = id,
+        idType = idType,
+        pluginId = pluginId,
+        sourceId = sourceId,
+        title = "t$id",
+        isDownloaded = isDownloaded,
+        downloadPath = downloadPath,
+        isLiked = isLiked,
+        lastPlayed = lastPlayed,
+    )
+
+    // ---- hasLocalBytes ----
+
+    @Test
+    fun downloadedWithPathHasLocalBytes() {
+        assertTrue(SongEmbedCandidates.hasLocalBytes(song(1, isDownloaded = true, downloadPath = "/x.mp3")))
+    }
+
+    @Test
+    fun downloadedWithBlankPathHasNoLocalBytes() {
+        assertFalse(SongEmbedCandidates.hasLocalBytes(song(1, isDownloaded = true, downloadPath = "")))
+        assertFalse(SongEmbedCandidates.hasLocalBytes(song(2, isDownloaded = true, downloadPath = null)))
+    }
+
+    @Test
+    fun localLibrarySongHasLocalBytes() {
+        val local = song(3, idType = "local", pluginId = "", sourceId = "content://media/audio/1")
+        assertTrue(SongEmbedCandidates.hasLocalBytes(local))
+    }
+
+    @Test
+    fun streamingOnlyPluginSongHasNoLocalBytes() {
+        // Not downloaded, not local -> streaming only -> skipped.
+        assertFalse(SongEmbedCandidates.hasLocalBytes(song(4, isLiked = true, lastPlayed = 100L)))
+    }
+
+    // ---- priorityOf ----
+
+    @Test
+    fun priorityTiersRankDownloadedFirst() {
+        assertEquals(
+            SongEmbedCandidates.Priority.DOWNLOADED,
+            SongEmbedCandidates.priorityOf(song(1, isDownloaded = true, downloadPath = "/x", isLiked = true, lastPlayed = 9L)),
+        )
+        assertEquals(
+            SongEmbedCandidates.Priority.LIKED,
+            SongEmbedCandidates.priorityOf(song(2, isLiked = true, lastPlayed = 9L)),
+        )
+        assertEquals(
+            SongEmbedCandidates.Priority.RECENT,
+            SongEmbedCandidates.priorityOf(song(3, lastPlayed = 9L)),
+        )
+        assertEquals(
+            SongEmbedCandidates.Priority.OTHER,
+            SongEmbedCandidates.priorityOf(song(4)),
+        )
+    }
+
+    // ---- prioritize ----
+
+    @Test
+    fun prioritizeOrdersDownloadedThenLikedThenRecentThenOther() {
+        val other = song(10)
+        val recent = song(11, lastPlayed = 500L)
+        val liked = song(12, isLiked = true)
+        val downloaded = song(13, isDownloaded = true, downloadPath = "/d")
+        val ordered = SongEmbedCandidates.prioritize(listOf(other, recent, liked, downloaded))
+        assertEquals(listOf(13L, 12L, 11L, 10L), ordered.map { it.id })
+    }
+
+    @Test
+    fun prioritizeBreaksTiesByMostRecentThenId() {
+        // Two RECENT songs: the more-recently-played first, then id for equal timestamps.
+        val a = song(1, lastPlayed = 100L)
+        val b = song(2, lastPlayed = 900L)
+        val c = song(3, lastPlayed = 900L)
+        val ordered = SongEmbedCandidates.prioritize(listOf(a, b, c))
+        // b & c share 900L -> id asc (2 before 3); a (100L) last.
+        assertEquals(listOf(2L, 3L, 1L), ordered.map { it.id })
+    }
+
+    @Test
+    fun embeddableInPriorityOrderDropsStreamingOnlyAndOrders() {
+        val streamOnly = song(1, isLiked = true) // no local bytes -> dropped
+        val downloaded = song(2, isDownloaded = true, downloadPath = "/d")
+        val local = song(3, idType = "local", pluginId = "", sourceId = "content://x", lastPlayed = 5L)
+        val result = SongEmbedCandidates.embeddableInPriorityOrder(listOf(streamOnly, downloaded, local))
+        // streamOnly dropped; downloaded (tier 0) before local (tier RECENT).
+        assertEquals(listOf(2L, 3L), result.map { it.id })
+    }
+}
