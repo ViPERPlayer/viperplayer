@@ -94,6 +94,22 @@ class DiscoverViewModel @Inject constructor(
 
     fun addToQueue(song: Song) = launchSafe { playerRepository.addToQueue(song) }
 
+    /** Thumbs-up: likes the discovered song via the repository's feedback path. */
+    fun thumbsUp(song: Song) = launchSafe { discoveryRepository.sendFeedback(song.id, positive = true) }
+
+    /** Thumbs-down: suppresses the id from future discovery feeds; dims + removes the row immediately. */
+    fun thumbsDown(song: Song) {
+        _uiState.update { state ->
+            // Server candidates have no embedding, so a down-vote removes the row outright (it won't
+            // reappear — the id is suppressed server-side of the fetch). Kept in dislikedIds for idempotency.
+            state.copy(
+                songs = state.songs.filterNot { it.id == song.id },
+                dislikedIds = state.dislikedIds + song.id,
+            )
+        }
+        launchSafe { discoveryRepository.sendFeedback(song.id, positive = false) }
+    }
+
     private fun play(songs: List<Song>, index: Int) {
         if (songs.isEmpty()) return
         launchSafe { playerRepository.playAll(songs, index, PlaybackContext.Suggestions) }

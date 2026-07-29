@@ -12,6 +12,7 @@ import com.viperplayer.data.rec.embeddingToBytes
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PagedResult
 import com.viperplayer.domain.model.RecEmptyReason
+import com.viperplayer.domain.model.RecReason
 import com.viperplayer.domain.model.RecResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.rec.Interaction
@@ -234,6 +235,106 @@ class RecommendationRepositoryImplTest {
     }
 
     @Test
+    fun forYou_multipleMoodCentroids_poolAcrossMoods() = runTest {
+        // Two mood centroids: one +x, one +y. Non-pool candidates: s3 (+x mood), s4 (+y mood). Both moods
+        // should be pooled into the feed even though a single averaged taste would favor only one.
+        val dao = RecFakeSongDao(
+            embeddings = listOf(
+                SongEmbeddingRow(1L, bytes(1f, 0f)), // liked pool
+                SongEmbeddingRow(3L, bytes(1f, 0f)), // +x mood
+                SongEmbeddingRow(4L, bytes(0f, 1f)), // +y mood
+            ),
+            entities = listOf(entity(1L, "s1"), entity(3L, "s3"), entity(4L, "s4")),
+            seedEmbeddings = emptyMap(),
+            liked = listOf(entity(1L, "s1")),
+        )
+        val taste = FakeTaste(
+            state = TasteState(vector = vector(1f, 1f)),
+            centroids = listOf(vector(1f, 0f), vector(0f, 1f)),
+        )
+        val result = repo(
+            dao = dao,
+            media = FakeMedia(mapOf(local("s3") to song("s3"), local("s4") to song("s4"))),
+            taste = taste,
+        ).forYouFromLibrary(limit = 10)
+
+        assertTrue(result is RecResult.Local)
+        val ids = (result as RecResult.Local).songs.map { it.id }.toSet()
+        // Both moods are represented in the pooled feed.
+        assertTrue("+x mood candidate is present", local("s3") in ids)
+        assertTrue("+y mood candidate is present", local("s4") in ids)
+    }
+
+    @Test
+    fun forYou_attachesSoundsLikeReason_fromNearestAnchor() = runTest {
+        // Liked anchor s1 (title "Anchor Song") points +x. Non-pool result s3 also +x → its reason is
+        // "Sounds like Anchor Song".
+        val dao = RecFakeSongDao(
+            embeddings = listOf(
+                SongEmbeddingRow(1L, bytes(1f, 0f)),
+                SongEmbeddingRow(3L, bytes(1f, 0f)),
+            ),
+            entities = listOf(entity(1L, "Anchor Song"), entity(3L, "s3")),
+            seedEmbeddings = emptyMap(),
+            liked = listOf(entity(1L, "Anchor Song")),
+        )
+        val taste = FakeTaste(TasteState(vector = vector(1f, 0f)))
+        val result = repo(dao = dao, media = FakeMedia(mapOf(local("s3") to song("s3"))), taste = taste)
+            .forYouFromLibrary(limit = 10) as RecResult.Local
+
+        val reason = result.reasons[local("s3")]
+        assertEquals(RecReason.Kind.SOUNDS_LIKE, reason?.kind)
+        assertEquals("Anchor Song", reason?.arg)
+    }
+
+    @Test
+    fun moreLikeThis_attachesMoreLikeSeedReason() = runTest {
+        val dao = RecFakeSongDao(
+            embeddings = listOf(
+                SongEmbeddingRow(1L, bytes(1f, 0f)), // seed
+                SongEmbeddingRow(2L, bytes(1f, 0f)),
+                SongEmbeddingRow(3L, bytes(1f, 0.1f)),
+                SongEmbeddingRow(4L, bytes(0f, 1f)),
+            ),
+            entities = listOf(entity(1L, "Seed Song"), entity(2L, "s2"), entity(3L, "s3"), entity(4L, "s4")),
+            seedEmbeddings = mapOf(local("Seed Song") to bytes(1f, 0f)),
+        )
+        val repo = repo(
+            dao = dao,
+            media = FakeMedia(mapOf(local("s2") to song("s2"), local("s3") to song("s3"), local("s4") to song("s4"))),
+        )
+        val result = repo.moreLikeThis(local("Seed Song"), limit = 10) as RecResult.Local
+        val reason = result.reasons.values.firstOrNull()
+        assertEquals(RecReason.Kind.MORE_LIKE, reason?.kind)
+        assertEquals("Seed Song", reason?.arg)
+    }
+
+    @Test
+    fun sendFeedback_thumbsUp_likesTheSong() = runTest {
+        val media = RecordingMedia()
+        val repo = repo(dao = RecFakeSongDao(emptyList(), emptyList(), emptyMap()), media = media)
+        repo.sendFeedback(local("s1"), positive = true)
+        assertEquals(listOf(local("s1") to true), media.liked)
+    }
+
+    @Test
+    fun sendFeedback_thumbsDown_appliesDislikeInteraction() = runTest {
+        // s1 has a local embedding → a thumbs-down emits a DISLIKE onInteraction with that embedding.
+        val dao = RecFakeSongDao(
+            embeddings = emptyList(),
+            entities = listOf(entity(1L, "s1")),
+            seedEmbeddings = mapOf(local("s1") to bytes(1f, 0f)),
+        )
+        val taste = FakeTaste()
+        repo(dao = dao, taste = taste).sendFeedback(local("s1"), positive = false)
+        assertEquals(1, taste.interactions.size)
+        assertEquals(
+            com.viperplayer.domain.rec.InteractionType.DISLIKE,
+            taste.interactions.first().type,
+        )
+    }
+
+    @Test
     fun forYou_disabled_returnsDisabledEmpty() = runTest {
         val dao = RecFakeSongDao(emptyList(), emptyList(), emptyMap())
         val repo = repo(dao = dao, recommendationsEnabled = false)
@@ -278,6 +379,12 @@ class RecommendationRepositoryImplTest {
         override fun getSong(mediaId: MediaId): Flow<Song?> = flowOf(songs[mediaId])
     }
 
+    /** Records the (id, isLiked) pairs passed to [setSongLiked] so a feedback test can assert the like. */
+    private class RecordingMedia : MediaLibraryRepository by UnsupportedMediaLibraryRepository() {
+        val liked = mutableListOf<Pair<MediaId, Boolean>>()
+        override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) { liked += mediaId to isLiked }
+    }
+
     private class FakePlugin(private val related: Map<MediaId, List<Song>>) :
         PluginRepository by UnsupportedPluginRepository() {
         override suspend fun getRelatedSongs(songId: MediaId): Result<PagedResult<Song>> =
@@ -308,13 +415,22 @@ class RecommendationRepositoryImplTest {
      * Test [TasteRepository]. Defaults to a COLD taste (so "For You" exercises the centroid fallback),
      * and records the ids passed to [recordServed] so a test can assert the feed was recorded.
      */
-    class FakeTaste(private val state: TasteState = TasteState.COLD) : TasteRepository {
+    class FakeTaste(
+        private val state: TasteState = TasteState.COLD,
+        private val bucketState: TasteState = state,
+        private val centroids: List<FloatArray> = emptyList(),
+    ) : TasteRepository {
         val served = mutableListOf<Long>()
+        val interactions = mutableListOf<Interaction>()
         override suspend fun taste(): TasteState = state
+        override suspend fun currentBucketTaste(): TasteState = if (bucketState.isCold) state else bucketState
+        override suspend fun moodCentroids(): List<FloatArray> = centroids
         override suspend fun recordServed(servedIds: List<Long>) { served += servedIds }
         override suspend fun servedRecency(): Map<Long, Float> = emptyMap()
         override suspend fun servedCounts(): Map<Long, Int> = emptyMap()
-        override suspend fun onInteraction(interaction: Interaction) = Unit
+        override suspend fun onInteraction(interaction: Interaction) { interactions += interaction }
+        override suspend fun suppressDiscoveryId(id: String) = Unit
+        override suspend fun suppressedDiscoveryIds(): Set<String> = emptySet()
         override suspend fun invalidate() = Unit
     }
 }

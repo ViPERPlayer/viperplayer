@@ -52,12 +52,24 @@ class TasteRepositoryImplTest {
 
     private val now = 1_700_000_000_000L
 
+    /** A fixed UTC zone so time-of-day buckets are deterministic regardless of the test host's zone. */
+    private val utc = java.time.ZoneId.of("UTC")
+
+    /** Epoch millis for [hour]:00 UTC on a fixed date, so a test can pin the current time-of-day bucket. */
+    private fun atHourUtc(hour: Int): Long =
+        java.time.LocalDate.of(2023, 11, 15)
+            .atTime(hour, 0)
+            .atZone(utc)
+            .toInstant()
+            .toEpochMilli()
+
     private fun repo(
         store: TasteStore = InMemoryTasteStore(),
         songDao: SongDao = FakeSongDao(),
         historyDao: PlayHistoryDao = FakeHistoryDao(),
         clock: () -> Long = { now },
-    ) = TasteRepositoryImpl(store, songDao, historyDao, clock)
+        zoneId: java.time.ZoneId = utc,
+    ) = TasteRepositoryImpl(store, songDao, historyDao, clock, zoneId)
 
     // --- persistence --------------------------------------------------------------------------------
 
@@ -181,12 +193,105 @@ class TasteRepositoryImplTest {
         assertEquals("but its served count is retained", 1, r.servedCounts()[7L])
     }
 
+    // --- P4: backward-compat load ------------------------------------------------------------------
+
+    @Test
+    fun oldShapeBlob_loadsWithoutP4Fields() = runTest {
+        // A P2/P3-shape blob (no bucket vectors / mood centroids / suppressed ids) must still load: the
+        // new fields default to empty/cold, and the global taste + served ring round-trip unchanged.
+        val store = InMemoryTasteStore()
+        // Persist a warm taste with the OLD field set only (simulating a pre-P4 blob).
+        val warm = repo(store = store)
+        warm.onInteraction(Interaction(InteractionType.LIKE, axis(4)))
+        warm.recordServed(listOf(42L))
+        // Rewrite the stored blob stripped down to only the P2/P3 keys.
+        val oldBlob = """{"vectorB64":"${vectorB64(store)}","interactions":1,"rebuiltAtMs":$now,""" +
+            """"servedRecency":{"42":1.0},"servedCounts":{"42":1}}"""
+        store.overwrite(oldBlob)
+
+        val fresh = repo(store = store)
+        val taste = fresh.taste()
+        assertFalse("old-shape blob still yields a warm taste", taste.isCold)
+        assertTrue("global taste round-trips", cos(taste.vector!!, axis(4)) > 0.9f)
+        // The absent P4 fields default cleanly: no mood centroids, no suppressed ids, and the current
+        // bucket falls back to the (warm) global taste.
+        assertTrue(fresh.moodCentroids().isEmpty())
+        assertTrue(fresh.suppressedDiscoveryIds().isEmpty())
+        assertFalse("current-bucket taste falls back to global", fresh.currentBucketTaste().isCold)
+    }
+
+    // --- P4: time-of-day buckets -------------------------------------------------------------------
+
+    @Test
+    fun onInteraction_updatesBothGlobalAndCurrentBucket() = runTest {
+        // At 08:00 (MORNING) a like seeds BOTH the global and the MORNING bucket taste.
+        val store = InMemoryTasteStore()
+        val morning = repo(store = store, clock = { atHourUtc(8) })
+        morning.onInteraction(Interaction(InteractionType.LIKE, axis(2)))
+        assertTrue("global warmed", cos(morning.taste().vector!!, axis(2)) > 0.9f)
+        assertTrue("MORNING bucket warmed", cos(morning.currentBucketTaste().vector!!, axis(2)) > 0.9f)
+    }
+
+    @Test
+    fun currentBucketTaste_isSelectedByClock_andFallsBackToGlobal() = runTest {
+        val store = InMemoryTasteStore()
+        // Warm ONLY the MORNING bucket (08:00) along axis 1.
+        repo(store = store, clock = { atHourUtc(8) })
+            .onInteraction(Interaction(InteractionType.LIKE, axis(1)))
+
+        // At 08:00 the current bucket is MORNING → its own vector (axis 1).
+        val atMorning = repo(store = store, clock = { atHourUtc(8) }).currentBucketTaste()
+        assertTrue("MORNING bucket taste is served", cos(atMorning.vector!!, axis(1)) > 0.9f)
+
+        // At 20:00 the current bucket is EVENING (still cold) → falls back to the global taste (axis 1).
+        val atEvening = repo(store = store, clock = { atHourUtc(20) }).currentBucketTaste()
+        assertFalse("cold EVENING bucket falls back to global, not cold", atEvening.isCold)
+        assertTrue("fallback is the global taste", cos(atEvening.vector!!, axis(1)) > 0.9f)
+    }
+
+    // --- P4: explicit feedback (dislike) -----------------------------------------------------------
+
+    @Test
+    fun dislikeInteraction_movesTasteAwayFromTheSong() = runTest {
+        val r = repo()
+        r.onInteraction(Interaction(InteractionType.LIKE, unit(0 to 1f, 1 to 1f)))
+        val disliked = axis(0)
+        val before = cos(r.taste().vector!!, disliked)
+        r.onInteraction(Interaction(InteractionType.DISLIKE, disliked))
+        val after = cos(r.taste().vector!!, disliked)
+        assertTrue("an explicit dislike reduces similarity to the disliked song", after < before)
+    }
+
+    // --- P4: discovery suppression -----------------------------------------------------------------
+
+    @Test
+    fun suppressDiscoveryId_isIdempotentAndPersists() = runTest {
+        val store = InMemoryTasteStore()
+        val a = repo(store = store)
+        a.suppressDiscoveryId("testsource:t1")
+        a.suppressDiscoveryId("testsource:t1") // idempotent
+        a.suppressDiscoveryId("fourthsource:d9")
+        assertEquals(setOf("testsource:t1", "fourthsource:d9"), a.suppressedDiscoveryIds())
+        // Persisted: a fresh instance sees the same suppression set.
+        assertEquals(a.suppressedDiscoveryIds(), repo(store = store).suppressedDiscoveryIds())
+    }
+
+    // --- helpers ------------------------------------------------------------------------------------
+
+    /** Reads back the persisted vector's base64 from the store blob (for the old-shape blob test). */
+    private suspend fun vectorB64(store: InMemoryTasteStore): String {
+        val blob = store.read()!!
+        return Regex(""""vectorB64":"([^"]+)"""").find(blob)!!.groupValues[1]
+    }
+
     // --- fakes --------------------------------------------------------------------------------------
 
     private class InMemoryTasteStore : TasteStore {
         private var blob: String? = null
         override suspend fun read(): String? = blob
         override suspend fun write(blob: String) { this.blob = blob }
+        /** Test-only: directly replace the stored blob (used to simulate an old-shape persisted blob). */
+        fun overwrite(blob: String) { this.blob = blob }
     }
 
     private class FakeHistoryDao(private val plays: List<PlayHistoryEntity> = emptyList()) : PlayHistoryDao {

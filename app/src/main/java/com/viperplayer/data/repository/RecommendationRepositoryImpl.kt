@@ -14,11 +14,14 @@ import com.viperplayer.data.rec.IndexingStatusProvider
 import com.viperplayer.data.rec.bytesToEmbedding
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.rec.Candidate
+import com.viperplayer.domain.rec.Interaction
+import com.viperplayer.domain.rec.InteractionType
 import com.viperplayer.domain.rec.RerankParams
 import com.viperplayer.domain.rec.Reranker
 import com.viperplayer.domain.rec.TasteRepository
 import com.viperplayer.domain.model.RecEmptyReason
 import com.viperplayer.domain.model.RecReadiness
+import com.viperplayer.domain.model.RecReason
 import com.viperplayer.domain.model.RecResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -97,7 +100,14 @@ class RecommendationRepositoryImpl @Inject constructor(
             fallback(seed, limit, localFewSongs = songs)
         } else {
             recordServed(rankedIds)
-            RecResult.Local(songs)
+            // Every result is "More like {seed title}" (the anchor is the seed itself).
+            val seedTitle = seedEntity?.title
+            val reasons = if (!seedTitle.isNullOrBlank()) {
+                songs.associate { it.id to RecReason(RecReason.Kind.MORE_LIKE, seedTitle) }
+            } else {
+                emptyMap()
+            }
+            RecResult.Local(songs, reasons)
         }
     }
 
@@ -116,49 +126,83 @@ class RecommendationRepositoryImpl @Inject constructor(
         }
         val byId = candidates.associate { it.first to it.second }
 
-        // The online-learned taste vector (P2). Cold/stale ⇒ rebuilt from history inside the repository.
-        val taste = runCatchingRec("read taste") { tasteRepository.taste() }
+        // The online-learned taste (P2), time-of-day-aware (P4): prefer the current-hour bucket's taste
+        // when warm, else the global taste. Cold/stale ⇒ rebuilt from history inside the repository.
+        val taste = runCatchingRec("read taste") { tasteRepository.currentBucketTaste() }
         val tasteVector = taste?.vector
+
+        // Mood centroids (P4): distinct taste clusters so the feed can span several moods, not just the
+        // single averaged vector. Empty while cold ⇒ single-vector behavior below.
+        val centroids = runCatchingRec("read mood centroids") { tasteRepository.moodCentroids() }.orEmpty()
 
         // Exclude the taste's own pool (liked + recently played) from the feed so "For You" surfaces
         // NEW songs, not the ones the taste was built from.
         val poolIds = tastePoolIds().filter { it in byId }.take(TASTE_POOL_CAP).toSet()
 
-        val rankedIds: List<Long> = if (tasteVector != null) {
-            // Personalized: narrow to the taste's neighbourhood with kNN, then rerank that shortlist
-            // with novelty + exploration + MMR diversity + anti-repetition for a *mixed* feed.
-            val shortlist = EmbeddingKnn.cosineTopK(
-                query = tasteVector,
-                candidates = candidates,
-                k = limit * RERANK_POOL_FACTOR,
-                excludeIds = poolIds,
-            ).map { it.id }
-            // Vary the exploration seed by day so the long-tail picks the Reranker surfaces rotate
-            // day-to-day (as its exploration term documents) while staying stable within a session/day.
-            rerank(
-                reference = tasteVector,
-                poolIds = shortlist,
-                byId = byId,
-                limit = limit,
-                params = FOR_YOU_PARAMS.copy(seed = explorationSeed()),
-            )
-        } else {
-            // Cold taste: fall back to the P1 centroid of the liked/recent pool (non-personalized).
-            val poolVectors = poolIds.mapNotNull { byId[it] }
-            val centroid = EmbeddingKnn.meanVector(poolVectors)
-                ?: return RecResult.Empty(RecEmptyReason.NOT_INDEXED_YET) // no taste signal yet
-            EmbeddingKnn.cosineTopK(
-                query = centroid,
-                candidates = candidates,
-                k = limit,
-                excludeIds = poolIds,
-            ).map { it.id }
+        val rankedIds: List<Long> = when {
+            // Multi-mood: gather a kNN shortlist around EACH centroid, pool + dedupe, then rerank ONCE
+            // over the pool (so MMR/novelty/anti-repetition still apply across moods). Ranked against
+            // the current taste vector so relevance stays personalized.
+            centroids.isNotEmpty() && tasteVector != null -> {
+                val perCentroidK = maxOf(limit, (limit * RERANK_POOL_FACTOR) / centroids.size)
+                val pooled = LinkedHashSet<Long>()
+                for (centroid in centroids) {
+                    EmbeddingKnn.cosineTopK(
+                        query = centroid,
+                        candidates = candidates,
+                        k = perCentroidK,
+                        excludeIds = poolIds,
+                    ).forEach { pooled += it.id }
+                }
+                rerank(
+                    reference = tasteVector,
+                    poolIds = pooled.toList(),
+                    byId = byId,
+                    limit = limit,
+                    params = FOR_YOU_PARAMS.copy(seed = explorationSeed()),
+                )
+            }
+
+            tasteVector != null -> {
+                // Personalized single-vector: narrow to the taste's neighbourhood with kNN, then rerank
+                // that shortlist with novelty + exploration + MMR diversity + anti-repetition.
+                val shortlist = EmbeddingKnn.cosineTopK(
+                    query = tasteVector,
+                    candidates = candidates,
+                    k = limit * RERANK_POOL_FACTOR,
+                    excludeIds = poolIds,
+                ).map { it.id }
+                // Vary the exploration seed by day so the long-tail picks the Reranker surfaces rotate
+                // day-to-day (as its exploration term documents) while staying stable within a session/day.
+                rerank(
+                    reference = tasteVector,
+                    poolIds = shortlist,
+                    byId = byId,
+                    limit = limit,
+                    params = FOR_YOU_PARAMS.copy(seed = explorationSeed()),
+                )
+            }
+
+            else -> {
+                // Cold taste: fall back to the P1 centroid of the liked/recent pool (non-personalized).
+                val poolVectors = poolIds.mapNotNull { byId[it] }
+                val centroid = EmbeddingKnn.meanVector(poolVectors)
+                    ?: return RecResult.Empty(RecEmptyReason.NOT_INDEXED_YET) // no taste signal yet
+                EmbeddingKnn.cosineTopK(
+                    query = centroid,
+                    candidates = candidates,
+                    k = limit,
+                    excludeIds = poolIds,
+                ).map { it.id }
+            }
         }
 
         val songs = resolveSongs(rankedIds)
         if (songs.isEmpty()) return RecResult.Empty(RecEmptyReason.NO_RESULTS)
         recordServed(rankedIds)
-        return RecResult.Local(songs)
+        // "Sounds like X" reasons: for each result, its nearest owned liked/most-played anchor by cosine.
+        val reasons = forYouReasons(songs, rankedIds, byId, poolIds)
+        return RecResult.Local(songs, reasons)
     }
 
     override val readiness: Flow<RecReadiness> = combine(
@@ -177,6 +221,21 @@ class RecommendationRepositoryImpl @Inject constructor(
             indexingProcessed = (indexing as? IndexingStatus.Indexing)?.processed,
             indexingTotal = (indexing as? IndexingStatus.Indexing)?.total,
         )
+    }
+
+    override suspend fun sendFeedback(mediaId: MediaId, positive: Boolean) {
+        if (positive) {
+            // Thumbs up = like the song. The like path already emits a strong positive taste nudge via
+            // TasteLearningHooks.onLikeChanged, so we don't double-count with a manual onInteraction.
+            runCatchingRec("thumbs up like") { mediaLibraryRepository.setSongLiked(mediaId, true) }
+            return
+        }
+        // Thumbs down = a strong DISLIKE taste nudge away from the song's embedding, when we have one.
+        val bytes = runCatchingRec("read feedback embedding") { songDao.getEmbedding(mediaId) } ?: return
+        val embedding = runCatchingRec("decode feedback embedding") { bytesToEmbedding(bytes) } ?: return
+        runCatchingRec("thumbs down dislike") {
+            tasteRepository.onInteraction(Interaction(InteractionType.DISLIKE, embedding))
+        }
     }
 
     // --- helpers -----------------------------------------------------------------------------------
@@ -261,6 +320,61 @@ class RecommendationRepositoryImpl @Inject constructor(
     }
 
     /**
+     * "Sounds like X" reasoning (P4) for the "For You" feed: for each result [songs]/[rankedIds] pair,
+     * finds its NEAREST owned anchor from the taste [poolIds] (the liked/recently-played songs the taste
+     * was built from) by cosine over the local embeddings ([byId]), and labels it
+     * "Sounds like {anchor title}". A result with no computable anchor (missing embedding / no titled
+     * anchor above [REASON_MIN_COSINE]) is simply left without a reason rather than fabricating one.
+     */
+    private suspend fun forYouReasons(
+        songs: List<Song>,
+        rankedIds: List<Long>,
+        byId: Map<Long, FloatArray>,
+        poolIds: Set<Long>,
+    ): Map<MediaId, RecReason> {
+        if (songs.isEmpty() || poolIds.isEmpty()) return emptyMap()
+        // Anchor titles for the pool rows (only those with a usable local embedding can be an anchor).
+        val anchors = runCatchingRec("load anchor rows") { songDao.getByIds(poolIds.toList()) }.orEmpty()
+            .mapNotNull { entity ->
+                val vector = byId[entity.id] ?: return@mapNotNull null
+                val title = entity.title.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                Triple(entity.id, vector, title)
+            }
+        if (anchors.isEmpty()) return emptyMap()
+
+        // Ranked row id -> the result song's MediaId (drops rows that didn't resolve to a shown song).
+        val mediaIdByRow = runCatchingRec("load reason rows") { songDao.getByIds(rankedIds) }.orEmpty()
+            .associate { it.id to mediaIdFromColumns(it.idType, it.pluginId, it.sourceId) }
+        val shownIds = songs.mapTo(HashSet()) { it.id }
+
+        val reasons = HashMap<MediaId, RecReason>(songs.size)
+        for (id in rankedIds) {
+            val candidateVec = byId[id] ?: continue
+            val mediaId = mediaIdByRow[id]?.takeIf { it in shownIds } ?: continue
+            var bestTitle: String? = null
+            var bestCos = REASON_MIN_COSINE
+            for ((anchorId, anchorVec, anchorTitle) in anchors) {
+                if (anchorId == id) continue
+                val c = cosine(candidateVec, anchorVec)
+                if (c > bestCos) {
+                    bestCos = c
+                    bestTitle = anchorTitle
+                }
+            }
+            bestTitle?.let { reasons[mediaId] = RecReason(RecReason.Kind.SOUNDS_LIKE, it) }
+        }
+        return reasons
+    }
+
+    /** Cosine (== dot for unit vectors) of two equal-length embeddings; 0 on a dimension mismatch. */
+    private fun cosine(a: FloatArray, b: FloatArray): Float {
+        if (a.size != b.size) return 0f
+        var acc = 0.0
+        for (i in a.indices) acc += a[i].toDouble() * b[i]
+        return acc.toFloat()
+    }
+
+    /**
      * Resolves ranked Room row [ids] back to fully-hydrated domain [Song]s, preserving the ranking order.
      * Maps each row to its [MediaId] then hydrates through [MediaLibraryRepository.getSong] (artists +
      * album + playability). Rows that no longer resolve are dropped.
@@ -331,6 +445,12 @@ class RecommendationRepositoryImpl @Inject constructor(
 
         /** kNN pulls this many times `limit` as a shortlist for the reranker to diversify within. */
         const val RERANK_POOL_FACTOR = 4
+
+        /**
+         * Minimum cosine an anchor must reach to earn a "Sounds like X" reason — below this the nearest
+         * owned song isn't a meaningful match, so the row shows no (fabricated) reason.
+         */
+        const val REASON_MIN_COSINE = 0.5f
 
         /** Milliseconds per day — the bucket size for the day-varying exploration seed. */
         const val MS_PER_DAY = 24L * 60 * 60 * 1000

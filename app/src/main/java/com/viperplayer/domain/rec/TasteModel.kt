@@ -3,6 +3,7 @@ package com.viperplayer.domain.rec
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
@@ -29,6 +30,42 @@ enum class InteractionType {
 
     /** The user explicitly disliked/blocked the song — a strong negative signal. */
     DISLIKE,
+}
+
+/**
+ * A coarse time-of-day bucket the taste is additionally learned per-bucket (P4). Each bucket keeps its
+ * OWN taste vector alongside the global one, so recommendations can lean on how the user's taste shifts
+ * across the day (e.g. mellow mornings, energetic evenings). Buckets are derived purely from a
+ * local-clock hour ([fromHour]) so they stay deterministic under a fake clock in tests.
+ */
+enum class TimeBucket {
+    /** 05:00–11:59 local. */
+    MORNING,
+
+    /** 12:00–16:59 local. */
+    AFTERNOON,
+
+    /** 17:00–21:59 local. */
+    EVENING,
+
+    /** 22:00–04:59 local (wraps midnight). */
+    NIGHT;
+
+    companion object {
+        /**
+         * The bucket for a local-clock [hour] (0–23, values outside are wrapped mod 24). Pure and
+         * deterministic — the repository resolves the local hour from the injected clock and passes it in.
+         */
+        fun fromHour(hour: Int): TimeBucket {
+            val h = ((hour % 24) + 24) % 24
+            return when (h) {
+                in 5..11 -> MORNING
+                in 12..16 -> AFTERNOON
+                in 17..21 -> EVENING
+                else -> NIGHT // 22, 23, 0..4
+            }
+        }
+    }
 }
 
 /**
@@ -183,6 +220,12 @@ object TasteModel {
      */
     const val SKIP_COMPLETION_THRESHOLD = 0.15f
 
+    /** Default number of mood centroids (clusters) to derive — a small K keeps clustering cheap. */
+    const val DEFAULT_MOOD_CENTROIDS = 3
+
+    /** Max k-means iterations for [deriveMoodCentroids] — converges quickly on a small, capped input. */
+    private const val KMEANS_MAX_ITERS = 20
+
     private const val MS_PER_DAY = 24.0 * 60.0 * 60.0 * 1000.0
 
     /**
@@ -234,6 +277,141 @@ object TasteModel {
         if (contributed == 0) return TasteState.COLD
         val vector = normalizeOrNull(acc) ?: return TasteState.COLD
         return TasteState(vector = vector, interactions = 0, rebuiltAtMs = nowMs)
+    }
+
+    /**
+     * Clusters the user's taste into up to [k] **mood centroids** (P4) — distinct directions in CLAP
+     * space so recommendations can span several moods instead of collapsing to one averaged vector.
+     *
+     * A small, deterministic spherical k-means over the (L2-normalized) [embeddings]:
+     *  - **Deterministic init** — no `Math.random`. The first seed is the input's own centroid direction;
+     *    each subsequent seed is the input point *furthest* (lowest cosine) from the already-chosen seeds
+     *    (a farthest-point / k-means++-style greedy pick with a fixed, reproducible tie-break by index).
+     *  - **Assignment** by max cosine, **update** by re-normalizing each cluster's mean (spherical
+     *    k-means; cosine == dot for unit vectors). Empty clusters are dropped.
+     *  - **Guards** for degenerate input: no usable embeddings → empty; fewer than [k] *distinct*
+     *    directions → that many centroids; a single direction → one centroid (equivalent to the single
+     *    taste centroid). Non-finite / wrong-dimension rows are skipped.
+     *
+     * Every returned centroid is L2-normalized. Pure and fully deterministic given the same input order.
+     *
+     * @param embeddings the play + liked embeddings to cluster (any order; same dimension).
+     * @param k          the target number of centroids (clamped to `[1, distinctInputs]`).
+     */
+    fun deriveMoodCentroids(
+        embeddings: List<FloatArray>,
+        k: Int = DEFAULT_MOOD_CENTROIDS,
+    ): List<FloatArray> {
+        if (k <= 0) return emptyList()
+        val dim = embeddings.firstOrNull { it.isNotEmpty() }?.size ?: return emptyList()
+        if (dim == 0) return emptyList()
+
+        // Keep only usable, unit-normalized points (skip wrong-dim / degenerate / non-finite rows).
+        val points = ArrayList<FloatArray>(embeddings.size)
+        for (e in embeddings) {
+            if (e.size != dim) continue
+            val unit = normalizeOrNull(DoubleArray(dim) { e[it].toDouble() }) ?: continue
+            points += unit
+        }
+        if (points.isEmpty()) return emptyList()
+
+        // Collapse to distinct directions so K can't exceed the number of genuinely different clusters
+        // (near-identical points would otherwise seed empty/duplicate centroids).
+        val distinct = distinctDirections(points)
+        val kEff = min(k, distinct.size)
+        if (kEff <= 1) {
+            // One (or one distinct) direction → the single-centroid case: the overall mean direction.
+            return listOfNotNull(meanDirection(points, dim))
+        }
+
+        // --- deterministic farthest-point seeding -------------------------------------------------
+        val seeds = ArrayList<FloatArray>(kEff)
+        seeds += meanDirection(points, dim) ?: distinct.first()
+        while (seeds.size < kEff) {
+            var bestIdx = -1
+            var bestDist = Float.NEGATIVE_INFINITY // maximize (1 - maxCosToSeeds) ⇒ minimize maxCos
+            for (i in distinct.indices) {
+                val p = distinct[i]
+                var maxCos = Float.NEGATIVE_INFINITY
+                for (s in seeds) {
+                    val c = dot(p, s)
+                    if (c > maxCos) maxCos = c
+                }
+                val dist = 1f - maxCos
+                if (dist > bestDist) {
+                    bestDist = dist
+                    bestIdx = i
+                }
+            }
+            if (bestIdx < 0) break
+            seeds += distinct[bestIdx]
+        }
+
+        // --- Lloyd iterations (spherical k-means) -------------------------------------------------
+        var centroids = seeds
+        repeat(KMEANS_MAX_ITERS) {
+            val buckets = Array(centroids.size) { ArrayList<FloatArray>() }
+            for (p in points) {
+                var best = 0
+                var bestCos = Float.NEGATIVE_INFINITY
+                for (ci in centroids.indices) {
+                    val c = dot(p, centroids[ci])
+                    if (c > bestCos) {
+                        bestCos = c
+                        best = ci
+                    }
+                }
+                buckets[best] += p
+            }
+            val next = ArrayList<FloatArray>(centroids.size)
+            for (b in buckets) {
+                val m = meanDirection(b, dim) ?: continue // drop empty clusters
+                next += m
+            }
+            if (next.isEmpty()) return listOfNotNull(meanDirection(points, dim))
+            // Converged (same directions) ⇒ stop early.
+            if (sameDirections(next, centroids)) {
+                centroids = next
+                return@repeat
+            }
+            centroids = next
+        }
+        return centroids
+    }
+
+    /** The re-normalized mean direction of [points] (unit vectors), or null when empty/degenerate. */
+    private fun meanDirection(points: List<FloatArray>, dim: Int): FloatArray? {
+        if (points.isEmpty()) return null
+        val acc = DoubleArray(dim)
+        for (p in points) for (i in 0 until dim) acc[i] += p[i]
+        return normalizeOrNull(acc)
+    }
+
+    /** Deduplicates near-identical directions (cosine ≥ 1 − [DISTINCT_EPS]), keeping first occurrence. */
+    private fun distinctDirections(points: List<FloatArray>): List<FloatArray> {
+        val out = ArrayList<FloatArray>()
+        for (p in points) {
+            if (out.none { dot(it, p) >= 1f - DISTINCT_EPS }) out += p
+        }
+        return out
+    }
+
+    /** True when [a] and [b] are the same set of directions in order (each pair near-identical). */
+    private fun sameDirections(a: List<FloatArray>, b: List<FloatArray>): Boolean {
+        if (a.size != b.size) return false
+        for (i in a.indices) if (dot(a[i], b[i]) < 1f - DISTINCT_EPS) return false
+        return true
+    }
+
+    /** Cosine tolerance below which two unit directions are treated as distinct. */
+    private const val DISTINCT_EPS = 1e-4f
+
+    /** Dot product of two equal-length vectors (== cosine for unit-norm inputs). */
+    private fun dot(a: FloatArray, b: FloatArray): Float {
+        var acc = 0.0
+        val n = min(a.size, b.size)
+        for (i in 0 until n) acc += a[i].toDouble() * b[i]
+        return acc.toFloat()
     }
 
     /**

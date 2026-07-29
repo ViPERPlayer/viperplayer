@@ -10,6 +10,7 @@ import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RecEmptyReason
+import com.viperplayer.domain.model.RecReason
 import com.viperplayer.domain.model.RecResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.rec.Interaction
@@ -227,6 +228,64 @@ class DiscoveryRepositoryImplTest {
         assertEquals(0, api.contributeCalls)
     }
 
+    // --- feedback (P4) ---
+
+    @Test
+    fun discover_excludesThumbedDownIds() = runTest {
+        val api = FakeApi(
+            discoverResult = RecommendationApi.DiscoverResult.Success(
+                DiscoverResponseDto(
+                    ClapModel.MODEL_VERSION,
+                    listOf(candidate("testsource", "t1"), candidate("testsource", "t2")),
+                )
+            )
+        )
+        // t1 was previously suppressed → excluded from the feed; t2 remains.
+        val taste = FakeTaste(TasteState(vector = vector(1f, 0f)), initialSuppressed = setOf("testsource:t1"))
+        val repo = repo(api = api, taste = taste)
+
+        val result = repo.discover(limit = 10) as RecResult.Fallback
+        assertEquals(listOf(plugin("testsource", "t2")), result.songs.map { it.id })
+    }
+
+    @Test
+    fun sendFeedback_thumbsDown_suppressesIdForNextFetch() = runTest {
+        val candidates = listOf(candidate("testsource", "t1"), candidate("testsource", "t2"))
+        val api = FakeApi(
+            discoverResult = RecommendationApi.DiscoverResult.Success(
+                DiscoverResponseDto(ClapModel.MODEL_VERSION, candidates)
+            )
+        )
+        val taste = FakeTaste(TasteState(vector = vector(1f, 0f)))
+        val repo = repo(api = api, taste = taste)
+
+        // Thumbs-down t1, then re-fetch: t1 no longer appears.
+        repo.sendFeedback(plugin("testsource", "t1"), positive = false)
+        assertTrue("t1 suppressed", "testsource:t1" in taste.suppressed)
+        val result = repo.discover(limit = 10) as RecResult.Fallback
+        assertEquals(listOf(plugin("testsource", "t2")), result.songs.map { it.id })
+    }
+
+    @Test
+    fun sendFeedback_thumbsUp_likesTheSong() = runTest {
+        val media = RecordingMedia()
+        val repo = repo(media = media, taste = FakeTaste(TasteState(vector = vector(1f, 0f))))
+        repo.sendFeedback(plugin("testsource", "t1"), positive = true)
+        assertEquals(listOf(plugin("testsource", "t1") to true), media.liked)
+    }
+
+    @Test
+    fun discover_attachesMatchesTasteReason() = runTest {
+        val api = FakeApi(
+            discoverResult = RecommendationApi.DiscoverResult.Success(
+                DiscoverResponseDto(ClapModel.MODEL_VERSION, listOf(candidate("testsource", "t1")))
+            )
+        )
+        val repo = repo(api = api, taste = FakeTaste(TasteState(vector = vector(1f, 0f))))
+        val result = repo.discover(limit = 10) as RecResult.Fallback
+        assertEquals(RecReason.Kind.MATCHES_TASTE, result.reasons[plugin("testsource", "t1")]?.kind)
+    }
+
     // --- wiring ------------------------------------------------------------------------------------
 
     private fun repo(
@@ -291,6 +350,12 @@ class DiscoveryRepositoryImplTest {
         override fun getAllLikedSongs(): Flow<List<Song>> = flowOf(liked)
     }
 
+    /** Records the (id, isLiked) pairs passed to [setSongLiked] so a feedback test can assert the like. */
+    private class RecordingMedia : MediaLibraryRepository by UnsupportedMediaLibraryRepository() {
+        val liked = mutableListOf<Pair<MediaId, Boolean>>()
+        override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) { liked += mediaId to isLiked }
+    }
+
     private class FakeSettings(
         private val recommendations: Boolean,
         private val contribute: Boolean,
@@ -320,13 +385,21 @@ class DiscoveryRepositoryImplTest {
         }
     }
 
-    /** Test [TasteRepository]: returns a fixed taste; other methods are unused here. */
-    private class FakeTaste(private val state: TasteState) : TasteRepository {
+    /** Test [TasteRepository]: returns a fixed taste and records/serves the discovery suppression set. */
+    private class FakeTaste(
+        private val state: TasteState,
+        initialSuppressed: Set<String> = emptySet(),
+    ) : TasteRepository {
+        val suppressed = initialSuppressed.toMutableSet()
         override suspend fun taste(): TasteState = state
+        override suspend fun currentBucketTaste(): TasteState = state
+        override suspend fun moodCentroids(): List<FloatArray> = emptyList()
         override suspend fun recordServed(servedIds: List<Long>) = Unit
         override suspend fun servedRecency(): Map<Long, Float> = emptyMap()
         override suspend fun servedCounts(): Map<Long, Int> = emptyMap()
         override suspend fun onInteraction(interaction: Interaction) = Unit
+        override suspend fun suppressDiscoveryId(id: String) { suppressed += id }
+        override suspend fun suppressedDiscoveryIds(): Set<String> = suppressed
         override suspend fun invalidate() = Unit
     }
 }

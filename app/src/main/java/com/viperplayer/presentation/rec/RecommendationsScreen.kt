@@ -42,6 +42,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RecEmptyReason
+import com.viperplayer.domain.model.RecReason
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
@@ -80,6 +81,12 @@ fun RecommendationsScreen(
      * which suits the library-only surfaces). Null keeps the default.
      */
     noResultsMessage: String? = null,
+    /**
+     * Explicit-feedback callbacks (P4). When both are provided, each row shows a thumbs-up / thumbs-down
+     * pair; null (the default) hides them (e.g. surfaces that don't take feedback).
+     */
+    onThumbsUp: ((Song) -> Unit)? = null,
+    onThumbsDown: ((Song) -> Unit)? = null,
 ) {
     ViperScaffold(
         modifier = modifier.padding(rootPadding.bottom()),
@@ -118,6 +125,8 @@ fun RecommendationsScreen(
                     onSongMore = onSongMore,
                     onSongPlayNext = onSongPlayNext,
                     onSongAddToQueue = onSongAddToQueue,
+                    onThumbsUp = onThumbsUp,
+                    onThumbsDown = onThumbsDown,
                 )
 
                 else -> RecEmptyState(
@@ -146,6 +155,8 @@ private fun RecSongList(
     onSongMore: (Song) -> Unit,
     onSongPlayNext: (Song) -> Unit,
     onSongAddToQueue: (Song) -> Unit,
+    onThumbsUp: ((Song) -> Unit)?,
+    onThumbsDown: ((Song) -> Unit)?,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -180,6 +191,10 @@ private fun RecSongList(
                 onPlayNext = onSongPlayNext,
                 onAddToQueue = onSongAddToQueue,
                 modifier = Modifier.fillMaxWidth(),
+                reason = state.reasons[song.id]?.let { recReasonText(it) },
+                onThumbsUp = onThumbsUp,
+                onThumbsDown = onThumbsDown,
+                isDisliked = song.id in state.dislikedIds,
             )
         }
     }
@@ -292,4 +307,13 @@ private fun RecEmptyState(
             }
         }
     }
+}
+
+/** Localizes a domain [RecReason] into its user-facing "Sounds like X" caption. */
+@Composable
+private fun recReasonText(reason: RecReason): String = when (reason.kind) {
+    RecReason.Kind.SOUNDS_LIKE -> stringResource(R.string.rec_reason_sounds_like, reason.arg.orEmpty())
+    RecReason.Kind.BECAUSE_YOU_LIKE -> stringResource(R.string.rec_reason_because_you_like, reason.arg.orEmpty())
+    RecReason.Kind.MORE_LIKE -> stringResource(R.string.rec_reason_more_like, reason.arg.orEmpty())
+    RecReason.Kind.MATCHES_TASTE -> stringResource(R.string.rec_reason_matches_taste)
 }

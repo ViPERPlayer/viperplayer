@@ -44,4 +44,15 @@ interface RecommendationRepository {
      * in-progress indexing) so the UI can pick the right empty/explanatory state.
      */
     val readiness: Flow<RecReadiness>
+
+    /**
+     * Explicit user feedback (P4) on a recommended library song. A thumbs-**up** likes the song (reusing
+     * the normal like path, which is itself a strong positive taste signal). A thumbs-**down** applies a
+     * strong `DISLIKE` taste nudge away from the song's on-device embedding when one exists. Idempotent
+     * and fire-safe (never throws); a no-op when the song can't be addressed.
+     *
+     * @param mediaId the recommended song.
+     * @param positive true = thumbs up, false = thumbs down.
+     */
+    suspend fun sendFeedback(mediaId: MediaId, positive: Boolean)
 }

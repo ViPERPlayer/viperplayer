@@ -48,6 +48,8 @@ fun ForYouScreen(
         onSongPlayNext = viewModel::playNext,
         onSongAddToQueue = viewModel::addToQueue,
         onRetry = viewModel::retry,
+        onThumbsUp = viewModel::thumbsUp,
+        onThumbsDown = viewModel::thumbsDown,
         modifier = modifier,
     )
 
