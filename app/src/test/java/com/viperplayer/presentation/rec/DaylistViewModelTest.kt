@@ -5,10 +5,13 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo
 import com.viperplayer.domain.model.RecEmptyReason
+import com.viperplayer.domain.model.RecReadiness
+import com.viperplayer.domain.model.RecResult
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.rec.TimeBucket
 import com.viperplayer.domain.repository.DaylistRepository
 import com.viperplayer.domain.repository.PlayerRepository
+import com.viperplayer.domain.repository.RecommendationRepository
 import com.viperplayer.domain.repository.UnsupportedPlayerRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,7 +52,7 @@ class DaylistViewModelTest {
 
     @Test
     fun `a daylist maps into a titled non-loading state`() = runTest {
-        val vm = DaylistViewModel(FakeDaylistRepo(daylist(listOf(song("a"), song("b")))), RecordingPlayer())
+        val vm = DaylistViewModel(FakeDaylistRepo(daylist(listOf(song("a"), song("b")))), FakeRecs(), RecordingPlayer())
         advanceUntilIdle()
         val s = vm.uiState.value
         assertFalse(s.isLoading)
@@ -61,7 +64,7 @@ class DaylistViewModelTest {
 
     @Test
     fun `a null daylist maps into a graceful empty state`() = runTest {
-        val vm = DaylistViewModel(FakeDaylistRepo(null), RecordingPlayer())
+        val vm = DaylistViewModel(FakeDaylistRepo(null), FakeRecs(), RecordingPlayer())
         advanceUntilIdle()
         val s = vm.uiState.value
         assertFalse(s.isLoading)
@@ -72,7 +75,7 @@ class DaylistViewModelTest {
     @Test
     fun `playAll routes through the player under the Daylist context`() = runTest {
         val player = RecordingPlayer()
-        val vm = DaylistViewModel(FakeDaylistRepo(daylist(listOf(song("a"), song("b")))), player)
+        val vm = DaylistViewModel(FakeDaylistRepo(daylist(listOf(song("a"), song("b")))), FakeRecs(), player)
         advanceUntilIdle()
 
         vm.playAll()
@@ -86,7 +89,7 @@ class DaylistViewModelTest {
     @Test
     fun `playSong seeds the queue at the tapped song`() = runTest {
         val player = RecordingPlayer()
-        val vm = DaylistViewModel(FakeDaylistRepo(daylist(listOf(song("a"), song("b"), song("c")))), player)
+        val vm = DaylistViewModel(FakeDaylistRepo(daylist(listOf(song("a"), song("b"), song("c")))), FakeRecs(), player)
         advanceUntilIdle()
 
         vm.playSong(song("b"))
@@ -100,6 +103,18 @@ class DaylistViewModelTest {
 
     private class FakeDaylistRepo(private val daylist: Daylist?) : DaylistRepository {
         override suspend fun currentDaylist(): Daylist? = daylist
+    }
+
+    /** Minimal recommendation repo: only [readiness] matters here (drives the empty-reason + reloads). */
+    private class FakeRecs(enabled: Boolean = true) : RecommendationRepository {
+        override val readiness = MutableStateFlow(
+            RecReadiness(recommendationsEnabled = enabled, modelReady = true, indexedCount = 10),
+        )
+        override suspend fun moreLikeThis(seed: MediaId, limit: Int): RecResult =
+            RecResult.Empty(RecEmptyReason.NO_RESULTS)
+        override suspend fun forYouFromLibrary(limit: Int): RecResult =
+            RecResult.Empty(RecEmptyReason.NO_RESULTS)
+        override suspend fun sendFeedback(mediaId: MediaId, positive: Boolean) = Unit
     }
 
     private class RecordingPlayer : PlayerRepository by UnsupportedPlayerRepository() {

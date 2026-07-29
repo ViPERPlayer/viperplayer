@@ -764,7 +764,7 @@ private fun LazyListScope.homeSection(
         is GridSection -> {
             sectionHeader(section.title, section.subtitle)
             val columns = section.columns.coerceAtLeast(1)
-            itemsIndexed(section.items.chunked(columns), key = { index, _ -> "${section.id}-row-$index" }) { index, rowItems ->
+            itemsIndexed(section.items.chunked(columns), key = { index, _ -> "${section.pluginId}-${section.id}-row-$index" }) { index, rowItems ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -792,7 +792,7 @@ private fun LazyListScope.homeSection(
 
         is ListSection -> {
             sectionHeader(section.title, section.subtitle)
-            itemsIndexed(section.items, key = { index, item -> "${section.id}-${item.id}-$index" }) { index, item ->
+            itemsIndexed(section.items, key = { index, item -> "${section.pluginId}-${section.id}-${item.id}-$index" }) { index, item ->
                 val active = isCurrent(item, currentSongId)
                 Box(modifier = Modifier.revealOnAppear(index)) {
                     TrackRow(
@@ -818,7 +818,7 @@ private fun LazyListScope.homeSection(
         is MultiBrowseCarouselSection -> {
             sectionHeader(section.title, section.subtitle)
             if (section.items.isNotEmpty()) {
-                item(key = "${section.id}-multibrowse") {
+                item(key = "${section.pluginId}-${section.id}-multibrowse") {
                     MultiBrowseCarousel(
                         section = section,
                         currentSongId = currentSongId,
@@ -832,7 +832,7 @@ private fun LazyListScope.homeSection(
         is QuickPicksSection -> {
             sectionHeader(section.title, section.subtitle)
             if (section.items.isNotEmpty()) {
-                item(key = "${section.id}-quickpicks") {
+                item(key = "${section.pluginId}-${section.id}-quickpicks") {
                     QuickPicksGrid(
                         section = section,
                         currentSongId = currentSongId,
@@ -845,7 +845,7 @@ private fun LazyListScope.homeSection(
 
         is FeaturedCardsSection -> {
             sectionHeader(section.title, section.subtitle)
-            item(key = "${section.id}-featured") {
+            item(key = "${section.pluginId}-${section.id}-featured") {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -870,7 +870,7 @@ private fun LazyListScope.homeSection(
             // Two-column grid of colored mood/genre chip cards (rows of 2, like GridSection).
             itemsIndexed(
                 section.chips.chunked(2),
-                key = { index, _ -> "${section.id}-mood-row-$index" },
+                key = { index, _ -> "${section.pluginId}-${section.id}-mood-row-$index" },
             ) { index, rowChips ->
                 Row(
                     modifier = Modifier

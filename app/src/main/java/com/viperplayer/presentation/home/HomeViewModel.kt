@@ -7,7 +7,9 @@ import com.viperplayer.R
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.model.BrowseCategory
+import com.viperplayer.domain.model.BannerSection
 import com.viperplayer.domain.model.CarouselSection
+import com.viperplayer.domain.model.MoodGridSection
 import com.viperplayer.domain.model.FilterState
 import com.viperplayer.domain.model.HomeChip
 import com.viperplayer.domain.model.HomeContent
@@ -262,9 +264,15 @@ class HomeViewModel @Inject constructor(
                 val allQuickPicks = homeContentList.flatMap { (_, content) ->
                     content.quickPicks.orEmpty()
                 }
-                val allSections = homeContentList.flatMap { (_, content) ->
-                    content.sections
-                }
+                // De-dup by (pluginId, id): two plugins (or one plugin repeating an id) must never yield
+                // two sections that map to the same LazyColumn key — that throws at composition and crashes
+                // the whole Home feed. Also drop empty sections so an item-less section can't render a
+                // dangling header.
+                val seenSectionKeys = HashSet<Pair<String, String>>()
+                val allSections = homeContentList
+                    .flatMap { (_, content) -> content.sections }
+                    .filter { seenSectionKeys.add(it.pluginId to it.id) }
+                    .filter { it.hasRenderableContent() }
                 // Merge top-level chips across plugins (de-duped by id, first title wins).
                 val allChips = homeContentList
                     .flatMap { (_, content) -> content.chips }
@@ -345,9 +353,11 @@ class HomeViewModel @Inject constructor(
             }.toMap()
 
             val newSections = pages.flatMap { (_, content) -> content.sections }
-            // Append, de-duping by id so a repeated section can't stack up.
-            val existingIds = baseSections.mapTo(HashSet()) { it.id }
-            baseSections = baseSections + newSections.filter { existingIds.add(it.id) }
+            // Append, de-duping by (pluginId, id) so a repeated section can't stack up or collide on its
+            // LazyColumn key, and dropping empty sections (no dangling headers).
+            val existingKeys = baseSections.mapTo(HashSet()) { it.pluginId to it.id }
+            baseSections = baseSections +
+                newSections.filter { existingKeys.add(it.pluginId to it.id) && it.hasRenderableContent() }
 
             _uiState.update { s ->
                 (s as? HomeUiState.Content)?.copy(
@@ -357,6 +367,17 @@ class HomeViewModel @Inject constructor(
                 ) ?: s
             }
         }
+    }
+
+    /**
+     * Whether a section has content worth rendering. An item-bearing section with no items (or a mood
+     * grid with no chips) would otherwise emit a section header with nothing under it. Banners are
+     * text/image promos with no media items by design, so they always render.
+     */
+    private fun HomeSection.hasRenderableContent(): Boolean = when (this) {
+        is MoodGridSection -> chips.isNotEmpty()
+        is BannerSection -> true
+        else -> items.isNotEmpty()
     }
 
     fun onTimeChanged() {
