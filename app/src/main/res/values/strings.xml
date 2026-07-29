@@ -598,6 +598,12 @@
     <string name="suggestions_personalizing_progress">Personalizing your suggestions… analyzing %1$d/%2$d</string>
     <string name="suggestions_personalizing_generic">Getting your suggestions ready…</string>
 
+    <!-- Daylist: an on-device, time-of-day mix whose name/songs change through the day. The card title
+         and per-song list are generated in English (a combinatorial generated title can\'t be fully
+         localized); only these FIXED labels are translated. -->
+    <string name="daylist_label">Daylist</string>
+    <string name="daylist_card_cta">Open daylist</string>
+
     <!-- Offline mode banner (Home / Search) -->
     <string name="offline_banner_message">Offline mode is on — showing local and downloaded music only</string>
 
@@ -911,6 +917,7 @@
     <!-- Player context chip -->
     <string name="player_context_search">Search</string>
     <string name="player_context_suggestions">Suggested songs</string>
+    <string name="player_context_daylist">Daylist</string>
     <string name="player_context_now_playing">Now playing</string>
 
     <!-- Plugin pending actions -->

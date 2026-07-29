@@ -129,6 +129,7 @@ fun HomeScreen(
     onNavigateToMoodChip: (pluginId: String, targetId: String, label: String) -> Unit,
     onNavigateToYou: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToDaylist: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -136,10 +137,16 @@ fun HomeScreen(
     val topBarState by viewModel.topBarState.collectAsStateWithLifecycle()
     val offlineMode by viewModel.offlineMode.collectAsStateWithLifecycle()
 
+    // The pinned on-device Daylist card (time-of-day mix; no login/network). Declared before the
+    // time-tick receiver so it can roll over with the time-of-day bucket alongside the HomeViewModel.
+    val daylistViewModel: DaylistCardViewModel = hiltViewModel()
+    val daylistState by daylistViewModel.state.collectAsStateWithLifecycle()
+
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 viewModel.onTimeChanged()
+                daylistViewModel.onTimeChanged()
             }
         }
 
@@ -150,6 +157,7 @@ fun HomeScreen(
         })
 
         viewModel.onTimeChanged()
+        daylistViewModel.onTimeChanged()
 
         onDispose {
             context.unregisterReceiver(receiver)
@@ -185,6 +193,8 @@ fun HomeScreen(
         onPlaySuggestion = suggestionsViewModel::play,
         onEnableSuggestions = suggestionsViewModel::enable,
         onDismissSuggestions = suggestionsViewModel::dismiss,
+        daylistState = daylistState,
+        onNavigateToDaylist = onNavigateToDaylist,
         rootPadding = rootPadding,
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
@@ -215,6 +225,8 @@ private fun HomeScreenContent(
     onPlaySuggestion: (Song) -> Unit = {},
     onEnableSuggestions: () -> Unit = {},
     onDismissSuggestions: () -> Unit = {},
+    daylistState: DaylistCardState = DaylistCardState.Hidden,
+    onNavigateToDaylist: () -> Unit = {},
     rootPadding: PaddingValues,
     onNavigateToAlbum: (Album) -> Unit,
     onNavigateToArtist: (Artist) -> Unit,
@@ -382,6 +394,13 @@ private fun HomeScreenContent(
                             onPlay = onPlaySuggestion,
                             onEnable = onEnableSuggestions,
                             onDismiss = onDismissSuggestions,
+                        )
+
+                        // Pinned on-device Daylist card (below Suggestions, also above the plugin
+                        // sections so the Wave 2 randomize-order shuffle never moves it).
+                        daylistHomeSurface(
+                            state = daylistState,
+                            onOpen = onNavigateToDaylist,
                         )
 
                         // Offline mode is on: tell the user why remote content is hidden.

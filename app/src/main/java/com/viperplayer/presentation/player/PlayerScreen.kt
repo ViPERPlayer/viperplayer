@@ -1260,6 +1260,8 @@ private fun ContextChip(
             Icons.Filled.Search to context.query.ifBlank { stringResource(R.string.player_context_search) }
         PlaybackContext.Suggestions ->
             Icons.Filled.AutoAwesome to stringResource(R.string.player_context_suggestions)
+        PlaybackContext.Daylist ->
+            Icons.Filled.AutoAwesome to stringResource(R.string.player_context_daylist)
         null -> Icons.Filled.MusicNote to stringResource(R.string.player_context_now_playing)
     }
     Row(
