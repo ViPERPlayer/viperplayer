@@ -212,17 +212,20 @@ class RecommendationIndexRepository @Inject constructor(
          * Pure derivation of [IndexingStatus] from the count of songs still missing an embedding and a
          * framework-free worker snapshot. Kept static + free of Android so it unit-tests directly.
          *
-         * We show [IndexingStatus.Indexing] whenever a run is active (so "N/M" appears immediately) OR
-         * there is still work outstanding. `processed` is the worker's live per-run count when known;
-         * otherwise we fall back to `(total - missing)` so the line is still meaningful before the
-         * first progress tick. `total` is `missing + processed` — the full amount this pass will cover.
+         * The "Analyzing…" line is shown ONLY while a run is actually enqueued/running ([active]). When no
+         * worker is active there is nothing being analyzed → [IndexingStatus.Idle], even if some rows
+         * remain permanently un-embeddable (e.g. a DRM-only or repeatedly-failing streaming backlog) —
+         * otherwise the line would stick forever because those rows never leave `missing`.
+         *
+         * `total` = `missing + processed` (rows still needing an embedding + rows embedded THIS run). The
+         * workers count `processed` as ONLY the rows that actually got an embedding — skipped DRM/decode
+         * failures are NOT counted — so a skipped backlog is never double-counted into the total, and the
+         * numerator advances monotonically toward it.
          */
         fun deriveStatus(missing: Int, work: IndexWorkSnapshot?): IndexingStatus {
-            val active = work?.active == true
-            if (missing <= 0 && !active) return IndexingStatus.Idle
-            val processed = work?.processed ?: 0
-            // Total = what's left to embed + what this run has already embedded.
-            val total = (missing + processed).coerceAtLeast(processed).coerceAtLeast(1)
+            if (work?.active != true) return IndexingStatus.Idle
+            val processed = (work.processed ?: 0).coerceAtLeast(0)
+            val total = (missing + processed).coerceAtLeast(1)
             return IndexingStatus.Indexing(processed = processed.coerceAtMost(total), total = total)
         }
     }

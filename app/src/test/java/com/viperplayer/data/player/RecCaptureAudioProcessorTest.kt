@@ -196,19 +196,61 @@ class RecCaptureAudioProcessorTest {
     }
 
     @Test
-    fun capturesNothingWhenArmedForADifferentMediaIdThanConfigured() {
-        // The target can change between arm() and the first frame; a mismatch must not capture. Here we
-        // arm "A", begin accumulation, then re-arm "B" WITHOUT flushing — shouldCapture() sees the target
-        // moved and stops.
+    fun gaplessReArmCapturesTheNewTrackWithoutSplicing() {
+        // A GAPLESS same-format transition fires NEITHER onConfigure NOR onFlush; the only signal is the
+        // new arm() (a new generation). The processor must reconcile that on the audio thread: begin a
+        // FRESH head for the new track and drop the previous track's partial — never splice A's tail into
+        // B's clip nor freeze on A.
         val listener = RecordingListener()
         val p = RecCaptureAudioProcessor().apply { captureListener = listener }
-        p.arm("A", captureSeconds = 10.0)
+        p.arm("A", captureSeconds = 1.0)
+        p.configure(floatFormat(4, 1)) // 4-frame cap
+        p.flush(StreamMetadata.DEFAULT)
+        p.queueInput(floatBuffer(0.1f, 0.2f)) // A partial (2 of 4), NOT handed off
+
+        p.arm("B", captureSeconds = 1.0) // gapless: re-armed, but NO flush/configure
+        p.queueInput(floatBuffer(0.5f, 0.6f, 0.7f, 0.8f)) // B's head fills the cap
+
+        val capture = listener.captures.single()
+        assertEquals("B", capture.mediaId)
+        assertArrayEquals(floatArrayOf(0.5f, 0.6f, 0.7f, 0.8f), capture.pcm, 0f)
+    }
+
+    @Test
+    fun midTrackSeekNeverCapturesPostSeekAudio() {
+        // A mid-track seek flushes the chain with the SAME arm generation (nothing re-armed). The captured
+        // clip must remain the HEAD — post-seek (mid-track) audio must never be accumulated or emitted.
+        val listener = RecordingListener()
+        val p = RecCaptureAudioProcessor().apply { captureListener = listener }
+        p.arm("A", captureSeconds = 10.0) // cap 40 (won't be hit); sampleRate 4 -> floor 4
         p.configure(floatFormat(4, 1))
         p.flush(StreamMetadata.DEFAULT)
-        p.arm("B") // target moved without a flush; the in-flight clip is for A
-        p.queueInput(floatBuffer(0.1f, 0.2f))
+        p.queueInput(floatBuffer(0.1f, 0.2f, 0.3f)) // 3 head frames (below the 4-frame floor)
+
+        p.flush(StreamMetadata.DEFAULT) // SEEK (same generation) -> finalize head-so-far, then stop
+        p.queueInput(floatBuffer(0.9f, 0.9f, 0.9f, 0.9f, 0.9f)) // post-seek: must be ignored
         p.queueEndOfStream()
-        // The accumulation was for A but the armed target is now B -> shouldCapture()==false -> no hand-off.
+
+        // Head was below the floor so nothing handed off; crucially the mid-track 0.9 audio is never taken.
         assertTrue(listener.captures.isEmpty())
+    }
+
+    @Test
+    fun seekAfterEnoughHeadHandsOffOnlyTheHead() {
+        // Same as above but the head captured before the seek clears the floor: it is handed off as the
+        // song's clip and post-seek audio is still excluded (the stored vector is the HEAD, not mid-track).
+        val listener = RecordingListener()
+        val p = RecCaptureAudioProcessor().apply { captureListener = listener }
+        p.arm("A", captureSeconds = 10.0) // sampleRate 2 -> floor 2, cap 20
+        p.configure(floatFormat(2, 1))
+        p.flush(StreamMetadata.DEFAULT)
+        p.queueInput(floatBuffer(0.1f, 0.2f, 0.3f)) // 3 head frames (>= floor 2)
+
+        p.flush(StreamMetadata.DEFAULT) // SEEK -> finalize the head-so-far
+        p.queueInput(floatBuffer(0.9f, 0.9f)) // post-seek audio: ignored
+
+        val capture = listener.captures.single()
+        assertEquals("A", capture.mediaId)
+        assertArrayEquals(floatArrayOf(0.1f, 0.2f, 0.3f), capture.pcm, 0f)
     }
 }

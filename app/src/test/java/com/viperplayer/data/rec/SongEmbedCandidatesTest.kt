@@ -131,28 +131,30 @@ class SongEmbedCandidatesTest {
     }
 
     @Test
-    fun localAndStreamingPartitionsDoNotOverlapAndCoverEverything() {
+    fun localAndStreamingPartitionsAreAnExactComplementWithNoGap() {
         val songs = listOf(
             song(1, isDownloaded = true, downloadPath = "/d"),                  // local (downloaded)
             song(2, idType = "local", pluginId = "", sourceId = "content://x"), // local (library)
             song(3, isLiked = true),                                           // streaming
             song(4, lastPlayed = 9L),                                          // streaming
-            song(5, isDownloaded = true, downloadPath = ""),                    // downloaded w/ blank path
+            song(5, isDownloaded = true, downloadPath = ""),                    // downloaded flag, blank path
         )
+        // EXACTLY ONE partition claims each row (XOR): no overlap (no double-embed) and no gap (nothing
+        // orphaned). Every plugin row is either hasLocalBytes or isStreamingCandidate; local-library rows
+        // are always hasLocalBytes.
         for (s in songs) {
             val local = SongEmbedCandidates.hasLocalBytes(s)
             val streaming = SongEmbedCandidates.isStreamingCandidate(s)
-            // No song is claimed by BOTH workers.
-            assertFalse("song ${s.id} in both partitions", local && streaming)
+            assertTrue("song ${s.id} must be in exactly one partition", local != streaming)
         }
-        // Songs 1,2 are local; 3,4 streaming. Song 5 (downloaded, blank path) is a known gap: neither
-        // hasLocalBytes (blank path) nor streaming (isDownloaded) — it is intentionally un-embeddable.
         assertTrue(SongEmbedCandidates.hasLocalBytes(songs[0]))
         assertTrue(SongEmbedCandidates.hasLocalBytes(songs[1]))
         assertTrue(SongEmbedCandidates.isStreamingCandidate(songs[2]))
         assertTrue(SongEmbedCandidates.isStreamingCandidate(songs[3]))
+        // Song 5 (downloaded flag but blank path) has NO local bytes, so the STREAMING worker claims it —
+        // the previous "embeddable by neither worker" gap is closed.
         assertFalse(SongEmbedCandidates.hasLocalBytes(songs[4]))
-        assertFalse(SongEmbedCandidates.isStreamingCandidate(songs[4]))
+        assertTrue(SongEmbedCandidates.isStreamingCandidate(songs[4]))
     }
 
     @Test

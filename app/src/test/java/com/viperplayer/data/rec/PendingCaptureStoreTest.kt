@@ -102,6 +102,19 @@ class PendingCaptureStoreTest {
     }
 
     @Test
+    fun evictionNeverDropsTheJustWrittenEntryEvenIfItSortsOldest() {
+        val dir = tmp.newFolder("caps")
+        val store = PendingCaptureStore.forDirectory(dir, maxEntries = 1, maxBytes = Long.MAX_VALUE)
+        store.put("existing", mel(1f))
+        // Make the existing file look FAR NEWER than the next write, so a naive oldest-first eviction would
+        // pick the just-written "fresh" file as the victim. The `keep` guard must protect it regardless.
+        dir.listFiles()!!.forEach { it.setLastModified(99_999_999_999_999L) }
+        store.put("fresh", mel(2f)) // maxEntries=1 -> exactly one must be evicted
+        val ids = store.readAll().map { it.mediaId }.toSet()
+        assertEquals(setOf("fresh"), ids)
+    }
+
+    @Test
     fun evictsPastMaxBytes() {
         val dir = tmp.newFolder("caps")
         // Each mel is 64 floats -> a few hundred bytes with the header. Cap bytes low to force eviction.

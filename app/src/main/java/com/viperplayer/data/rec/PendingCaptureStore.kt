@@ -68,7 +68,9 @@ class PendingCaptureStore private constructor(
             dir.mkdirs()
             val file = File(dir, fileName(mediaId))
             file.writeBytes(encodeWith(mediaId.toByteArray(Charsets.UTF_8), mel))
-            evictToBounds()
+            // Never evict the entry we just wrote (it would be silently lost). Relevant when several
+            // captures share the same coarse file mod-time and the sort tie-breaks arbitrarily.
+            evictToBounds(keep = file.name)
         }.onFailure { Timber.w(it, "PendingCaptureStore: failed to cache capture for $mediaId") }
     }
 
@@ -101,16 +103,23 @@ class PendingCaptureStore private constructor(
 
     // ---- internals ----
 
-    /** Evict oldest files (by lastModified) until within [maxEntries] and [maxBytes]. */
-    private fun evictToBounds() {
-        var files = dir.listFiles()?.filter { it.isFile && it.name.endsWith(SUFFIX) }
+    /**
+     * Evict oldest files (by lastModified) until within [maxEntries] and [maxBytes]. The [keep] entry (the
+     * one just written by [put]) is NEVER a victim — it still counts toward the caps, but on a mod-time tie
+     * (coarse FS granularity) the arbitrary sort order must not delete the freshest capture.
+     */
+    private fun evictToBounds(keep: String? = null) {
+        val all = dir.listFiles()?.filter { it.isFile && it.name.endsWith(SUFFIX) }
             ?.sortedBy { it.lastModified() } // oldest first
             ?: return
-        var totalBytes = files.sumOf { it.length() }
+        val victims = all.filter { it.name != keep }
+        var remaining = all.size
+        var totalBytes = all.sumOf { it.length() }
         var idx = 0
-        while (idx < files.size && (files.size - idx > maxEntries || totalBytes > maxBytes)) {
-            val victim = files[idx]
+        while (idx < victims.size && (remaining > maxEntries || totalBytes > maxBytes)) {
+            val victim = victims[idx]
             totalBytes -= victim.length()
+            remaining -= 1
             victim.delete()
             idx++
         }
@@ -148,11 +157,15 @@ class PendingCaptureStore private constructor(
         if (buf.int != MAGIC) return null
         if (buf.int != captureFormatVersion) return null // stale capture format
         val idLen = buf.int
-        if (idLen < 0 || idLen > bytes.size) return null
+        // Bound against the bytes actually left in the buffer (not the whole file), so a corrupt/truncated
+        // length can't under-read.
+        if (idLen < 0 || idLen > buf.remaining()) return null
         val idBytes = ByteArray(idLen)
         buf.get(idBytes)
         val melLen = buf.int
-        if (melLen < 0 || buf.remaining() < melLen * 4) return null
+        // Compare via division (remaining()/4) rather than melLen*4 so a huge melLen can't Int-overflow the
+        // product to a negative value and slip past the guard into a multi-GB FloatArray allocation.
+        if (melLen < 0 || melLen > buf.remaining() / 4) return null
         val mel = FloatArray(melLen)
         for (i in 0 until melLen) mel[i] = buf.float
         return String(idBytes, Charsets.UTF_8) to mel

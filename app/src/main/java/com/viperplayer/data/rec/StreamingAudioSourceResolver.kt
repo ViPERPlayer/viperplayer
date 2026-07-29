@@ -1,7 +1,6 @@
 package com.viperplayer.data.rec
 
 import android.content.Context
-import android.net.Uri
 import android.os.ParcelFileDescriptor
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
@@ -21,6 +20,10 @@ import com.viperplayer.plugin.model.StreamSource
 import com.viperplayer.plugin.model.UnknownStream
 import com.viperplayer.plugin.model.UrlStream
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -105,17 +108,17 @@ class StreamingAudioSourceResolver @Inject constructor(
     private val dataSourceFactory: DataSource.Factory by lazy { DefaultDataSource.Factory(context) }
     private val clipDecoder: ExoPlayerAudioClipDecoder by lazy { ExoPlayerAudioClipDecoder(context) }
 
-    override suspend fun decode(mediaId: MediaId): DecodedAudio? {
+    override suspend fun decode(mediaId: MediaId): DecodedAudio? = withContext(Dispatchers.IO) {
         val resolved = pluginDataSource.getStream(mediaId, isVideo = false).getOrNull() ?: run {
             Timber.d("StreamingAudioSource: no stream resolved for $mediaId")
-            return null
+            return@withContext null
         }
         val source = resolved.source
-        return when (StreamDecodePlanner.plan(source)) {
+        when (StreamDecodePlanner.plan(source)) {
             StreamDecodePlan.URL -> decodeUrl(source as UrlStream)
             StreamDecodePlan.PCM -> decodePcm(resolved.fd)
             StreamDecodePlan.HLS -> decodeAdaptive(buildHlsSource((source as HlsStream).url), mediaId)
-            StreamDecodePlan.DASH -> decodeAdaptive(buildDashSourceFor(source as DashStream), mediaId)
+            StreamDecodePlan.DASH -> decodeDash(source as DashStream, mediaId)
             StreamDecodePlan.SKIP_DRM -> {
                 Timber.d("StreamingAudioSource: DRM stream for $mediaId; skipping (Path A covers it)")
                 null
@@ -127,32 +130,46 @@ class StreamingAudioSourceResolver @Inject constructor(
         }
     }
 
-    /** Progressive URL: pass the plugin's request headers through to the extractor. */
-    private fun decodeUrl(source: UrlStream): DecodedAudio? =
-        runCatching { audioDecoder.decode(context, source.url.toUri(), source.headers) }
-            .onFailure { Timber.w(it, "StreamingAudioSource: url decode failed") }
-            .getOrNull()
+    /** Progressive URL: pass the plugin's request headers through to the extractor. Cancellable/IO. */
+    private suspend fun decodeUrl(source: UrlStream): DecodedAudio? = decodeInterruptibly("url") {
+        audioDecoder.decode(context, source.url.toUri(), source.headers)
+    }
 
     /** Raw PCM over a live FD (the host owns + closes the FD). */
-    private fun decodePcm(fd: ParcelFileDescriptor?): DecodedAudio? {
+    private suspend fun decodePcm(fd: ParcelFileDescriptor?): DecodedAudio? {
         if (fd == null) return null
-        return fd.use { runCatching { audioDecoder.decode(it.fileDescriptor) }.getOrNull() }
+        return fd.use { pfd -> decodeInterruptibly("pcm") { audioDecoder.decode(pfd.fileDescriptor) } }
     }
 
     /** Headlessly decode ~10s from an already-built adaptive [mediaSource] (HLS/DASH), or null. */
-    private fun decodeAdaptive(mediaSource: MediaSource?, mediaId: MediaId): DecodedAudio? {
+    private suspend fun decodeAdaptive(mediaSource: MediaSource?, mediaId: MediaId): DecodedAudio? {
         mediaSource ?: return null
-        return runCatching { clipDecoder.decode(mediaSource) }
-            .onFailure { Timber.w(it, "StreamingAudioSource: adaptive decode failed for $mediaId") }
-            .getOrNull()
+        return decodeInterruptibly("adaptive $mediaId") { clipDecoder.decode(mediaSource) }
     }
 
-    /** Resolve the DASH manifest to a URI (inline XML saved to a temp file, or the manifest URL). */
-    private fun buildDashSourceFor(source: DashStream): MediaSource? {
-        val uri = source.manifest?.let { saveDashXmlToFile(it) }?.toString()
-            ?: source.manifestUrl
-            ?: return null
-        return buildDashSource(uri)
+    /**
+     * Non-DRM DASH: build the source from inline manifest XML (saved to a temp file) or the manifest URL,
+     * decode ~10s, then DELETE the temp manifest. Unlike playback ([com.viperplayer.data.player.ViperMediaSource],
+     * which keeps the MediaSource for the whole session), the worker is done with the manifest the moment
+     * the clip decode returns, so leaving it behind would grow the cache one file per DASH song per run.
+     */
+    private suspend fun decodeDash(source: DashStream, mediaId: MediaId): DecodedAudio? {
+        val inlineXml = source.manifest
+        val manifestUrl = source.manifestUrl
+        var tempManifest: File? = null
+        val uri: String = when {
+            inlineXml != null -> {
+                tempManifest = runCatching { saveDashXmlToFile(inlineXml) }.getOrNull()
+                tempManifest?.toUri()?.toString() ?: return null
+            }
+            manifestUrl != null -> manifestUrl
+            else -> return null
+        }
+        return try {
+            decodeAdaptive(buildDashSource(uri), mediaId)
+        } finally {
+            tempManifest?.let { f -> runCatching { f.delete() } }
+        }
     }
 
     private fun buildHlsSource(url: String): MediaSource? = runCatching {
@@ -166,11 +183,28 @@ class StreamingAudioSourceResolver @Inject constructor(
             .createMediaSource(MediaItem.fromUri(uri.toUri()))
     }.onFailure { Timber.w(it, "StreamingAudioSource: could not build DASH source") }.getOrNull()
 
-    /** Persist inline DASH manifest XML to a temp file (mirrors ViperMediaSource). */
-    private fun saveDashXmlToFile(dashXml: String): Uri {
+    /** Persist inline DASH manifest XML to a temp file (mirrors ViperMediaSource); caller deletes it. */
+    private fun saveDashXmlToFile(dashXml: String): File {
         val dir = File(context.cacheDir, "rec_dash_manifests").apply { mkdirs() }
         val file = File(dir, "manifest_${System.currentTimeMillis()}.mpd")
         file.writeText(dashXml)
-        return file.toUri()
+        return file
     }
+
+    /**
+     * Run a BLOCKING media decode on [Dispatchers.IO] and make it CANCELLABLE: [runInterruptible] turns
+     * coroutine cancellation (a WorkManager stop, or the per-song [StreamingIndexWorker] decode deadline)
+     * into a thread interrupt, so a stalled network read / ExoPlayer await unblocks promptly instead of
+     * pinning a CPU-pool thread. Non-cancellation failures return null (the worker skips the song);
+     * cancellation propagates so the worker honors constraint loss between songs immediately.
+     */
+    private suspend fun decodeInterruptibly(what: String, block: () -> DecodedAudio?): DecodedAudio? =
+        try {
+            runInterruptible(Dispatchers.IO) { block() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "StreamingAudioSource: $what decode failed")
+            null
+        }
 }

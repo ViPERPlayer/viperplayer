@@ -87,6 +87,7 @@ import com.viperplayer.presentation.widget.LyricWidgetUpdater
 import com.viperplayer.presentation.widget.PlayerWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -740,18 +741,29 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
      * itself adds no network — the audio is already streaming for playback — so it is allowed on any
      * connection while playing (unlike the Wi-Fi-only background Path B).
      */
+    /** Latest Path-A arm job; cancelled on each new transition so a slow DB read can't arm a stale track. */
+    private var streamingArmJob: Job? = null
+
     private fun maybeArmStreamingCapture(mediaItem: MediaItem?) {
+        // Cancel any in-flight arming from a previous transition so its (possibly slower) DB read can't
+        // land after this one and arm capture for a track that is no longer the current item.
+        streamingArmJob?.cancel()
         val encodedMediaId = mediaItem?.mediaId
         val mediaId = encodedMediaId?.let { MediaId.decode(it) }
         if (mediaId !is MediaId.Plugin) {
             recCaptureAudioProcessor.disarm()
             return
         }
-        lifecycleScope.launch {
+        streamingArmJob = lifecycleScope.launch {
             val shouldArm = runCatching { streamingCaptureEligible(mediaId) }
                 .getOrDefault(false)
-            if (shouldArm) recCaptureAudioProcessor.arm(encodedMediaId)
-            else recCaptureAudioProcessor.disarm()
+            // Re-verify on the player (main) thread that this is STILL the current item before arming, so a
+            // rapid A→B→C skip whose A read resolves last can't arm capture for A while C is playing.
+            if (shouldArm && encodedMediaId == player.currentMediaItem?.mediaId) {
+                recCaptureAudioProcessor.arm(encodedMediaId)
+            } else {
+                recCaptureAudioProcessor.disarm()
+            }
         }
     }
 

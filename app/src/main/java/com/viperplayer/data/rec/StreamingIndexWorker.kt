@@ -19,6 +19,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 /**
@@ -91,9 +92,11 @@ class StreamingIndexWorker @AssistedInject constructor(
                 for (song in ordered) {
                     currentCoroutineContext().ensureActive()
                     val embedded = embedStreamingSong(song, clap)
-                    processed++
-                    if (!embedded) skippedThisPage++ // stays in the set; advance the cursor past it
-                    setProgress(progressData(processed.coerceAtMost(maxOf(total, processed)), maxOf(total, processed)))
+                    // Count ONLY embedded rows; a skipped (DRM/decode-failed) row stays in the missing set,
+                    // so counting it in `processed` would inflate the status total (it would be counted in
+                    // both `missing` and `processed`). Advance the page cursor past it either way.
+                    if (embedded) processed++ else skippedThisPage++
+                    setProgress(progressData(processed, total.coerceAtLeast(processed)))
                 }
                 offset += skippedThisPage
             }
@@ -119,7 +122,9 @@ class StreamingIndexWorker @AssistedInject constructor(
         if (mediaId == null) {
             false
         } else {
-            val decoded = streamingAudioSource.decode(mediaId)
+            // Hard per-song deadline: the decode paths are made cancellable (runInterruptible on IO), so a
+            // stalled network read / adaptive-decode can't pin the run — on timeout the song is skipped.
+            val decoded = withTimeoutOrNull(DECODE_DEADLINE_MS) { streamingAudioSource.decode(mediaId) }
             if (decoded == null) {
                 false
             } else {
@@ -185,5 +190,12 @@ class StreamingIndexWorker @AssistedInject constructor(
         const val KEY_TOTAL = "total"
 
         private const val PAGE_SIZE = 25
+
+        /**
+         * Hard wall-clock deadline for resolving + decoding one song's stream head. A bit over the
+         * headless ExoPlayer path's own 45s timeout so that path finishes on its own first; for the
+         * progressive-URL/PCM path (no internal timeout) this is the sole guard against a stalled stream.
+         */
+        private const val DECODE_DEADLINE_MS = 60_000L
     }
 }

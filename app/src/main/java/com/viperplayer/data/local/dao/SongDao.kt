@@ -204,14 +204,16 @@ interface SongDao {
 
     /**
      * Streaming-only songs still missing a current-version embedding, paged. As
-     * [getSongsMissingEmbeddingPaged] but restricted to `isDownloaded = 0 AND idType != 'local'`, so a
-     * downloaded/local row is never returned here (it is the local worker's job).
+     * [getSongsMissingEmbeddingPaged] but restricted to the EXACT complement of the local worker's
+     * `hasLocalBytes` over plugin rows — `idType != 'local' AND NOT (isDownloaded AND downloadPath
+     * non-blank)` — so a genuinely-downloaded/local row is the local worker's job while a plugin row
+     * flagged downloaded but lacking a real path (no local bytes) still falls here rather than to neither.
      */
     @Query(
         """
         SELECT * FROM songs
-        WHERE isDownloaded = 0
-          AND idType != 'local'
+        WHERE idType != 'local'
+          AND (isDownloaded = 0 OR downloadPath IS NULL OR downloadPath = '')
           AND (audioEmbedding IS NULL
                OR embeddingModelVersion IS NULL
                OR embeddingModelVersion != :currentModelVersion)
@@ -229,8 +231,8 @@ interface SongDao {
     @Query(
         """
         SELECT COUNT(*) FROM songs
-        WHERE isDownloaded = 0
-          AND idType != 'local'
+        WHERE idType != 'local'
+          AND (isDownloaded = 0 OR downloadPath IS NULL OR downloadPath = '')
           AND (audioEmbedding IS NULL
                OR embeddingModelVersion IS NULL
                OR embeddingModelVersion != :currentModelVersion)

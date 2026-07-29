@@ -16,10 +16,23 @@ class RecommendationIndexStatusTest {
     }
 
     @Test
-    fun indexingWhenSongsOutstandingButNoRunYet() {
-        // 40 missing, no worker snapshot -> total 40, processed 0.
-        val s = RecommendationIndexRepository.deriveStatus(40, null)
-        assertEquals(IndexingStatus.Indexing(processed = 0, total = 40), s)
+    fun idleWhenSongsOutstandingButNoRunActive() {
+        // The "Analyzing…" line shows only while a run is enqueued/running. With no active worker there is
+        // nothing being analyzed, so even a non-empty backlog reads as Idle (a run becomes ENQUEUED, hence
+        // active, almost immediately after enqueue). This also stops a permanently-un-embeddable backlog
+        // (e.g. DRM-only streaming rows that never leave `missing`) from sticking the line forever.
+        assertEquals(IndexingStatus.Idle, RecommendationIndexRepository.deriveStatus(40, null))
+    }
+
+    @Test
+    fun skippedBacklogDoesNotInflateTotal() {
+        // A run that can only SKIP its backlog (e.g. 10 DRM-only streaming songs) reports processed = 0
+        // (nothing embedded), so total stays 10 (0/10), NOT 20 — skipped rows counted once, in `missing`.
+        val snap = IndexWorkSnapshot(active = true, processed = 0, batchTotal = 10)
+        assertEquals(
+            IndexingStatus.Indexing(processed = 0, total = 10),
+            RecommendationIndexRepository.deriveStatus(10, snap),
+        )
     }
 
     @Test

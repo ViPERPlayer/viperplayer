@@ -88,7 +88,15 @@ class ExoPlayerAudioClipDecoder(
             }
 
             val finished = doneLatch.await(timeoutSeconds, TimeUnit.SECONDS)
-            if (!finished) Timber.w("ExoPlayerAudioClipDecoder: timed out capturing clip")
+            if (!finished) {
+                // Timed out: the playback thread may still be writing the capture buffer and there is NO
+                // happens-before edge to it (no countDown ran), so reading snapshot() now would be a data
+                // race that could persist a torn/corrupt clip. Skip the song instead. The `onFull` and
+                // STATE_ENDED completion paths DO establish happens-before (via the latch), so those are
+                // the only paths that read the capture.
+                Timber.w("ExoPlayerAudioClipDecoder: timed out capturing clip")
+                return null
+            }
             if (failed.get()) return null
             return capture.snapshot()
         } catch (e: Exception) {
