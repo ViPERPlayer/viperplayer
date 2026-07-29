@@ -217,6 +217,31 @@ class RecCaptureAudioProcessorTest {
     }
 
     @Test
+    fun gaplessBoundaryDisarmDropsPreArmFramesInsteadOfSplicingUnderPreviousId() {
+        // The real gapless race: at an A→B boundary the audio thread gets NO signal and arm(B) is async,
+        // so B's head can arrive while still "armed for A". PlaybackService disarms SYNCHRONOUSLY at the
+        // transition (before the async re-arm); those pre-arm B frames must be dropped, NOT topped onto a
+        // short A's buffer and handed off under A's id.
+        val listener = RecordingListener()
+        val p = RecCaptureAudioProcessor().apply { captureListener = listener }
+        p.arm("A", captureSeconds = 1.0) // 4-frame cap @ 4 Hz
+        p.configure(floatFormat(4, 1))
+        p.flush(StreamMetadata.DEFAULT)
+        p.queueInput(floatBuffer(0.1f, 0.2f)) // A partial (2 of 4), short track, not handed off
+
+        p.disarm() // <-- synchronous disarm at the gapless transition (before arm(B) lands)
+        p.queueInput(floatBuffer(0.5f, 0.6f, 0.7f, 0.8f, 0.9f)) // B head, still unarmed -> must be dropped
+        assertTrue("pre-arm frames must not splice into A's clip", listener.captures.isEmpty())
+
+        // Once B is actually armed, it captures its OWN fresh head.
+        p.arm("B", captureSeconds = 1.0)
+        p.queueInput(floatBuffer(1f, 1f, 1f, 1f))
+        val capture = listener.captures.single()
+        assertEquals("B", capture.mediaId)
+        assertArrayEquals(floatArrayOf(1f, 1f, 1f, 1f), capture.pcm, 0f)
+    }
+
+    @Test
     fun midTrackSeekNeverCapturesPostSeekAudio() {
         // A mid-track seek flushes the chain with the SAME arm generation (nothing re-armed). The captured
         // clip must remain the HEAD — post-seek (mid-track) audio must never be accumulated or emitted.

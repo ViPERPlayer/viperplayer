@@ -748,6 +748,12 @@ class PlaybackService : MediaLibraryService(), LifecycleOwner, Player.Listener,
         // Cancel any in-flight arming from a previous transition so its (possibly slower) DB read can't
         // land after this one and arm capture for a track that is no longer the current item.
         streamingArmJob?.cancel()
+        // Disarm SYNCHRONOUSLY here (on the main thread, at the transition) BEFORE the async re-arm below.
+        // A gapless same-format transition gives the audio thread NO boundary signal, and arm() for the new
+        // track is async (a DB read), so without this the previous track could keep accumulating the new
+        // track's head under its own id until arm lands. Disarming now advances the capture generation
+        // immediately, so the next audio frame abandons the previous track's partial instead of splicing.
+        recCaptureAudioProcessor.disarm()
         val encodedMediaId = mediaItem?.mediaId
         val mediaId = encodedMediaId?.let { MediaId.decode(it) }
         if (mediaId !is MediaId.Plugin) {
