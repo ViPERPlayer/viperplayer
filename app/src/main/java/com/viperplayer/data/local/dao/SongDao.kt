@@ -194,6 +194,50 @@ interface SongDao {
     )
     fun countSongsMissingEmbedding(currentModelVersion: String): Flow<Int>
 
+    // -------------------------------------------------------------------------------------------
+    // Streaming-only partition of the missing-embedding set. A STREAMING-only song is a plugin-served
+    // track (idType != 'local') that is NOT downloaded (no local bytes on disk). The local
+    // [LibraryIndexWorker] embeds the complement (downloaded + local); [StreamingIndexWorker] embeds
+    // these from their live stream. The two predicates partition the missing set with no overlap, so
+    // the workers never double-embed. Ordered by id so paging is stable.
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Streaming-only songs still missing a current-version embedding, paged. As
+     * [getSongsMissingEmbeddingPaged] but restricted to `isDownloaded = 0 AND idType != 'local'`, so a
+     * downloaded/local row is never returned here (it is the local worker's job).
+     */
+    @Query(
+        """
+        SELECT * FROM songs
+        WHERE isDownloaded = 0
+          AND idType != 'local'
+          AND (audioEmbedding IS NULL
+               OR embeddingModelVersion IS NULL
+               OR embeddingModelVersion != :currentModelVersion)
+        ORDER BY id ASC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+    suspend fun getStreamingSongsMissingEmbeddingPaged(
+        currentModelVersion: String,
+        limit: Int,
+        offset: Int,
+    ): List<SongEntity>
+
+    /** Count of STREAMING-only songs still needing an embedding for [currentModelVersion]. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM songs
+        WHERE isDownloaded = 0
+          AND idType != 'local'
+          AND (audioEmbedding IS NULL
+               OR embeddingModelVersion IS NULL
+               OR embeddingModelVersion != :currentModelVersion)
+        """
+    )
+    fun countStreamingSongsMissingEmbedding(currentModelVersion: String): Flow<Int>
+
     /**
      * All (id, embedding) pairs with a current-version embedding, for building the local kNN index.
      * Rows without an embedding or with a stale version are excluded, so every returned BLOB is a

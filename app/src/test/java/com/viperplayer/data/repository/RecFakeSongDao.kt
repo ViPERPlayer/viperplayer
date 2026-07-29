@@ -38,9 +38,12 @@ class RecFakeSongDao(
     override fun getRecentlyPlayed(limit: Int): Flow<List<SongEntity>> = flowOf(recent)
 
     override fun countSongsMissingEmbedding(currentModelVersion: String): Flow<Int> = flowOf(0)
+    override fun countStreamingSongsMissingEmbedding(currentModelVersion: String): Flow<Int> = flowOf(0)
 
     // ---- Unused by these tests ----
     private fun nope(): Nothing = throw NotImplementedError("RecFakeSongDao: method not faked")
+
+    override suspend fun getStreamingSongsMissingEmbeddingPaged(currentModelVersion: String, limit: Int, offset: Int): List<SongEntity> = nope()
 
     override fun getById(id: Long): Flow<SongEntity?> = nope()
     override suspend fun getByIdSync(id: Long): SongEntity? = nope()

@@ -61,6 +61,24 @@ object SongEmbedCandidates {
     fun embeddableInPriorityOrder(candidates: List<SongEntity>): List<SongEntity> =
         prioritize(candidates.filter { hasLocalBytes(it) })
 
+    /**
+     * Whether [song] is a STREAMING-only candidate: a plugin-served track (`idType != "local"`) that is
+     * NOT downloaded. These have no local bytes ([hasLocalBytes] is false), so the local
+     * [LibraryIndexWorker] skips them; instead they are embedded from their live stream (Path B's
+     * [StreamingIndexWorker]) or opportunistically captured during playback (Path A). This is the exact
+     * complement of [hasLocalBytes] over the two known idTypes, so the local and streaming workers
+     * partition the missing-embedding set with NO overlap and NO double-embed.
+     *
+     * A downloaded plugin track has local bytes and is the LOCAL worker's job, not this one — hence the
+     * `!isDownloaded` guard.
+     */
+    fun isStreamingCandidate(song: SongEntity): Boolean =
+        song.idType != LOCAL_ID_TYPE && !song.isDownloaded
+
+    /** Filters to only the STREAMING-only songs, then [prioritize]s them (liked/recent first). */
+    fun streamingInPriorityOrder(candidates: List<SongEntity>): List<SongEntity> =
+        prioritize(candidates.filter { isStreamingCandidate(it) })
+
     /** The [SongEntity.idType] discriminator for on-device local-library tracks. */
     const val LOCAL_ID_TYPE = "local"
 }
