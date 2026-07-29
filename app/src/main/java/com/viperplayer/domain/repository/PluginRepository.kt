@@ -83,10 +83,20 @@ interface PluginRepository {
     ): Result<SearchResult>
 
     /**
-     * Get home content from all connected plugins.
-     * Returns a list of pairs: (PluginName, HomeContent)
+     * Get home content from all connected plugins, optionally filtered by a top-level chip.
+     * Returns a list of pairs: (pluginId, HomeContent).
+     *
+     * [chipId] is an OPTIONAL top-level filter chip id (see [HomeContent.chips]); null = the base feed.
+     * A plugin that doesn't support chip filtering falls back to its base feed (never errors).
      */
-    suspend fun getHomeContent(): Result<List<Pair<String, HomeContent>>>
+    suspend fun getHomeContent(chipId: String? = null): Result<List<Pair<String, HomeContent>>>
+
+    /**
+     * Fetch the next page of home sections for [pluginId] using [continuation] (infinite scroll).
+     * Returns the appended [HomeContent] (whose own [HomeContent.continuation] is the next token, or
+     * null at the end), or null when the plugin has no more pages / doesn't support pagination.
+     */
+    suspend fun getHomeContinuation(pluginId: String, continuation: String): Result<HomeContent?>
 
     /**
      * Get browse categories from all plugins.

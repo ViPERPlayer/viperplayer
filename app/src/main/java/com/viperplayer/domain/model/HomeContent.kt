@@ -1,11 +1,25 @@
 package com.viperplayer.domain.model
 
 /**
+ * A top-level filter chip on the Home feed (e.g. "Relax", "Workout"). Tapping one re-requests the
+ * whole feed filtered by [id]. Mirrors the plugin-SDK's `HomeChip`. Backward-compatible: a plugin
+ * that emits no chips shows no chip row.
+ */
+data class HomeChip(val id: String, val title: String)
+
+/**
  * Container for home screen content provided by a plugin.
+ *
+ * [chips] and [continuation] are OPTIONAL (default empty/null): a plugin that provides neither
+ * behaves exactly as before (no chip row, no pagination).
  */
 data class HomeContent(
     val quickPicks: List<MediaItem>? = null,
-    val sections: List<HomeSection> = emptyList()
+    val sections: List<HomeSection> = emptyList(),
+    /** Top-level filter chips shown above the feed; empty = no chip row. */
+    val chips: List<HomeChip> = emptyList(),
+    /** Opaque infinite-scroll token; non-null = more sections available; null = end of feed. */
+    val continuation: String? = null,
 )
 
 /** Shape hint for the artwork of the items in a section. */

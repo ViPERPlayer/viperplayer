@@ -197,13 +197,13 @@ class PluginRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getHomeContent(): Result<List<Pair<String, HomeContent>>> =
+    override suspend fun getHomeContent(chipId: String?): Result<List<Pair<String, HomeContent>>> =
         coroutineScope {
             try {
                 val plugins = dataSource.connectedPlugins.value
                 val results = plugins.keys.map { pluginId ->
                     async {
-                        val result = dataSource.getHomeContent(pluginId)
+                        val result = dataSource.getHomeContent(pluginId, chipId)
                         result.map { pluginId to it }
                     }
                 }.awaitAll()
@@ -219,6 +219,19 @@ class PluginRepositoryImpl @Inject constructor(
             } catch (e: Exception) {
                 Result.failure(e)
             }
+        }
+
+    override suspend fun getHomeContinuation(pluginId: String, continuation: String): Result<HomeContent?> =
+        try {
+            val hide = hideExplicit()
+            dataSource.getHomeContinuation(pluginId, continuation).map { content ->
+                content?.copy(
+                    sections = content.sections.map { section -> section.withoutExplicit(hide) }
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error in getHomeContinuation")
+            Result.failure(e)
         }
 
     override suspend fun getBrowseCategories(

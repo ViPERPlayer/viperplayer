@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,8 +56,10 @@ import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.presentation.common.PlayingArtworkOverlay
@@ -87,6 +90,7 @@ import com.viperplayer.domain.model.FeaturedCardsSection
 import com.viperplayer.domain.model.FilterState
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
+import com.viperplayer.domain.model.HomeChip
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ItemShape
 import com.viperplayer.domain.model.ListSection
@@ -112,6 +116,8 @@ import com.viperplayer.presentation.common.components.AvatarRing
 import com.viperplayer.presentation.common.components.InitialsAvatar
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 @Composable
 fun HomeScreen(
@@ -182,7 +188,9 @@ fun HomeScreen(
         onRefresh = viewModel::refresh,
         onPlaySongFromQuickPicks = viewModel::playSongFromQuickPicks,
         onPlaySongFromSection = viewModel::playSongFromSection,
-        onFilterSelected = viewModel::onSectionFilterSelected
+        onFilterSelected = viewModel::onSectionFilterSelected,
+        onChipSelected = viewModel::onChipSelected,
+        onLoadMore = viewModel::loadMore,
     )
 }
 
@@ -206,7 +214,9 @@ private fun HomeScreenContent(
     onRefresh: () -> Unit,
     onPlaySongFromQuickPicks: (Song) -> Unit,
     onPlaySongFromSection: (Song, String) -> Unit,
-    onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> }
+    onFilterSelected: (HomeSection, String) -> Unit = { _, _ -> },
+    onChipSelected: (String?) -> Unit = {},
+    onLoadMore: () -> Unit = {},
 ) {
     var showActionsSheet by remember { mutableStateOf(false) }
     // Dismissal is keyed on the current action set: a new action re-shows the banner.
@@ -323,6 +333,21 @@ private fun HomeScreenContent(
             }
 
             is HomeUiState.Content -> {
+                val listState = rememberLazyListState()
+                // Infinite scroll: when the last few items are visible and more pages exist, ask for more.
+                // Uses a `lastVisibleIndex >= total - N` snapshotFlow trigger.
+                if (uiState.canLoadMore) {
+                    LaunchedEffect(listState, uiState.canLoadMore) {
+                        snapshotFlow {
+                            val layout = listState.layoutInfo
+                            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: 0
+                            lastVisible >= layout.totalItemsCount - 3
+                        }
+                            .distinctUntilChanged()
+                            .filter { it }
+                            .collect { onLoadMore() }
+                    }
+                }
                 PullToRefreshBox(
                     isRefreshing = uiState.isRefreshing,
                     onRefresh = onRefresh,
@@ -331,6 +356,7 @@ private fun HomeScreenContent(
                         .fillMaxSize()
                 ) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = rootPadding
                     ) {
@@ -339,6 +365,17 @@ private fun HomeScreenContent(
                             item(key = "offline-banner") {
                                 OfflineBanner(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+
+                        // Top-level filter chips (e.g. Relax / Workout). Dormant unless a plugin emits chips.
+                        if (uiState.chips.isNotEmpty()) {
+                            item(key = "home-chips") {
+                                HomeChipsRow(
+                                    chips = uiState.chips,
+                                    selectedChipId = uiState.selectedChipId,
+                                    onChipSelected = onChipSelected,
                                 )
                             }
                         }
@@ -475,6 +512,18 @@ private fun HomeScreenContent(
                                 }
                             }
                         }
+
+                        // Infinite-scroll footer spinner while the next page is being fetched.
+                        if (uiState.isLoadingMore) {
+                            item(key = "home-load-more") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { LoadingIndicator() }
+                            }
+                        }
                     }
                 }
             }
@@ -522,6 +571,35 @@ fun CategoryCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+/**
+ * The top-level Home filter-chip row (e.g. Relax / Workout). Selecting a chip re-requests the feed
+ * filtered by it; selecting the already-selected chip clears the filter (back to the base feed).
+ * Only shown when a plugin supplies chips.
+ */
+@Composable
+private fun HomeChipsRow(
+    chips: List<HomeChip>,
+    selectedChipId: String?,
+    onChipSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyRow(
+        modifier = modifier.padding(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(chips, key = { it.id }) { chip ->
+            val selected = chip.id == selectedChipId
+            FilterChip(
+                selected = selected,
+                // Re-tapping the selected chip clears it (null = base feed).
+                onClick = { onChipSelected(if (selected) null else chip.id) },
+                label = { Text(chip.title) },
             )
         }
     }

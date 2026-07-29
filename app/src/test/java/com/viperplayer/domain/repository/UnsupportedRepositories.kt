@@ -116,7 +116,8 @@ open class UnsupportedPluginRepository : PluginRepository {
         filter: SearchFilter?,
         cursor: String?,
         limit: Int): Result<SearchResult> = TODO()
-    override suspend fun getHomeContent(): Result<List<Pair<String, HomeContent>>> = TODO()
+    override suspend fun getHomeContent(chipId: String?): Result<List<Pair<String, HomeContent>>> = TODO()
+    override suspend fun getHomeContinuation(pluginId: String, continuation: String): Result<HomeContent?> = TODO()
     override suspend fun getBrowseCategories(
         cursor: String?,
         limit: Int): Result<PagedResult<BrowseCategory>> = TODO()
@@ -281,6 +282,8 @@ open class UnsupportedSettingsRepository : SettingsRepository {
     override suspend fun setBlockScreenshots(enabled: Boolean) = TODO()
     override val showExplicitContent: Flow<Boolean> get() = TODO()
     override suspend fun setShowExplicitContent(enabled: Boolean) = TODO()
+    override val randomizeHomeOrder: Flow<Boolean> get() = TODO()
+    override suspend fun setRandomizeHomeOrder(enabled: Boolean) = TODO()
     override val offlineMode: Flow<Boolean> get() = TODO()
     override suspend fun setOfflineMode(enabled: Boolean) = TODO()
     override val autoDownloadOnLike: Flow<Boolean> get() = TODO()

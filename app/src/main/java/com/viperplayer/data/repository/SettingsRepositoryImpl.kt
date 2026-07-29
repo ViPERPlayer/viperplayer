@@ -89,6 +89,7 @@ class SettingsRepositoryImpl(
         private val SHOW_EXPLICIT_CONTENT_KEY = booleanPreferencesKey("show_explicit_content")
         private val OFFLINE_MODE_KEY = booleanPreferencesKey("offline_mode")
         private val AUTO_DOWNLOAD_ON_LIKE_KEY = booleanPreferencesKey("auto_download_on_like")
+        private val RANDOMIZE_HOME_ORDER_KEY = booleanPreferencesKey("randomize_home_order")
 
         // Storage
         private val MAX_SONG_CACHE_SIZE_KEY = longPreferencesKey("max_song_cache_size")
@@ -476,6 +477,16 @@ class SettingsRepositoryImpl(
     override suspend fun setShowExplicitContent(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SHOW_EXPLICIT_CONTENT_KEY] = enabled
+        }
+    }
+
+    override val randomizeHomeOrder: Flow<Boolean> = dataStore.data.mapDistinct { preferences ->
+        preferences[RANDOMIZE_HOME_ORDER_KEY] ?: true // Default ON: shuffle Home sections per session
+    }
+
+    override suspend fun setRandomizeHomeOrder(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[RANDOMIZE_HOME_ORDER_KEY] = enabled
         }
     }
 

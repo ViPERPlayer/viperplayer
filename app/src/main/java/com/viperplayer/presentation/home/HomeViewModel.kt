@@ -9,7 +9,10 @@ import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.model.BrowseCategory
 import com.viperplayer.domain.model.CarouselSection
 import com.viperplayer.domain.model.FilterState
+import com.viperplayer.domain.model.HomeChip
+import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
+import com.viperplayer.domain.model.HomeSectionOrder
 import com.viperplayer.domain.model.MediaItem
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.Plugin
@@ -53,9 +56,18 @@ sealed interface HomeUiState {
         override val userName: String?,
         val categories: List<BrowseCategory>,
         val quickPicks: List<MediaItem>? = null,
+        /** The sections in the order to render (already shuffled when the setting is on). */
         val sections: List<HomeSection> = emptyList(),
         val connectedPlugins: List<Plugin>,
-        val isRefreshing: Boolean = false
+        val isRefreshing: Boolean = false,
+        /** Top-level filter chips (merged across plugins); empty = no chip row. */
+        val chips: List<HomeChip> = emptyList(),
+        /** The currently-selected chip id, or null for the base feed. */
+        val selectedChipId: String? = null,
+        /** More sections can be fetched (infinite scroll) — true when any plugin has a continuation. */
+        val canLoadMore: Boolean = false,
+        /** A "load more" page fetch is in flight (drives an appended spinner / prevents re-trigger). */
+        val isLoadingMore: Boolean = false,
     ) : HomeUiState
 
     data class Error(
@@ -89,12 +101,30 @@ class HomeViewModel @Inject constructor(
     friendActivityRepository: FriendActivityRepository,
     sharedPlaylistsRepository: SharedPlaylistsRepository,
     socialFeatures: SocialFeatures,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     private val stringProvider: StringProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    /**
+     * Session seed for the randomized section order. Stable within a session so the order doesn't
+     * jump between reloads; re-rolled only on an explicit [refresh].
+     */
+    private var randomSeed: Long = System.nanoTime()
+
+    /**
+     * The merged, UN-ordered sections from the last successful load (base + any appended pages),
+     * kept so the display order can be recomputed (on a setting change) without re-fetching.
+     */
+    private var baseSections: List<HomeSection> = emptyList()
+
+    /** Per-plugin infinite-scroll continuation token from the latest page; absent = that plugin is done. */
+    private var continuations: Map<String, String> = emptyMap()
+
+    /** Latest value of the randomize-home-order setting, applied when (re)ordering sections. */
+    private var randomizeHomeOrder: Boolean = true
 
     /** Whether offline mode is on, so Home can surface an unobtrusive "Offline" banner. */
     val offlineMode: StateFlow<Boolean> = settingsRepository.offlineMode
@@ -142,6 +172,26 @@ class HomeViewModel @Inject constructor(
     init {
         onTimeChanged()
         observeConnectedPlugins()
+        observeRandomizeSetting()
+    }
+
+    /**
+     * Track the randomize-home-order setting. When it flips, re-order the already-loaded sections in
+     * place (no re-fetch) so the toggle takes effect immediately.
+     */
+    private fun observeRandomizeSetting() {
+        viewModelScope.launch {
+            settingsRepository.randomizeHomeOrder.collect { enabled ->
+                randomizeHomeOrder = enabled
+                _uiState.update { state ->
+                    if (state is HomeUiState.Content) {
+                        state.copy(sections = HomeSectionOrder.order(baseSections, enabled, randomSeed))
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
     }
 
     private fun observeConnectedPlugins() {
@@ -154,7 +204,11 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun loadContent(isRefreshing: Boolean = false, fromAutoUpdate: Boolean = false) {
+    fun loadContent(
+        isRefreshing: Boolean = false,
+        fromAutoUpdate: Boolean = false,
+        chipId: String? = (_uiState.value as? HomeUiState.Content)?.selectedChipId,
+    ) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.update { state ->
@@ -200,8 +254,8 @@ class HomeViewModel @Inject constructor(
                 val categoriesResult = pluginRepository.getBrowseCategories(limit = 10)
                 val categories = categoriesResult.getOrNull()?.items.orEmpty()
 
-                // Load home content (Quick Picks & Custom Sections)
-                val homeContentResult = pluginRepository.getHomeContent()
+                // Load home content (Quick Picks & Custom Sections), optionally filtered by a chip.
+                val homeContentResult = pluginRepository.getHomeContent(chipId)
                 val homeContentList = homeContentResult.getOrNull().orEmpty()
 
                 // Merge all quickPicks and sections from all plugins
@@ -211,16 +265,29 @@ class HomeViewModel @Inject constructor(
                 val allSections = homeContentList.flatMap { (_, content) ->
                     content.sections
                 }
+                // Merge top-level chips across plugins (de-duped by id, first title wins).
+                val allChips = homeContentList
+                    .flatMap { (_, content) -> content.chips }
+                    .distinctBy { it.id }
+                // Track each plugin's continuation token for infinite scroll (drop plugins with none).
+                continuations = homeContentList.mapNotNull { (pluginId, content) ->
+                    content.continuation?.let { pluginId to it }
+                }.toMap()
 
+                baseSections = allSections
                 _uiState.update { state ->
                     HomeUiState.Content(
                         greetingType = state.greetingType,
                         userName = state.userName,
                         categories = categories,
                         quickPicks = allQuickPicks.takeIf { it.isNotEmpty() },
-                        sections = allSections,
+                        sections = HomeSectionOrder.order(allSections, randomizeHomeOrder, randomSeed),
                         connectedPlugins = lastConnectedPlugins,
-                        isRefreshing = false
+                        isRefreshing = false,
+                        chips = allChips,
+                        selectedChipId = chipId,
+                        canLoadMore = continuations.isNotEmpty(),
+                        isLoadingMore = false,
                     )
                 }
             } catch (e: Exception) {
@@ -235,8 +302,61 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Pull-to-refresh: re-roll the shuffle seed (so the section order changes) and re-fetch the feed,
+     * keeping the currently-selected chip.
+     */
     fun refresh() {
+        randomSeed = System.nanoTime()
         loadContent(isRefreshing = true)
+    }
+
+    /**
+     * A top-level chip was tapped (or cleared with a null [chipId]). Re-request the feed filtered by
+     * it; plugins that don't support chip filtering gracefully return their base feed. Ignored if the
+     * same chip is already selected.
+     */
+    fun onChipSelected(chipId: String?) {
+        val state = _uiState.value
+        if (state is HomeUiState.Content && state.selectedChipId == chipId) return
+        loadContent(chipId = chipId)
+    }
+
+    /**
+     * Infinite scroll: fetch the next page of sections from every plugin that has a continuation
+     * token, append them (de-duped by section id), and advance each plugin's token. No-op when
+     * nothing more is available or a page fetch is already in flight.
+     */
+    fun loadMore() {
+        val current = _uiState.value
+        if (current !is HomeUiState.Content) return
+        if (current.isLoadingMore || continuations.isEmpty()) return
+
+        viewModelScope.launch {
+            _uiState.update { s -> (s as? HomeUiState.Content)?.copy(isLoadingMore = true) ?: s }
+
+            val pages: List<Pair<String, HomeContent>> = continuations.entries.mapNotNull { (pluginId, token) ->
+                pluginRepository.getHomeContinuation(pluginId, token).getOrNull()?.let { pluginId to it }
+            }
+
+            // Advance tokens: a plugin whose page had a null continuation is done and drops out.
+            continuations = pages.mapNotNull { (pluginId, content) ->
+                content.continuation?.let { pluginId to it }
+            }.toMap()
+
+            val newSections = pages.flatMap { (_, content) -> content.sections }
+            // Append, de-duping by id so a repeated section can't stack up.
+            val existingIds = baseSections.mapTo(HashSet()) { it.id }
+            baseSections = baseSections + newSections.filter { existingIds.add(it.id) }
+
+            _uiState.update { s ->
+                (s as? HomeUiState.Content)?.copy(
+                    sections = HomeSectionOrder.order(baseSections, randomizeHomeOrder, randomSeed),
+                    canLoadMore = continuations.isNotEmpty(),
+                    isLoadingMore = false,
+                ) ?: s
+            }
+        }
     }
 
     fun onTimeChanged() {
@@ -315,13 +435,14 @@ class HomeViewModel @Inject constructor(
 
     /** Replace one carousel section (by id) in the current Content state via [transform]. */
     private fun updateCarousel(sectionId: String, transform: (CarouselSection) -> CarouselSection) {
+        val patch: (HomeSection) -> HomeSection = { s ->
+            if (s.id == sectionId && s is CarouselSection) transform(s) else s
+        }
+        // Keep the un-ordered base list in sync so a later re-order (setting toggle) preserves the edit.
+        baseSections = baseSections.map(patch)
         _uiState.update { state ->
             if (state !is HomeUiState.Content) return@update state
-            state.copy(
-                sections = state.sections.map { s ->
-                    if (s.id == sectionId && s is CarouselSection) transform(s) else s
-                },
-            )
+            state.copy(sections = state.sections.map(patch))
         }
     }
 

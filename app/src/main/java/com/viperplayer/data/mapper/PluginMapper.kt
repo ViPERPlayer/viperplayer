@@ -12,6 +12,7 @@ import com.viperplayer.domain.model.CarouselSection
 import com.viperplayer.domain.model.FeaturedCardsSection
 import com.viperplayer.domain.model.GridSection
 import com.viperplayer.domain.model.HeroSection
+import com.viperplayer.domain.model.HomeChip
 import com.viperplayer.domain.model.HomeContent
 import com.viperplayer.domain.model.HomeSection
 import com.viperplayer.domain.model.ItemShape
@@ -47,6 +48,7 @@ import com.viperplayer.plugin.model.AlbumType as SdkAlbumType
 import com.viperplayer.plugin.model.Artist as SdkArtist
 import com.viperplayer.plugin.model.BrowseCategory as SdkBrowseCategory
 import com.viperplayer.plugin.model.CategoryContentType as SdkCategoryContentType
+import com.viperplayer.plugin.model.HomeChip as SdkHomeChip
 import com.viperplayer.plugin.model.HomeContent as SdkHomeContent
 import com.viperplayer.plugin.model.HomeSection as SdkHomeSection
 import com.viperplayer.plugin.model.Lyrics as SdkLyrics
@@ -242,7 +244,11 @@ object PluginMapper {
     fun SdkHomeContent.toDomain(pluginId: String): HomeContent = HomeContent(
         quickPicks = quickPicks.takeIf { it.isNotEmpty() }?.mapNotNull { it.toDomain(pluginId) },
         sections = sections.mapNotNull { it.toDomain(pluginId) },
+        chips = chips.map { it.toDomain() },
+        continuation = continuation,
     )
+
+    private fun SdkHomeChip.toDomain(): HomeChip = HomeChip(id = id, title = title)
 
     /** Maps a section design 1:1; an unknown design (or a hero whose single item can't map) is dropped. */
     fun SdkHomeSection.toDomain(pluginId: String): HomeSection? = when (this) {

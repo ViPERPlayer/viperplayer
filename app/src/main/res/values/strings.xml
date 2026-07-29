@@ -523,6 +523,9 @@
     <string name="content_category_filters">Content Filters</string>
     <string name="content_show_explicit">Show Explicit Content</string>
     <string name="content_show_explicit_desc">Display songs marked as explicit</string>
+    <string name="content_category_home">Home</string>
+    <string name="content_randomize_home_order">Randomize home order</string>
+    <string name="content_randomize_home_order_desc">Shuffle the order of home sections each time you refresh</string>
     <string name="content_category_offline">Offline</string>
     <string name="content_offline_mode">Offline mode</string>
     <string name="content_offline_mode_desc">Hide online content and browse only local and downloaded songs</string>

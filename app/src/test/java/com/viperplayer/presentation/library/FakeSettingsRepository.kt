@@ -116,6 +116,8 @@ class FakeSettingsRepository(
     override suspend fun setBlockScreenshots(enabled: Boolean) = unused()
     override val showExplicitContent: Flow<Boolean> get() = unused()
     override suspend fun setShowExplicitContent(enabled: Boolean) = unused()
+    override val randomizeHomeOrder: Flow<Boolean> get() = unused()
+    override suspend fun setRandomizeHomeOrder(enabled: Boolean) = unused()
     override val offlineMode: Flow<Boolean> get() = unused()
     override suspend fun setOfflineMode(enabled: Boolean) = unused()
     override val autoDownloadOnLike: Flow<Boolean> get() = unused()

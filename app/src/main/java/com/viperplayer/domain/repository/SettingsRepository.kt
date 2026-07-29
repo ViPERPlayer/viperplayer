@@ -237,6 +237,14 @@ interface SettingsRepository {
     suspend fun setShowExplicitContent(enabled: Boolean)
 
     /**
+     * Randomize the order of Home feed sections, with stable per-session weights (the order only
+     * re-rolls on an explicit Home refresh). When off, sections keep the order the plugins provide.
+     * Default ON. A "randomize home order" setting.
+     */
+    val randomizeHomeOrder: Flow<Boolean>
+    suspend fun setRandomizeHomeOrder(enabled: Boolean)
+
+    /**
      * Offline mode: when on, remote plugin fetches (browse/search/home/stream resolution) are gated at
      * the plugin boundary so the app degrades gracefully to on-device (local + downloaded) content
      * instead of hitting the network. Does not suppress background queues (scrobble/library-sync outbox).

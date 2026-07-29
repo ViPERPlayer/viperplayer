@@ -314,7 +314,8 @@ private class FakePluginRepository : PluginRepository {
     override suspend fun search(query: String, filter: SearchFilter?, cursor: String?, limit: Int): Result<SearchResult> =
         error("unused")
 
-    override suspend fun getHomeContent(): Result<List<Pair<String, HomeContent>>> = error("unused")
+    override suspend fun getHomeContent(chipId: String?): Result<List<Pair<String, HomeContent>>> = error("unused")
+    override suspend fun getHomeContinuation(pluginId: String, continuation: String): Result<HomeContent?> = error("unused")
     override suspend fun getBrowseCategories(cursor: String?, limit: Int): Result<PagedResult<BrowseCategory>> =
         error("unused")
 

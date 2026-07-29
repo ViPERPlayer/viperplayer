@@ -50,6 +50,7 @@ sealed interface RecommendationsUiStatus {
 
 data class ContentSettingsUiState(
     val showExplicitContent: Boolean = true,
+    val randomizeHomeOrder: Boolean = true,
     val offlineMode: Boolean = false,
     val autoDownloadOnLike: Boolean = false,
     val recommendationsEnabled: Boolean = false,
@@ -72,6 +73,11 @@ class ContentSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.showExplicitContent.collect { enabled ->
                 _uiState.update { it.copy(showExplicitContent = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.randomizeHomeOrder.collect { enabled ->
+                _uiState.update { it.copy(randomizeHomeOrder = enabled) }
             }
         }
         viewModelScope.launch {
@@ -105,6 +111,10 @@ class ContentSettingsViewModel @Inject constructor(
 
     fun setShowExplicitContent(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setShowExplicitContent(enabled) }
+    }
+
+    fun setRandomizeHomeOrder(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setRandomizeHomeOrder(enabled) }
     }
 
     fun setOfflineMode(enabled: Boolean) {

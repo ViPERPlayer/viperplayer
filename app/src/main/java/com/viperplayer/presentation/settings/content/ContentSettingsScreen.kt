@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.Explicit
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -81,6 +82,19 @@ fun ContentSettingsScreen(
                     description = stringResource(R.string.content_show_explicit_desc),
                     checked = uiState.showExplicitContent,
                     onCheckedChange = viewModel::setShowExplicitContent
+                )
+            }
+
+            item {
+                SettingsCategory(stringResource(R.string.content_category_home))
+            }
+            item {
+                SettingsSwitchRow(
+                    icon = Icons.Default.Shuffle,
+                    title = stringResource(R.string.content_randomize_home_order),
+                    description = stringResource(R.string.content_randomize_home_order_desc),
+                    checked = uiState.randomizeHomeOrder,
+                    onCheckedChange = viewModel::setRandomizeHomeOrder
                 )
             }
 
