@@ -203,7 +203,6 @@ fun ViperPlayerApp(
                 )
 
                 val navBarHeight = navBarPlaceable.height
-                val isNavBarVisible = navBarY.value < layoutBottom
 
                 val navBarTargetY = if (layoutState.showBottomNavBar) {
                     layoutBottom - navBarHeight
@@ -225,9 +224,6 @@ fun ViperPlayerApp(
                 )
 
                 val miniPlayerHeight = miniPlayerPlaceable.height
-                val isMiniPlayerVisible =
-                    if (isNavBarVisible) miniPlayerY.value < navBarY.value
-                    else miniPlayerY.value < layoutBottom
 
                 val miniPlayerTargetY = if (layoutState.showMiniPlayer) {
                     // Sit above nav bar if visible, otherwise above inset
@@ -247,9 +243,26 @@ fun ViperPlayerApp(
                     }
                 }
 
+                // Both animatables start at -1 meaning "never positioned". Resolve that to the
+                // target BEFORE anything reads it: on the very first measure pass the raw -1 made
+                // `minOf` below return -1, so every screen was handed a bottom padding of the whole
+                // screen height, and `isMiniPlayerVisible` compared -1 < -1 and skipped placing the
+                // mini player entirely. Both settled a frame later, which is why it read as a flash
+                // rather than a broken layout.
+                val resolvedNavBarY = if (navBarY.value == -1) navBarTargetY else navBarY.value
+                val resolvedMiniPlayerY =
+                    if (miniPlayerY.value == -1) miniPlayerTargetY else miniPlayerY.value
+
+                val isNavBarVisible = resolvedNavBarY < layoutBottom
+                val isMiniPlayerVisible =
+                    if (isNavBarVisible) resolvedMiniPlayerY < resolvedNavBarY
+                    else resolvedMiniPlayerY < layoutBottom
+
+                // The topmost surface covering the content, so screens can pad clear of whichever of
+                // the mini player / nav bar / system inset reaches highest.
                 val topSurfaceForPadding = minOf(
-                    miniPlayerY.value,
-                    navBarY.value,
+                    resolvedMiniPlayerY,
+                    resolvedNavBarY,
                     layoutBottom - bottomInset
                 )
 
@@ -272,23 +285,11 @@ fun ViperPlayerApp(
                     contentPlaceable.place(0, 0)
 
                     if (isMiniPlayerVisible) {
-                        val miniPlayerYValue = if (miniPlayerY.value == -1) {
-                            miniPlayerTargetY
-                        } else {
-                            miniPlayerY.value
-                        }
-
-                        miniPlayerPlaceable.place(0, miniPlayerYValue)
+                        miniPlayerPlaceable.place(0, resolvedMiniPlayerY)
                     }
 
                     if (isNavBarVisible) {
-                        val navBarYValue = if (navBarY.value == -1) {
-                            navBarTargetY
-                        } else {
-                            navBarY.value
-                        }
-
-                        navBarPlaceable.place(0, navBarYValue)
+                        navBarPlaceable.place(0, resolvedNavBarY)
                     }
                 }
             }
