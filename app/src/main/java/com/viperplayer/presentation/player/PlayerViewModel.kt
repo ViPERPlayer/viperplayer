@@ -8,7 +8,7 @@ import com.viperplayer.data.lyrics.IcuTransliterator
 import com.viperplayer.data.lyrics.LyricsRomanizer
 import com.viperplayer.data.lyrics.LyricsTranslator
 import com.viperplayer.data.player.SleepTimerManager
-import com.viperplayer.data.player.SleepTimerMode
+import com.viperplayer.domain.player.SleepTimerMode
 import com.viperplayer.domain.model.Lyrics
 import com.viperplayer.domain.model.LyricsCandidate
 import com.viperplayer.domain.model.LyricsOffset

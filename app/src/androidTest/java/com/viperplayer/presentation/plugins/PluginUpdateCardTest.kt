@@ -4,8 +4,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.viperplayer.data.plugin.update.PluginUpdate
-import com.viperplayer.data.plugin.update.PluginUpdateProgress
+import com.viperplayer.domain.plugin.PluginUpdate
+import com.viperplayer.domain.plugin.PluginUpdateProgress
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginCapabilities
 import com.viperplayer.domain.model.PluginInfo

@@ -3,9 +3,9 @@ package com.viperplayer.presentation.plugins
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.R
-import com.viperplayer.data.plugin.update.PluginUpdate
+import com.viperplayer.domain.plugin.PluginUpdate
 import com.viperplayer.data.plugin.update.PluginUpdateManager
-import com.viperplayer.data.plugin.update.PluginUpdateProgress
+import com.viperplayer.domain.plugin.PluginUpdateProgress
 import com.viperplayer.data.preferences.PushSyncPreferences
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.sync.LibrarySyncManager

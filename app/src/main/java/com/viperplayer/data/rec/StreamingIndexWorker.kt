@@ -10,6 +10,7 @@ import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.dao.setEmbedding
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

@@ -5,16 +5,17 @@ import com.viperplayer.data.local.dao.getByMediaId
 import com.viperplayer.data.local.dao.setEmbedding
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.domain.repository.SettingsRepository
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Path A's back half: turns a mono PCM clip captured during playback (by [RecCaptureAudioProcessor]) into

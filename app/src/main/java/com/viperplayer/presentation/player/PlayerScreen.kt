@@ -143,7 +143,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.viperplayer.R
-import com.viperplayer.data.player.SleepTimerMode
+import com.viperplayer.domain.player.SleepTimerMode
 import com.viperplayer.domain.model.Album
 import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.Lyrics

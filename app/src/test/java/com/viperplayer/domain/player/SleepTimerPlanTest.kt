@@ -1,5 +1,6 @@
 package com.viperplayer.data.player
 
+import com.viperplayer.domain.player.SleepTimerPlan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

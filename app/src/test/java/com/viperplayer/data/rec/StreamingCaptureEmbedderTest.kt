@@ -4,8 +4,10 @@ import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.entity.relation.SongEmbeddingRow
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.UnsupportedSettingsRepository
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -15,7 +17,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 
 /**
  * JVM tests for [StreamingCaptureEmbedder] (Path A back half) with FAKE collaborators — proves the two

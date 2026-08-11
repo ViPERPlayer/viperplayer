@@ -5,7 +5,7 @@ import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.entity.relation.SongEmbeddingRow
 import com.viperplayer.data.rec.ClapModel
 import com.viperplayer.data.rec.ClapModelRepository
-import com.viperplayer.data.rec.ClapModelState
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.data.rec.IndexingStatus
 import com.viperplayer.data.rec.IndexingStatusProvider
 import com.viperplayer.data.rec.embeddingToBytes

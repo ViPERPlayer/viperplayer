@@ -1,10 +1,12 @@
 package com.viperplayer.data.rec
 
+import com.viperplayer.domain.rec.ClapModelState
+import com.viperplayer.domain.rec.FailureReason
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * Unit tests for the pure CLAP model state machine ([ClapModelStateMachine.derive]) — the fold from

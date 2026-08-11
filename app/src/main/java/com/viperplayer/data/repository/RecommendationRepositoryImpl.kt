@@ -7,7 +7,7 @@ import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.mapper.mediaIdFromColumns
 import com.viperplayer.data.rec.ClapModel
 import com.viperplayer.data.rec.ClapModelRepository
-import com.viperplayer.data.rec.ClapModelState
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.data.rec.EmbeddingKnn
 import com.viperplayer.data.rec.IndexingStatus
 import com.viperplayer.data.rec.IndexingStatusProvider

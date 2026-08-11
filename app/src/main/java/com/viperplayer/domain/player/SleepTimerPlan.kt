@@ -1,4 +1,4 @@
-package com.viperplayer.data.player
+package com.viperplayer.domain.player
 
 /**
  * The armed sleep-timer mode, surfaced to the UI so the picker can tick the active choice.

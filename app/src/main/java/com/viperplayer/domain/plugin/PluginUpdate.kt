@@ -1,4 +1,4 @@
-package com.viperplayer.data.plugin.update
+package com.viperplayer.domain.plugin
 
 /**
  * An available update for one installed plugin, as surfaced to the UI. Produced by

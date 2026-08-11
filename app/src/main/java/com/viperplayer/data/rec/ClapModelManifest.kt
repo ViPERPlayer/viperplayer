@@ -1,8 +1,9 @@
 package com.viperplayer.data.rec
 
+import com.viperplayer.domain.rec.ClapModelState
+import java.security.MessageDigest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.security.MessageDigest
 
 /**
  * The recommender-model manifest served by the backend at `GET /v1/models/manifest`. Only the

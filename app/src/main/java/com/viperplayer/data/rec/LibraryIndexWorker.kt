@@ -7,6 +7,7 @@ import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.viperplayer.data.local.dao.SongDao
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.domain.repository.SettingsRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

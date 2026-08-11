@@ -1,7 +1,7 @@
 package com.viperplayer.presentation.home
 
 import com.viperplayer.data.rec.ClapModelRepository
-import com.viperplayer.data.rec.ClapModelState
+import com.viperplayer.domain.rec.ClapModelState
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.PlaybackContext
 import com.viperplayer.domain.model.PlaybackInfo

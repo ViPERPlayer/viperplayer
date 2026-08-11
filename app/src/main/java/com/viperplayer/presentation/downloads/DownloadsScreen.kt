@@ -49,7 +49,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
-import com.viperplayer.data.download.DownloadManager
+
+import com.viperplayer.domain.download.DownloadProgress
+import com.viperplayer.domain.download.DownloadState
+import com.viperplayer.domain.download.codecLabelFor
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.ListItem
@@ -105,7 +108,7 @@ fun DownloadsScreen(
 private fun DownloadsScreenContent(
     rootPadding: PaddingValues,
     downloadedSongs: List<Song>,
-    downloads: Map<MediaId, DownloadManager.DownloadProgress>,
+    downloads: Map<MediaId, DownloadProgress>,
     storageBytes: Long,
     totalStorageBytes: Long,
     fileInfo: Map<MediaId, DownloadFileInfo>,
@@ -118,7 +121,7 @@ private fun DownloadsScreenContent(
     // In-progress / failed / unsupported items that are not yet finished + persisted.
     val downloadedIds = downloadedSongs.map { it.id }.toSet()
     val inProgress = downloads.values
-        .filter { it.state != DownloadManager.State.COMPLETED && it.mediaId !in downloadedIds }
+        .filter { it.state != DownloadState.COMPLETED && it.mediaId !in downloadedIds }
         .toList()
 
     ViperScaffold(
@@ -334,7 +337,7 @@ private fun pluralSongCount(count: Int): String =
  * derived from the stream's MIME type (only when recognized). Parts are joined by a middle dot.
  */
 @Composable
-private fun runningDetail(progress: DownloadManager.DownloadProgress): String {
+private fun runningDetail(progress: DownloadProgress): String {
     val context = LocalContext.current
     val separator = stringResource(R.string.downloads_detail_separator)
     val parts = buildList {
@@ -343,7 +346,7 @@ private fun runningDetail(progress: DownloadManager.DownloadProgress): String {
             val speed = Formatter.formatShortFileSize(context, progress.bytesPerSec)
             add(stringResource(R.string.downloads_progress_speed, speed))
         }
-        DownloadManager.codecLabelFor(progress.mimeType)?.let { add(it) }
+        codecLabelFor(progress.mimeType)?.let { add(it) }
     }
     return parts.joinToString(separator)
 }
@@ -378,26 +381,26 @@ private fun completedSubtitle(artistNames: String?, info: DownloadFileInfo?): St
  *
  * [title] is the song's real title resolved locally by the ViewModel (falling back to the source id
  * for a row whose song isn't in the library). While running, the subtitle is a compact
- * "percent · speed · codec" detail line built from the live [DownloadManager.DownloadProgress].
+ * "percent · speed · codec" detail line built from the live [DownloadProgress].
  */
 @Composable
 private fun InProgressRow(
-    progress: DownloadManager.DownloadProgress,
+    progress: DownloadProgress,
     title: String,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isFailed = progress.state == DownloadManager.State.FAILED
-    val isUnsupported = progress.state == DownloadManager.State.UNSUPPORTED
+    val isFailed = progress.state == DownloadState.FAILED
+    val isUnsupported = progress.state == DownloadState.UNSUPPORTED
     val isError = isFailed || isUnsupported
 
     val subtitle = when (progress.state) {
-        DownloadManager.State.QUEUED -> stringResource(R.string.downloads_state_queued)
-        DownloadManager.State.RUNNING -> runningDetail(progress)
-        DownloadManager.State.FAILED -> stringResource(R.string.downloads_failed_retry)
-        DownloadManager.State.UNSUPPORTED -> stringResource(R.string.downloads_state_unsupported)
-        DownloadManager.State.COMPLETED -> stringResource(R.string.downloads_completed)
+        DownloadState.QUEUED -> stringResource(R.string.downloads_state_queued)
+        DownloadState.RUNNING -> runningDetail(progress)
+        DownloadState.FAILED -> stringResource(R.string.downloads_failed_retry)
+        DownloadState.UNSUPPORTED -> stringResource(R.string.downloads_state_unsupported)
+        DownloadState.COMPLETED -> stringResource(R.string.downloads_completed)
     }
     val subtitleColor =
         if (isFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
@@ -453,7 +456,7 @@ private fun InProgressRow(
  */
 @Composable
 private fun ProgressThumbnail(
-    state: DownloadManager.State,
+    state: DownloadState,
     progress: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -470,13 +473,13 @@ private fun ProgressThumbnail(
                 )
         )
         when (state) {
-            DownloadManager.State.RUNNING -> CircularProgressIndicator(
+            DownloadState.RUNNING -> CircularProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.size(ProgressRingSize),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.outlineVariant,
             )
-            DownloadManager.State.QUEUED -> CircularProgressIndicator(
+            DownloadState.QUEUED -> CircularProgressIndicator(
                 modifier = Modifier.size(ProgressRingSize),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.outlineVariant,

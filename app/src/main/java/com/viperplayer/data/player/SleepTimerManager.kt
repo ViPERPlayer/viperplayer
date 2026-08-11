@@ -2,8 +2,12 @@ package com.viperplayer.data.player
 
 import androidx.media3.common.C
 import com.viperplayer.domain.model.MediaId
+import com.viperplayer.domain.player.SleepTimerMode
+import com.viperplayer.domain.player.SleepTimerPlan
 import com.viperplayer.domain.repository.PlayerRepository
 import com.viperplayer.domain.repository.SettingsRepository
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,8 +22,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * A sleep timer that pauses playback either after a chosen number of minutes ([schedule]) or when the

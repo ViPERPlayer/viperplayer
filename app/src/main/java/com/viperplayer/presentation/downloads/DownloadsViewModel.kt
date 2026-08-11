@@ -8,11 +8,14 @@ import com.viperplayer.data.download.DownloadManager
 import com.viperplayer.data.local.dao.SongDao
 import com.viperplayer.data.local.entity.SongEntity
 import com.viperplayer.data.local.mapper.mediaIdFromColumns
+import com.viperplayer.domain.download.DownloadProgress
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,8 +26,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
-import javax.inject.Inject
 
 /**
  * Per-completed-download file facts derived on read from its on-disk file: the human-formatted byte
@@ -68,7 +69,7 @@ class DownloadsViewModel @Inject constructor(
             )
 
     /** In-flight / failed / unsupported download progress, keyed by media id. */
-    val downloads: StateFlow<Map<MediaId, DownloadManager.DownloadProgress>> = downloadManager.downloads
+    val downloads: StateFlow<Map<MediaId, DownloadProgress>> = downloadManager.downloads
 
     /**
      * Downloaded entities re-read reactively so file size/format update whenever a download completes

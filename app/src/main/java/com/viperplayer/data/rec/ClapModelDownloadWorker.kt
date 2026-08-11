@@ -10,18 +10,19 @@ import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.viperplayer.di.RecModelPreferences
+import com.viperplayer.domain.rec.FailureReason
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
+import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.File
-import java.io.FileOutputStream
-import java.security.MessageDigest
 
 /**
  * Background worker that installs the on-device CLAP audio-tower model. Enqueued (Wi-Fi-only) by

@@ -2,7 +2,10 @@ package com.viperplayer.data.plugin.update
 
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.core.content.pm.PackageInfoCompat
 import com.viperplayer.data.preferences.PluginUpdatePreferences
+import com.viperplayer.domain.plugin.PluginUpdate
+import com.viperplayer.domain.plugin.PluginUpdateProgress
 import com.viperplayer.plugin.host.PluginDiscovery
 import com.viperplayer.plugin.protocol.Protocol
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -15,7 +18,10 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
-import androidx.core.content.pm.PackageInfoCompat
+import java.io.File
+import java.security.MessageDigest
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,10 +38,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.File
-import java.security.MessageDigest
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Host-side plugin update framework. For each INSTALLED plugin it:

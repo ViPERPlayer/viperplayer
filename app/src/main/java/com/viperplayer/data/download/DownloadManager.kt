@@ -2,6 +2,8 @@ package com.viperplayer.data.download
 
 import android.content.Context
 import com.viperplayer.data.source.PluginDataSource
+import com.viperplayer.domain.download.DownloadProgress
+import com.viperplayer.domain.download.DownloadState
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.MediaLibraryRepository
@@ -35,7 +37,7 @@ import javax.inject.Singleton
  *
  * A song is resolved through its plugin; only the [UrlStream] variant with an http(s) URL is
  * downloadable here. DASH / HLS / PCM (and DRM) streams are deliberately marked
- * [State.UNSUPPORTED]: true adaptive/DRM offline support would require a media3 `DownloadService`
+ * [DownloadState.UNSUPPORTED]: true adaptive/DRM offline support would require a media3 `DownloadService`
  * plus a `CacheDataSource` — a larger rearchitecture that is intentionally not implemented here.
  */
 @Singleton
@@ -46,25 +48,6 @@ class DownloadManager @Inject constructor(
     private val mediaLibraryRepository: MediaLibraryRepository,
 ) : AutoDownloader {
     /** State of a single download. */
-    enum class State { QUEUED, RUNNING, COMPLETED, FAILED, UNSUPPORTED }
-
-    /**
-     * Progress snapshot for one song's download, keyed by [mediaId] in [downloads].
-     *
-     * [downloadedBytes]/[totalBytes] are the running byte counters ([totalBytes] is `-1` when the
-     * server sends no `Content-Length`); [bytesPerSec] is the most recent throttled transfer rate;
-     * [mimeType] is the resolved stream's MIME (drives the codec label in the UI).
-     */
-    data class DownloadProgress(
-        val mediaId: MediaId,
-        val state: State,
-        val progress: Float,
-        val downloadedBytes: Long = 0L,
-        val totalBytes: Long = -1L,
-        val bytesPerSec: Long = 0L,
-        val mimeType: String? = null,
-    )
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Bound concurrency so a bulk enqueue doesn't open dozens of sockets at once.
@@ -76,7 +59,7 @@ class DownloadManager @Inject constructor(
     private val downloadsDir: File
         get() = File(context.filesDir, "downloads").apply { mkdirs() }
 
-    private fun update(mediaId: MediaId, state: State, progress: Float, mimeType: String? = null) {
+    private fun update(mediaId: MediaId, state: DownloadState, progress: Float, mimeType: String? = null) {
         _downloads.update {
             it + (mediaId to DownloadProgress(mediaId, state, progress, mimeType = mimeType))
         }
@@ -94,7 +77,7 @@ class DownloadManager @Inject constructor(
         _downloads.update {
             it + (mediaId to DownloadProgress(
                 mediaId = mediaId,
-                state = State.RUNNING,
+                state = DownloadState.RUNNING,
                 progress = progress,
                 downloadedBytes = downloadedBytes,
                 totalBytes = totalBytes,
@@ -106,16 +89,16 @@ class DownloadManager @Inject constructor(
 
     /**
      * Queue [song] for download. Resolves its stream, and if it's a progressive URL streams the
-     * bytes to internal storage reporting progress; otherwise marks it [State.UNSUPPORTED]. On
+     * bytes to internal storage reporting progress; otherwise marks it [DownloadState.UNSUPPORTED]. On
      * success the song row is persisted and flagged downloaded; on error the partial file is deleted.
      */
     override fun enqueue(song: Song) {
         val mediaId = song.id
         // Ignore a re-enqueue of something already in flight.
         val existing = _downloads.value[mediaId]?.state
-        if (existing == State.QUEUED || existing == State.RUNNING) return
+        if (existing == DownloadState.QUEUED || existing == DownloadState.RUNNING) return
 
-        update(mediaId, State.QUEUED, 0f)
+        update(mediaId, DownloadState.QUEUED, 0f)
         scope.launch {
             semaphore.withPermit {
                 runCatching { download(song) }
@@ -126,11 +109,11 @@ class DownloadManager @Inject constructor(
 
     private suspend fun download(song: Song) {
         val mediaId = song.id
-        update(mediaId, State.RUNNING, 0f)
+        update(mediaId, DownloadState.RUNNING, 0f)
 
         val resolved = pluginDataSource.getStream(mediaId, isVideo = false).getOrElse {
             Timber.e(it, "Could not resolve stream for $mediaId")
-            update(mediaId, State.FAILED, 0f)
+            update(mediaId, DownloadState.FAILED, 0f)
             return
         }
 
@@ -139,7 +122,7 @@ class DownloadManager @Inject constructor(
         val urlStream = source as? UrlStream
         val url = urlStream?.url
         if (urlStream == null || url == null || !url.startsWith("http", ignoreCase = true)) {
-            update(mediaId, State.UNSUPPORTED, 0f)
+            update(mediaId, DownloadState.UNSUPPORTED, 0f)
             return
         }
 
@@ -156,11 +139,11 @@ class DownloadManager @Inject constructor(
                 mediaLibraryRepository.saveSong(song)
                 mediaLibraryRepository.setSongDownloaded(mediaId, true, target.absolutePath)
             }.onFailure { Timber.e(it, "Failed to persist download state for $mediaId") }
-            update(mediaId, State.COMPLETED, 1f)
+            update(mediaId, DownloadState.COMPLETED, 1f)
         }.onFailure {
             Timber.e(it, "Error writing download for $mediaId")
             runCatching { target.delete() }
-            update(mediaId, State.FAILED, 0f)
+            update(mediaId, DownloadState.FAILED, 0f)
         }
     }
 
@@ -260,15 +243,5 @@ class DownloadManager @Inject constructor(
          * `MP3`), or `null` when unknown. Mirrors [extensionFor]'s mapping so the in-progress row's
          * codec chip matches the file the download will land as.
          */
-        fun codecLabelFor(mimeType: String?): String? = when {
-            mimeType == null -> null
-            mimeType.contains("flac", ignoreCase = true) -> "FLAC"
-            mimeType.contains("mp4", ignoreCase = true) || mimeType.contains("aac", ignoreCase = true) -> "M4A"
-            mimeType.contains("mpeg", ignoreCase = true) -> "MP3"
-            mimeType.contains("opus", ignoreCase = true) -> "OPUS"
-            mimeType.contains("ogg", ignoreCase = true) -> "OGG"
-            mimeType.contains("wav", ignoreCase = true) -> "WAV"
-            else -> null
-        }
     }
 }

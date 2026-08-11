@@ -74,8 +74,8 @@ import androidx.compose.ui.unit.sp
 import com.viperplayer.R
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.viperplayer.data.plugin.update.PluginUpdate
-import com.viperplayer.data.plugin.update.PluginUpdateProgress
+import com.viperplayer.domain.plugin.PluginUpdate
+import com.viperplayer.domain.plugin.PluginUpdateProgress
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.PluginPendingAction

@@ -3,8 +3,8 @@ package com.viperplayer.presentation.settings.content
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.viperplayer.data.rec.ClapModelRepository
-import com.viperplayer.data.rec.ClapModelState
-import com.viperplayer.data.rec.FailureReason
+import com.viperplayer.domain.rec.ClapModelState
+import com.viperplayer.domain.rec.FailureReason
 import com.viperplayer.data.rec.IndexingStatus
 import com.viperplayer.data.rec.RecommendationIndexRepository
 import com.viperplayer.domain.repository.SettingsRepository
