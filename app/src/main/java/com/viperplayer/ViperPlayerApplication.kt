@@ -175,9 +175,6 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory, Conf
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val maxImageCacheSize =
-            runBlocking(Dispatchers.IO) { settingsRepository.maxImageCacheSize.first() }
-
         return ImageLoader.Builder(this)
             .memoryCache {
                 MemoryCache.Builder()
@@ -185,6 +182,12 @@ class ViperPlayerApplication : Application(), SingletonImageLoader.Factory, Conf
                     .build()
             }
             .diskCache {
+                // Coil wraps this initializer in `lazy {}` and forces it on its own IO dispatcher on
+                // the first request that needs the disk cache. Reading the size setting HERE, rather
+                // than in newImageLoader's body, keeps the DataStore read off the thread that builds
+                // the ImageLoader — which is the main thread, on the first image the UI shows.
+                val maxImageCacheSize =
+                    runBlocking { settingsRepository.maxImageCacheSize.first() }
                 if (maxImageCacheSize == 0L) {
                     null // Disable disk cache if size is 0
                 } else {
