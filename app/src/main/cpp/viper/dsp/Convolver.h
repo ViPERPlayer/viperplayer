@@ -47,9 +47,22 @@ public:
   // Process interleaved stereo samples
   // input: L R L R ...
   // output: L R L R ...
+  //
+  // Called on the audio thread, so it never waits on the mutex: if a kernel load
+  // holds it, this buffer passes through dry rather than blocking the render.
+  // input and output may alias (ViPER::process convolves in place).
   void Process(float *input, float *output, uint32_t frameCount);
 
 private:
+  // Internals that assume the caller already holds `mutex`. Splitting these out is what lets
+  // `mutex` be a plain std::mutex, which is what Process() needs in order to try_lock: a
+  // recursive_mutex would let Process() re-enter its own held lock, but it cannot express
+  // "give up if somebody else holds this".
+  void ResetLocked();
+  bool IsKernelLoadedLocked() const;
+  void LoadKernelStereoLocked(const float *kernelL, const float *kernelR,
+                              uint32_t samples);
+
   bool enabled;
   uint32_t samplingRate;
 
@@ -85,7 +98,9 @@ private:
   std::vector<float> scratchOutputR;
   std::vector<float> scratchOutBlock;
 
-  mutable std::recursive_mutex mutex;
+  // Guards the kernels, the staging buffers and the cross-channel parameters. The audio thread
+  // (Process) try-locks and falls back to dry passthrough; every other caller blocks.
+  mutable std::mutex mutex;
 };
 
 } // namespace dsp
