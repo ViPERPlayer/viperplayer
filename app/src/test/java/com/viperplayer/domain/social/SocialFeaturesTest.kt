@@ -1,26 +1,40 @@
 package com.viperplayer.domain.social
 
-import com.viperplayer.data.social.BackendConfig
-import org.junit.Assert.assertEquals
+import com.viperplayer.domain.config.BackendAvailability
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [SocialFeatures.enabled] must track the backend-configured gate. In the unit-test build `BuildConfig.
- * VIPER_BACKEND_URL` is the placeholder, so the gate is off; the "on for a real URL" half of the
- * contract is proven by [com.viperplayer.data.social.BackendConfigTest] over the same shared logic.
+ * [SocialFeatures.enabled] must be exactly the backend-configured gate.
+ *
+ * The gate is now injected as a [BackendAvailability], so both halves of the contract are testable
+ * here. Previously this could only assert the "off" half — the gate read `BuildConfig` directly, and
+ * the unit-test build always compiles with the placeholder URL, so the "on" case was unreachable and
+ * the second test was a tautology against the same constant it was verifying.
+ *
+ * That `BackendConfig` maps a blank/placeholder URL to "not configured" is covered separately by
+ * [com.viperplayer.data.social.BackendConfigTest].
  */
 class SocialFeaturesTest {
 
     @Test
-    fun enabled_isFalse_forPlaceholderBuild() {
-        // Unit tests compile with the placeholder VIPER_BACKEND_URL, so the social surface is gated off.
-        assertFalse(SocialFeatures().enabled)
+    fun enabled_isFalse_whenBackendIsNotConfigured() {
+        assertFalse(SocialFeatures(BackendAvailability { false }).enabled)
     }
 
     @Test
-    fun enabled_matchesBackendConfig() {
-        // The gate is exactly BackendConfig.isConfigured — no divergent "configured" notion.
-        assertEquals(BackendConfig.isConfigured, SocialFeatures().enabled)
+    fun enabled_isTrue_whenBackendIsConfigured() {
+        assertTrue(SocialFeatures(BackendAvailability { true }).enabled)
+    }
+
+    @Test
+    fun enabled_isReadEveryTime_soLateConfigurationIsPickedUp() {
+        var configured = false
+        val features = SocialFeatures(BackendAvailability { configured })
+
+        assertFalse(features.enabled)
+        configured = true
+        assertTrue("enabled must delegate on each read, not cache at construction", features.enabled)
     }
 }

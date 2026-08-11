@@ -2,6 +2,7 @@ package com.viperplayer.data.account
 
 import com.viperplayer.R
 import com.viperplayer.data.resources.StringProvider
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser

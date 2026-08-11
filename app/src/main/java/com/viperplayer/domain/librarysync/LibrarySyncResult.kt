@@ -1,5 +1,7 @@
 package com.viperplayer.domain.librarysync
 
+import com.viperplayer.domain.account.AccountApiResult
+
 /**
  * Transport-agnostic outcome of a ViPER backend library-sync call. The repository maps the account
  * transport's `AccountApiResult` into this so callers above the repository never see a raw HTTP

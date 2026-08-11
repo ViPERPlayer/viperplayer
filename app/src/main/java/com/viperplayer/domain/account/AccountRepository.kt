@@ -1,6 +1,5 @@
 package com.viperplayer.domain.account
 
-import com.viperplayer.data.account.AccountApiResult
 import kotlinx.coroutines.flow.Flow
 
 /**

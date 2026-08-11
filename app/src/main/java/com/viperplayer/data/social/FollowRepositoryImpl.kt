@@ -1,6 +1,6 @@
 package com.viperplayer.data.social
 
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.social.FollowRepository
 import com.viperplayer.domain.social.FollowResult

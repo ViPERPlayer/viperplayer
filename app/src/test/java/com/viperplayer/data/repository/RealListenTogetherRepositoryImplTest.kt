@@ -1,7 +1,7 @@
 package com.viperplayer.data.repository
 
 import com.viperplayer.R
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.data.social.CMD_NEXT
 import com.viperplayer.data.social.CMD_PAUSE
 import com.viperplayer.data.social.CMD_PLAY

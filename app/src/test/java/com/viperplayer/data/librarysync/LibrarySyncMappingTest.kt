@@ -1,6 +1,6 @@
 package com.viperplayer.data.librarysync
 
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.domain.librarysync.LibrarySyncResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

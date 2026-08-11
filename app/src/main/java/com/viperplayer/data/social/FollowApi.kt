@@ -1,7 +1,7 @@
 package com.viperplayer.data.social
 
 import com.viperplayer.BuildConfig
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.data.account.ErrorDto
 import com.viperplayer.data.account.accountErrorFallbacks
 import com.viperplayer.data.account.mapAccountHttpError

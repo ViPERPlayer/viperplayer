@@ -1,5 +1,7 @@
 package com.viperplayer.data.account
 
+import com.viperplayer.domain.account.AccountApiResult
+
 /**
  * Transport-agnostic "run an authenticated call, refresh-and-retry once on UNAUTHENTICATED" policy,
  * extracted as a pure suspend function so it can be unit-tested without a live HttpClient or a real

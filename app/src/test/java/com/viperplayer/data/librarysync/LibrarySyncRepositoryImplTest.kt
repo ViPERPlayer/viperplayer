@@ -1,6 +1,6 @@
 package com.viperplayer.data.librarysync
 
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.domain.account.AccountRepository
 import com.viperplayer.domain.account.AccountState
 import com.viperplayer.domain.account.AccountUser

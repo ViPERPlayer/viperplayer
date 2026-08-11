@@ -2,6 +2,7 @@ package com.viperplayer.data.rec
 
 import com.viperplayer.BuildConfig
 import com.viperplayer.data.social.BackendConfig
+import com.viperplayer.domain.account.AccountApiResult
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post

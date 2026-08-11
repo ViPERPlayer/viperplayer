@@ -3,6 +3,7 @@ package com.viperplayer.data.account
 import com.viperplayer.BuildConfig
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.social.BackendConfig
+import com.viperplayer.domain.account.AccountApiResult
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header

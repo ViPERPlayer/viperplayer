@@ -1,5 +1,6 @@
 package com.viperplayer.data.account
 
+import com.viperplayer.domain.account.AccountApiResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

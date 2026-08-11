@@ -2,6 +2,7 @@ package com.viperplayer.data.account
 
 import com.viperplayer.R
 import com.viperplayer.data.resources.StringProvider
+import com.viperplayer.domain.account.AccountApiResult
 
 /**
  * The locale-resolved fallback messages [mapAccountHttpError] uses when the backend supplies no

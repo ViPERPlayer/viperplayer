@@ -1,6 +1,6 @@
 package com.viperplayer.data.repository
 
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.data.rec.CandidateDto
 import com.viperplayer.data.rec.ClapModel
 import com.viperplayer.data.rec.DiscoverResponseDto

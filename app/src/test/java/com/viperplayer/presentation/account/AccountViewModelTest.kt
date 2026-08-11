@@ -4,7 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import com.viperplayer.R
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.data.preferences.LibrarySyncPreferences
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.sync.LibrarySync

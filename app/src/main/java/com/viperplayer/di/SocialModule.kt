@@ -1,9 +1,11 @@
 package com.viperplayer.di
 
+import com.viperplayer.data.social.BuildConfigBackendAvailability
 import com.viperplayer.data.social.FollowRepositoryImpl
 import com.viperplayer.data.social.StubFriendActivityRepository
 import com.viperplayer.data.social.StubFriendsRepository
 import com.viperplayer.data.social.StubSharedPlaylistsRepository
+import com.viperplayer.domain.config.BackendAvailability
 import com.viperplayer.domain.social.FollowRepository
 import com.viperplayer.domain.social.FriendActivityRepository
 import com.viperplayer.domain.social.FriendsRepository
@@ -21,7 +23,8 @@ import javax.inject.Singleton
  * Kept in its own module (not [DataModule]) so the social scaffolding stays merge-disjoint from unrelated
  * data wiring.
  *
- * [com.viperplayer.domain.social.SocialFeatures] is `@Inject`-constructable, so it needs no binding here.
+ * [com.viperplayer.domain.social.SocialFeatures] is `@Inject`-constructable; it only needs the
+ * [BackendAvailability] binding below to resolve the backend gate without depending on the data layer.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -39,4 +42,8 @@ abstract class SocialModule {
 
     @Binds
     abstract fun bindFollowRepository(impl: FollowRepositoryImpl): FollowRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBackendAvailability(impl: BuildConfigBackendAvailability): BackendAvailability
 }

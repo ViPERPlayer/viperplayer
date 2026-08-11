@@ -1,6 +1,6 @@
 package com.viperplayer.data.librarysync
 
-import com.viperplayer.data.account.AccountApiResult
+import com.viperplayer.domain.account.AccountApiResult
 import com.viperplayer.data.resources.StringProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
