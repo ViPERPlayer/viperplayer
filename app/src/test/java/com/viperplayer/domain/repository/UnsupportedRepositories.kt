@@ -46,17 +46,17 @@ open class UnsupportedMediaLibraryRepository : MediaLibraryRepository {
     override fun getArtist(mediaId: MediaId): Flow<Artist?> = TODO()
     override fun getAllLikedArtists(): Flow<List<Artist>> = TODO()
     override fun getAllSavedArtists(): Flow<List<Artist>> = TODO()
-    override suspend fun saveArtist(artist: ArtistDetail) = TODO()
-    override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean) = TODO()
-    override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean) = TODO()
+    override suspend fun saveArtist(artist: ArtistDetail) { TODO() }
+    override suspend fun setArtistLiked(mediaId: MediaId, isLiked: Boolean) { TODO() }
+    override suspend fun setArtistSaved(mediaId: MediaId, isSaved: Boolean) { TODO() }
     override fun getAlbum(mediaId: MediaId): Flow<Album?> = TODO()
     override fun getAllLikedAlbums(): Flow<List<Album>> = TODO()
     override fun getAllSavedAlbums(): Flow<List<Album>> = TODO()
     override fun getAllDownloadedAlbums(): Flow<List<Album>> = TODO()
-    override suspend fun saveAlbum(album: Album) = TODO()
-    override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean) = TODO()
-    override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean) = TODO()
-    override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean) = TODO()
+    override suspend fun saveAlbum(album: Album) { TODO() }
+    override suspend fun setAlbumLiked(mediaId: MediaId, isLiked: Boolean) { TODO() }
+    override suspend fun setAlbumSaved(mediaId: MediaId, isSaved: Boolean) { TODO() }
+    override suspend fun setAlbumDownloaded(mediaId: MediaId, isDownloaded: Boolean) { TODO() }
     override fun getSong(mediaId: MediaId): Flow<Song?> = TODO()
     override fun getAllLikedSongs(): Flow<List<Song>> = TODO()
     override fun getAllSavedSongs(): Flow<List<Song>> = TODO()
@@ -64,39 +64,39 @@ open class UnsupportedMediaLibraryRepository : MediaLibraryRepository {
     override fun getAllDownloadedSongs(): Flow<List<Song>> = TODO()
     override fun likedSongCount(): Flow<Int> = TODO()
     override fun downloadedSongCount(): Flow<Int> = TODO()
-    override suspend fun saveSong(song: Song) = TODO()
-    override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) = TODO()
-    override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean) = TODO()
+    override suspend fun saveSong(song: Song) { TODO() }
+    override suspend fun setSongLiked(mediaId: MediaId, isLiked: Boolean) { TODO() }
+    override suspend fun setSongSaved(mediaId: MediaId, isSaved: Boolean) { TODO() }
     override suspend fun setSongDownloaded(
         mediaId: MediaId,
         isDownloaded: Boolean,
-        downloadPath: String?) = TODO()
-    override suspend fun incrementSongPlayCount(mediaId: MediaId) = TODO()
-    override suspend fun recordListenedTime(mediaId: MediaId, durationListenedMs: Long) = TODO()
+        downloadPath: String?) { TODO() }
+    override suspend fun incrementSongPlayCount(mediaId: MediaId) { TODO() }
+    override suspend fun recordListenedTime(mediaId: MediaId, durationListenedMs: Long) { TODO() }
     override fun getMostPlayedSongs(period: StatPeriod, limit: Int): Flow<List<SongWithStats>> = TODO()
     override fun getStatsSummary(period: StatPeriod): Flow<StatsSummary> = TODO()
     override fun getHistory(limit: Int): Flow<List<HistoryEntry>> = TODO()
     override suspend fun getFirstPlayTimestamp(): Long? = TODO()
-    override suspend fun clearHistory() = TODO()
-    override suspend fun pruneHistory(cutoffMillis: Long) = TODO()
+    override suspend fun clearHistory() { TODO() }
+    override suspend fun pruneHistory(cutoffMillis: Long) { TODO() }
     override fun getPlaylist(mediaId: MediaId): Flow<Playlist?> = TODO()
     override fun getAllLikedPlaylists(): Flow<List<Playlist>> = TODO()
     override fun getAllSavedPlaylists(): Flow<List<Playlist>> = TODO()
     override fun getLikedSongsPlaylist(): Flow<Playlist> = TODO()
     override fun getLocalPlaylists(): Flow<List<Playlist>> = TODO()
     override suspend fun createLocalPlaylist(name: String): MediaId = TODO()
-    override suspend fun renamePlaylist(mediaId: MediaId, newName: String) = TODO()
-    override suspend fun addSongToPlaylist(playlistId: MediaId, song: Song) = TODO()
-    override suspend fun removeSongFromPlaylist(playlistId: MediaId, songId: MediaId) = TODO()
-    override suspend fun reorderPlaylistSongs(playlistId: MediaId, fromIndex: Int, toIndex: Int) = TODO()
-    override suspend fun savePlaylist(playlist: Playlist) = TODO()
-    override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean) = TODO()
-    override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean) = TODO()
+    override suspend fun renamePlaylist(mediaId: MediaId, newName: String) { TODO() }
+    override suspend fun addSongToPlaylist(playlistId: MediaId, song: Song) { TODO() }
+    override suspend fun removeSongFromPlaylist(playlistId: MediaId, songId: MediaId) { TODO() }
+    override suspend fun reorderPlaylistSongs(playlistId: MediaId, fromIndex: Int, toIndex: Int) { TODO() }
+    override suspend fun savePlaylist(playlist: Playlist) { TODO() }
+    override suspend fun setPlaylistLiked(mediaId: MediaId, isLiked: Boolean) { TODO() }
+    override suspend fun setPlaylistSaved(mediaId: MediaId, isSaved: Boolean) { TODO() }
     override suspend fun isPlaylistSaved(mediaId: MediaId): Boolean = TODO()
-    override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean) = TODO()
+    override suspend fun setPlaylistDownloaded(mediaId: MediaId, isDownloaded: Boolean) { TODO() }
     override fun getGenres(): Flow<List<Genre>> = TODO()
     override fun getSongsForGenre(genreId: Long): Flow<List<Song>> = TODO()
-    override suspend fun scanLocalFiles() = TODO()
+    override suspend fun scanLocalFiles() { TODO() }
     override suspend fun exportPlaylistToM3u(mediaId: MediaId): String? = TODO()
     override suspend fun importPlaylistFromM3u(playlistName: String, content: String): M3uImportResult = TODO()
 }
@@ -106,8 +106,8 @@ open class UnsupportedPluginRepository : PluginRepository {
     override val connectedPlugins: Flow<List<Plugin>> get() = TODO()
     override val disabledPlugins: Flow<Set<String>> get() = TODO()
     override val pendingActions: Flow<List<PluginPendingAction>> get() = TODO()
-    override suspend fun refreshPluginStatuses() = TODO()
-    override suspend fun refreshPlugins() = TODO()
+    override suspend fun refreshPluginStatuses() { TODO() }
+    override suspend fun refreshPlugins() { TODO() }
     override suspend fun enablePlugin(pluginId: String): Result<Unit> = TODO()
     override suspend fun disablePlugin(pluginId: String): Result<Unit> = TODO()
     override suspend fun getSearchSuggestions(query: String): Flow<List<Result<SearchSuggestions>>> = TODO()
@@ -188,28 +188,28 @@ open class UnsupportedPlayerRepository : PlayerRepository {
     override suspend fun getBufferedPosition(): Long = TODO()
     override val isCasting: StateFlow<Boolean> get() = TODO()
     override val queue: Flow<List<Song>> get() = TODO()
-    override suspend fun play(song: Song, context: PlaybackContext?) = TODO()
-    override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) = TODO()
-    override suspend fun pause() = TODO()
-    override suspend fun resume() = TODO()
-    override suspend fun togglePlayPause() = TODO()
-    override suspend fun stop() = TODO()
-    override suspend fun skipToNext() = TODO()
-    override suspend fun skipToPrevious() = TODO()
-    override suspend fun playFromQueue(index: Int) = TODO()
-    override suspend fun seekTo(positionMs: Long) = TODO()
-    override suspend fun addToQueue(song: Song) = TODO()
-    override suspend fun playNext(song: Song) = TODO()
-    override suspend fun duplicateInQueue(index: Int) = TODO()
-    override suspend fun removeFromQueue(index: Int) = TODO()
-    override suspend fun reorderQueue(fromIndex: Int, toIndex: Int) = TODO()
-    override suspend fun clearQueue() = TODO()
-    override suspend fun setShuffle(enabled: Boolean) = TODO()
-    override suspend fun setRepeatMode(mode: RepeatMode) = TODO()
+    override suspend fun play(song: Song, context: PlaybackContext?) { TODO() }
+    override suspend fun playAll(songs: List<Song>, startIndex: Int, context: PlaybackContext?) { TODO() }
+    override suspend fun pause() { TODO() }
+    override suspend fun resume() { TODO() }
+    override suspend fun togglePlayPause() { TODO() }
+    override suspend fun stop() { TODO() }
+    override suspend fun skipToNext() { TODO() }
+    override suspend fun skipToPrevious() { TODO() }
+    override suspend fun playFromQueue(index: Int) { TODO() }
+    override suspend fun seekTo(positionMs: Long) { TODO() }
+    override suspend fun addToQueue(song: Song) { TODO() }
+    override suspend fun playNext(song: Song) { TODO() }
+    override suspend fun duplicateInQueue(index: Int) { TODO() }
+    override suspend fun removeFromQueue(index: Int) { TODO() }
+    override suspend fun reorderQueue(fromIndex: Int, toIndex: Int) { TODO() }
+    override suspend fun clearQueue() { TODO() }
+    override suspend fun setShuffle(enabled: Boolean) { TODO() }
+    override suspend fun setRepeatMode(mode: RepeatMode) { TODO() }
     override val playbackSpeed: StateFlow<Float> get() = TODO()
     override val playbackPitch: StateFlow<Float> get() = TODO()
-    override suspend fun setPlaybackSpeed(speed: Float) = TODO()
-    override suspend fun setPlaybackPitch(pitch: Float) = TODO()
+    override suspend fun setPlaybackSpeed(speed: Float) { TODO() }
+    override suspend fun setPlaybackPitch(pitch: Float) { TODO() }
     override suspend fun getAudioFormat(): AudioFormat? = TODO()
     override suspend fun playRemote(
         mediaId: MediaId,
@@ -217,110 +217,110 @@ open class UnsupportedPlayerRepository : PlayerRepository {
         artist: String,
         artworkUrl: String,
         playWhenReady: Boolean,
-    ) = TODO()
-    override fun setFollowerMode(enabled: Boolean) = TODO()
+    ) { TODO() }
+    override fun setFollowerMode(enabled: Boolean) { TODO() }
 }
 
 open class UnsupportedSettingsRepository : SettingsRepository {
     override val dynamicThemeMode: Flow<DynamicThemeMode> get() = TODO()
-    override suspend fun setDynamicThemeMode(mode: DynamicThemeMode) = TODO()
+    override suspend fun setDynamicThemeMode(mode: DynamicThemeMode) { TODO() }
     override val themeMode: Flow<ThemeMode> get() = TODO()
-    override suspend fun setThemeMode(mode: ThemeMode) = TODO()
+    override suspend fun setThemeMode(mode: ThemeMode) { TODO() }
     override val pureBlack: Flow<Boolean> get() = TODO()
-    override suspend fun setPureBlack(enabled: Boolean) = TODO()
+    override suspend fun setPureBlack(enabled: Boolean) { TODO() }
     override val accentColor: Flow<Int?> get() = TODO()
-    override suspend fun setAccentColor(argb: Int?) = TODO()
+    override suspend fun setAccentColor(argb: Int?) { TODO() }
     override val audioQuality: Flow<AudioQuality> get() = TODO()
-    override suspend fun setAudioQuality(quality: AudioQuality) = TODO()
+    override suspend fun setAudioQuality(quality: AudioQuality) { TODO() }
     override val historyDuration: Flow<HistoryDuration> get() = TODO()
-    override suspend fun setHistoryDuration(duration: HistoryDuration) = TODO()
+    override suspend fun setHistoryDuration(duration: HistoryDuration) { TODO() }
     override val skipSilence: Flow<Boolean> get() = TODO()
-    override suspend fun setSkipSilence(enabled: Boolean) = TODO()
+    override suspend fun setSkipSilence(enabled: Boolean) { TODO() }
     override val replayGainEnabled: Flow<Boolean> get() = TODO()
-    override suspend fun setReplayGainEnabled(enabled: Boolean) = TODO()
+    override suspend fun setReplayGainEnabled(enabled: Boolean) { TODO() }
     override val replayGainPreampDb: Flow<Float> get() = TODO()
-    override suspend fun setReplayGainPreampDb(preampDb: Float) = TODO()
+    override suspend fun setReplayGainPreampDb(preampDb: Float) { TODO() }
     override val replayGainAlbumMode: Flow<Boolean> get() = TODO()
-    override suspend fun setReplayGainAlbumMode(enabled: Boolean) = TODO()
+    override suspend fun setReplayGainAlbumMode(enabled: Boolean) { TODO() }
     override val replayGainMode: Flow<ReplayGainMode> get() = TODO()
-    override suspend fun setReplayGainMode(mode: ReplayGainMode) = TODO()
+    override suspend fun setReplayGainMode(mode: ReplayGainMode) { TODO() }
     override val replayGainUntaggedPreampDb: Flow<Float> get() = TODO()
-    override suspend fun setReplayGainUntaggedPreampDb(preampDb: Float) = TODO()
+    override suspend fun setReplayGainUntaggedPreampDb(preampDb: Float) { TODO() }
     override val replayGainDrcEnabled: Flow<Boolean> get() = TODO()
-    override suspend fun setReplayGainDrcEnabled(enabled: Boolean) = TODO()
+    override suspend fun setReplayGainDrcEnabled(enabled: Boolean) { TODO() }
     override val replayGainPostAmpDb: Flow<Float> get() = TODO()
-    override suspend fun setReplayGainPostAmpDb(postAmpDb: Float) = TODO()
+    override suspend fun setReplayGainPostAmpDb(postAmpDb: Float) { TODO() }
     override val dspBypass: Flow<Boolean> get() = TODO()
-    override suspend fun setDspBypass(enabled: Boolean) = TODO()
+    override suspend fun setDspBypass(enabled: Boolean) { TODO() }
     override val autoLoadMore: Flow<Boolean> get() = TODO()
-    override suspend fun setAutoLoadMore(enabled: Boolean) = TODO()
+    override suspend fun setAutoLoadMore(enabled: Boolean) { TODO() }
     override val crossfadeDurationSeconds: Flow<Int> get() = TODO()
-    override suspend fun setCrossfadeDurationSeconds(seconds: Int) = TODO()
+    override suspend fun setCrossfadeDurationSeconds(seconds: Int) { TODO() }
     override val skipOnError: Flow<Boolean> get() = TODO()
-    override suspend fun setSkipOnError(enabled: Boolean) = TODO()
+    override suspend fun setSkipOnError(enabled: Boolean) { TODO() }
     override val seekIncrementSeconds: Flow<Int> get() = TODO()
-    override suspend fun setSeekIncrementSeconds(seconds: Int) = TODO()
+    override suspend fun setSeekIncrementSeconds(seconds: Int) { TODO() }
     override val stopOnTaskRemoved: Flow<Boolean> get() = TODO()
-    override suspend fun setStopOnTaskRemoved(enabled: Boolean) = TODO()
+    override suspend fun setStopOnTaskRemoved(enabled: Boolean) { TODO() }
     override val keepScreenOnPlayer: Flow<Boolean> get() = TODO()
-    override suspend fun setKeepScreenOnPlayer(enabled: Boolean) = TODO()
+    override suspend fun setKeepScreenOnPlayer(enabled: Boolean) { TODO() }
     override val swipeToChangeSong: Flow<Boolean> get() = TODO()
-    override suspend fun setSwipeToChangeSong(enabled: Boolean) = TODO()
+    override suspend fun setSwipeToChangeSong(enabled: Boolean) { TODO() }
     override val swipeSensitivity: Flow<SwipeSensitivity> get() = TODO()
-    override suspend fun setSwipeSensitivity(sensitivity: SwipeSensitivity) = TODO()
+    override suspend fun setSwipeSensitivity(sensitivity: SwipeSensitivity) { TODO() }
     override val pauseWhenMuted: Flow<Boolean> get() = TODO()
-    override suspend fun setPauseWhenMuted(enabled: Boolean) = TODO()
+    override suspend fun setPauseWhenMuted(enabled: Boolean) { TODO() }
     override val resumeOnBluetooth: Flow<Boolean> get() = TODO()
-    override suspend fun setResumeOnBluetooth(enabled: Boolean) = TODO()
+    override suspend fun setResumeOnBluetooth(enabled: Boolean) { TODO() }
     override val sleepTimerFadeOut: Flow<Boolean> get() = TODO()
-    override suspend fun setSleepTimerFadeOut(enabled: Boolean) = TODO()
+    override suspend fun setSleepTimerFadeOut(enabled: Boolean) { TODO() }
     override val preventDuplicateQueue: Flow<Boolean> get() = TODO()
-    override suspend fun setPreventDuplicateQueue(enabled: Boolean) = TODO()
+    override suspend fun setPreventDuplicateQueue(enabled: Boolean) { TODO() }
     override val persistentQueueEnabled: Flow<Boolean> get() = TODO()
-    override suspend fun setPersistentQueueEnabled(enabled: Boolean) = TODO()
+    override suspend fun setPersistentQueueEnabled(enabled: Boolean) { TODO() }
     override val blockScreenshots: Flow<Boolean> get() = TODO()
-    override suspend fun setBlockScreenshots(enabled: Boolean) = TODO()
+    override suspend fun setBlockScreenshots(enabled: Boolean) { TODO() }
     override val showExplicitContent: Flow<Boolean> get() = TODO()
-    override suspend fun setShowExplicitContent(enabled: Boolean) = TODO()
+    override suspend fun setShowExplicitContent(enabled: Boolean) { TODO() }
     override val randomizeHomeOrder: Flow<Boolean> get() = TODO()
-    override suspend fun setRandomizeHomeOrder(enabled: Boolean) = TODO()
+    override suspend fun setRandomizeHomeOrder(enabled: Boolean) { TODO() }
     override val offlineMode: Flow<Boolean> get() = TODO()
-    override suspend fun setOfflineMode(enabled: Boolean) = TODO()
+    override suspend fun setOfflineMode(enabled: Boolean) { TODO() }
     override val autoDownloadOnLike: Flow<Boolean> get() = TODO()
-    override suspend fun setAutoDownloadOnLike(enabled: Boolean) = TODO()
+    override suspend fun setAutoDownloadOnLike(enabled: Boolean) { TODO() }
     override val maxSongCacheSize: Flow<Long> get() = TODO()
-    override suspend fun setMaxSongCacheSize(size: Long) = TODO()
+    override suspend fun setMaxSongCacheSize(size: Long) { TODO() }
     override val maxImageCacheSize: Flow<Long> get() = TODO()
-    override suspend fun setMaxImageCacheSize(size: Long) = TODO()
+    override suspend fun setMaxImageCacheSize(size: Long) { TODO() }
     override val lyricsFontSize: Flow<LyricsFontSize> get() = TODO()
-    override suspend fun setLyricsFontSize(size: LyricsFontSize) = TODO()
+    override suspend fun setLyricsFontSize(size: LyricsFontSize) { TODO() }
     override val lyricsAlignment: Flow<LyricsAlignment> get() = TODO()
-    override suspend fun setLyricsAlignment(alignment: LyricsAlignment) = TODO()
+    override suspend fun setLyricsAlignment(alignment: LyricsAlignment) { TODO() }
     override val lyricsFontWeight: Flow<LyricsFontWeight> get() = TODO()
-    override suspend fun setLyricsFontWeight(weight: LyricsFontWeight) = TODO()
+    override suspend fun setLyricsFontWeight(weight: LyricsFontWeight) { TODO() }
     override val lyricsHighlightColor: Flow<LyricsHighlightColor> get() = TODO()
-    override suspend fun setLyricsHighlightColor(color: LyricsHighlightColor) = TODO()
+    override suspend fun setLyricsHighlightColor(color: LyricsHighlightColor) { TODO() }
     override val lyricsActiveLineScale: Flow<Float> get() = TODO()
-    override suspend fun setLyricsActiveLineScale(scale: Float) = TODO()
+    override suspend fun setLyricsActiveLineScale(scale: Float) { TODO() }
     override val lyricsAutoScroll: Flow<Boolean> get() = TODO()
-    override suspend fun setLyricsAutoScroll(enabled: Boolean) = TODO()
+    override suspend fun setLyricsAutoScroll(enabled: Boolean) { TODO() }
     override val lyricsTapToSeek: Flow<Boolean> get() = TODO()
-    override suspend fun setLyricsTapToSeek(enabled: Boolean) = TODO()
+    override suspend fun setLyricsTapToSeek(enabled: Boolean) { TODO() }
     override val lyricsDimInactiveLines: Flow<Boolean> get() = TODO()
-    override suspend fun setLyricsDimInactiveLines(enabled: Boolean) = TODO()
+    override suspend fun setLyricsDimInactiveLines(enabled: Boolean) { TODO() }
     override val lyricsShowTranslationByDefault: Flow<Boolean> get() = TODO()
-    override suspend fun setLyricsShowTranslationByDefault(enabled: Boolean) = TODO()
+    override suspend fun setLyricsShowTranslationByDefault(enabled: Boolean) { TODO() }
     override val lyricsShowRomanizationByDefault: Flow<Boolean> get() = TODO()
-    override suspend fun setLyricsShowRomanizationByDefault(enabled: Boolean) = TODO()
+    override suspend fun setLyricsShowRomanizationByDefault(enabled: Boolean) { TODO() }
     override val lyricsSettings: Flow<LyricsSettings> get() = TODO()
     override fun sortOrder(view: SortView): Flow<SortOrder> = TODO()
-    override suspend fun setSortOrder(view: SortView, order: SortOrder) = TODO()
+    override suspend fun setSortOrder(view: SortView, order: SortOrder) { TODO() }
     override val libraryTabsConfig: Flow<LibraryTabsConfig> get() = TODO()
-    override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) = TODO()
+    override suspend fun setLibraryTabsConfig(config: LibraryTabsConfig) { TODO() }
     override val homeSignInCardDismissed: Flow<Boolean> get() = TODO()
-    override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) = TODO()
+    override suspend fun setHomeSignInCardDismissed(dismissed: Boolean) { TODO() }
     override val recommendationsEnabled: Flow<Boolean> get() = TODO()
-    override suspend fun setRecommendationsEnabled(enabled: Boolean) = TODO()
+    override suspend fun setRecommendationsEnabled(enabled: Boolean) { TODO() }
     override val contributeAnonymizedTaste: Flow<Boolean> get() = TODO()
-    override suspend fun setContributeAnonymizedTaste(enabled: Boolean) = TODO()
+    override suspend fun setContributeAnonymizedTaste(enabled: Boolean) { TODO() }
 }
