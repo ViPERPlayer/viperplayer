@@ -21,239 +21,175 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setSamplingRate(JNIEnv *env, 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setMasterLimiterOutputGain(JNIEnv *env, jobject thiz, jfloat gainL, jfloat gainR) {
-    viperEngine.setGain(gainL, gainR);
+    viperEngine.parameters.setFloat(viper::Param::MasterLimiterGainL, gainL);
+    viperEngine.parameters.setFloat(viper::Param::MasterLimiterGainR, gainR);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setMasterLimiterThresholdLimit(JNIEnv *env, jobject thiz, jfloat threshold) {
-    viperEngine.setThresholdLimit(threshold);
+    viperEngine.parameters.setFloat(viper::Param::MasterLimiterThresholdLimit, threshold);
 }
 
 // Spectrum Extension
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setSpectrumExtensionEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.spectrumExtend.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::SpectrumExtensionEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setSpectrumExtensionStrength(JNIEnv *env, jobject thiz, jint strength) {
-    // Convert 0-100 to actual exciter value
-    float exciter = (float) strength / 100.0f;
-    viperEngine.spectrumExtend.SetExciter(exciter);
+    viperEngine.parameters.setInt(viper::Param::SpectrumExtensionStrength, strength);
 }
 
 // Field Surround (Reverberation)
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFieldSurroundEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.colorfulMusic.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::FieldSurroundEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFieldSurroundStrength(JNIEnv *env, jobject thiz, jint strength) {
-    viperEngine.colorfulMusic.SetDepthValue((short) strength);
+    viperEngine.parameters.setInt(viper::Param::FieldSurroundStrength, strength);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFieldSurroundMidImageStrength(JNIEnv *env, jobject thiz, jint strength) {
-    float midImageValue = (float) strength / 100;
-    viperEngine.colorfulMusic.SetMidImageValue(midImageValue);
+    viperEngine.parameters.setInt(viper::Param::FieldSurroundMidImageStrength, strength);
 }
 
 // Differential Surround
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setDifferentialSurroundEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.diffSurround.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::DifferentialSurroundEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setDifferentialSurroundDelay(JNIEnv *env, jobject thiz, jint delay) {
-    float delayTime = (float) delay / 100.0f;
-    viperEngine.diffSurround.SetDelayTime(delayTime);
+    viperEngine.parameters.setInt(viper::Param::DifferentialSurroundDelay, delay);
 }
 
 // Dynamic System
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setDynamicSystemEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.dynamicSystem.SetEnable(enabled);
-}
-
-// Dynamic System device presets.
-// These mirror, in declaration order, the Kotlin enum
-// com.viperplayer.domain.model.DynamicSystemDeviceType so the JNI signature
-// setDynamicSystemDeviceType(ordinal) stays unchanged. The values are the
-// original ViPER4Android device tables: {xLow, xHigh, yLow, yHigh, gainX, gainY}.
-// gainX/gainY are sent in percent and converted to linear side gains (/100),
-// matching the "100 == unity" convention used by setDynamicSystemBassStrength.
-namespace {
-    struct DynSysPreset {
-        uint32_t xLow, xHigh, yLow, yHigh;
-        int gainX, gainY;
-    };
-    constexpr DynSysPreset kDynSysPresets[] = {
-            {140, 6200, 40, 60, 10, 80},   // EXTREME_HEADPHONE_V2
-            {180, 5800, 55, 80, 10, 70},   // HIGH_END_HEADPHONE_V2
-            {300, 5600, 60, 105, 10, 50},  // COMMON_HEADPHONE_V2
-            {600, 5400, 60, 105, 10, 20},  // LOW_END_HEADPHONE_V2
-            {100, 5600, 40, 80, 50, 50},   // COMMON_EARPHONE_V2
-            {1200, 6200, 40, 80, 0, 20},   // EXTREME_HEADPHONE_V1
-            {1000, 6200, 40, 80, 0, 10},   // HIGH_END_HEADPHONE_V1
-            {800, 6200, 40, 80, 10, 0},    // COMMON_HEADPHONE_V1
-            {400, 6200, 40, 80, 10, 0},    // COMMON_EARPHONE_V1
-            {1200, 6200, 50, 90, 15, 10},  // APPLE_EARPHONE
-            {1000, 6200, 50, 90, 30, 10},  // MONSTER_EARPHONE
-            {1100, 6200, 60, 100, 20, 0},  // MOTOROLA_EARPHONE
-            {1200, 6200, 50, 100, 10, 50}, // PHILIPS_EARPHONE
-            {1200, 6200, 60, 100, 0, 30},  // SHP2000
-            {1200, 6200, 40, 80, 0, 30},   // SHP9000
-            {1000, 6200, 60, 100, 0, 0},   // UNKNOWN_TYPE_I
-            {1000, 6200, 60, 120, 0, 0},   // UNKNOWN_TYPE_II
-            {1000, 6200, 80, 140, 0, 0},   // UNKNOWN_TYPE_III
-            {800, 6200, 80, 140, 0, 0},    // UNKNOWN_TYPE_IV
-            {0, 0, 0, 0, 0, 0},            // UNKNOWN_TYPE_V
-            {180, 5400, 40, 60, 50, 0},    // PITT_VAN_DE_WITT_FLAVOR_1
-            {1200, 6000, 40, 60, 0, 80},   // PITT_VAN_DE_WITT_FLAVOR_2
-            {140, 5400, 40, 60, 0, 0},     // PITT_VAN_DE_WITT_FLAVOR_3
-    };
-    constexpr int kDynSysPresetCount = sizeof(kDynSysPresets) / sizeof(kDynSysPresets[0]);
+    viperEngine.parameters.setBool(viper::Param::DynamicSystemEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setDynamicSystemDeviceType(JNIEnv *env, jobject thiz, jint deviceTypeOrdinal) {
-    if (deviceTypeOrdinal < 0 || deviceTypeOrdinal >= kDynSysPresetCount) {
+    // Reject (and report) a bad ordinal here rather than on the audio thread, which has no way to
+    // log and nothing useful to do with it. The preset table itself lives next to the code that
+    // reads it, in ViPER::applyParameter.
+    if (deviceTypeOrdinal < 0 || deviceTypeOrdinal >= viper::kDynamicSystemDeviceTypeCount) {
         __android_log_print(ANDROID_LOG_ERROR, "ViPERPlayer", "Invalid dynamic system device type: %d", deviceTypeOrdinal);
         return;
     }
-
-    const DynSysPreset &preset = kDynSysPresets[deviceTypeOrdinal];
-    viperEngine.dynamicSystem.SetXCoeffs(preset.xLow, preset.xHigh);
-    viperEngine.dynamicSystem.SetYCoeffs(preset.yLow, preset.yHigh);
-    viperEngine.dynamicSystem.SetSideGain((float) preset.gainX / 100.0f, (float) preset.gainY / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::DynamicSystemDeviceType, deviceTypeOrdinal);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setDynamicSystemBassStrength(JNIEnv *env, jobject thiz, jint strength) {
-    // Convert 0-100 to bass gain
-    float bassGain = (float) strength / 100.0f;
-    viperEngine.dynamicSystem.SetBassGain(bassGain);
+    viperEngine.parameters.setInt(viper::Param::DynamicSystemBassStrength, strength);
 }
 
 // Tube Simulator
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setTubeSimulatorEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.tubeSimulator.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::TubeSimulatorEnabled, enabled);
 }
 
 // ViPER Bass
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperBassEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.viperBass.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::ViperBassEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperBassMode(JNIEnv *env, jobject thiz, jint mode) {
-    ViPERBass::ProcessMode processMode = static_cast<ViPERBass::ProcessMode>(mode);
-    viperEngine.viperBass.SetProcessMode(processMode);
+    viperEngine.parameters.setInt(viper::Param::ViperBassMode, mode);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperBassFrequency(JNIEnv *env, jobject thiz, jint frequency) {
-    viperEngine.viperBass.SetSpeaker(frequency);
+    viperEngine.parameters.setInt(viper::Param::ViperBassFrequency, frequency);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperBassGain(JNIEnv *env, jobject thiz, jint gain) {
-    float bassFactor = (float) gain * 50.0f / 100.0f;
-    viperEngine.viperBass.SetBassFactor(bassFactor);
+    viperEngine.parameters.setInt(viper::Param::ViperBassGain, gain);
 }
 
 // ViPER Clarity
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperClarityEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.viperClarity.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::ViperClarityEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperClarityMode(JNIEnv *env, jobject thiz, jint mode) {
-    ViPERClarity::ClarityMode clarityMode = static_cast<ViPERClarity::ClarityMode>(mode);
-    viperEngine.viperClarity.SetProcessMode(clarityMode);
+    viperEngine.parameters.setInt(viper::Param::ViperClarityMode, mode);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setViperClarityGain(JNIEnv *env, jobject thiz, jint gain) {
-    float clarityGain = (float) gain * 50.0f / 100.0f;
-    viperEngine.viperClarity.SetClarity(clarityGain);
+    viperEngine.parameters.setInt(viper::Param::ViperClarityGain, gain);
 }
 
 // Auditory System Protection (Cure)
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setAuditorySystemProtectionEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.cure.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::AuditorySystemProtectionEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setAuditorySystemProtectionLevel(JNIEnv *env, jobject thiz, jint level) {
-    struct Crossfeed::Preset preset = {};
-
-    switch (level) {
-        case 1:
-            preset.cutoff = 650;
-            preset.feedback = 95;
-            break;
-        case 2:
-            preset.cutoff = 700;
-            preset.feedback = 60;
-            break;
-        case 3:
-            preset.cutoff = 700;
-            preset.feedback = 45;
-            break;
-        default:
-            __android_log_print(ANDROID_LOG_ERROR, "ViPERPlayer", "Invalid cure level: %d", level);
-            return;
+    // As with the device type: reject a bad level here, where it can be logged. The crossfeed
+    // presets live next to the code that applies them, in ViPER::applyParameter.
+    if (level < 1 || level > 3) {
+        __android_log_print(ANDROID_LOG_ERROR, "ViPERPlayer", "Invalid cure level: %d", level);
+        return;
     }
-
-    viperEngine.cure.SetPreset(preset);
+    viperEngine.parameters.setInt(viper::Param::AuditorySystemProtectionLevel, level);
 }
 
 // Analog X
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setAnalogXEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.analogX.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::AnalogXEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setAnalogXLevel(JNIEnv *env, jobject thiz, jint level) {
-    viperEngine.analogX.SetProcessingModel(level - 1);
+    viperEngine.parameters.setInt(viper::Param::AnalogXLevel, level);
 }
 
 // Speaker Optimization
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setSpeakerOptimizationEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.speakerCorrection.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::SpeakerOptimizationEnabled, enabled);
 }
 
 // IIR Equalizer
@@ -402,36 +338,21 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainEnabled(JNIEnv *env, jobject thiz,
                                                                          jboolean enabled) {
-    viperEngine.playbackGain.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::PlaybackGainEnabled, enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainStrength(JNIEnv *env, jobject thiz,
                                                                           jint strength) {
-    // Map strength (1-3) to Ratio (float)
-    // 1 (Weak) -> 0.5
-    // 2 (Moderate) -> 1.0
-    // 3 (Strong) -> 2.0
-    float ratio = 1.0f;
-    switch(strength) {
-        case 1: ratio = 0.5f; break;
-        case 2: ratio = 1.0f; break;
-        case 3: ratio = 2.0f; break;
-        default: ratio = 1.0f; break;
-    }
-    viperEngine.playbackGain.SetRatio(ratio);
+    viperEngine.parameters.setInt(viper::Param::PlaybackGainStrength, strength);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainMaxGain(JNIEnv *env, jobject thiz,
                                                                          jint max_gain) {
-    // Map max_gain (1-10, >10=Inf) to Factor
-    // >10 -> Infinite (e.g. 100x)
-    float factor = (float)max_gain;
-    if (max_gain > 10) factor = 100.0f;
-    viperEngine.playbackGain.SetMaxGainFactor(factor);
+    viperEngine.parameters.setInt(viper::Param::PlaybackGainMaxGain, max_gain);
 }
 
 extern "C"
@@ -439,97 +360,93 @@ JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setPlaybackGainOutputThreshold(JNIEnv *env,
                                                                                  jobject thiz,
                                                                                  jfloat threshold) {
-    // Map threshold (dB) to Volume (linear)
-    // threshold is usually negative (e.g. -1.0dB).
-    if (threshold > 0.0f) threshold = 0.0f;
-    float volume = powf(10.0f, threshold / 20.0f);
-    viperEngine.playbackGain.SetVolume(volume);
+    viperEngine.parameters.setFloat(viper::Param::PlaybackGainOutputThreshold, threshold);
 }
 
 // FET Compressor
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.fetCompressor.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::FetCompressorEnabled, enabled);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorThreshold(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(1, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorThreshold, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorRatio(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(2, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorRatio, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorKnee(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(3, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorKnee, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorAutoKnee(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.fetCompressor.SetParameter(4, enabled ? 1.0f : 0.0f);
+    viperEngine.parameters.setBool(viper::Param::FetCompressorAutoKnee, enabled);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorGain(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(5, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorGain, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorAutoGain(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.fetCompressor.SetParameter(6, enabled ? 1.0f : 0.0f);
+    viperEngine.parameters.setBool(viper::Param::FetCompressorAutoGain, enabled);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorAttack(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(7, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorAttack, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorAutoAttack(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.fetCompressor.SetParameter(8, enabled ? 1.0f : 0.0f);
+    viperEngine.parameters.setBool(viper::Param::FetCompressorAutoAttack, enabled);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorRelease(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(9, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorRelease, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorAutoRelease(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.fetCompressor.SetParameter(10, enabled ? 1.0f : 0.0f);
+    viperEngine.parameters.setBool(viper::Param::FetCompressorAutoRelease, enabled);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorKneeMulti(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(11, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorKneeMulti, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorMaxAttack(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(12, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorMaxAttack, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorMaxRelease(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(13, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorMaxRelease, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorCrest(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(14, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorCrest, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorAdapt(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.fetCompressor.SetParameter(15, value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::FetCompressorAdapt, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setFetCompressorNoClip(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.fetCompressor.SetParameter(16, enabled ? 1.0f : 0.0f);
+    viperEngine.parameters.setBool(viper::Param::FetCompressorNoClip, enabled);
 }
 
 // ViPER Headphone Surround+ (VHE)
@@ -550,32 +467,32 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setHeadphoneSurroundLevel(JNI
 // Freeverb range the CRevModel setters expect.
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
-    viperEngine.reverberation.SetEnable(enabled);
+    viperEngine.parameters.setBool(viper::Param::ReverberationEnabled, enabled);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationRoomSize(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.reverberation.SetRoomSize((float) value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::ReverberationRoomSize, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationWidth(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.reverberation.SetWidth((float) value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::ReverberationWidth, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationDamp(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.reverberation.SetDamp((float) value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::ReverberationDamp, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationWet(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.reverberation.SetWet((float) value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::ReverberationWet, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setReverberationDry(JNIEnv *env, jobject thiz, jint value) {
-    viperEngine.reverberation.SetDry((float) value / 100.0f);
+    viperEngine.parameters.setInt(viper::Param::ReverberationDry, value);
 }
 
 // Common

@@ -15,11 +15,16 @@ add_executable(viper_dsp_tests
 
         # Tests
         IIREqualizerTest.cpp
+        ParameterStoreTest.cpp
 
         # Units under test. Only self-contained, Android-free DSP sources can be listed here; an
         # effect that reaches for <android/log.h> or JNI would need that dependency broken first.
         "${VIPER_CPP_DIR}/viper/dsp/IIREqualizer.cpp"
+        # ParameterStore is header-only.
 )
+
+find_package(Threads REQUIRED)
+target_link_libraries(viper_dsp_tests PRIVATE Threads::Threads)
 
 target_include_directories(viper_dsp_tests PRIVATE
         "${VIPER_CPP_DIR}"

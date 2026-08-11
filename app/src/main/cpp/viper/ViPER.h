@@ -20,6 +20,7 @@
 #include "effects/ViPERBass.h"
 #include "effects/SoftwareLimiter.h"
 #include "effects/PlaybackGain.h"
+#include "ParameterStore.h"
 #include <array>
 
 class ViPER {
@@ -30,8 +31,12 @@ public:
     void reset();
     void setSamplingRate(uint32_t samplingRate);
     uint32_t getSamplingRate() const { return samplingRate; }
-    void setGain(float gainL, float gainR);
-    void setThresholdLimit(float thresholdLimit);
+
+    /**
+     * Scalar parameters staged by the control thread and applied by process() on the audio thread.
+     * See ParameterStore for which parameters go through here and which are written directly.
+     */
+    viper::ParameterStore parameters;
 
     // Effects
     ViPERDDC viperDdc;
@@ -53,6 +58,9 @@ public:
     SpeakerCorrection speakerCorrection;
 
 private:
+    /** Writes one staged parameter to its effect. Audio thread only — called from process(). */
+    void applyParameter(viper::Param param, int32_t raw);
+
     std::vector<SoftwareLimiter> softwareLimiters = {SoftwareLimiter(), SoftwareLimiter()}; // Changed to std::vector and initialized
     uint32_t samplingRate;
     float leftGain = 1;
