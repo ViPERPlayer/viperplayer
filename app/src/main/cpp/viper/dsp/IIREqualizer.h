@@ -1,6 +1,7 @@
 #ifndef VIPER_DSP_IIREQUALIZER_H
 #define VIPER_DSP_IIREQUALIZER_H
 
+#include <atomic>
 #include <vector>
 #include <cmath>
 #include <memory>
@@ -65,7 +66,10 @@ namespace dsp {
     private:
         struct Biquad; // Forward declaration
         
-        bool mEnabled;
+        // Read by process() on the audio thread and written by setEnabled() on the control thread,
+        // both outside mMutex (process() checks it before it even tries to lock). A plain bool there
+        // is a data race; relaxed ordering is enough because the flag guards nothing but itself.
+        std::atomic<bool> mEnabled;
         int mSampleRate;
         BandCount mBandCountType;
         std::vector<double> mBandFrequencies;

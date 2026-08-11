@@ -146,6 +146,82 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// --- Host-side native DSP tests -------------------------------------------------------------
+//
+// The DSP under src/main/cpp is only reachable through JNI, so the JVM unit tests cannot exercise
+// it and instrumentation tests would need a device. The units in viper/dsp are plain C++ with no
+// Android dependencies, so src/test/cpp builds and runs them on the build host instead. Hooked into
+// `check` (and therefore `build`, which is what CI runs) so a DSP regression fails the build.
+val nativeDspTestSourceDir = layout.projectDirectory.dir("src/test/cpp")
+val nativeDspTestBuildDir = layout.buildDirectory.dir("native-dsp-tests")
+
+// CMake resolution, preferring the SDK's pinned copy so the version matches the Android build and a
+// host without cmake on PATH still works. Resolved at configuration time (a File, not a Project) to
+// stay configuration-cache friendly.
+val cmakeExecutable: String = run {
+    val sdkDir = System.getenv("ANDROID_HOME")
+        ?: System.getenv("ANDROID_SDK_ROOT")
+        ?: providers.gradleProperty("sdk.dir").orNull
+        ?: rootProject.file("local.properties").takeIf { it.exists() }?.let { properties ->
+            properties.readLines()
+                .firstOrNull { it.startsWith("sdk.dir=") }
+                ?.substringAfter("sdk.dir=")
+                ?.trim()
+        }
+    val sdkCmake = sdkDir
+        ?.let { file("$it/cmake") }
+        ?.takeIf { it.isDirectory }
+        ?.listFiles()
+        ?.filter { it.isDirectory }
+        // Directory names are CMake versions ("3.22.1", "3.31.6"); take the newest by version
+        // order, zero-padding each component so "3.31.6" sorts above "3.9.0" rather than below it.
+        ?.maxByOrNull { dir ->
+            dir.name.split(".")
+                .mapNotNull(String::toIntOrNull)
+                .joinToString(".") { component -> component.toString().padStart(5, '0') }
+        }
+        ?.resolve("bin/cmake")
+        ?.takeIf { it.canExecute() }
+    sdkCmake?.absolutePath ?: "cmake"
+}
+
+val configureNativeDspTests by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Configures the host-side CMake project for the native DSP tests."
+    inputs.file(nativeDspTestSourceDir.file("CMakeLists.txt"))
+    outputs.dir(nativeDspTestBuildDir)
+    commandLine(
+        cmakeExecutable,
+        "-S", nativeDspTestSourceDir.asFile.absolutePath,
+        "-B", nativeDspTestBuildDir.get().asFile.absolutePath,
+        "-DCMAKE_BUILD_TYPE=Release",
+    )
+}
+
+val buildNativeDspTests by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Builds the host-side native DSP test binary."
+    dependsOn(configureNativeDspTests)
+    // Both the tests and the DSP sources they compile in are inputs, so touching either re-runs it.
+    inputs.dir(nativeDspTestSourceDir)
+    inputs.dir(layout.projectDirectory.dir("src/main/cpp/viper/dsp"))
+    outputs.dir(nativeDspTestBuildDir)
+    commandLine(cmakeExecutable, "--build", nativeDspTestBuildDir.get().asFile.absolutePath)
+}
+
+val nativeDspTest by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Runs the host-side native DSP tests."
+    dependsOn(buildNativeDspTests)
+    inputs.dir(nativeDspTestBuildDir)
+    // Non-zero exit (== number of failed tests) fails the task.
+    commandLine(nativeDspTestBuildDir.get().asFile.resolve("viper_dsp_tests").absolutePath)
+}
+
+tasks.named("check") {
+    dependsOn(nativeDspTest)
+}
+
 // Dagger/Hilt (>= 2.57) unshades kotlin-metadata-jvm, so its Java annotation processor reads class
 // metadata via whatever version is on the classpath. Force it to match the Kotlin version, otherwise
 // Hilt's aggregating Java compile can't parse metadata newer than the version Dagger ships with

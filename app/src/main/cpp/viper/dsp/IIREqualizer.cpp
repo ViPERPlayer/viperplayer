@@ -45,9 +45,28 @@ namespace dsp {
 
     void IIREqualizer::configure(int sampleRate, BandCount bandCount) {
         std::lock_guard<std::mutex> lock(mMutex);
+
+        // setupBands() rebuilds every biquad at 0 dB and clears mBandGains, so the user's curve has
+        // to be carried across by hand. ViPER::setSamplingRate() routes through here for every
+        // stream whose rate differs from the last one, and without this a 44.1kHz track followed by
+        // a 48kHz one silently flattened the equalizer until something happened to re-push the gains.
+        const std::vector<double> previousGains = mBandGains;
+
         mSampleRate = sampleRate;
         mBandCountType = bandCount;
         setupBands();
+
+        // Only carry the curve when the band layout is unchanged — i.e. a rate-only reconfigure,
+        // which is the case for every real caller of this method. Across a band-count change the
+        // center frequencies differ, so gain[i] means a different thing before and after and copying
+        // by index would silently move the user's curve to the wrong frequencies. setBands() handles
+        // that case properly instead, by taking the new gains from the caller.
+        if (previousGains.size() == mBandGains.size()) {
+            for (size_t i = 0; i < previousGains.size(); ++i) {
+                setBandGainLocked(static_cast<int>(i), previousGains[i]);
+            }
+        }
+
         resetLocked();
     }
 
@@ -103,7 +122,7 @@ namespace dsp {
     }
 
     void IIREqualizer::setBandGainLocked(int bandIndex, double gainDb) {
-        if (bandIndex < 0 || bandIndex >= mBandFrequencies.size()) return;
+        if (bandIndex < 0 || static_cast<size_t>(bandIndex) >= mBandFrequencies.size()) return;
         
         mBandGains[bandIndex] = gainDb;
 
@@ -115,10 +134,10 @@ namespace dsp {
             case BandCount::BANDS_31: qFactor = 4.318; break;
         }
 
-        if (bandIndex < mFiltersLeft.size()) {
+        if (static_cast<size_t>(bandIndex) < mFiltersLeft.size()) {
             mFiltersLeft[bandIndex].setCoefficients(freq, qFactor, gainDb, mSampleRate);
         }
-        if (bandIndex < mFiltersRight.size()) {
+        if (static_cast<size_t>(bandIndex) < mFiltersRight.size()) {
             mFiltersRight[bandIndex].setCoefficients(freq, qFactor, gainDb, mSampleRate);
         }
     }
@@ -134,7 +153,7 @@ namespace dsp {
     }
     
     void IIREqualizer::setEnabled(bool enabled) {
-        mEnabled = enabled;
+        mEnabled.store(enabled, std::memory_order_relaxed);
         if (!enabled) {
             reset();
         }
@@ -163,7 +182,7 @@ namespace dsp {
     }
 
     void IIREqualizer::process(float* samples, int numSamples, int channelCount) {
-        if (!mEnabled) return;
+        if (!mEnabled.load(std::memory_order_relaxed)) return;
 
         // Non-blocking on the audio thread: skip (passthrough) if configure() is reallocating bands.
         std::unique_lock<std::mutex> lock(mMutex, std::try_to_lock);
@@ -199,12 +218,12 @@ namespace dsp {
     }
 
     double IIREqualizer::getBandFrequency(int bandIndex) const {
-         if (bandIndex < 0 || bandIndex >= mBandFrequencies.size()) return 0.0;
+         if (bandIndex < 0 || static_cast<size_t>(bandIndex) >= mBandFrequencies.size()) return 0.0;
          return mBandFrequencies[bandIndex];
     }
     
     double IIREqualizer::getBandGain(int bandIndex) const {
-         if (bandIndex < 0 || bandIndex >= mBandGains.size()) return 0.0;
+         if (bandIndex < 0 || static_cast<size_t>(bandIndex) >= mBandGains.size()) return 0.0;
          return mBandGains[bandIndex];
     }
 
