@@ -1,6 +1,7 @@
 package com.viperplayer.data.rec
 
 import android.content.Context
+import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -84,7 +85,7 @@ interface AudioDecoder {
  *
  * ## PCM layout
  * `MediaCodec` yields interleaved PCM. On API 24+ the decoder may emit float PCM
- * ([MediaFormat.KEY_PCM_ENCODING] == [android.media.AudioFormat.ENCODING_PCM_FLOAT]); otherwise it is
+ * ([MediaFormat.KEY_PCM_ENCODING] == [AudioFormat.ENCODING_PCM_FLOAT]); otherwise it is
  * 16-bit signed little-endian. Both are de-interleaved into a frame-major float array and scaled to
  * [-1, 1]. Downmix to mono is left to [MelSpectrogram.downmixToMono] (the single canonical downmix).
  *
@@ -226,7 +227,7 @@ class MediaCodecAudioDecoder(
         buffer.position(info.offset)
         buffer.limit(info.offset + info.size)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
-        if (encoding == android.media.AudioFormat.ENCODING_PCM_FLOAT) {
+        if (encoding == AudioFormat.ENCODING_PCM_FLOAT) {
             val fb = buffer.asFloatBuffer()
             val n = fb.remaining()
             for (i in 0 until n) out.add(fb.get())
@@ -243,7 +244,7 @@ class MediaCodecAudioDecoder(
         if (format.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
             format.getInteger(MediaFormat.KEY_PCM_ENCODING)
         } else {
-            android.media.AudioFormat.ENCODING_PCM_16BIT
+            AudioFormat.ENCODING_PCM_16BIT
         }
 
     companion object {

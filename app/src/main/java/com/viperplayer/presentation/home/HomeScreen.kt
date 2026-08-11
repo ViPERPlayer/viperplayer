@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.graphics.Shape
 import com.viperplayer.presentation.common.revealOnAppear
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1239,7 +1240,7 @@ private fun MultiBrowseCarousel(
 private fun MultiBrowseCard(
     item: MediaItem,
     showBackdrop: Boolean,
-    shape: androidx.compose.ui.graphics.Shape,
+    shape: Shape,
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
     isPlaying: Boolean = false,

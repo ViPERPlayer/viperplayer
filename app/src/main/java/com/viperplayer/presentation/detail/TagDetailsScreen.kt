@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +43,7 @@ import com.viperplayer.domain.model.TagDetails
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TagDetailsScreen(
     rootPadding: PaddingValues,
@@ -62,7 +63,7 @@ fun TagDetailsScreen(
  * grouped into Tags / File / Audio sections. Only rows whose value is present are emitted (empties are
  * omitted). Split out from the VM-backed [TagDetailsScreen] so it can be driven directly in tests.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TagDetailsScreenContent(
     rootPadding: PaddingValues,

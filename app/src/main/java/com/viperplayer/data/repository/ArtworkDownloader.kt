@@ -8,6 +8,7 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.viperplayer.domain.model.MediaId
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -24,7 +25,7 @@ class ArtworkDownloader @Inject constructor(
 ) {
     // Stable, collision-free cache key. sourceId.hashCode() (32-bit) collided -> wrong image served.
     private fun cacheFilename(mediaId: MediaId): String {
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val digest = MessageDigest.getInstance("SHA-256")
             .digest(mediaId.encode().toByteArray())
         return "artwork_" + digest.joinToString("") { "%02x".format(it.toInt() and 0xFF) } + ".jpg"
     }
