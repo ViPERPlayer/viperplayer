@@ -70,6 +70,18 @@ class ViperNativeDriver @Inject constructor() {
     external fun setIirEqualizerBandLevel(bandIndex: Int, level: Float)
     external fun setIirEqualizerBandCount(bandCountOrdinal: Int)
 
+    /**
+     * Apply the band count and every band gain in a SINGLE native call.
+     *
+     * Prefer this over `setIirEqualizerBandCount` + N x `setIirEqualizerBandLevel`: those are
+     * separate JNI calls made from a Default-dispatcher coroutine, so the audio thread can render
+     * buffers part-way through the sequence — with the new band count but the old gains, or with
+     * only some bands applied. The engine applies this one atomically with respect to `process`.
+     *
+     * [gains] is indexed by band; bands beyond its length are set to unity (0 dB).
+     */
+    external fun setIirEqualizerBands(bandCountOrdinal: Int, gains: FloatArray)
+
     // ViPER DDC
     external fun setViperDdcEnabled(enabled: Boolean)
     external fun viperDdcClearCoeffs()

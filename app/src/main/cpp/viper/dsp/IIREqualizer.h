@@ -35,6 +35,13 @@ namespace dsp {
 
         // Set the gain for a specific band index (db)
         void setBandGain(int bandIndex, double gainDb);
+
+        // Apply a whole EQ configuration ATOMICALLY with respect to process().
+        // The band count and every band gain land under a single lock acquisition, so the audio
+        // thread can never render a buffer through a half-applied curve (old band count with new
+        // gains, or N of M gains updated). Reconfigures only when bandCount actually changes, so a
+        // gains-only edit does not reset filter state.
+        void setBands(int sampleRate, BandCount bandCount, const std::vector<double>& gainsDb);
         
         void setEnabled(bool enabled);
 
@@ -65,12 +72,17 @@ namespace dsp {
         std::vector<double> mBandGains;
         std::vector<Biquad> mFiltersLeft;
         std::vector<Biquad> mFiltersRight;
-        // Guards the band vectors: process() (audio thread) try-locks and skips on contention;
-        // configure() (loader thread, on band-count change) holds it while it reallocates them.
+        // Guards the band vectors AND the biquad coefficients: process() (audio thread) try-locks
+        // and skips on contention; configure()/setBands()/setBandGain() (loader thread) hold it
+        // while they reallocate the vectors or rewrite coefficients in place.
         mutable std::mutex mMutex;
         
         // Helper to setup bands based on count
         void setupBands();
+
+        // Lock-free internals: callers must already hold mMutex.
+        void setBandGainLocked(int bandIndex, double gainDb);
+        void resetLocked();
         
         // Internal Biquad class definition
         struct Biquad {

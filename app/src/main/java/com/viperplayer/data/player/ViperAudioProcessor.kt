@@ -150,25 +150,23 @@ class ViperAudioProcessor @Inject constructor(
         if (current == null || current.iirEqualizer.enabled != state.iirEqualizer.enabled) {
             nativeDriver.setIirEqualizerEnabled(state.iirEqualizer.enabled)
         }
-        if (current == null || current.iirEqualizer.bandCount != state.iirEqualizer.bandCount) {
-            nativeDriver.setIirEqualizerBandCount(
+        // Band count and gains go over in ONE native call. Sending the count and then each gain
+        // separately let the audio thread render a buffer against a half-applied curve — new band
+        // count with old gains, or only some bands updated. Skipped entirely when neither changed,
+        // so a slider that is not moving costs nothing.
+        if (current == null ||
+            current.iirEqualizer.bandCount != state.iirEqualizer.bandCount ||
+            current.iirEqualizer.bandGains != state.iirEqualizer.bandGains
+        ) {
+            nativeDriver.setIirEqualizerBands(
                 when (state.iirEqualizer.bandCount) {
                     10 -> 0
                     15 -> 1
                     31 -> 2
                     else -> 0
-                }
+                },
+                state.iirEqualizer.bandGains.toFloatArray(),
             )
-        }
-        // Always update bands if any relevant state changed, or do granular check.
-        // Granular check is better for performance if many bands.
-        state.iirEqualizer.bandGains.forEachIndexed { index, gain ->
-            if (current == null ||
-                current.iirEqualizer.bandGains.size <= index ||
-                current.iirEqualizer.bandGains[index] != gain
-            ) {
-                nativeDriver.setIirEqualizerBandLevel(index, gain)
-            }
         }
 
         // Spectrum Extension

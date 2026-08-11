@@ -48,7 +48,7 @@ namespace dsp {
         mSampleRate = sampleRate;
         mBandCountType = bandCount;
         setupBands();
-        reset();
+        resetLocked();
     }
 
     void IIREqualizer::setupBands() {
@@ -96,6 +96,13 @@ namespace dsp {
     }
 
     void IIREqualizer::setBandGain(int bandIndex, double gainDb) {
+        // Coefficients are read by process() on the audio thread; writing them unguarded raced with
+        // that read and could feed a biquad a half-updated coefficient set.
+        std::lock_guard<std::mutex> lock(mMutex);
+        setBandGainLocked(bandIndex, gainDb);
+    }
+
+    void IIREqualizer::setBandGainLocked(int bandIndex, double gainDb) {
         if (bandIndex < 0 || bandIndex >= mBandFrequencies.size()) return;
         
         mBandGains[bandIndex] = gainDb;
@@ -117,6 +124,11 @@ namespace dsp {
     }
 
     void IIREqualizer::reset() {
+        std::lock_guard<std::mutex> lock(mMutex);
+        resetLocked();
+    }
+
+    void IIREqualizer::resetLocked() {
         for (auto& filter : mFiltersLeft) filter.reset();
         for (auto& filter : mFiltersRight) filter.reset();
     }
@@ -125,6 +137,28 @@ namespace dsp {
         mEnabled = enabled;
         if (!enabled) {
             reset();
+        }
+    }
+
+    void IIREqualizer::setBands(int sampleRate, BandCount bandCount, const std::vector<double>& gainsDb) {
+        std::lock_guard<std::mutex> lock(mMutex);
+
+        // Rebuild the band tables only when the shape actually changes. A gains-only edit (the
+        // common case — dragging one slider) then leaves filter state alone instead of resetting it,
+        // which would audibly click.
+        if (sampleRate != mSampleRate || bandCount != mBandCountType) {
+            mSampleRate = sampleRate;
+            mBandCountType = bandCount;
+            setupBands();
+            resetLocked();
+        }
+
+        const int bandCountNow = static_cast<int>(mBandFrequencies.size());
+        const int n = static_cast<int>(gainsDb.size());
+        for (int i = 0; i < bandCountNow; ++i) {
+            // Bands the caller did not supply keep unity gain rather than a stale value from the
+            // previous band count.
+            setBandGainLocked(i, i < n ? gainsDb[i] : 0.0);
         }
     }
 

@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <vector>
 #include <android/log.h>
 #include "viper/ViPER.h"
 #include "viper/effects/ViPERBass.h"
@@ -268,17 +269,41 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setIirEqualizerBandLevel(JNIE
     viperEngine.iirEqualizer.setBandGain(bandIndex, (double)level);
 }
 
+namespace {
+    viper::dsp::IIREqualizer::BandCount iirBandCountFromOrdinal(jint ordinal) {
+        switch (ordinal) {
+            case 1: return viper::dsp::IIREqualizer::BandCount::BANDS_15;
+            case 2: return viper::dsp::IIREqualizer::BandCount::BANDS_31;
+            default: return viper::dsp::IIREqualizer::BandCount::BANDS_10;
+        }
+    }
+}
+
+// Apply the whole EQ (band count + every gain) in ONE call. Issuing setIirEqualizerBandCount
+// followed by N setIirEqualizerBandLevel calls let the audio thread render buffers part-way
+// through the sequence — against the new band count with old gains, or with only some bands
+// updated. The band-count switch (10 -> 31) was the audible case.
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_viperplayer_data_player_ViperNativeDriver_setIirEqualizerBands(JNIEnv *env, jobject thiz, jint bandCountOrdinal, jfloatArray gains) {
+    std::vector<double> gainsDb;
+    if (gains != nullptr) {
+        const jsize n = env->GetArrayLength(gains);
+        jfloat *body = env->GetFloatArrayElements(gains, nullptr);
+        if (body == nullptr) return; // OOM; pending exception throws on return to Java
+        gainsDb.reserve((size_t) n);
+        for (jsize i = 0; i < n; ++i) gainsDb.push_back((double) body[i]);
+        env->ReleaseFloatArrayElements(gains, body, JNI_ABORT);
+    }
+    viperEngine.iirEqualizer.setBands(
+            (int) viperEngine.getSamplingRate(), iirBandCountFromOrdinal(bandCountOrdinal), gainsDb);
+}
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_viperplayer_data_player_ViperNativeDriver_setIirEqualizerBandCount(JNIEnv *env, jobject thiz, jint bandCountOrdinal) {
-    viper::dsp::IIREqualizer::BandCount count;
-    switch (bandCountOrdinal) {
-        case 0: count = viper::dsp::IIREqualizer::BandCount::BANDS_10; break;
-        case 1: count = viper::dsp::IIREqualizer::BandCount::BANDS_15; break;
-        case 2: count = viper::dsp::IIREqualizer::BandCount::BANDS_31; break;
-        default: count = viper::dsp::IIREqualizer::BandCount::BANDS_10; break;
-    }
-    viperEngine.iirEqualizer.configure(viperEngine.getSamplingRate(), count);
+    viperEngine.iirEqualizer.configure(
+            viperEngine.getSamplingRate(), iirBandCountFromOrdinal(bandCountOrdinal));
 }
 
 // ViPER DDC
