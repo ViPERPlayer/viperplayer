@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,7 +69,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
 import java.util.concurrent.TimeUnit
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongInfoScreen(
     rootPadding: PaddingValues,

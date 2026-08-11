@@ -2,6 +2,7 @@ package com.viperplayer.presentation.player
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -246,7 +247,7 @@ fun MiniPlayerContent(
                             )
                     )
 
-                    androidx.compose.animation.AnimatedVisibility(
+                    AnimatedVisibility(
                         visible = !isPlaying,
                         enter = fadeIn() + scaleIn(initialScale = 0.7f),
                         exit = fadeOut() + scaleOut(targetScale = 0.7f)

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,7 +82,7 @@ import com.viperplayer.domain.model.Song
  * in-memory mock so the feature still demos. The share/QR sheets encode that real code so a guest who
  * scans/pastes it can actually join. "Play on device" lists the real local output.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSocialSheets(
     song: Song,
