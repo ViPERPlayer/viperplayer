@@ -111,6 +111,7 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.launch
 
 // Per-tab sort options. DEFAULT is always first (selected initially → order unchanged). Only fields the
@@ -133,7 +134,7 @@ private val ARTIST_SORT_OPTIONS = listOf(SortOption.DEFAULT, SortOption.TITLE)
 private val PLAYLIST_SORT_OPTIONS = listOf(SortOption.DEFAULT, SortOption.TITLE)
 
 /** Corner radius for the pinned Liked / Downloads / Following shortcut tiles. */
-private val ShortcutTileCorner = 16.dp
+private val ShortcutTileCorner = Spacing.lg
 
 /**
  * End padding reserved on list rows so their content clears the pinned A-Z rail when it is shown. The
@@ -238,7 +239,7 @@ fun LibraryScreen(
                     modifier = Modifier
                         .padding(rootPadding.bottom())
                         .fillMaxSize()
-                        .padding(32.dp),
+                        .padding(Spacing.xxxl),
                     contentAlignment = Alignment.Center
                 ) {
                     LoadingIndicator()
@@ -250,7 +251,7 @@ fun LibraryScreen(
                     stringResource(R.string.library_search_no_results, uiState.searchQuery)
                 )
             } else {
-                val listContentPadding = PaddingValues(top = 8.dp) + rootPadding.bottom()
+                val listContentPadding = PaddingValues(top = Spacing.sm) + rootPadding.bottom()
                 when (uiState.selectedTab) {
                     // Default: unified, recency-sorted, all-types feed. No A-Z rail (a rail is
                     // meaningless without alphabetical order) and no per-type sort control.
@@ -864,7 +865,7 @@ private fun TypeLibraryList(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .padding(vertical = 8.dp, horizontal = 2.dp),
+                    .padding(vertical = Spacing.sm, horizontal = 2.dp),
             )
         }
     }
@@ -923,7 +924,7 @@ private fun AlphabetRail(
     val scrollDescription = stringResource(R.string.library_scroll_to_letter, activeLetter.toString())
     Column(
         modifier = modifier
-            .width(20.dp)
+            .width(Spacing.xl)
             .onSizeChanged { railHeightPx = it.height }
             .testTag("libraryAlphabetRail")
             .semantics { contentDescription = scrollDescription }
@@ -948,7 +949,7 @@ private fun AlphabetRail(
                         if (active) {
                             Modifier.background(
                                 MaterialTheme.colorScheme.secondaryContainer,
-                                RoundedCornerShape(8.dp)
+                                RoundedCornerShape(Spacing.sm)
                             )
                         } else {
                             Modifier
@@ -1021,7 +1022,7 @@ private fun LibraryToolbar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+            .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -1104,7 +1105,7 @@ private fun LibrarySearchField(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+            .padding(start = Spacing.xs, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onClose) {
@@ -1133,7 +1134,7 @@ private fun LibrarySearchField(
                 }
             },
         )
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Spacing.xs))
     }
 }
 
@@ -1153,8 +1154,8 @@ private fun LibraryFilterChips(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         tabs.forEach { tab ->
             SelectableChip(
@@ -1189,8 +1190,8 @@ private fun LibraryListHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             ShortcutTile(
                 icon = Icons.Rounded.Favorite,
@@ -1229,7 +1230,7 @@ private fun LibraryListHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                .padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -1291,7 +1292,7 @@ private fun SortPill(
             color = MaterialTheme.colorScheme.primary,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(end = 12.dp),
+            modifier = Modifier.padding(end = Spacing.md),
         )
     }
 }
@@ -1319,7 +1320,7 @@ private fun ShortcutTile(
         Column(
             modifier = Modifier
                 .clickable(onClick = onClick)
-                .padding(12.dp),
+                .padding(Spacing.md),
         ) {
             Icon(
                 imageVector = icon,
@@ -1327,7 +1328,7 @@ private fun ShortcutTile(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(
                 text = label,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -1354,7 +1355,7 @@ fun EmptyLibraryContent(message: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Spacing.xxxl),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1364,7 +1365,7 @@ fun EmptyLibraryContent(message: String, modifier: Modifier = Modifier) {
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
             Text(
                 text = message,
                 style = MaterialTheme.typography.titleMedium,
@@ -1419,7 +1420,7 @@ fun LibrarySectionHeader(title: String, modifier: Modifier = Modifier) {
         text = title,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
     )
 }
 

@@ -68,6 +68,7 @@ import com.viperplayer.domain.model.ArtistRef
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -186,7 +187,7 @@ fun MiniPlayerContent(
     Box(
         modifier = modifier
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-            .padding(12.dp)
+            .padding(Spacing.md)
             .fillMaxWidth()
             .height(64.dp)
     ) {
@@ -214,8 +215,8 @@ fun MiniPlayerContent(
                 .clickable {
                     onMiniPlayerClick()
                 }
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Play/Pause button with circular progress indicator (left side)
@@ -233,7 +234,7 @@ fun MiniPlayerContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(4.dp)
+                        .padding(Spacing.xs)
                         .clip(CircleShape)
                         .border(
                             width = 1.dp,
@@ -315,8 +316,8 @@ fun MiniPlayerContent(
 
             // Action buttons
             Row(
-                modifier = Modifier.padding(end = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(end = Spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 // Favorite button
                 Box(

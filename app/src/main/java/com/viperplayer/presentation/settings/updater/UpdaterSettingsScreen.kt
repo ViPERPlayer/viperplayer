@@ -39,6 +39,7 @@ import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 @Composable
 fun UpdaterSettingsScreen(
@@ -73,7 +74,7 @@ fun UpdaterSettingsScreen(
                         if (uiState.updateState is UpdateState.Checking) {
                             LoadingIndicator(
                                 modifier = Modifier
-                                    .padding(8.dp)
+                                    .padding(Spacing.sm)
                                     .size(20.dp)
                             )
                         } else {
@@ -105,7 +106,7 @@ fun UpdaterSettingsScreen(
                 is UpdateState.UpdateAvailable -> {
                     if (state.changelog.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.sm))
                         }
                         item {
                             SettingsCategory(stringResource(R.string.updater_category_changelog))
@@ -114,13 +115,13 @@ fun UpdaterSettingsScreen(
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 )
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(16.dp)
+                                    modifier = Modifier.padding(Spacing.lg)
                                 ) {
                                     Text(
                                         text = state.changelog,
@@ -133,28 +134,28 @@ fun UpdaterSettingsScreen(
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Spacing.lg))
                     }
                     item {
                         Button(
                             onClick = { viewModel.downloadUpdate() },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
+                                .padding(horizontal = Spacing.lg),
                             enabled = uiState.updateState !is UpdateState.Downloading
                         ) {
                             if (uiState.updateState is UpdateState.Downloading) {
                                 LoadingIndicator(
                                     modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.padding(horizontal = 8.dp))
+                                Spacer(modifier = Modifier.padding(horizontal = Spacing.sm))
                                 Text(stringResource(R.string.updater_downloading))
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Download,
                                     contentDescription = null
                                 )
-                                Spacer(modifier = Modifier.padding(horizontal = 8.dp))
+                                Spacer(modifier = Modifier.padding(horizontal = Spacing.sm))
                                 Text(stringResource(R.string.updater_download_update))
                             }
                         }
@@ -163,19 +164,19 @@ fun UpdaterSettingsScreen(
 
                 is UpdateState.Error -> {
                     item {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                     }
                     item {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                                .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer
                             )
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp)
+                                modifier = Modifier.padding(Spacing.lg)
                             ) {
                                 Text(
                                     text = state.message,
@@ -202,13 +203,13 @@ private fun UpdateStatusCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(Spacing.lg)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -300,7 +301,7 @@ private fun UpdateStatusCard(
                         }
                     }
                 )
-                Spacer(modifier = Modifier.padding(horizontal = 12.dp))
+                Spacer(modifier = Modifier.padding(horizontal = Spacing.md))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
@@ -335,7 +336,7 @@ private fun SettingsCategory(
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }
 

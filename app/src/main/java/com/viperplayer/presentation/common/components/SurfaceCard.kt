@@ -29,10 +29,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /** Corner radius shared by every card in the visual language. */
-val SurfaceCardCornerRadius = 20.dp
+val SurfaceCardCornerRadius = Spacing.xl
 
 /**
  * Leading-icon slot size for a [SurfaceCardRow]. Chosen so 16dp horizontal padding + this + the 14dp
@@ -88,7 +89,7 @@ fun SurfaceCardRow(
         modifier = modifier
             .fillMaxWidth()
             .then(clickModifier)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -135,7 +136,7 @@ fun SurfaceCardRow(
 @Composable
 private fun SurfaceCardPreview() {
     ViPERPlayerTheme(darkTheme = true) {
-        SurfaceCard(modifier = Modifier.padding(16.dp)) {
+        SurfaceCard(modifier = Modifier.padding(Spacing.lg)) {
             SurfaceCardRow(
                 title = "Friend activity",
                 subtitle = "Maya and 2 others listening now",

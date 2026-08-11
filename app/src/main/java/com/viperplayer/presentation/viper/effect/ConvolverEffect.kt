@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.viperplayer.R
 import com.viperplayer.domain.model.ViperConvolverState
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValueSlider
 import java.io.File
@@ -80,7 +81,7 @@ fun ConvolverEffect(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showDialog = true }
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
             ) {
                 Text(
                     text = stringResource(R.string.convolver_impulse_response),
@@ -122,7 +123,7 @@ fun ConvolverEffect(
             ) {
                 Text(
                     text = stringResource(R.string.convolver_select_kernel),
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(Spacing.xxl),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -137,7 +138,7 @@ fun ConvolverEffect(
                         Text(
                             text = stringResource(R.string.effect_no_files_loaded),
                             modifier = Modifier
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                                .padding(horizontal = Spacing.xxl, vertical = Spacing.lg),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
@@ -154,7 +155,7 @@ fun ConvolverEffect(
                                             showDialog = false
                                         }
                                     )
-                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                                    .padding(horizontal = Spacing.xxl, vertical = Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
@@ -168,7 +169,7 @@ fun ConvolverEffect(
                                     text = file.name,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(start = 16.dp),
+                                        .padding(start = Spacing.lg),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -188,7 +189,7 @@ fun ConvolverEffect(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(Spacing.xxl),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

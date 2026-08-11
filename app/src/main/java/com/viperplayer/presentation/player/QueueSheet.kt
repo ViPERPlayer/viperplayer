@@ -56,6 +56,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.player.PlayerQueueLogic
 import com.viperplayer.domain.player.PlayerQueueLogic.movedItem
+import com.viperplayer.presentation.theme.Spacing
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -142,12 +143,12 @@ fun QueueSheetContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp)
+            .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.sm, bottom = Spacing.lg)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp),
+                .padding(bottom = Spacing.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -211,7 +212,7 @@ fun QueueSheetContent(
                                     modifier = Modifier
                                         .testTag("queueDragHandle_$index")
                                         .size(40.dp)
-                                        .padding(8.dp)
+                                        .padding(Spacing.sm)
                                         .draggableHandle(
                                             onDragStopped = {
                                                 val from = dragFromIndex
@@ -235,7 +236,7 @@ fun QueueSheetContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .padding(top = Spacing.md)
                     .clip(RoundedCornerShape(100))
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .clickable { showSaveDialog = true }
@@ -253,7 +254,7 @@ fun QueueSheetContent(
                     text = stringResource(R.string.queue_save_as_playlist),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = Spacing.sm)
                 )
             }
         }
@@ -322,7 +323,7 @@ private fun SwipeableQueueRow(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.xl),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 Icon(
@@ -365,7 +366,7 @@ private fun QueueRow(
         isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
         else -> MaterialTheme.colorScheme.surface
     }
-    val elevation = if (isDragging) 8.dp else 0.dp
+    val elevation = if (isDragging) Spacing.sm else 0.dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -373,7 +374,7 @@ private fun QueueRow(
             .shadow(elevation)
             .background(background)
             .clickable(onClick = onPlay)
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
@@ -387,7 +388,7 @@ private fun QueueRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = Spacing.md)
         ) {
             Text(
                 text = song.title,

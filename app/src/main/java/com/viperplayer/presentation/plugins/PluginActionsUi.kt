@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.viperplayer.R
 import com.viperplayer.domain.model.PluginActionType
 import com.viperplayer.domain.model.PluginPendingAction
+import com.viperplayer.presentation.theme.Spacing
 import timber.log.Timber
 
 /**
@@ -101,25 +102,25 @@ fun PluginActionsSheet(
             text = stringResource(R.string.plugin_actions_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Spacing.xxl, vertical = Spacing.sm),
         )
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             if (actions.isEmpty()) {
                 Text(
                     text = stringResource(R.string.plugin_actions_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.lg),
                 )
             }
             actions.forEach { action ->
                 PluginActionRow(action = action, onResolve = { onResolve(action) })
             }
         }
-        Spacer(modifier = Modifier.padding(bottom = 24.dp))
+        Spacer(modifier = Modifier.padding(bottom = Spacing.xxl))
     }
 }
 
@@ -136,7 +137,7 @@ private fun PluginActionRow(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
         ) {
             Icon(
                 imageVector = pluginActionIcon(action.type),
@@ -144,7 +145,7 @@ private fun PluginActionRow(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp),
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = action.title,
@@ -157,7 +158,7 @@ private fun PluginActionRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Spacing.md))
             Button(onClick = onResolve) {
                 Text(stringResource(R.string.plugin_actions_fix))
             }
@@ -184,14 +185,14 @@ fun PluginActionsBanner(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 4.dp, bottom = 8.dp),
+            modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm, end = Spacing.xs, bottom = Spacing.sm),
         ) {
             Icon(
                 imageVector = pluginActionIcon(first.type),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onTertiaryContainer,
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Spacing.md))
             Text(
                 text = if (actions.size == 1) {
                     stringResource(R.string.plugin_actions_banner_single, first.pluginName, first.title)
@@ -222,13 +223,13 @@ fun PluginActionChip(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(Spacing.sm),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         modifier = modifier.clickable(onClick = onClick),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs),
         ) {
             Icon(
                 imageVector = pluginActionIcon(action.type),

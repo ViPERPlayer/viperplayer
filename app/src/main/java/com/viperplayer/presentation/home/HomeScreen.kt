@@ -116,6 +116,7 @@ import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.AvatarRing
 import com.viperplayer.presentation.common.components.InitialsAvatar
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -344,7 +345,7 @@ private fun HomeScreenContent(
                     modifier = Modifier
                         .padding(rootPadding)
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(Spacing.lg),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     )
@@ -352,7 +353,7 @@ private fun HomeScreenContent(
                     Text(
                         text = uiState.message,
                         color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(Spacing.lg)
                     )
                 }
             }
@@ -408,7 +409,7 @@ private fun HomeScreenContent(
                         if (offlineMode) {
                             item(key = "offline-banner") {
                                 OfflineBanner(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                                 )
                             }
                         }
@@ -431,7 +432,7 @@ private fun HomeScreenContent(
                                     actions = pendingActions,
                                     onOpen = { showActionsSheet = true },
                                     onDismiss = { bannerDismissed = true },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                                 )
                             }
                         }
@@ -442,12 +443,12 @@ private fun HomeScreenContent(
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .padding(Spacing.lg)
                                 ) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(24.dp),
+                                            .padding(Spacing.xxl),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
@@ -455,7 +456,7 @@ private fun HomeScreenContent(
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold
                                         )
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(Spacing.sm))
                                         Text(
                                             text = stringResource(R.string.home_no_plugins_hint),
                                             style = MaterialTheme.typography.bodyMedium,
@@ -473,14 +474,14 @@ private fun HomeScreenContent(
                                     text = stringResource(R.string.home_browse),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)
                                 )
                             }
 
                             item {
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    contentPadding = PaddingValues(horizontal = Spacing.lg),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                                 ) {
                                     itemsIndexed(uiState.categories, key = { index, category -> "${category.id}-$index" }) { index, category ->
                                         CategoryCard(
@@ -501,14 +502,14 @@ private fun HomeScreenContent(
                         uiState.quickPicks?.let { quickPicks ->
                             if (quickPicks.isNotEmpty()) {
                                 item {
-                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Spacer(modifier = Modifier.height(Spacing.xxl))
                                     Text(
                                         text = stringResource(R.string.home_quick_picks),
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(
-                                            horizontal = 16.dp,
-                                            vertical = 8.dp
+                                            horizontal = Spacing.lg,
+                                            vertical = Spacing.sm
                                         )
                                     )
                                 }
@@ -560,7 +561,7 @@ private fun HomeScreenContent(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 24.dp),
+                                        .padding(vertical = Spacing.xxl),
                                     contentAlignment = Alignment.Center,
                                 ) { LoadingIndicator() }
                             }
@@ -593,7 +594,7 @@ fun CategoryCard(
         modifier = modifier
             .width(160.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(Spacing.md)
     ) {
         Column {
             AsyncImage(
@@ -602,7 +603,7 @@ fun CategoryCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp)
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                    .clip(RoundedCornerShape(topStart = Spacing.md, topEnd = Spacing.md)),
                 contentScale = ContentScale.Crop
             )
             Text(
@@ -611,7 +612,7 @@ fun CategoryCard(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier.padding(Spacing.md)
             )
         }
     }
@@ -630,9 +631,9 @@ private fun HomeChipsRow(
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
-        modifier = modifier.padding(vertical = 8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.padding(vertical = Spacing.sm),
+        contentPadding = PaddingValues(horizontal = Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         items(chips, key = { it.id }) { chip ->
             val selected = chip.id == selectedChipId
@@ -669,8 +670,8 @@ private fun LazyListScope.homeSection(
                 // A row of genre/category chips above the shelf; tapping one re-filters the section.
                 item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = Spacing.lg),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
                         items(section.filters, key = { it.key }) { filter ->
                             FilterChip(
@@ -699,7 +700,7 @@ private fun LazyListScope.homeSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(shelfHeight)
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = Spacing.lg),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -718,9 +719,9 @@ private fun LazyListScope.homeSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(shelfHeight),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = Spacing.lg),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             gridItemsIndexed(
                                 section.items,
@@ -739,8 +740,8 @@ private fun LazyListScope.homeSection(
                 } else {
                     item {
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = Spacing.lg),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                         ) {
                             itemsIndexed(section.items, key = { index, item -> "${item.id}-$index" }) { index, item ->
                                 val active = isCurrent(item, currentSongId)
@@ -766,9 +767,9 @@ private fun LazyListScope.homeSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .padding(horizontal = Spacing.lg, vertical = 6.dp)
                         .revealOnAppear(index),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     rowItems.forEach { item ->
                         val active = isCurrent(item, currentSongId)
@@ -804,12 +805,12 @@ private fun LazyListScope.homeSection(
         }
 
         is HeroSection -> item {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.xxl))
             HeroCard(section = section, onClick = { onItemClick(section.item) })
         }
 
         is BannerSection -> item {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.xxl))
             BannerCard(section = section)
         }
 
@@ -845,8 +846,8 @@ private fun LazyListScope.homeSection(
             sectionHeader(section.title, section.subtitle)
             item(key = "${section.pluginId}-${section.id}-featured") {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = Spacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     itemsIndexed(section.items, key = { index, item -> "${item.id}-$index" }) { index, item ->
                         val active = isCurrent(item, currentSongId)
@@ -873,9 +874,9 @@ private fun LazyListScope.homeSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .padding(horizontal = Spacing.lg, vertical = 6.dp)
                         .revealOnAppear(index),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     rowChips.forEach { chip ->
                         Box(modifier = Modifier.weight(1f)) {
@@ -893,8 +894,8 @@ private fun LazyListScope.sectionHeader(title: String, subtitle: String?) {
     item {
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(top = 24.dp, bottom = 8.dp)
+                .padding(horizontal = Spacing.lg)
+                .padding(top = Spacing.xxl, bottom = Spacing.sm)
         ) {
             Text(
                 text = title,
@@ -924,7 +925,7 @@ fun MediaItemCard(
     isPlaying: Boolean = false,
 ) {
     val circle = itemShape == ItemShape.CIRCLE
-    val artShape = if (circle) CircleShape else RoundedCornerShape(8.dp)
+    val artShape = if (circle) CircleShape else RoundedCornerShape(Spacing.sm)
     val aspect = if (itemShape == ItemShape.WIDE) 16f / 9f else 1f
     val artModifier = when {
         fillWidth -> Modifier.fillMaxWidth().aspectRatio(aspect)
@@ -948,7 +949,7 @@ fun MediaItemCard(
             )
             PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         Text(
             text = item.displayTitle(),
             style = MaterialTheme.typography.bodyMedium,
@@ -985,7 +986,7 @@ private fun TrackRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = Spacing.lg, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -1002,7 +1003,7 @@ private fun TrackRow(
             )
             PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Spacing.md))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.displayTitle(),
@@ -1053,7 +1054,7 @@ private fun CompactItemTile(
             )
             PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Spacing.sm))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.displayTitle(),
@@ -1082,10 +1083,10 @@ private fun HeroCard(section: HeroSection, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = Spacing.lg)
             .height(180.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(Spacing.lg),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
@@ -1104,7 +1105,7 @@ private fun HeroCard(section: HeroSection, onClick: () -> Unit) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(16.dp)
+                    .padding(Spacing.lg)
             ) {
                 if (section.title.isNotBlank()) {
                     Text(
@@ -1143,9 +1144,9 @@ private fun BannerCard(section: BannerSection) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = Spacing.lg)
             .height(120.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(Spacing.lg),
         colors = if (hasImage) CardDefaults.cardColors()
         else CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
     ) {
@@ -1169,7 +1170,7 @@ private fun BannerCard(section: BannerSection) {
             Column(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .padding(16.dp)
+                    .padding(Spacing.lg)
             ) {
                 if (section.title.isNotBlank()) {
                     Text(
@@ -1212,8 +1213,8 @@ private fun MultiBrowseCarousel(
     HorizontalMultiBrowseCarousel(
         state = carouselState,
         preferredItemWidth = 320.dp,
-        itemSpacing = 12.dp,
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        itemSpacing = Spacing.md,
+        contentPadding = PaddingValues(horizontal = Spacing.lg),
         modifier = Modifier
             .fillMaxWidth()
             .height(cardHeight),
@@ -1273,7 +1274,7 @@ private fun MultiBrowseCard(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(20.dp),
+                .padding(Spacing.xl),
         ) {
             Text(
                 text = item.displayTitle(),
@@ -1317,9 +1318,9 @@ private fun QuickPicksGrid(
         modifier = Modifier
             .fillMaxWidth()
             .height((rows * 68).dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         gridItemsIndexed(
             section.items,
@@ -1353,15 +1354,15 @@ private fun FeaturedCard(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
 ) {
-    val artShape = if (itemShape == ItemShape.CIRCLE) CircleShape else RoundedCornerShape(16.dp)
+    val artShape = if (itemShape == ItemShape.CIRCLE) CircleShape else RoundedCornerShape(Spacing.lg)
     val aspect = if (itemShape == ItemShape.WIDE) 16f / 9f else 1f
     Card(
         modifier = modifier
             .width(260.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(Spacing.xl),
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1377,7 +1378,7 @@ private fun FeaturedCard(
                 )
                 PlayingArtworkOverlay(isActive = isActive, isPlaying = isPlaying)
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -1398,7 +1399,7 @@ private fun FeaturedCard(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 FilledIconButton(onClick = onClick) {
                     Icon(
                         imageVector = Icons.Rounded.PlayArrow,
@@ -1421,7 +1422,7 @@ private fun MoodChipCard(chip: MoodChip, onClick: () -> Unit) {
             .fillMaxWidth()
             .height(72.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(Spacing.md),
         colors = if (hasArtwork) CardDefaults.cardColors()
         else CardDefaults.cardColors(containerColor = container),
     ) {
@@ -1457,7 +1458,7 @@ private fun MoodChipCard(chip: MoodChip, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .padding(16.dp),
+                    .padding(Spacing.lg),
             )
         }
     }
@@ -1515,10 +1516,10 @@ fun AlbumCard(
             contentDescription = album.name,
             modifier = Modifier
                 .size(140.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(Spacing.sm)),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         Text(
             text = album.name,
             style = MaterialTheme.typography.bodyMedium,

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * A friendly, centered empty/error state — a tonal icon chip, a message, and an optional retry —
@@ -94,7 +95,7 @@ fun ErrorState(
                 Spacer(Modifier.height(if (actionLabel != null) 10.dp else 22.dp))
                 FilledTonalButton(onClick = onRetry) {
                     Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(Spacing.sm))
                     Text(stringResource(R.string.action_retry))
                 }
             }

@@ -33,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 
 @Composable
 fun Effect(
@@ -93,9 +94,9 @@ fun Effect(
                         onCheckedChange.invoke(!checked)
                     }
                 }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = Spacing.lg, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Icon(
                 painter = icon,

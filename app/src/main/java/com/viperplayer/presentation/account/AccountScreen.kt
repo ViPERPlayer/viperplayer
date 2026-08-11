@@ -67,6 +67,7 @@ import com.viperplayer.presentation.common.components.SectionLabel
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * The Account & sync screen (route `Account`, mockup 5e), reached from the You hub's "Manage
@@ -131,7 +132,7 @@ fun AccountScreen(
                 .padding(top = rootPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
                 .padding(
-                    PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp) +
+                    PaddingValues(start = Spacing.lg, top = Spacing.sm, end = Spacing.lg, bottom = Spacing.lg) +
                         rootPadding.bottom(),
                 ),
         ) {
@@ -161,13 +162,13 @@ fun AccountScreen(
 
 @Composable
 private fun NotConfiguredCard() {
-    SurfaceCard(contentPadding = PaddingValues(16.dp)) {
+    SurfaceCard(contentPadding = PaddingValues(Spacing.lg)) {
         Icon(
             imageVector = Icons.Rounded.Warning,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Text(
             text = stringResource(R.string.account_not_configured),
             style = MaterialTheme.typography.bodyMedium,
@@ -202,7 +203,7 @@ private fun SignedInContent(
     Spacer(Modifier.height(18.dp))
     SectionLabel(
         text = stringResource(R.string.account_section_sync).uppercase(),
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.sm),
     )
     SurfaceCard {
         SyncToggleRow(
@@ -221,7 +222,7 @@ private fun SignedInContent(
     Spacer(Modifier.height(18.dp))
     SectionLabel(
         text = stringResource(R.string.account_section_details).uppercase(),
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.sm),
     )
     SurfaceCard {
         FieldRow(
@@ -265,10 +266,10 @@ private fun SignedInContent(
         )
     }
 
-    Spacer(Modifier.height(20.dp))
+    Spacer(Modifier.height(Spacing.xl))
     SignOutButton(onSignOut = onSignOut)
 
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(Spacing.sm))
     DeleteAccountLink(onClick = {
         onClearError()
         onShowDeleteAccount(true)
@@ -317,11 +318,11 @@ private fun ProfileHeader(displayName: String, email: String, initials: String) 
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         AvatarRing(size = 92.dp, showRing = true) {
             InitialsAvatar(text = initials)
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.md))
         Text(
             text = displayName,
             style = MaterialTheme.typography.titleLarge,
@@ -346,7 +347,7 @@ private fun SyncToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -398,7 +399,7 @@ private fun SyncNowRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 13.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -441,7 +442,7 @@ private fun FieldRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 13.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -485,7 +486,7 @@ private fun ActionRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 13.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -514,7 +515,7 @@ private fun SignOutButton(onSignOut: () -> Unit) {
     Surface(
         onClick = onSignOut,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(Spacing.xxl),
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
         contentColor = MaterialTheme.colorScheme.error,
     ) {
@@ -532,7 +533,7 @@ private fun SignOutButton(onSignOut: () -> Unit) {
             )
             Text(
                 text = stringResource(R.string.account_sign_out),
-                modifier = Modifier.padding(start = 8.dp),
+                modifier = Modifier.padding(start = Spacing.sm),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -579,7 +580,7 @@ private fun SetHandleDialog(
         icon = { Icon(Icons.Rounded.AlternateEmail, contentDescription = null) },
         title = { Text(stringResource(R.string.account_set_handle)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(
                     text = stringResource(R.string.account_set_handle_body),
                     style = MaterialTheme.typography.bodyMedium,
@@ -640,7 +641,7 @@ private fun ChangePasswordDialog(
         icon = { Icon(Icons.Rounded.Password, contentDescription = null) },
         title = { Text(stringResource(R.string.account_change_password)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 AuthTextField(
                     value = current,
                     onValueChange = { current = it },
@@ -715,7 +716,7 @@ private fun DeleteAccountDialog(
         },
         title = { Text(stringResource(R.string.account_delete_confirm_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(
                     text = stringResource(R.string.account_delete_confirm_body),
                     style = MaterialTheme.typography.bodyMedium,
@@ -766,12 +767,12 @@ private fun SignedOutPrompt(onNavigateToSignIn: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(Spacing.xxxl))
         Text(
             text = stringResource(R.string.you_hero_title),
             style = MaterialTheme.typography.titleLarge,
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
         FilledPill(
             text = stringResource(R.string.you_hero_sign_in),
             onClick = onNavigateToSignIn,

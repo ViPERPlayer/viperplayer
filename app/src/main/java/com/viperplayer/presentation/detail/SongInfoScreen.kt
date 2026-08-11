@@ -67,6 +67,7 @@ import com.viperplayer.domain.model.Artist
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.repository.AudioFormat
+import com.viperplayer.presentation.theme.Spacing
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,12 +121,12 @@ fun SongInfoScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 22.dp),
-            contentPadding = PaddingValues(bottom = rootPadding.calculateBottomPadding() + 16.dp),
+            contentPadding = PaddingValues(bottom = rootPadding.calculateBottomPadding() + Spacing.lg),
         ) {
             // Hero row
             item {
                 Row(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.lg),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
@@ -158,7 +159,7 @@ fun SongInfoScreen(
 
             // Artist / Album navigation tiles
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     state.artist?.let { artist ->
                         NavTile(
                             icon = Icons.Filled.Person,
@@ -182,7 +183,7 @@ fun SongInfoScreen(
 
             // Source plugin
             item {
-                SectionLabel(stringResource(R.string.song_info_source_plugin), top = 20.dp)
+                SectionLabel(stringResource(R.string.song_info_source_plugin), top = Spacing.xl)
                 PluginRow(
                     pluginPackage = state.pluginPackage,
                     pluginName = state.pluginName ?: state.pluginPackage,
@@ -193,7 +194,7 @@ fun SongInfoScreen(
             // Tag / metadata detail viewer — local files only (the full on-disk tag set).
             if (song.id is MediaId.Local) {
                 item {
-                    SectionLabel(stringResource(R.string.tag_details_section_metadata), top = 20.dp)
+                    SectionLabel(stringResource(R.string.tag_details_section_metadata), top = Spacing.xl)
                     NavTile(
                         icon = Icons.Filled.Description,
                         role = stringResource(R.string.tag_details_action_role),
@@ -207,7 +208,7 @@ fun SongInfoScreen(
             // Audio format (runtime — only for the playing track)
             audioFormat?.takeIf { it.hasAny() }?.let { fmt ->
                 item {
-                    SectionLabel(stringResource(R.string.song_detail_audio_format), top = 20.dp)
+                    SectionLabel(stringResource(R.string.song_detail_audio_format), top = Spacing.xl)
                     AudioFormatGrid(fmt)
                 }
             }
@@ -215,7 +216,7 @@ fun SongInfoScreen(
             // Bluetooth output codec (runtime — only when the playing track is on a BT A2DP route)
             bluetoothCodec?.let { codec ->
                 item {
-                    SectionLabel(stringResource(R.string.song_info_bluetooth_output), top = 20.dp)
+                    SectionLabel(stringResource(R.string.song_info_bluetooth_output), top = Spacing.xl)
                     RowsCard {
                         InfoRow(
                             label = stringResource(R.string.song_info_bluetooth_codec),
@@ -229,7 +230,7 @@ fun SongInfoScreen(
             // Normalization
             if (song.replayGainDb != null || song.peakAmplitude != null) {
                 item {
-                    SectionLabel(stringResource(R.string.song_info_normalization), top = 20.dp)
+                    SectionLabel(stringResource(R.string.song_info_normalization), top = Spacing.xl)
                     RowsCard {
                         val rows = buildList {
                             song.replayGainDb?.let {
@@ -264,7 +265,7 @@ fun SongInfoScreen(
                     RowsCard {
                         rows.forEachIndexed { i, (label, value) -> InfoRow(label, value, divider = i < rows.lastIndex) }
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(Spacing.md))
                 }
             }
         }
@@ -294,9 +295,9 @@ private fun AudioFormatGrid(fmt: AudioFormat) {
             add(StatCellData(stringResource(R.string.song_info_codec), stringResource(if (it) R.string.song_info_lossless else R.string.song_info_lossy), null))
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         cells.chunked(3).forEach { rowCells ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 rowCells.forEach { StatCell(it, Modifier.weight(1f)) }
                 repeat(3 - rowCells.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -312,7 +313,7 @@ private fun StatCell(data: StatCellData, modifier: Modifier = Modifier) {
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .padding(horizontal = Spacing.md, vertical = Spacing.md),
     ) {
         Text(
             data.label.uppercase(),
@@ -323,7 +324,7 @@ private fun StatCell(data: StatCellData, modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 3.dp)) {
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = Spacing.xs)) {
             Text(data.value, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
             data.unit?.let {
                 Text(
@@ -341,12 +342,12 @@ private fun StatCell(data: StatCellData, modifier: Modifier = Modifier) {
 private fun NavTile(icon: ImageVector, role: String, name: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Spacing.lg))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(11.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Column(Modifier.weight(1f)) {
@@ -366,12 +367,12 @@ private fun PluginRow(pluginPackage: String, pluginName: String, onClick: () -> 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Spacing.lg))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = onClick)
-            .padding(horizontal = 15.dp, vertical = 13.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Box(
             modifier = Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primaryContainer),
@@ -399,7 +400,7 @@ private fun SectionLabel(text: String, top: Dp = 0.dp) {
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.5.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = top, bottom = 8.dp),
+        modifier = Modifier.padding(top = top, bottom = Spacing.sm),
     )
 }
 
@@ -408,7 +409,7 @@ private fun RowsCard(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Spacing.lg))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(horizontal = 14.dp),
     ) { content() }
@@ -417,7 +418,7 @@ private fun RowsCard(content: @Composable () -> Unit) {
 @Composable
 private fun InfoRow(label: String, value: String, divider: Boolean) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

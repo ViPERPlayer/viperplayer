@@ -53,6 +53,7 @@ import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsSettings
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.theme.Spacing
 
 @Composable
 fun LyricsSettingsScreen(
@@ -173,7 +174,7 @@ fun LyricsSettingsContent(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item { Spacer(modifier = Modifier.height(Spacing.sm)) }
 
             item { SettingsCategory(stringResource(R.string.lyrics_category_behavior)) }
 
@@ -234,7 +235,7 @@ private fun SettingsCategory(title: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }
 
@@ -251,7 +252,7 @@ private fun <T> ChoiceItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column {
@@ -267,8 +268,8 @@ private fun <T> ChoiceItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 options.forEach { option ->
                     FilterChip(
@@ -278,7 +279,7 @@ private fun <T> ChoiceItem(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
         }
     }
 }
@@ -295,7 +296,7 @@ private fun SwitchItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
             // Tapping the row toggles the switch (a common pattern that also makes the row testable).
             .toggleable(value = checked, onValueChange = onCheckedChange),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -327,7 +328,7 @@ private fun ActiveLineScaleItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column {
@@ -355,10 +356,10 @@ private fun ActiveLineScaleItem(
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             )
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)) {
                 Slider(
                     value = scale,
                     onValueChange = onScaleChanged,

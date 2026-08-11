@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /** Default avatar diameter; also the touch-target floor for tappable avatars. */
@@ -174,9 +175,9 @@ fun PersonGlyphAvatar(
 private fun AvatarsPreview() {
     ViPERPlayerTheme(darkTheme = true) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
         ) {
             AvatarRing(size = 62.dp, hasLiveActivity = true) {
                 InitialsAvatar(text = "M")

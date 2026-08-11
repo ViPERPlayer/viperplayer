@@ -29,6 +29,7 @@ import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * The "Following" users list (social S1): the accounts the signed-in user follows, each with an
@@ -101,8 +102,8 @@ fun FollowingUsersScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + rootPadding.bottom(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm) + rootPadding.bottom(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 items(items = state.users, key = { it.userId }) { user ->
                     FollowUserRow(

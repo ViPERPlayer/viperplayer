@@ -40,6 +40,7 @@ import com.viperplayer.R
 import com.viperplayer.domain.rec.FailureReason
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.theme.Spacing
 
 @Composable
 fun ContentSettingsScreen(
@@ -164,7 +165,7 @@ private fun RecommendationsRow(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -217,7 +218,7 @@ private fun RecommendationsStatusLine(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp, bottom = 8.dp),
+            .padding(start = Spacing.lg, end = Spacing.sm, bottom = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -272,7 +273,7 @@ private fun SettingsSwitchRow(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -322,6 +323,6 @@ private fun SettingsCategory(
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }

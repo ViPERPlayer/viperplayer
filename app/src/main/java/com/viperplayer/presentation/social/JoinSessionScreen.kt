@@ -91,6 +91,7 @@ import com.google.zxing.MultiFormatReader
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * "Join a Jam" — the guest counterpart to the host's share/QR sheets. Scans a Jam invite QR with the
@@ -173,11 +174,11 @@ fun JoinSessionScreen(
                 .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             // Close + title
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(start = 8.dp)
+                        .padding(start = Spacing.sm)
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
@@ -199,13 +200,13 @@ fun JoinSessionScreen(
                 text = stringResourceSafe(R.string.join_session_subtitle),
                 color = Color.White.copy(alpha = 0.66f),
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 5.dp),
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = Spacing.xs),
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(Spacing.xxxl))
             Viewfinder(modifier = Modifier.align(Alignment.CenterHorizontally))
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Spacing.xl))
             // Flashlight pill. Always a single filled FlashlightOn glyph; the active (torch-on) state
             // is signalled by a brighter container + full-opacity content, not by swapping the icon.
             val flashlightContainer = if (torchOn) {
@@ -219,9 +220,9 @@ fun JoinSessionScreen(
                     .clip(RoundedCornerShape(100))
                     .background(flashlightContainer)
                     .clickable { torchOn = !torchOn }
-                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 val flashlightAlpha = if (torchOn) 1f else 0.85f
                 Icon(
@@ -319,7 +320,7 @@ private fun ManualEntry(
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 28.dp + bottomPadding),
+            .padding(start = Spacing.xxl, top = Spacing.xxl, end = Spacing.xxl, bottom = 28.dp + bottomPadding),
     ) {
         // "OR ENTER A CODE" divider.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -354,7 +355,7 @@ private fun ManualEntry(
                 keyboardActions = KeyboardActions(onDone = { onJoin() }),
             )
             Row(
-                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 modifier = Modifier.clickable {
                     focusRequester.requestFocus()
                     keyboard?.show()
@@ -366,7 +367,7 @@ private fun ManualEntry(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
         Row(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -375,9 +376,9 @@ private fun ManualEntry(
                     val pasted = clip?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
                     if (!pasted.isNullOrBlank()) onPaste(pasted)
                 }
-                .padding(8.dp),
+                .padding(Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             Icon(Icons.Filled.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
             Text(stringResourceSafe(R.string.join_session_paste), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
@@ -391,7 +392,7 @@ private fun ManualEntry(
                 .background(MaterialTheme.colorScheme.primary)
                 .alpha(if (isComplete && !joining) 1f else 0.55f)
                 .clickable(enabled = isComplete && !joining, onClick = onJoin)
-                .padding(vertical = 16.dp),
+                .padding(vertical = Spacing.lg),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -401,7 +402,7 @@ private fun ManualEntry(
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                modifier = Modifier.padding(start = 9.dp),
+                modifier = Modifier.padding(start = Spacing.sm),
             )
         }
 
@@ -412,9 +413,9 @@ private fun ManualEntry(
                 .align(Alignment.CenterHorizontally)
                 .clip(RoundedCornerShape(100))
                 .clickable(onClick = onHostInstead)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             Icon(
                 Icons.Filled.Group,

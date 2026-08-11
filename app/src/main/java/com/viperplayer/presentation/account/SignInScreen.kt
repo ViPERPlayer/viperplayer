@@ -39,6 +39,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.presentation.common.components.FilledPill
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * Sign-in screen (route `SignIn`). Reuses [AccountViewModel] for the login call, state, and error.
@@ -89,7 +90,7 @@ fun SignInScreen(
                 .padding(innerPadding)
                 .padding(top = rootPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 24.dp, bottom = 8.dp + rootPadding.calculateBottomPadding()),
+                .padding(start = Spacing.xxl, end = Spacing.xxl, bottom = Spacing.sm + rootPadding.calculateBottomPadding()),
         ) {
             AuthBrandLockup()
 
@@ -114,7 +115,7 @@ fun SignInScreen(
                 leadingIcon = Icons.Rounded.Mail,
                 keyboardType = KeyboardType.Email,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
             AuthTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -134,9 +135,9 @@ fun SignInScreen(
                     text = state.error!!,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                    modifier = Modifier.padding(start = Spacing.xs, top = Spacing.xs),
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.xs))
             }
 
             Spacer(Modifier.height(10.dp))
@@ -147,9 +148,9 @@ fun SignInScreen(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             )
             if (state.isSubmitting) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.md))
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.CenterHorizontally).height(24.dp),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).height(Spacing.xxl),
                     strokeWidth = 2.dp,
                 )
             }

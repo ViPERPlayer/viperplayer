@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -74,6 +75,7 @@ import com.viperplayer.R
 import com.viperplayer.domain.model.SessionParticipant
 import com.viperplayer.presentation.common.components.InitialsAvatar
 import com.viperplayer.presentation.common.components.avatarTonesFor
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * "Host a Jam" — the host counterpart to [JoinSessionScreen]. Renders as a bottom sheet over a dimmed
@@ -153,8 +155,8 @@ private fun HostSheet(
                 onClick = {},
             )
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(top = 8.dp)
+            .padding(horizontal = Spacing.xxl)
+            .padding(top = Spacing.sm)
             .padding(bottom = 28.dp)
             // Keep clear of the system nav bar / mini-player when this route is the top screen.
             .windowInsetsPadding(WindowInsets.navigationBars),
@@ -163,13 +165,13 @@ private fun HostSheet(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(vertical = 8.dp)
+                .padding(vertical = Spacing.sm)
                 .width(32.dp)
-                .height(4.dp)
+                .height(Spacing.xs)
                 .clip(RoundedCornerShape(2.dp))
                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
 
         // Header.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -187,7 +189,7 @@ private fun HostSheet(
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
 
         if (session == null) {
             StartingState()
@@ -202,14 +204,14 @@ private fun HostSheet(
             Spacer(Modifier.height(14.dp))
             SessionCodeBox(code = session.code, onCopy = onCopyCode)
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.lg))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 // Primary: share invite.
                 Row(
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(Spacing.xxl))
                         .background(MaterialTheme.colorScheme.primary)
                         .clickable(onClick = onShareInvite),
                     horizontalArrangement = Arrangement.Center,
@@ -226,14 +228,14 @@ private fun HostSheet(
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 8.dp),
+                        modifier = Modifier.padding(start = Spacing.sm),
                     )
                 }
                 // Secondary: toggle the inline QR.
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(Spacing.xxl))
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .clickable { showQr = !showQr },
                     contentAlignment = Alignment.Center,
@@ -248,7 +250,7 @@ private fun HostSheet(
             }
 
             if (showQr) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.lg))
                 QrCard(content = session.inviteUrl)
             }
 
@@ -259,9 +261,9 @@ private fun HostSheet(
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(100))
                     .clickable(onClick = onJoinInstead)
-                    .padding(horizontal = 12.dp, vertical = 13.dp),
+                    .padding(horizontal = Spacing.md, vertical = Spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.QrCodeScanner,
@@ -279,13 +281,13 @@ private fun HostSheet(
 
             Spacer(Modifier.height(6.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Spacing.xs))
 
             // "This device" playback-target row.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Smartphone,
@@ -315,9 +317,9 @@ private fun HostSheet(
                     .align(Alignment.CenterHorizontally)
                     .clip(RoundedCornerShape(100))
                     .clickable(onClick = onEndSession)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = Spacing.md, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Logout,
@@ -342,7 +344,7 @@ private fun HostSheet(
 @Composable
 private fun StartingState() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxxl),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -355,7 +357,7 @@ private fun StartingState() {
             text = stringResource(R.string.host_session_starting),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
-            modifier = Modifier.padding(start = 12.dp),
+            modifier = Modifier.padding(start = Spacing.md),
         )
     }
 }
@@ -376,16 +378,16 @@ private fun NowPlayingCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Spacing.xl))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Spacing.md))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -439,9 +441,9 @@ private fun NowPlayingCard(
         }
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
+                .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = Spacing.md, vertical = Spacing.xs),
         ) {
             Text(
                 text = stringResource(R.string.host_session_hosting_badge).uppercase(),
@@ -462,7 +464,7 @@ private fun ListenersRow(participants: List<SessionParticipant>) {
     // the same tone rather than shifting with list position.
     val scheme = MaterialTheme.colorScheme
     val and = stringResource(R.string.list_conjunction_and)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (others.isNotEmpty()) {
             Row {
                 others.take(3).forEachIndexed { index, participant ->
@@ -472,7 +474,7 @@ private fun ListenersRow(participants: List<SessionParticipant>) {
                         modifier = Modifier
                             .offset(x = if (index == 0) 0.dp else (-10 * index).dp)
                             .size(34.dp)
-                            .clip(RoundedCornerShape(999.dp))
+                            .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .padding(2.5.dp),
                     ) {
@@ -510,8 +512,8 @@ private fun SessionCodeBox(code: String, onCopy: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Spacing.lg))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(Spacing.lg))
             .clickable(onClick = onCopy)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -548,18 +550,18 @@ private fun QrCard(content: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Spacing.xl))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(20.dp),
+            .padding(Spacing.xl),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.7f)
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Spacing.md))
                 .background(Color.White)
-                .padding(12.dp),
+                .padding(Spacing.md),
         ) {
             QrModules(content = content, modifier = Modifier.fillMaxSize())
         }

@@ -69,6 +69,7 @@ import com.viperplayer.presentation.common.components.SurfaceCardRow
 import com.viperplayer.presentation.common.components.TonalChip
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /** Alpha applied to locked (signed-out) social rows so they read as gated. */
 private const val LockedRowAlpha = 0.55f
@@ -180,8 +181,8 @@ private fun YouContent(
             modifier = Modifier
                 .padding(contentPadding)
                 .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp) + rootPadding.bottom(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.lg) + rootPadding.bottom(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             item(key = "header") {
                 if (signedIn) {
@@ -245,7 +246,7 @@ private fun YouContent(
 private fun GroupLabel(text: String) {
     SectionLabel(
         text = text,
-        modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp),
+        modifier = Modifier.padding(start = Spacing.xs, top = 10.dp, bottom = Spacing.xs),
     )
 }
 
@@ -264,11 +265,11 @@ private fun SignedInHeader(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Spacing.xs))
         AvatarRing(size = 92.dp, hasLiveActivity = friendsLive, showRing = true) {
             InitialsAvatar(text = initials)
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.md))
         Text(
             text = displayName,
             style = MaterialTheme.typography.titleLarge,
@@ -281,12 +282,12 @@ private fun SignedInHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.md))
         TonalChip(
             text = stringResource(R.string.you_manage_account),
             onClick = onManageAccount,
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
         LibrarySyncCard(status = syncStatus, onSyncNow = onSyncNow)
     }
 }
@@ -297,8 +298,8 @@ private fun LibrarySyncCard(status: LibrarySyncStatusUi, onSyncNow: () -> Unit) 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 14.dp, vertical = Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -364,9 +365,9 @@ private fun SignInHero(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp)
-            .background(gradient, RoundedCornerShape(24.dp))
-            .padding(20.dp),
+            .padding(top = Spacing.xs)
+            .background(gradient, RoundedCornerShape(Spacing.xxl))
+            .padding(Spacing.xl),
     ) {
         Text(
             text = stringResource(R.string.you_hero_title),
@@ -374,16 +375,16 @@ private fun SignInHero(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Spacing.xs))
         Text(
             text = stringResource(R.string.you_hero_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             FilledPill(
                 text = stringResource(R.string.you_hero_sign_in),

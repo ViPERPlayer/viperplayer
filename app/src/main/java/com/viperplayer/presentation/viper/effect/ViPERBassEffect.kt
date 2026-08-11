@@ -9,6 +9,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.viperplayer.R
 import com.viperplayer.domain.model.ViperBassState
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValuePicker
 import com.viperplayer.presentation.viper.component.ValueSlider
@@ -64,7 +65,7 @@ fun ViPERBassEffect(
             onSelectedIndexChange = onModeChange,
             onSelectedIndexReset = onModeReset
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         ValueSlider(
             title = stringResource(R.string.bass_frequency),
             summary = state.frequency.toString(),

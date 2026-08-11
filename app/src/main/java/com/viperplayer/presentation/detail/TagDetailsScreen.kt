@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.model.TagDetails
+import com.viperplayer.presentation.theme.Spacing
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -112,7 +113,7 @@ private fun LoadingContent(innerPadding: PaddingValues) {
 @Composable
 private fun EmptyContent(innerPadding: PaddingValues) {
     Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 32.dp),
+        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = Spacing.xxxl),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -137,13 +138,13 @@ private fun LoadedContent(
             .padding(innerPadding)
             .padding(horizontal = 22.dp)
             .testTag("tagDetailsList"),
-        contentPadding = PaddingValues(bottom = rootPadding.calculateBottomPadding() + 16.dp),
+        contentPadding = PaddingValues(bottom = rootPadding.calculateBottomPadding() + Spacing.lg),
     ) {
         // ---- Tags ----
         item {
             val tagRows = buildTagRows(details)
             if (tagRows.isNotEmpty()) {
-                DetailSectionLabel(stringResource(R.string.tag_details_section_tags), top = 8.dp)
+                DetailSectionLabel(stringResource(R.string.tag_details_section_tags), top = Spacing.sm)
                 DetailRowsCard(tagRows)
             }
         }
@@ -152,7 +153,7 @@ private fun LoadedContent(
         item {
             val fileRows = buildFileRows(details)
             if (fileRows.isNotEmpty()) {
-                DetailSectionLabel(stringResource(R.string.tag_details_section_file), top = 20.dp)
+                DetailSectionLabel(stringResource(R.string.tag_details_section_file), top = Spacing.xl)
                 DetailRowsCard(fileRows)
             }
         }
@@ -161,9 +162,9 @@ private fun LoadedContent(
         item {
             val audioRows = buildAudioRows(details)
             if (audioRows.isNotEmpty()) {
-                DetailSectionLabel(stringResource(R.string.tag_details_section_audio), top = 20.dp)
+                DetailSectionLabel(stringResource(R.string.tag_details_section_audio), top = Spacing.xl)
                 DetailRowsCard(audioRows)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.md))
             }
         }
     }
@@ -216,7 +217,7 @@ private fun DetailSectionLabel(text: String, top: Dp = 0.dp) {
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.5.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = top, bottom = 8.dp),
+        modifier = Modifier.padding(top = top, bottom = Spacing.sm),
     )
 }
 
@@ -225,7 +226,7 @@ private fun DetailRowsCard(rows: List<Pair<String, String>>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Spacing.lg))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(horizontal = 14.dp),
     ) {
@@ -239,7 +240,7 @@ private fun DetailRowsCard(rows: List<Pair<String, String>>) {
 private fun DetailRow(label: String, value: String, divider: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
         verticalAlignment = Alignment.Top,
     ) {
         Text(

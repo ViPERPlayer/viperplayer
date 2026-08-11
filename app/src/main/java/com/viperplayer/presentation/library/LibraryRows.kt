@@ -65,6 +65,7 @@ import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.common.PlayingArtworkOverlay
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -146,7 +147,7 @@ fun SongRow(
             .then(
                 if (isActive) {
                     Modifier
-                        .padding(horizontal = 8.dp)
+                        .padding(horizontal = Spacing.sm)
                         .clip(RoundedCornerShape(ActiveRowCorner))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 } else {
@@ -200,10 +201,10 @@ fun SongRow(
                 .then(clickModifier)
                 // Content sits ~16dp from the screen edge. The active row's container already adds an
                 // 8dp inset, so its inner padding is 8dp; the flat non-active row uses the full 16dp.
-                .padding(horizontal = if (isActive) 8.dp else 16.dp, vertical = 7.dp)
+                .padding(horizontal = if (isActive) Spacing.sm else Spacing.lg, vertical = 7.dp)
                 .then(if (!song.isPlayable || isDisliked) Modifier.alpha(0.5f) else Modifier),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             SongRowArtwork(
                 artworkUrl = song.artworkUrl,
@@ -310,7 +311,7 @@ private fun SwipeAffordance(
             icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.requiredSize(24.dp),
+            modifier = Modifier.requiredSize(Spacing.xxl),
         )
     }
 }

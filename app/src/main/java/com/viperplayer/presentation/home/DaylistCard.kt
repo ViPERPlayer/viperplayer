@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * The pinned Home **Daylist card**: a prominent Featured-style card near the top of Home (just below the
@@ -54,7 +55,7 @@ fun LazyListScope.daylistHomeSurface(
             DaylistCard(
                 state = state,
                 onOpen = onOpen,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             )
         }
     }
@@ -77,7 +78,7 @@ private fun DaylistCard(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -104,7 +105,7 @@ private fun DaylistCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (state.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         text = state.description,
                         style = MaterialTheme.typography.bodyMedium,
@@ -115,7 +116,7 @@ private fun DaylistCard(
                 }
             }
             if (state.artworkUrls.isNotEmpty()) {
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(Spacing.lg))
                 DaylistArtworkMosaic(
                     artworkUrls = state.artworkUrls,
                     modifier = Modifier.size(84.dp),

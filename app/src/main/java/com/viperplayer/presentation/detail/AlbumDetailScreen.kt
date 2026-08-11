@@ -70,6 +70,7 @@ import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 
@@ -240,7 +241,7 @@ private fun AlbumDetailScreenContent(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(32.dp),
+                                    .padding(Spacing.xxxl),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -379,9 +380,9 @@ private fun AlbumMetadataHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(Spacing.lg),
         horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         // Artists (clickable)
         if (album.artists.isNotEmpty()) {
@@ -440,7 +441,7 @@ private fun AlbumMetadataHeader(
 
         // Album info: type • year • song count (left-aligned)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Album type first
@@ -486,12 +487,12 @@ private fun AlbumMetadataHeader(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
         // Action buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Button(
                 onClick = onPlayAlbum,
@@ -499,7 +500,7 @@ private fun AlbumMetadataHeader(
                 enabled = songCount > 0
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(stringResource(R.string.action_play))
             }
             OutlinedButton(
@@ -508,7 +509,7 @@ private fun AlbumMetadataHeader(
                 enabled = songCount > 0
             ) {
                 Icon(Icons.Default.Shuffle, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(stringResource(R.string.action_shuffle))
             }
         }
@@ -526,7 +527,7 @@ private fun DiscHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         contentAlignment = Alignment.CenterStart
     ) {
         Text(

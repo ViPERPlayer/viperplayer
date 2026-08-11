@@ -85,6 +85,7 @@ import com.viperplayer.domain.model.LyricsHighlightColor
 import com.viperplayer.domain.model.LyricsLine
 import com.viperplayer.domain.model.LyricsOffset
 import com.viperplayer.domain.model.LyricsSettings
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -241,12 +242,12 @@ fun LyricsSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp),
+                .padding(bottom = Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -377,9 +378,9 @@ private fun LyricsOffsetControl(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp),
+            .padding(bottom = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
         Text(
             text = stringResource(R.string.lyrics_offset_label),
@@ -492,7 +493,7 @@ private fun SyncedLyrics(
         modifier = Modifier
             .heightIn(max = 520.dp)
             .fadingEdges(),
-        contentPadding = PaddingValues(vertical = 8.dp),
+        contentPadding = PaddingValues(vertical = Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         itemsIndexed(lyrics.lines) { index, line ->
@@ -705,9 +706,9 @@ private fun LyricsLoadingState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 24.dp)
+            .padding(vertical = Spacing.xxl)
             .testTag(LYRICS_LOADING_TAG),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
         // A few placeholder "lines" of varying width, like real lyrics.
         listOf(0.85f, 0.7f, 0.9f, 0.6f, 0.78f).forEach { widthFraction ->
@@ -729,7 +730,7 @@ private fun LyricsEmptyState() {
             .fillMaxWidth()
             .padding(vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Icon(
             imageVector = Icons.Filled.MusicOff,

@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.domain.stats.RankedItem
 import com.viperplayer.domain.stats.WrappedSummary
+import com.viperplayer.presentation.theme.Spacing
 import java.util.Locale
 
 /**
@@ -144,14 +145,14 @@ fun WrappedContent(
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 12.dp),
+                .padding(top = Spacing.md),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             repeat(cards.size) { i ->
                 val selected = i == pagerState.currentPage
                 Box(
                     modifier = Modifier
-                        .size(if (selected) 10.dp else 8.dp)
+                        .size(if (selected) 10.dp else Spacing.sm)
                         .clip(CircleShape)
                         .background(
                             if (selected) MaterialTheme.colorScheme.onSurface
@@ -165,7 +166,7 @@ fun WrappedContent(
             onClick = onClose,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(8.dp),
+                .padding(Spacing.sm),
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
@@ -181,7 +182,7 @@ private fun WrappedCardSurface(background: Color, content: @Composable () -> Uni
         modifier = Modifier
             .fillMaxSize()
             .background(background)
-            .padding(horizontal = 32.dp, vertical = 64.dp),
+            .padding(horizontal = Spacing.xxxl, vertical = 64.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -201,14 +202,14 @@ private fun WrappedIntroCard(summary: WrappedSummary) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(Spacing.lg))
     Text(
         text = stringResource(R.string.wrapped_intro_title, summary.year),
         style = MaterialTheme.typography.displaySmall,
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(Spacing.lg))
     Text(
         text = stringResource(R.string.wrapped_intro_body),
         style = MaterialTheme.typography.bodyLarge,
@@ -224,7 +225,7 @@ private fun WrappedMinutesCard(summary: WrappedSummary) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(Spacing.sm))
     Text(
         text = stringResource(
             R.string.wrapped_minutes_value,
@@ -243,7 +244,7 @@ private fun WrappedTopItemCard(heading: String, item: RankedItem) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(Spacing.lg))
     Text(
         text = item.title,
         style = MaterialTheme.typography.headlineLarge,
@@ -251,7 +252,7 @@ private fun WrappedTopItemCard(heading: String, item: RankedItem) {
         textAlign = TextAlign.Center,
     )
     item.subtitle?.let {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Text(
             text = it,
             style = MaterialTheme.typography.titleMedium,
@@ -259,7 +260,7 @@ private fun WrappedTopItemCard(heading: String, item: RankedItem) {
             textAlign = TextAlign.Center,
         )
     }
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(Spacing.md))
     Text(
         text = stringResource(R.string.wrapped_plays_value, item.playCount),
         style = MaterialTheme.typography.bodyLarge,
@@ -274,14 +275,14 @@ private fun WrappedArtistsCard(summary: WrappedSummary) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(Spacing.sm))
     Text(
         text = stringResource(R.string.wrapped_artists_value, summary.differentArtists),
         style = MaterialTheme.typography.displaySmall,
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,
     )
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(Spacing.md))
     Text(
         text = stringResource(R.string.wrapped_songs_value, summary.differentSongs),
         style = MaterialTheme.typography.titleMedium,
@@ -296,7 +297,7 @@ private fun WrappedLeaderboardCard(heading: String, items: List<RankedItem>) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(Spacing.xxl))
     items.take(5).forEachIndexed { index, item ->
         Row(
             modifier = Modifier
@@ -327,7 +328,7 @@ private fun WrappedFunFactCard(text: String) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(Spacing.lg))
     Text(
         text = text,
         style = MaterialTheme.typography.headlineSmall,
@@ -346,7 +347,7 @@ private fun WrappedEmpty(onClose: () -> Unit, modifier: Modifier = Modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(Spacing.xxxl),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -356,7 +357,7 @@ private fun WrappedEmpty(onClose: () -> Unit, modifier: Modifier = Modifier) {
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 text = stringResource(R.string.wrapped_empty_body),
                 style = MaterialTheme.typography.bodyLarge,
@@ -368,7 +369,7 @@ private fun WrappedEmpty(onClose: () -> Unit, modifier: Modifier = Modifier) {
             onClick = onClose,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(8.dp),
+                .padding(Spacing.sm),
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,

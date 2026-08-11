@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.viperplayer.R
 import com.viperplayer.domain.model.LyricsCandidate
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * The manual lyric-match picker (feature-parity gap B). Shown when [LyricsSearchState.isOpen]. Lets
@@ -61,8 +62,8 @@ fun LyricsSearchSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = Spacing.xxl, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             Text(
                 text = stringResource(R.string.lyrics_search_title),
@@ -91,7 +92,7 @@ fun LyricsSearchSheet(
                 Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text(
                     text = stringResource(R.string.lyrics_search_button),
-                    modifier = Modifier.padding(start = 8.dp),
+                    modifier = Modifier.padding(start = Spacing.sm),
                 )
             }
 
@@ -100,7 +101,7 @@ fun LyricsSearchSheet(
                 LyricsSearchState.Phase.Searching -> Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
+                        .padding(vertical = Spacing.xxl),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
@@ -111,12 +112,12 @@ fun LyricsSearchSheet(
                             text = stringResource(R.string.lyrics_search_no_results),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 16.dp),
+                            modifier = Modifier.padding(vertical = Spacing.lg),
                         )
                     } else {
                         LazyColumn(
                             modifier = Modifier.heightIn(max = 360.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
                             items(phase.results) { candidate ->
                                 LyricsCandidateRow(candidate = candidate, onClick = { onPick(candidate) })
@@ -140,7 +141,7 @@ private fun LyricsCandidateRow(
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         if (candidate.synced) {
             Icon(
@@ -185,9 +186,9 @@ private fun LyricsCandidateRow(
             modifier = Modifier
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant,
-                    RoundedCornerShape(8.dp),
+                    RoundedCornerShape(Spacing.sm),
                 )
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
         )
     }
 }

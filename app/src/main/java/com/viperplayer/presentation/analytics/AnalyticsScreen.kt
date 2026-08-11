@@ -44,6 +44,7 @@ import com.viperplayer.presentation.common.ListItemLeadingArtwork
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /**
@@ -116,7 +117,7 @@ private fun AnalyticsScreenContent(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding(),
-                bottom = rootPadding.calculateBottomPadding() + 8.dp
+                bottom = rootPadding.calculateBottomPadding() + Spacing.sm
             )
         ) {
             // Period chips
@@ -125,8 +126,8 @@ private fun AnalyticsScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     StatPeriod.entries.forEach { entry ->
                         FilterChip(
@@ -143,7 +144,7 @@ private fun AnalyticsScreenContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     StatColumn(
@@ -166,7 +167,7 @@ private fun AnalyticsScreenContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+                        .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.xs),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -199,7 +200,7 @@ private fun AnalyticsScreenContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(32.dp),
+                            .padding(Spacing.xxxl),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(

@@ -76,6 +76,7 @@ import com.viperplayer.presentation.common.rememberAddToPlaylistController
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 // Artist Top Songs sort options. DEFAULT (plugin order) is first and selected initially.
@@ -233,10 +234,10 @@ private fun ArtistDetailScreenContent(
                             onClick = onPlayAllSongs,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .padding(horizontal = Spacing.lg, vertical = Spacing.md)
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(Spacing.sm))
                             Text(stringResource(R.string.action_play_all))
                         }
                     }
@@ -282,15 +283,15 @@ private fun ArtistDetailScreenContent(
                     // Albums section
                     if (artistData.albums.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Spacing.lg))
                         }
                         item {
                             SectionHeader(stringResource(R.string.artist_detail_section_albums))
                         }
                         item {
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
                             ) {
                                 items(
                                     items = artistData.albums,
@@ -308,15 +309,15 @@ private fun ArtistDetailScreenContent(
                     // Playlists section
                     if (artistData.playlists.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(Spacing.xxl))
                         }
                         item {
                             SectionHeader(stringResource(R.string.artist_detail_section_playlists))
                         }
                         item {
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
                             ) {
                                 items(
                                     items = artistData.playlists,
@@ -334,15 +335,15 @@ private fun ArtistDetailScreenContent(
                     // Featuring section
                     if (artistData.featuring.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(Spacing.xxl))
                         }
                         item {
                             SectionHeader(stringResource(R.string.artist_detail_section_featuring))
                         }
                         item {
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
                             ) {
                                 items(
                                     items = artistData.featuring,
@@ -360,15 +361,15 @@ private fun ArtistDetailScreenContent(
                     // Appears On section
                     if (artistData.appearsOn.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(Spacing.xxl))
                         }
                         item {
                             SectionHeader(stringResource(R.string.artist_detail_section_appears_on))
                         }
                         item {
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
                             ) {
                                 items(
                                     items = artistData.appearsOn.filter { it is Album || it is Playlist },
@@ -401,15 +402,15 @@ private fun ArtistDetailScreenContent(
                     // Similar Artists section
                     if (artistData.similarArtists.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(Spacing.xxl))
                         }
                         item {
                             SectionHeader(stringResource(R.string.artist_detail_section_similar_artists))
                         }
                         item {
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
                             ) {
                                 items(
                                     items = artistData.similarArtists,
@@ -514,7 +515,7 @@ private fun SectionHeader(
         fontWeight = FontWeight.Bold,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }
 
@@ -534,10 +535,10 @@ private fun AlbumCard(
             contentDescription = album.name,
             modifier = Modifier
                 .size(140.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(Spacing.sm)),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
         Text(
             text = album.name,
             style = MaterialTheme.typography.bodyMedium,
@@ -571,10 +572,10 @@ private fun PlaylistCard(
             contentDescription = playlist.name,
             modifier = Modifier
                 .size(140.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(Spacing.sm)),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
         Text(
             text = playlist.name,
             style = MaterialTheme.typography.bodyMedium,
@@ -614,7 +615,7 @@ private fun ArtistCard(
                 .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
         Text(
             text = artist.name,
             style = MaterialTheme.typography.bodyMedium,

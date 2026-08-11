@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.viperplayer.R
 import com.viperplayer.domain.model.IirEqualizerPresets
 import com.viperplayer.domain.model.IirEqualizerState
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.EqualizerGraph
 import com.viperplayer.presentation.viper.component.VerticalSlider
@@ -77,14 +78,14 @@ fun IirEqualizerEffect(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = Spacing.lg)
         ) {
             Text(
                 text = stringResource(R.string.iir_band_count),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -101,14 +102,14 @@ fun IirEqualizerEffect(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
         // Preset Selector
         var expanded by remember { mutableStateOf(false) }
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = it },
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = Spacing.lg)
         ) {
             OutlinedTextField(
                 modifier = Modifier
@@ -138,13 +139,13 @@ fun IirEqualizerEffect(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
         // Import AutoEq / GraphicEQ correction profile
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = Spacing.lg),
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(
@@ -157,21 +158,21 @@ fun IirEqualizerEffect(
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(stringResource(R.string.iir_import_autoeq))
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
         // Graph
         EqualizerGraph(
             bandCount = state.bandCount,
             gains = state.bandGains,
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = Modifier.padding(vertical = Spacing.sm)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
         // Sliders
         val frequencies = remember(state.bandCount) {
@@ -184,8 +185,8 @@ fun IirEqualizerEffect(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(scrollState)
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             frequencies.forEachIndexed { index, freq ->
                 val freqLabel = if (freq >= 1000) {
@@ -217,7 +218,7 @@ fun IirEqualizerEffect(
                         modifier = Modifier
                             .height(200.dp)
                             .width(40.dp)
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = Spacing.sm)
                     )
 
                     Text(

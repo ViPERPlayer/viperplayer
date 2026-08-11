@@ -86,6 +86,7 @@ import com.viperplayer.presentation.common.MediaItemOptionsSheetHost
 import com.viperplayer.presentation.common.rememberMediaItemOptionsController
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -340,7 +341,7 @@ internal fun PlaylistDetailScreenContent(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(32.dp),
+                                        .padding(Spacing.xxxl),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -524,7 +525,7 @@ private fun EditablePlaylistSongList(
 
         itemsIndexed(localSongs, key = { _, song -> song.id.toString() }) { index, song ->
             ReorderableItem(reorderableState, key = song.id.toString()) { isDragging ->
-                val elevation = if (isDragging) 8.dp else 0.dp
+                val elevation = if (isDragging) Spacing.sm else 0.dp
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -534,9 +535,9 @@ private fun EditablePlaylistSongList(
                             if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest
                             else MaterialTheme.colorScheme.surface
                         )
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = Spacing.lg),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     Icon(
                         imageVector = Icons.Default.DragHandle,
@@ -611,9 +612,9 @@ private fun PlaylistMetadataHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(Spacing.lg),
         horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         // Description
         playlist.description?.let { description ->
@@ -630,7 +631,7 @@ private fun PlaylistMetadataHeader(
 
         // Owner and song count
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             playlist.ownerName?.let { owner ->
@@ -655,7 +656,7 @@ private fun PlaylistMetadataHeader(
         // Action buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Button(
                 onClick = onPlayAll,
@@ -663,7 +664,7 @@ private fun PlaylistMetadataHeader(
                 enabled = songCount > 0
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(stringResource(R.string.action_play))
             }
             OutlinedButton(
@@ -672,7 +673,7 @@ private fun PlaylistMetadataHeader(
                 enabled = songCount > 0
             ) {
                 Icon(Icons.Default.Shuffle, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(stringResource(R.string.action_shuffle))
             }
         }

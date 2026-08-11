@@ -49,6 +49,7 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * Holds the [Song] whose "Add to playlist" picker is showing. Drive it with [show]/[dismiss] from a
@@ -154,12 +155,12 @@ fun AddToPlaylistSheetContent(
     onNewPlaylist: () -> Unit,
     onPickPlaylist: (Playlist) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(bottom = 16.dp)) {
+    Column(modifier = Modifier.padding(bottom = Spacing.lg)) {
         Text(
             text = stringResource(R.string.add_to_playlist_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
         )
 
         // "New playlist" entry — always first.
@@ -179,7 +180,7 @@ fun AddToPlaylistSheetContent(
                 text = stringResource(R.string.add_to_playlist_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                modifier = Modifier.padding(horizontal = Spacing.xxl, vertical = Spacing.lg)
             )
         } else {
             LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
@@ -214,7 +215,7 @@ private fun PlaylistPickerRow(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(RoundedCornerShape(Spacing.sm)),
                 contentAlignment = Alignment.Center
             ) {
                 if (playlist.artworkUrl != null) {

@@ -37,6 +37,7 @@ import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.SurfaceCardRow
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * App-preferences settings (slimmed). Account, plugins, listening stats, Last.fm and social moved to
@@ -78,11 +79,11 @@ fun SettingsScreen(
                 .padding(contentPadding)
                 .fillMaxWidth()
                 .fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp) + rootPadding.bottom(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.lg) + rootPadding.bottom(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             item(key = "preferences-card") {
-                SurfaceCard(modifier = Modifier.padding(top = 8.dp)) {
+                SurfaceCard(modifier = Modifier.padding(top = Spacing.sm)) {
                     SurfaceCardRow(
                         title = stringResource(R.string.settings_appearance),
                         subtitle = stringResource(R.string.settings_appearance_desc),
@@ -135,7 +136,7 @@ fun SettingsScreen(
             }
 
             item(key = "system-card") {
-                SurfaceCard(modifier = Modifier.padding(top = 4.dp)) {
+                SurfaceCard(modifier = Modifier.padding(top = Spacing.xs)) {
                     SurfaceCardRow(
                         title = stringResource(R.string.settings_updater),
                         subtitle = stringResource(R.string.settings_updater_desc),
@@ -156,7 +157,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 12.dp),
+                        .padding(horizontal = Spacing.xs, vertical = Spacing.md),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

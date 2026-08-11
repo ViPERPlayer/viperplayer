@@ -26,6 +26,7 @@ import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.avatarTonesFor
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.theme.Spacing
 
 /** Avatar diameter for a follow-graph user row. */
 private val FollowAvatarSize = 44.dp
@@ -48,7 +49,7 @@ fun FollowUserRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FollowAvatar(handle = user.handle, displayName = user.displayName)
@@ -119,11 +120,11 @@ fun SocialGatedState(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
             .padding(rootPadding.bottom()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        SurfaceCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 28.dp)) {
+        SurfaceCard(contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = 28.dp)) {
             Text(
                 text = stringResource(R.string.social_disabled_title),
                 style = MaterialTheme.typography.titleMedium,
@@ -136,7 +137,7 @@ fun SocialGatedState(
                 text = stringResource(R.string.social_disabled_body),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = Spacing.sm),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

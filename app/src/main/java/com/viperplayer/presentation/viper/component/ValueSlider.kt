@@ -18,6 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,10 +34,10 @@ fun ValueSlider(
     steps: Int = 0
 ) {
     Column(
-        modifier = Modifier.padding(vertical = 8.dp)
+        modifier = Modifier.padding(vertical = Spacing.sm)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 24.dp),
+            modifier = Modifier.padding(horizontal = Spacing.xxl),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -66,7 +67,7 @@ fun ValueSlider(
         WSTSlider(
             value = value.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
-            modifier = Modifier.padding(horizontal = 21.dp),
+            modifier = Modifier.padding(horizontal = Spacing.xl),
             steps = steps,
             valueRange = valueRange.let { it.start.toFloat()..it.endInclusive.toFloat() }
         )
@@ -86,10 +87,10 @@ fun ValueSlider(
     steps: Int = 0
 ) {
     Column(
-        modifier = Modifier.padding(vertical = 8.dp)
+        modifier = Modifier.padding(vertical = Spacing.sm)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 24.dp),
+            modifier = Modifier.padding(horizontal = Spacing.xxl),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -119,7 +120,7 @@ fun ValueSlider(
         WSTSlider(
             value = value,
             onValueChange = { onValueChange(it) },
-            modifier = Modifier.padding(horizontal = 21.dp),
+            modifier = Modifier.padding(horizontal = Spacing.xl),
             steps = steps,
             valueRange = valueRange.let { it.start..it.endInclusive }
         )

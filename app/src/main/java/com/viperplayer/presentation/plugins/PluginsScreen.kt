@@ -84,6 +84,7 @@ import com.viperplayer.presentation.common.components.OutlinedPill
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /** Alpha applied to a disabled plugin card so it reads as "off" (mockup 5f). */
 private const val DisabledCardAlpha = 0.72f
@@ -211,15 +212,15 @@ fun PluginsScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                    shape = RoundedCornerShape(Spacing.lg),
                     color = MaterialTheme.colorScheme.errorContainer,
                 ) {
                     Text(
                         text = error,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(Spacing.lg)
                     )
                 }
             }
@@ -237,7 +238,7 @@ fun PluginsScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = rootPadding.bottom() + PaddingValues(16.dp),
+                    contentPadding = rootPadding.bottom() + PaddingValues(Spacing.lg),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(uiState.discoveredPlugins) { plugin ->
@@ -334,24 +335,24 @@ fun PluginsScreen(
                             text = stringResource(R.string.plugins_author, plugin.author.orEmpty()),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                     }
                     Text(
                         text = stringResource(R.string.plugins_version, plugin.version),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     plugin.apiVersion?.let { apiVersion ->
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(Spacing.xs))
                         Text(
                             text = stringResource(R.string.plugins_api_version, apiVersion),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                     if (!plugin.description.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                         Text(text = plugin.description, style = MaterialTheme.typography.bodyMedium)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     Text(
                         text = stringResource(R.string.plugins_package, plugin.id),
                         style = MaterialTheme.typography.bodySmall,
@@ -384,7 +385,7 @@ fun PluginsScreen(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     if (!update.changelog.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(Spacing.md))
                         Text(
                             text = update.changelog,
                             style = MaterialTheme.typography.bodyMedium,
@@ -419,7 +420,7 @@ private fun PluginsEmptyState(
         modifier = Modifier
             .padding(rootPadding.bottom())
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Spacing.xxxl),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -432,19 +433,19 @@ private fun PluginsEmptyState(
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
             Text(
                 text = stringResource(R.string.plugins_none_found),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(
                 text = stringResource(R.string.plugins_none_found_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.xxl))
             FilledPill(
                 text = stringResource(R.string.plugins_download),
                 onClick = onDownload,
@@ -496,7 +497,7 @@ fun PluginCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .alpha(contentAlpha)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = Spacing.lg, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -504,7 +505,7 @@ fun PluginCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -532,7 +533,7 @@ fun PluginCard(
 
                 // Pending user action (permission, login, verification...) — tap to resolve.
                 pendingAction?.let { action ->
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     PluginActionChip(
                         action = action,
                         onClick = { onResolveAction(action) },
@@ -546,7 +547,7 @@ fun PluginCard(
                         connected.capabilities.hasPlaylists
                     if (hasAnyCapability) {
                         Spacer(modifier = Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                             if (connected.capabilities.canSearch) {
                                 CapabilityChip(stringResource(R.string.plugins_capability_search))
                             }
@@ -564,7 +565,7 @@ fun PluginCard(
             // Trailing controls cluster: sync spinner, settings shortcut, and the enable switch
             // (or its toggle spinner) that also anchors the long-press dropdown menu.
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Library sync in progress for this plugin.
@@ -767,7 +768,7 @@ private fun PluginIconTile(id: String, name: String, connected: Boolean) {
 @Composable
 private fun ConnectedPill() {
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
@@ -776,7 +777,7 @@ private fun ConnectedPill() {
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = 2.dp),
         )
     }
 }
@@ -821,7 +822,7 @@ private fun PluginUpdateSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -854,7 +855,7 @@ private fun PluginUpdateSection(
 
             when (progress) {
                 is PluginUpdateProgress.Downloading -> {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     if (progress.fraction != null) {
                         LinearProgressIndicator(
                             progress = { progress.fraction },
@@ -863,7 +864,7 @@ private fun PluginUpdateSection(
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         text = stringResource(R.string.plugins_update_downloading),
                         style = MaterialTheme.typography.bodySmall,
@@ -873,9 +874,9 @@ private fun PluginUpdateSection(
 
                 is PluginUpdateProgress.Installing,
                 is PluginUpdateProgress.AwaitingUserConfirmation -> {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         text = stringResource(
                             if (progress is PluginUpdateProgress.AwaitingUserConfirmation) {
@@ -894,7 +895,7 @@ private fun PluginUpdateSection(
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (!update.changelog.isNullOrBlank()) {
@@ -902,7 +903,7 @@ private fun PluginUpdateSection(
                             // reads as a link, sitting on the LEFT of the update row (mockup 5f).
                             TextButton(
                                 onClick = onShowChangelog,
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                                contentPadding = PaddingValues(horizontal = Spacing.xs, vertical = 6.dp),
                             ) {
                                 Text(
                                     text = stringResource(R.string.plugins_update_changelog),
@@ -931,7 +932,7 @@ private fun PluginUpdateSection(
 @Composable
 fun CapabilityChip(label: String) {
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Text(
@@ -939,7 +940,7 @@ fun CapabilityChip(label: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = 2.dp)
         )
     }
 }

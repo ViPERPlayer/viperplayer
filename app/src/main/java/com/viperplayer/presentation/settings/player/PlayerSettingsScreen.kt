@@ -69,6 +69,7 @@ import com.viperplayer.domain.repository.SEEK_INCREMENT_MAX_SECONDS
 import com.viperplayer.domain.repository.SEEK_INCREMENT_MIN_SECONDS
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.theme.Spacing
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -117,7 +118,7 @@ fun PlayerSettingsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
             }
 
             item {
@@ -235,7 +236,7 @@ fun PlayerSettingsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
             }
 
             item {
@@ -261,7 +262,7 @@ fun PlayerSettingsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
             }
 
             item {
@@ -271,7 +272,7 @@ fun PlayerSettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     )
@@ -311,7 +312,7 @@ fun PlayerSettingsScreen(
 
                         if (uiState.replayGainEnabled) {
                             HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
+                                modifier = Modifier.padding(horizontal = Spacing.lg),
                                 color = MaterialTheme.colorScheme.outlineVariant
                             )
 
@@ -358,7 +359,7 @@ internal fun ReplayGainControls(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        modifier = modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
     ) {
         DbSliderRow(
             label = stringResource(R.string.player_replaygain_preamp),
@@ -369,7 +370,7 @@ internal fun ReplayGainControls(
             onReset = { onPreampChange(0f) }
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         Text(
             text = stringResource(R.string.player_replaygain_mode),
@@ -380,13 +381,13 @@ internal fun ReplayGainControls(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(Spacing.xs))
         GainModeSelector(
             selected = uiState.replayGainMode,
             onSelected = onModeChange
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         Text(
             text = stringResource(R.string.player_replaygain_untagged_preamp_desc),
@@ -402,7 +403,7 @@ internal fun ReplayGainControls(
             onReset = { onUntaggedPreampChange(0f) }
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -426,7 +427,7 @@ internal fun ReplayGainControls(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         Text(
             text = stringResource(R.string.player_replaygain_post_amp_desc),
@@ -457,7 +458,7 @@ private fun GainModeSelector(
     )
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         options.forEach { (mode, label) ->
             FilterChip(
@@ -491,7 +492,7 @@ private fun DbSliderRow(
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 Text(
                     text = String.format(Locale.US, "%.1f", valueDb),
@@ -542,7 +543,7 @@ private fun SettingsCategory(
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }
 
@@ -557,7 +558,7 @@ private fun SettingsItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         onClick = onClick,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -603,7 +604,7 @@ private fun SettingsSwitchItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -658,7 +659,7 @@ private fun SwipeToChangeSongItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -698,17 +699,17 @@ private fun SwipeToChangeSongItem(
 
             if (enabled) {
                 HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.lg),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
                 Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
                 ) {
                     Text(
                         text = stringResource(R.string.player_swipe_sensitivity),
                         style = MaterialTheme.typography.titleSmall
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     SwipeSensitivitySelector(
                         selected = sensitivity,
                         onSelected = onSensitivityChange
@@ -732,7 +733,7 @@ private fun SwipeSensitivitySelector(
     )
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         options.forEach { (value, label) ->
             FilterChip(
@@ -759,7 +760,7 @@ private fun HistoryDurationSliderItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -792,12 +793,12 @@ private fun HistoryDurationSliderItem(
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             ) {
                 Slider(
                     value = currentIndex,
@@ -851,7 +852,7 @@ private fun CrossfadeSliderItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -891,12 +892,12 @@ private fun CrossfadeSliderItem(
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             ) {
                 Slider(
                     value = seconds.toFloat(),
@@ -925,7 +926,7 @@ private fun SeekIncrementSliderItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -965,12 +966,12 @@ private fun SeekIncrementSliderItem(
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
             ) {
                 Slider(
                     value = clamped.toFloat(),
@@ -1009,14 +1010,14 @@ private fun AudioQualityDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = Spacing.xs),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
                             selected = quality == currentQuality,
                             onClick = { onQualitySelected(quality) }
                         )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                        Column(modifier = Modifier.padding(start = Spacing.sm)) {
                             Text(
                                 text = getAudioQualityTitle(quality),
                                 style = MaterialTheme.typography.bodyLarge

@@ -61,6 +61,7 @@ import com.viperplayer.domain.repository.ThemeMode
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.theme.ColorMath
+import com.viperplayer.presentation.theme.Spacing
 
 /** A named preset accent seed. The [name] doubles as the swatch's accessibility label. */
 data class AccentPreset(val name: String, val color: Color)
@@ -186,7 +187,7 @@ fun AppearanceSettingsContent(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     )
@@ -274,19 +275,19 @@ private fun AccentColorCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.ColorLens,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Column(modifier = Modifier.padding(start = 16.dp)) {
+                Column(modifier = Modifier.padding(start = Spacing.lg)) {
                     Text(
                         text = stringResource(R.string.appearance_accent_color),
                         style = MaterialTheme.typography.titleMedium
@@ -302,9 +303,9 @@ private fun AccentColorCard(
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(top = Spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 // "Default" clears the custom accent (falls back to the brand default seed).
                 SwatchDot(
@@ -425,7 +426,7 @@ private fun CustomColorDialog(
                 Text(
                     text = stringResource(R.string.appearance_accent_hue),
                     style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(top = 12.dp)
+                    modifier = Modifier.padding(top = Spacing.md)
                 )
                 Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
                 Text(
@@ -464,7 +465,7 @@ private fun SettingsCategory(
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }
 
@@ -479,7 +480,7 @@ private fun SettingsItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         onClick = onClick,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -528,14 +529,14 @@ private fun ThemeDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = Spacing.xs),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
                             selected = theme == currentTheme,
                             onClick = { onThemeSelected(theme) }
                         )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                        Column(modifier = Modifier.padding(start = Spacing.sm)) {
                             Text(
                                 text = getThemeDescription(theme),
                                 style = MaterialTheme.typography.bodyLarge
@@ -577,14 +578,14 @@ private fun DynamicThemeDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = Spacing.xs),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
                             selected = mode == currentMode,
                             onClick = { onModeSelected(mode) }
                         )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                        Column(modifier = Modifier.padding(start = Spacing.sm)) {
                             Text(
                                 text = getDynamicThemeDescription(mode),
                                 style = MaterialTheme.typography.bodyLarge

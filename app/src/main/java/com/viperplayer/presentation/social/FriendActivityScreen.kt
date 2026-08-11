@@ -69,6 +69,7 @@ import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.avatarTonesFor
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /** Corner radius of the small artwork thumbnails in the feed. */
 private val ThumbCornerRadius = 10.dp
@@ -151,14 +152,14 @@ private fun FriendActivityFeed(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp) + rootPadding.bottom(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.sm) + rootPadding.bottom(),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         if (state.listeningNow.isNotEmpty()) {
             item(key = "listening-now-label") {
                 SectionLabel(
                     text = stringResource(R.string.friend_activity_section_listening_now),
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = Spacing.xs, top = Spacing.xs, bottom = Spacing.xs),
                 )
             }
             item(key = "listening-now-card") {
@@ -174,7 +175,7 @@ private fun FriendActivityFeed(
             item(key = "earlier-label") {
                 SectionLabel(
                     text = stringResource(R.string.friend_activity_section_earlier),
-                    modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = Spacing.xs, top = Spacing.md, bottom = Spacing.xs),
                 )
             }
             item(key = "earlier-card") {
@@ -196,7 +197,7 @@ private fun ListeningNowRow(item: FriendActivityItem.ListeningNow, onJoin: (Stri
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FriendAvatar(name = item.friend.displayName, live = true)
@@ -257,7 +258,7 @@ private fun EarlierRow(item: FriendActivityItem, relativeTime: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FriendAvatar(name = item.friend.displayName, live = false)
@@ -412,14 +413,14 @@ private fun SharedWithYouInbox(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + rootPadding.bottom(),
+        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm) + rootPadding.bottom(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (state.new.isNotEmpty()) {
             item(key = "new-label") {
                 SectionLabel(
                     text = stringResource(R.string.shared_with_you_section_new),
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.xs),
                 )
             }
             items(items = state.new, key = { it.invite.id }) { inviteUi ->
@@ -435,7 +436,7 @@ private fun SharedWithYouInbox(
             item(key = "earlier-label") {
                 SectionLabel(
                     text = stringResource(R.string.shared_with_you_section_earlier),
-                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.xs),
                 )
             }
             item(key = "earlier-card") {
@@ -460,12 +461,12 @@ private fun NewInviteCard(
 ) {
     val invite = inviteUi.invite
     SurfaceCard(contentPadding = PaddingValues(14.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             ArtworkThumb(
                 artworkUrl = invite.playlistArtworkUrl,
                 contentDescription = invite.playlistName,
                 size = 64.dp,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(Spacing.md),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -477,7 +478,7 @@ private fun NewInviteCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = Spacing.xs),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -506,7 +507,7 @@ private fun NewInviteCard(
                 if (invite.message != null) {
                     Text(
                         text = stringResource(R.string.shared_with_you_note, invite.message),
-                        modifier = Modifier.padding(top = 3.dp),
+                        modifier = Modifier.padding(top = Spacing.xs),
                         color = MaterialTheme.colorScheme.outline,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
@@ -518,8 +519,8 @@ private fun NewInviteCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(top = Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CompactActionPill(
@@ -551,8 +552,8 @@ private fun EarlierInviteRow(inviteUi: InviteUi) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ArtworkThumb(
@@ -583,7 +584,7 @@ private fun EarlierInviteRow(inviteUi: InviteUi) {
             )
         }
         Row(
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -659,7 +660,7 @@ private fun JamBadge() {
         modifier = Modifier
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .padding(horizontal = Spacing.sm, vertical = 2.dp),
         color = MaterialTheme.colorScheme.onPrimaryContainer,
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
@@ -781,11 +782,11 @@ private fun EmptyState(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
             .padding(rootPadding.bottom()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        SurfaceCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 32.dp)) {
+        SurfaceCard(contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = 32.dp)) {
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
@@ -807,11 +808,11 @@ private fun GatedState(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
             .padding(rootPadding.bottom()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        SurfaceCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 28.dp)) {
+        SurfaceCard(contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = 28.dp)) {
             Text(
                 text = stringResource(R.string.social_disabled_title),
                 style = MaterialTheme.typography.titleMedium,
@@ -824,7 +825,7 @@ private fun GatedState(
                 text = stringResource(R.string.social_disabled_body),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = Spacing.sm),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

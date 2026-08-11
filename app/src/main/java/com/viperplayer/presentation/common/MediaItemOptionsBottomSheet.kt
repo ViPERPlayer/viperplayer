@@ -62,6 +62,7 @@ import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.domain.model.toEntity
 import com.viperplayer.presentation.common.components.PersonGlyphAvatar
 import com.viperplayer.presentation.player.PlayerViewModel
+import com.viperplayer.presentation.theme.Spacing
 
 private const val HeaderArtworkCorner = 14
 private const val TileCorner = 16
@@ -106,8 +107,8 @@ fun MediaItemOptionsBottomSheet(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         when (item) {
             is Song -> {
@@ -188,7 +189,7 @@ fun MediaItemOptionsBottomSheet(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
     }
 }
 
@@ -267,7 +268,7 @@ private fun HeaderScaffold(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -405,7 +406,7 @@ private data class QuickAction(
 private fun QuickActionRow(vararg actions: QuickAction) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         actions.forEach { action ->
             QuickActionTile(
@@ -427,9 +428,9 @@ private fun QuickActionTile(
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = action.onClick)
             .defaultMinSize(minHeight = 64.dp)
-            .padding(vertical = 13.dp, horizontal = 4.dp),
+            .padding(vertical = Spacing.md, horizontal = Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterVertically)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterVertically)
     ) {
         Icon(
             imageVector = action.icon,
@@ -650,7 +651,7 @@ private fun NavigationRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .defaultMinSize(minHeight = 44.dp)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

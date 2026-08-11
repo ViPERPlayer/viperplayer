@@ -40,6 +40,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.presentation.common.components.FilledPill
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * Register screen (route `Register`). Reuses [AccountViewModel] for the register call, state, and
@@ -93,7 +94,7 @@ fun RegisterScreen(
                 .padding(innerPadding)
                 .padding(top = rootPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 24.dp, bottom = 8.dp + rootPadding.calculateBottomPadding()),
+                .padding(start = Spacing.xxl, end = Spacing.xxl, bottom = Spacing.sm + rootPadding.calculateBottomPadding()),
         ) {
             AuthBrandLockup()
 
@@ -118,7 +119,7 @@ fun RegisterScreen(
                 leadingIcon = Icons.Rounded.Mail,
                 keyboardType = KeyboardType.Email,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
             AuthTextField(
                 value = displayName,
                 onValueChange = { displayName = it },
@@ -126,7 +127,7 @@ fun RegisterScreen(
                 leadingIcon = Icons.Rounded.Badge,
                 keyboardType = KeyboardType.Text,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
             AuthTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -147,7 +148,7 @@ fun RegisterScreen(
                     text = state.error!!,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+                    modifier = Modifier.padding(start = Spacing.xs, top = Spacing.sm),
                 )
             }
 
@@ -159,9 +160,9 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             )
             if (state.isSubmitting) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.md))
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.CenterHorizontally).height(24.dp),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).height(Spacing.xxl),
                     strokeWidth = 2.dp,
                 )
             }
@@ -173,13 +174,13 @@ fun RegisterScreen(
                 onClick = onNavigateToSignIn,
             )
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Spacing.xs))
             Text(
                 text = stringResource(R.string.auth_register_footnote),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.xs),
             )
         }
     }

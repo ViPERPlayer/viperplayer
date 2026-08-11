@@ -48,6 +48,7 @@ import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.library.SongRow
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * The shared render surface for the recommendation lists ("More like this" / "For You"). A pure
@@ -160,7 +161,7 @@ private fun RecSongList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 8.dp) + contentPadding,
+        contentPadding = PaddingValues(top = Spacing.sm) + contentPadding,
     ) {
         item(key = "rec_header") {
             RecListHeader(
@@ -177,7 +178,7 @@ private fun RecSongList(
                     text = stringResource(R.string.rec_fallback_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                 )
             }
         }
@@ -210,16 +211,16 @@ private fun RecListHeader(
     onShuffle: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (artworkUrl != null) {
             AsyncImage(
                 model = artworkUrl,
                 contentDescription = null,
-                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(Spacing.sm)),
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.md))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -241,17 +242,17 @@ private fun RecListHeader(
         }
     }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Button(onClick = onPlayAll, modifier = Modifier.weight(1f)) {
             Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             Text(stringResource(R.string.action_play))
         }
         OutlinedButton(onClick = onShuffle, modifier = Modifier.weight(1f)) {
             Icon(Icons.Rounded.Shuffle, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             Text(stringResource(R.string.action_shuffle))
         }
     }
@@ -272,7 +273,7 @@ private fun RecEmptyState(
     noResultsMessage: String? = null,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.xxxl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(

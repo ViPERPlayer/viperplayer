@@ -71,6 +71,7 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.util.packFloats
 import androidx.compose.ui.util.unpackFloat1
 import androidx.compose.ui.util.unpackFloat2
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.coroutineScope
 import kotlin.math.abs
 import kotlin.math.max
@@ -334,9 +335,9 @@ object SliderDefaults {
             modifier = Modifier
                 .size(
                     width = 6.dp,
-                    height = 24.dp
+                    height = Spacing.xxl
                 )
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(Spacing.xs))
                 .background(MaterialTheme.colorScheme.primary)
         )
     }
@@ -375,13 +376,13 @@ object SliderDefaults {
             Box(
                 modifier = Modifier
                     .width(with(LocalDensity.current) { leftWidth.toDp() } - 9.dp)
-                    .height(24.dp)
+                    .height(Spacing.xxl)
                     .clip(
                         RoundedCornerShape(
-                            topStart = 16.dp,
+                            topStart = Spacing.lg,
                             topEnd = 2.dp,
                             bottomEnd = 2.dp,
-                            bottomStart = 16.dp
+                            bottomStart = Spacing.lg
                         )
                     )
                     .background(MaterialTheme.colorScheme.primary)
@@ -390,12 +391,12 @@ object SliderDefaults {
             Box(
                 modifier = Modifier
                     .width(with(LocalDensity.current) { rightWidth.toDp() } - 9.dp)
-                    .height(24.dp)
+                    .height(Spacing.xxl)
                     .clip(
                         RoundedCornerShape(
                             topStart = 2.dp,
-                            topEnd = 16.dp,
-                            bottomEnd = 16.dp,
+                            topEnd = Spacing.lg,
+                            bottomEnd = Spacing.lg,
                             bottomStart = 2.dp
                         )
                     )

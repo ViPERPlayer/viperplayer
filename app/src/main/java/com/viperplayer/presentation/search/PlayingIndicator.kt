@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -26,7 +27,7 @@ fun PlayingIndicator(
     color: Color,
     modifier: Modifier = Modifier,
     bars: Int = 3,
-    barWidth: Dp = 4.dp,
+    barWidth: Dp = Spacing.xs,
     cornerRadius: Dp = 6.dp,
     updateInterval: Long = 50L // time between updates
 ) {

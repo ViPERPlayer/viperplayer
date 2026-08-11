@@ -72,6 +72,7 @@ import coil3.compose.AsyncImage
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.google.zxing.qrcode.encoder.Encoder
 import com.viperplayer.domain.model.Song
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * Hosts the three "social" sheets reachable from the player's output bar: Listen-together / Devices,
@@ -179,7 +180,7 @@ private fun ListenTogetherContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(
@@ -190,17 +191,17 @@ private fun ListenTogetherContent(
             Text(stringResource(R.string.social_listen_together), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
         HostCard(song = song)
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Text(
             stringResource(R.string.social_share_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.lg))
         // Share/QR need a real session code; gate them on the session being ready. While it's being
         // created show a brief spinner, and surface any failure with a retry (so a host never shares a
         // code that maps to no backend session).
@@ -210,14 +211,14 @@ private fun ListenTogetherContent(
             }
             state.session == null -> {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 13.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.md),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     LoadingIndicator(modifier = Modifier.size(24.dp))
                     Text(
                         stringResource(R.string.social_starting_session),
-                        modifier = Modifier.padding(start = 12.dp),
+                        modifier = Modifier.padding(start = Spacing.md),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -235,13 +236,13 @@ private fun ListenTogetherContent(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.md))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(100))
                 .clickable(onClick = onJoinSession)
-                .padding(vertical = 11.dp),
+                .padding(vertical = Spacing.md),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -250,20 +251,20 @@ private fun ListenTogetherContent(
                 stringResource(R.string.join_session_title),
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(start = 8.dp),
+                modifier = Modifier.padding(start = Spacing.sm),
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Spacing.xl))
         HorizontalDivider()
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.md))
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
             Icon(Icons.Filled.Cast, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.social_play_on_device), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Spacing.xs))
         DeviceRow(
             icon = Icons.Filled.Smartphone,
             name = stringResource(R.string.player_output_this_phone),
@@ -274,7 +275,7 @@ private fun ListenTogetherContent(
             stringResource(R.string.social_no_devices),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+            modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.sm)
         )
     }
 }
@@ -291,7 +292,7 @@ private fun ShareInviteContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -304,18 +305,18 @@ private fun ShareInviteContent(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.md))
         HostCard(song = song)
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Spacing.xl))
         SectionLabel(stringResource(R.string.social_invite_link))
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                .clip(RoundedCornerShape(Spacing.lg))
+                .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(Spacing.lg))
+                .padding(start = Spacing.lg, end = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -327,10 +328,10 @@ private fun ShareInviteContent(
             )
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(Spacing.md))
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .clickable(onClick = onCopy)
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                    .padding(horizontal = 14.dp, vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -364,7 +365,7 @@ private fun ShareInviteContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
     }
 }
 
@@ -379,7 +380,7 @@ private fun QrJoinContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -399,7 +400,7 @@ private fun QrJoinContent(
             Spacer(Modifier.width(48.dp))
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Text(
             text = stringResource(R.string.social_hosting, song.title),
             style = MaterialTheme.typography.bodyMedium,
@@ -408,7 +409,7 @@ private fun QrJoinContent(
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Spacing.xl))
         // The QR card is always white for reliable scanning, regardless of theme.
         Box(
             modifier = Modifier
@@ -447,7 +448,7 @@ private fun QrJoinContent(
             modifier = Modifier.padding(top = 6.dp)
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Spacing.xl))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -459,9 +460,9 @@ private fun QrJoinContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-            Text(stringResource(R.string.social_copy_link_instead), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 9.dp))
+            Text(stringResource(R.string.social_copy_link_instead), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = Spacing.sm))
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
     }
 }
 
@@ -505,7 +506,7 @@ private fun HostCard(song: Song) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Spacing.xl))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -517,7 +518,7 @@ private fun HostCard(song: Song) {
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Spacing.md))
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -560,7 +561,7 @@ private fun DeviceRow(icon: ImageVector, name: String, subtitle: String?, select
             .fillMaxWidth()
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
         Icon(
             icon,
@@ -595,12 +596,12 @@ private fun FilledPillButton(
             .clip(RoundedCornerShape(100))
             .background(MaterialTheme.colorScheme.primary)
             .clickable(onClick = onClick)
-            .padding(vertical = 13.dp),
+            .padding(vertical = Spacing.md),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
-        Text(text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+        Text(text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = Spacing.sm))
     }
 }
 
@@ -611,7 +612,7 @@ private fun TonalPillButton(icon: ImageVector, contentDescription: String, onCli
             .clip(RoundedCornerShape(100))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 13.dp),
+            .padding(horizontal = 18.dp, vertical = Spacing.md),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))

@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.theme.Spacing
 
 @Composable
 fun LastfmSettingsScreen(
@@ -127,7 +128,7 @@ fun LastfmSettingsContent(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item { Spacer(modifier = Modifier.height(Spacing.sm)) }
             item { SettingsCategory(stringResource(R.string.lastfm_scrobbling)) }
             item {
                 SwitchItem(
@@ -165,7 +166,7 @@ private fun NotConfiguredNotice(modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
     ) {
         ListItem(
@@ -204,7 +205,7 @@ private fun LoggedInCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column {
@@ -227,8 +228,8 @@ private fun LoggedInCard(
             OutlinedButton(
                 onClick = onLogout,
                 modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 12.dp),
+                    .padding(horizontal = Spacing.lg)
+                    .padding(bottom = Spacing.md),
             ) {
                 Text(stringResource(R.string.lastfm_sign_out))
             }
@@ -251,12 +252,12 @@ private fun LoginCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             OutlinedTextField(
                 value = username,
@@ -299,14 +300,14 @@ private fun LoginCard(
             ) {
                 if (isLoggingIn) {
                     CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
+                        modifier = Modifier.height(Spacing.xl),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                     Spacer(modifier = Modifier.height(0.dp))
                     Text(
                         text = stringResource(R.string.lastfm_signing_in),
-                        modifier = Modifier.padding(start = 8.dp),
+                        modifier = Modifier.padding(start = Spacing.sm),
                     )
                 } else {
                     Text(stringResource(R.string.lastfm_sign_in))
@@ -324,7 +325,7 @@ private fun SettingsCategory(title: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     )
 }
 
@@ -340,7 +341,7 @@ private fun SwitchItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
             .toggleable(value = checked, onValueChange = onCheckedChange),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {

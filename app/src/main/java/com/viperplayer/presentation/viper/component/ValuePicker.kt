@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 
 @Composable
 fun ValuePicker(
@@ -50,7 +51,7 @@ fun ValuePicker(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { showDialog = true }
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
     ) {
         Text(
             text = title,
@@ -97,8 +98,8 @@ private fun ValuePickerDialog(
                 )
         ) {
             Row(
-                modifier = Modifier.padding(24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(Spacing.xxl),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -131,8 +132,8 @@ private fun ValuePickerDialog(
                                 role = Role.RadioButton,
                                 onClick = { onSelectedIndexChange(index) }
                             )
-                            .padding(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            .padding(horizontal = Spacing.xxl),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
@@ -153,7 +154,7 @@ private fun ValuePickerDialog(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(Spacing.xxl),
                 horizontalArrangement = Arrangement.End
             ) {
                 Button(

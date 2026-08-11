@@ -62,6 +62,7 @@ import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.common.components.SurfaceCardCornerRadius
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 import java.time.Year
 
 /** Corner radius for the smaller stat/activity tiles — a step down from the [SurfaceCardCornerRadius]. */
@@ -156,8 +157,8 @@ fun ListeningStatsContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = contentPadding.calculateTopPadding()),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + rootPadding.bottom(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm) + rootPadding.bottom(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "range_chips") {
                 RangeChips(range = range, onSelectRange = onSelectRange)
@@ -262,7 +263,7 @@ private fun RangeChips(range: StatsRange, onSelectRange: (StatsRange) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         StatsRange.entries.forEach { entry ->
             SelectableChip(
@@ -290,8 +291,8 @@ private fun WrappedCta(onClick: () -> Unit) {
             .clip(RoundedCornerShape(SurfaceCardCornerRadius))
             .background(gradient)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = Spacing.lg, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -399,7 +400,7 @@ private fun RankedRow(rank: Int, item: RankedItem) {
             .fillMaxWidth()
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Text(
             text = rank.toString(),
@@ -467,13 +468,13 @@ private fun ActivityChart(
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 12.dp),
+            modifier = Modifier.padding(bottom = Spacing.md),
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(ActivityBarRowHeight),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalAlignment = Alignment.Bottom,
         ) {
             buckets.forEach { bucket ->
@@ -484,7 +485,7 @@ private fun ActivityChart(
                     modifier = Modifier
                         .weight(1f)
                         .height((ActivityBarRowHeight * fraction).coerceAtLeast(2.dp))
-                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .clip(RoundedCornerShape(topStart = Spacing.xs, topEnd = Spacing.xs))
                         .background(
                             if (isPeak) {
                                 MaterialTheme.colorScheme.primary
@@ -498,7 +499,7 @@ private fun ActivityChart(
         Spacer(Modifier.height(6.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             buckets.forEach { bucket ->
                 val isPeak = bucket.playCount == max && bucket.playCount > 0
@@ -526,7 +527,7 @@ private fun EmptyState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 48.dp),
+            .padding(horizontal = Spacing.lg, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -534,7 +535,7 @@ private fun EmptyState() {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Text(
             text = stringResource(R.string.listening_stats_empty_body),
             style = MaterialTheme.typography.bodyMedium,

@@ -46,9 +46,10 @@ import androidx.compose.ui.res.stringResource
 import com.viperplayer.R
 import com.viperplayer.presentation.common.components.AvatarRing
 import androidx.compose.foundation.layout.fillMaxSize
+import com.viperplayer.presentation.theme.Spacing
 
 /** Field/CTA corner radius shared by the auth screens (the mockup's 16dp filled fields). */
-internal val AuthFieldShape = RoundedCornerShape(16.dp)
+internal val AuthFieldShape = RoundedCornerShape(Spacing.lg)
 
 /**
  * The brand lockup at the top of the auth screens: a gradient-ringed roundel with the ViPER glyph and
@@ -58,7 +59,7 @@ internal val AuthFieldShape = RoundedCornerShape(16.dp)
 internal fun AuthBrandLockup() {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         AvatarRing(
             size = 44.dp,
@@ -165,7 +166,7 @@ internal fun PasswordRequirementRow(text: String, met: Boolean) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.padding(start = 4.dp, top = 10.dp),
+        modifier = Modifier.padding(start = Spacing.xs, top = 10.dp),
     ) {
         Icon(
             imageVector = if (met) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,

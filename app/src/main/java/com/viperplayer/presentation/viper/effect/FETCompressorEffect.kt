@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viperplayer.R
 import com.viperplayer.domain.model.FetCompressorState
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.ValueSlider
 
@@ -192,7 +193,7 @@ private fun FetToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(

@@ -165,6 +165,7 @@ import com.viperplayer.presentation.common.ListItem
 import com.viperplayer.presentation.ktx.formatDuration
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
@@ -487,7 +488,7 @@ internal fun PlayerContent(
                 // bar. The slot reads sessionState so a session change only recomposes that wrapper.
                 transport(position, bufferedPosition)
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(Spacing.xl))
 
                 // Output + queue bar (no dynamic playback reads).
                 PlayerOutputQueueBar(
@@ -642,7 +643,7 @@ private fun PlayerTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, top = 8.dp),
+            .padding(start = Spacing.sm, end = Spacing.sm, top = Spacing.sm),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -758,7 +759,7 @@ private fun PlayerTopBar(
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_sleep_timer)) },
                         leadingIcon = { Icon(Icons.Filled.Bedtime, contentDescription = null) },
@@ -819,7 +820,7 @@ private fun PlayerTrackInfo(
                 ArtistAlbumSubtitle(
                     song = current,
                     onArtistClick = onNavigateToArtist,
-                    modifier = Modifier.padding(top = 5.dp)
+                    modifier = Modifier.padding(top = Spacing.xs)
                 )
             }
         }
@@ -849,7 +850,7 @@ private fun PlayerTransport(
             syncState = sessionState.syncState,
             isFollower = isFollower,
             trackUnavailable = sessionState.trackUnavailable,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = Spacing.md)
         )
     }
 
@@ -871,7 +872,7 @@ private fun PlayerTransport(
         modifier = Modifier.graphicsLayer { alpha = transportAlpha }
     )
 
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(Spacing.lg))
 
     // Transport cluster. Only the toggled control recomposes: shuffle/repeat/play-pause each collect
     // their own flow; the skip pills are inert w.r.t. playback state.
@@ -916,9 +917,9 @@ private fun PlayerOutputQueueBar(
                 .clip(RoundedCornerShape(22.dp))
                 .background(Color.White.copy(alpha = 0.14f))
                 .clickable(onClick = onOpenListenTogether)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Icon(
                 imageVector = Icons.Filled.Speaker,
@@ -1093,7 +1094,7 @@ internal fun PlaybackSpeedDialog(
                     },
                     valueRange = PlayerQueueLogic.SPEED_UI_RANGE,
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
                 Text(
                     text = stringResource(R.string.playback_pitch_value, pitch),
                     style = MaterialTheme.typography.bodyMedium,
@@ -1207,9 +1208,9 @@ private fun ListeningTogetherIndicator(
         modifier = modifier
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.14f))
-            .padding(horizontal = 14.dp, vertical = 7.dp),
+            .padding(horizontal = 14.dp, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         if (syncing) {
             CircularProgressIndicator(
@@ -1269,9 +1270,9 @@ private fun ContextChip(
         modifier = modifier
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.16f))
-            .padding(horizontal = 16.dp, vertical = 7.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         Icon(
             imageVector = icon,
@@ -1364,7 +1365,7 @@ private fun SkipPill(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val corner by animateDpAsState(if (pressed) 30.dp else 24.dp, label = "pillCorner")
+    val corner by animateDpAsState(if (pressed) 30.dp else Spacing.xxl, label = "pillCorner")
     val scale by animateFloatAsState(if (pressed) 0.92f else 1f, label = "pillScale")
     Box(
         modifier = Modifier
@@ -1441,7 +1442,7 @@ internal fun DragToDismissHandle(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(24.dp)
+            .height(Spacing.xxl)
             .testTag("playerDragHandle")
             .pointerInput(dismissThresholdPx) {
                 detectVerticalDragGestures(
@@ -1461,7 +1462,7 @@ internal fun DragToDismissHandle(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 36.dp, height = 4.dp)
+                .size(width = 36.dp, height = Spacing.xs)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.55f))
         )
@@ -1551,9 +1552,9 @@ internal fun WavySeekBar(
             val midY = size.height / 2f
             val playedX = (w * fraction).coerceIn(0f, w)
             val bufferedX = (w * bufferedFraction).coerceIn(0f, w)
-            val strokePx = with(density) { 4.dp.toPx() }
+            val strokePx = with(density) { Spacing.xs.toPx() }
             val ampPx = with(density) { 5.dp.toPx() } * amp
-            val wavelenPx = with(density) { 16.dp.toPx() }
+            val wavelenPx = with(density) { Spacing.lg.toPx() }
             val stepPx = with(density) { 2.dp.toPx() }
 
             // Remaining portion (drawn first so the buffered segment overlays it).
@@ -1658,15 +1659,15 @@ fun SongDetailsBottomSheet(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         // Header
         Text(
             text = stringResource(R.string.song_details),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
+            modifier = Modifier.padding(bottom = Spacing.sm)
         )
 
         HorizontalDivider()
@@ -1774,7 +1775,7 @@ fun SongDetailsBottomSheet(
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(vertical = 16.dp)
+                modifier = Modifier.padding(vertical = Spacing.lg)
             )
         }
     }
@@ -1787,7 +1788,7 @@ private fun DetailSection(
     content: @Composable () -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         ListItem(
             headlineContent = {
@@ -1809,12 +1810,12 @@ private fun DetailSection(
             )
         )
         Column(
-            modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.padding(start = 56.dp, end = Spacing.lg, bottom = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs)
         ) {
             content()
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
     }
 }
 
@@ -1885,13 +1886,13 @@ private fun SleepTimerDialog(
                     onClick = onSelectEndOfTrack,
                 )
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
 
                 // Fade-out toggle (persisted): applies to whichever timer is armed.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Spacing.md))
                         .clickable { onFadeOutChange(!fadeOut) }
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1920,13 +1921,13 @@ private fun SleepTimerOptionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(Spacing.md))
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onClick)
-        Text(label, modifier = Modifier.padding(start = 8.dp))
+        Text(label, modifier = Modifier.padding(start = Spacing.sm))
     }
 }
 

@@ -48,6 +48,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.RecReason
 import com.viperplayer.domain.model.Song
 import com.viperplayer.presentation.common.PlayingArtworkOverlay
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * The pinned host-generated **"Suggested for you"** surface, added at the TOP of Home's `LazyColumn`
@@ -77,14 +78,14 @@ fun LazyListScope.suggestionsHomeSurface(
             SuggestionsEnableCard(
                 onEnable = onEnable,
                 onDismiss = onDismiss,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             )
         }
 
         is SuggestionsUiState.Personalizing -> item(key = "suggestions-personalizing") {
             SuggestionsPersonalizingRow(
                 state = state,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             )
         }
 
@@ -94,7 +95,7 @@ fun LazyListScope.suggestionsHomeSurface(
                     text = stringResource(R.string.suggestions_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                 )
             }
             item(key = "suggestions-carousel") {
@@ -130,7 +131,7 @@ fun LazyListScope.suggestionsSearchSurface(
         SuggestionsUiState.Disabled -> item(key = "search-suggestions-enable") {
             SuggestionsEnableHint(
                 onEnable = onEnable,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             )
         }
 
@@ -140,13 +141,13 @@ fun LazyListScope.suggestionsSearchSurface(
                     text = stringResource(R.string.suggestions_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg, bottom = Spacing.xs),
                 )
             }
             item(key = "search-suggestions-row") {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = Spacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     items(state.songs, key = { "search-suggestion-${it.id}" }) { song ->
                         SuggestionTile(
@@ -176,14 +177,14 @@ private fun SuggestionsEnableCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Rounded.AutoAwesome,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Spacing.md))
                 Text(
                     text = stringResource(R.string.suggestions_enable_title),
                     style = MaterialTheme.typography.titleMedium,
@@ -198,19 +199,19 @@ private fun SuggestionsEnableCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
                 text = stringResource(R.string.suggestions_enable_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
                 text = stringResource(R.string.suggestions_enable_how_it_works),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             Button(
                 onClick = onEnable,
                 modifier = Modifier.align(Alignment.End),
@@ -236,7 +237,7 @@ private fun SuggestionsEnableHint(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -244,7 +245,7 @@ private fun SuggestionsEnableHint(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Spacing.md))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.suggestions_enable_title),
@@ -272,7 +273,7 @@ private fun SuggestionsPersonalizingRow(
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         LoadingIndicator(modifier = Modifier.size(24.dp))
         val text = if (state.hasProgress) {
@@ -305,8 +306,8 @@ private fun SuggestionsCarousel(
     HorizontalMultiBrowseCarousel(
         state = carouselState,
         preferredItemWidth = 320.dp,
-        itemSpacing = 12.dp,
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        itemSpacing = Spacing.md,
+        contentPadding = PaddingValues(horizontal = Spacing.lg),
         modifier = Modifier
             .fillMaxWidth()
             .height(300.dp),
@@ -361,7 +362,7 @@ private fun SuggestionsCard(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(20.dp),
+                .padding(Spacing.xl),
         ) {
             reason?.label()?.let { caption ->
                 Text(

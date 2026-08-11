@@ -40,6 +40,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.theme.Spacing
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -130,7 +131,7 @@ fun CustomizeTabsScreenContent(
                 text = stringResource(R.string.library_customize_tabs_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
             )
 
             LazyColumn(
@@ -141,7 +142,7 @@ fun CustomizeTabsScreenContent(
             ) {
                 itemsIndexed(localTabs, key = { _, item -> item.tab.name }) { index, item ->
                     ReorderableItem(reorderableState, key = item.tab.name) { isDragging ->
-                        val elevation = if (isDragging) 8.dp else 0.dp
+                        val elevation = if (isDragging) Spacing.sm else 0.dp
                         val label = stringResource(item.tab.labelRes)
                         Row(
                             modifier = Modifier
@@ -152,10 +153,10 @@ fun CustomizeTabsScreenContent(
                                     if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest
                                     else MaterialTheme.colorScheme.surface
                                 )
-                                .padding(horizontal = 16.dp)
+                                .padding(horizontal = Spacing.lg)
                                 .testTag("customizeTabRow_${item.tab.name}"),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DragHandle,

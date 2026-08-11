@@ -48,6 +48,7 @@ import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.viper.effect.AnalogXEffect
 import com.viperplayer.presentation.viper.effect.AuditorySystemProtectionEffect
 import com.viperplayer.presentation.viper.effect.ConvolverEffect
@@ -68,7 +69,7 @@ import com.viperplayer.presentation.viper.effect.ViPERClarityEffect
 import com.viperplayer.presentation.viper.effect.ViperDdcEffect
 
 /** Horizontal inset for the ViPER FX screen content, matching the mockup's edge gutter. */
-private val ScreenHorizontalPadding = 16.dp
+private val ScreenHorizontalPadding = Spacing.lg
 
 /** Gap between stacked effect cards in the mockup. */
 private val EffectCardSpacing = 10.dp
@@ -93,7 +94,7 @@ fun ViperScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(rootPadding.bottom()),
         ) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 text = stringResource(R.string.viper_fx_title),
                 modifier = Modifier.padding(horizontal = ScreenHorizontalPadding),
@@ -107,12 +108,12 @@ fun ViperScreen(
                     modifier = Modifier.padding(
                         start = ScreenHorizontalPadding,
                         end = ScreenHorizontalPadding,
-                        top = 16.dp,
+                        top = Spacing.lg,
                     )
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Spacing.xl))
 
             MasterHeroSwitch(
                 modifier = Modifier.padding(horizontal = ScreenHorizontalPadding),
@@ -354,7 +355,7 @@ private fun MasterHeroSwitch(
 ) {
     val checked = effects.enabled
     val activeCount = remember(effects) { effects.activeEffectCount() }
-    val heroShape = RoundedCornerShape(999.dp)
+    val heroShape = CircleShape
 
     // Diagonal hero gradient (mockup #4F378B -> #332D41), mapped to theme roles. When disabled the
     // pill flattens to a neutral surface so the "off" state reads as inert.
@@ -494,12 +495,12 @@ private fun EffectCard(
 private fun CastingUnavailableBanner(modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(Spacing.lg),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(

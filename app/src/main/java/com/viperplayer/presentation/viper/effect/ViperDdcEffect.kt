@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.viperplayer.R
 import com.viperplayer.domain.model.ViperDdcState
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.viper.component.Effect
 import com.viperplayer.presentation.viper.component.FrequencyResponseGraph
 import java.io.File
@@ -82,7 +83,7 @@ fun ViperDdcEffect(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { showDialog = true }
-                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .padding(horizontal = Spacing.xxl, vertical = Spacing.sm)
         ) {
             Text(
                 text = stringResource(R.string.ddc_headset_correction),
@@ -106,8 +107,8 @@ fun ViperDdcEffect(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(top = Spacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     PlotType.entries.forEach { type ->
                         val selected = plotType == type
@@ -152,7 +153,7 @@ fun ViperDdcEffect(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp)
-                                .padding(top = 16.dp),
+                                .padding(top = Spacing.lg),
                             minY = minY,
                             maxY = maxY,
                             unit = unit
@@ -163,7 +164,7 @@ fun ViperDdcEffect(
 
                         Text(
                             text = stringResource(R.string.ddc_rates_bands, rates, bandCount),
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.padding(top = Spacing.sm),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -186,7 +187,7 @@ fun ViperDdcEffect(
             ) {
                 Text(
                     text = stringResource(R.string.ddc_select_file),
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(Spacing.xxl),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -201,7 +202,7 @@ fun ViperDdcEffect(
                         Text(
                             text = stringResource(R.string.effect_no_files_loaded),
                             modifier = Modifier
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                                .padding(horizontal = Spacing.xxl, vertical = Spacing.lg),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
@@ -218,7 +219,7 @@ fun ViperDdcEffect(
                                             showDialog = false
                                         }
                                     )
-                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                                    .padding(horizontal = Spacing.xxl, vertical = Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
@@ -232,7 +233,7 @@ fun ViperDdcEffect(
                                     text = file.name,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(start = 16.dp),
+                                        .padding(start = Spacing.lg),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -252,7 +253,7 @@ fun ViperDdcEffect(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(Spacing.xxl),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

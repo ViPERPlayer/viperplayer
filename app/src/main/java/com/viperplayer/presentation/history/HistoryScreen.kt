@@ -56,6 +56,7 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.ktx.with
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 import java.time.Instant
 import java.time.ZoneId
@@ -162,7 +163,7 @@ private fun HistoryScreenContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(contentPadding)
-                    .padding(32.dp),
+                    .padding(Spacing.xxxl),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -175,7 +176,7 @@ private fun HistoryScreenContent(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // Keep the scaffold's top inset; apply the bottom system inset from rootPadding.
-                contentPadding = contentPadding.with(bottom = 8.dp) + rootPadding.bottom()
+                contentPadding = contentPadding.with(bottom = Spacing.sm) + rootPadding.bottom()
             ) {
                 itemsIndexed(
                     items = history,
@@ -191,10 +192,10 @@ private fun HistoryScreenContent(
                                 // NonObservableLocale lint from reading Locale.getDefault() in composition.
                                 text = bucket.label().uppercase(),
                                 modifier = Modifier.padding(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = if (index == 0) 8.dp else 16.dp,
-                                    bottom = 8.dp
+                                    start = Spacing.lg,
+                                    end = Spacing.lg,
+                                    top = if (index == 0) Spacing.sm else Spacing.lg,
+                                    bottom = Spacing.sm
                                 )
                             )
                         }
@@ -261,7 +262,7 @@ private fun HistoryRow(
             .then(
                 if (isActive) {
                     Modifier
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .padding(horizontal = Spacing.sm, vertical = 2.dp)
                         .clip(RoundedCornerShape(ActiveRowCorner))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 } else {
@@ -269,9 +270,9 @@ private fun HistoryRow(
                 }
             )
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = if (isActive) 8.dp else 16.dp, vertical = 7.dp),
+            .padding(horizontal = if (isActive) Spacing.sm else Spacing.lg, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         HistoryRowArtwork(
             artworkUrl = entry.song.artworkUrl,

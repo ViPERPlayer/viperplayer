@@ -35,6 +35,7 @@ import com.viperplayer.presentation.common.ViperScaffold
 import com.viperplayer.presentation.common.components.SurfaceCard
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * "Find people" discovery screen (social S1): a search field that queries [FollowUser]s by name/handle
@@ -82,7 +83,7 @@ fun FindPeopleScreen(
                 onValueChange = viewModel::onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                 singleLine = true,
                 leadingIcon = {
                     Icon(imageVector = Icons.Rounded.Search, contentDescription = null)
@@ -108,8 +109,8 @@ fun FindPeopleScreen(
                     )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp) + rootPadding.bottom(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm) + rootPadding.bottom(),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     items(items = state.results, key = { it.userId }) { user ->
                         FollowUserRow(
@@ -144,11 +145,11 @@ internal fun SocialMessageState(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
             .padding(rootPadding.bottom()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        SurfaceCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 32.dp)) {
+        SurfaceCard(contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = 32.dp)) {
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,

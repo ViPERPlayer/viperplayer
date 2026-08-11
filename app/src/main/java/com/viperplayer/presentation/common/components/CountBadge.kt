@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /** Counts above this render as "N+" so the badge never grows wider than two glyphs. */
@@ -40,7 +41,7 @@ fun CountBadge(
     if (count <= 0) return
     Box(
         modifier = modifier
-            .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+            .defaultMinSize(minWidth = Spacing.xl, minHeight = Spacing.xl)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.errorContainer)
             .padding(horizontal = 6.dp),
@@ -67,7 +68,7 @@ fun CountBadge(
 @Composable
 fun ActivityDot(
     modifier: Modifier = Modifier,
-    size: Dp = 8.dp,
+    size: Dp = Spacing.sm,
 ) {
     Box(
         modifier = modifier
@@ -82,9 +83,9 @@ fun ActivityDot(
 private fun CountBadgePreview() {
     ViPERPlayerTheme(darkTheme = true) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
         ) {
             CountBadge(count = 2)
             CountBadge(count = 3)

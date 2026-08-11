@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.viperplayer.R
+import com.viperplayer.presentation.theme.Spacing
 
 /**
  * An unobtrusive "Offline mode is on" banner surfaced on Home/Search when the user has enabled
@@ -34,7 +35,7 @@ fun OfflineBanner(modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -47,7 +48,7 @@ fun OfflineBanner(modifier: Modifier = Modifier) {
                 text = stringResource(R.string.offline_banner_message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp)
+                modifier = Modifier.padding(start = Spacing.md)
             )
         }
     }

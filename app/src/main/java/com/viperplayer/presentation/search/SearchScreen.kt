@@ -121,6 +121,7 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.infiniteBasicMarquee
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -259,14 +260,14 @@ fun SearchScreen(
                 inputField = inputField,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp)
+                    .padding(horizontal = Spacing.lg)
+                    .padding(top = Spacing.sm)
             )
 
             // Offline mode is on: tell the user why remote search results are hidden.
             if (offlineMode) {
                 OfflineBanner(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                 )
             }
 
@@ -422,7 +423,7 @@ fun SearchScreen(
                                     modifier = Modifier.size(64.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(Spacing.lg))
                                 Text(
                                     text = stringResource(R.string.search_for_music),
                                     style = MaterialTheme.typography.titleMedium,
@@ -559,7 +560,7 @@ private fun SearchResultsList(
                     onClick = { onItemActivated(topResult) },
                     modifier = Modifier
                         .animateItem()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = Spacing.lg),
                 )
             }
         }
@@ -708,7 +709,7 @@ private fun SearchSongRow(
             .then(
                 if (isActive) {
                     Modifier
-                        .padding(horizontal = 8.dp)
+                        .padding(horizontal = Spacing.sm)
                         .clip(RoundedCornerShape(ActiveRowCorner))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 } else {
@@ -761,9 +762,9 @@ private fun SearchSongRow(
                 .combinedClickable(onClick = onClick, onLongClick = onMore)
                 // Content sits ~16dp from the screen edge. The active row's container already adds an
                 // 8dp inset, so its inner padding is 8dp; the flat non-active row uses the full 16dp.
-                .padding(horizontal = if (isActive) 8.dp else 16.dp, vertical = 7.dp),
+                .padding(horizontal = if (isActive) Spacing.sm else Spacing.lg, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             SearchRowArtwork(
                 artworkUrl = item.artworkUrl,
@@ -796,7 +797,7 @@ private fun SearchSongRow(
                 if (otherBadges.isNotEmpty() || item.subtitle != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
                         if (otherBadges.isNotEmpty()) {
                             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -872,7 +873,7 @@ private fun SearchSwipeAffordance(
             icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.requiredSize(24.dp),
+            modifier = Modifier.requiredSize(Spacing.xxl),
         )
     }
 }
@@ -934,7 +935,7 @@ private fun ResultsSectionLabel(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.onSurface,
         fontSize = 15.sp,
         fontWeight = FontWeight.Bold,
-        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
+        modifier = modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg, bottom = 6.dp),
     )
 }
 
@@ -961,8 +962,8 @@ private fun TopResultCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val artShape = if (item.type == SearchItem.Type.ARTIST) CircleShape else RoundedCornerShape(14.dp)
@@ -1039,8 +1040,8 @@ private fun MediaCarousel(
 ) {
     LazyRow(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         items(
             items = items,
@@ -1094,7 +1095,7 @@ internal fun RecentSearchesHeader(
         modifier = modifier
             .fillMaxWidth()
             .testTag("searchRecentHeader")
-            .padding(start = 16.dp, end = 8.dp, top = 8.dp),
+            .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1118,8 +1119,8 @@ private fun SearchFilterRow(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         val filters = listOf(
             stringResource(R.string.search_filter_all) to null,

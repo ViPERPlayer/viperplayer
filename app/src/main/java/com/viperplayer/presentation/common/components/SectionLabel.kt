@@ -9,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /**
@@ -40,7 +41,7 @@ private fun SectionLabelPreview() {
     ViPERPlayerTheme(darkTheme = true) {
         SectionLabel(
             text = "SOCIAL",
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
         )
     }
 }

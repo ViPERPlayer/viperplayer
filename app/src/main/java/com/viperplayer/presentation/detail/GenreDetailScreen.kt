@@ -51,6 +51,7 @@ import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.library.EmptyLibraryContent
 import com.viperplayer.presentation.library.SongRow
+import com.viperplayer.presentation.theme.Spacing
 
 // Genre song-list sort options. DEFAULT (name order from the query) is first and selected initially.
 private val GENRE_SONG_SORT_OPTIONS = listOf(
@@ -162,7 +163,7 @@ private fun GenreSongList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 8.dp) + contentPadding,
+        contentPadding = PaddingValues(top = Spacing.sm) + contentPadding,
     ) {
         item(key = "genre_header") {
             GenreListHeader(
@@ -200,7 +201,7 @@ private fun GenreListHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 4.dp),
+            .padding(start = Spacing.lg, end = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -218,15 +219,15 @@ private fun GenreListHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Button(
             onClick = onPlayAll,
             modifier = Modifier.weight(1f),
         ) {
             Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             Text(stringResource(R.string.action_play))
         }
         OutlinedButton(
@@ -234,7 +235,7 @@ private fun GenreListHeader(
             modifier = Modifier.weight(1f),
         ) {
             Icon(Icons.Rounded.Shuffle, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             Text(stringResource(R.string.action_shuffle))
         }
     }

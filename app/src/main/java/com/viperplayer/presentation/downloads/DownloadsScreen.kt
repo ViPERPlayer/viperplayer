@@ -65,6 +65,7 @@ import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.ktx.with
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /**
@@ -145,7 +146,7 @@ private fun DownloadsScreenContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(contentPadding)
-                    .padding(32.dp),
+                    .padding(Spacing.xxxl),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -158,7 +159,7 @@ private fun DownloadsScreenContent(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // Keep the scaffold's top inset; apply the bottom system inset from rootPadding.
-                contentPadding = contentPadding.with(bottom = 8.dp) + rootPadding.bottom()
+                contentPadding = contentPadding.with(bottom = Spacing.sm) + rootPadding.bottom()
             ) {
                 item(key = "storage_summary") {
                     StorageSummaryCard(
@@ -167,7 +168,7 @@ private fun DownloadsScreenContent(
                         totalStorageBytes = totalStorageBytes,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, top = 4.dp)
+                            .padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.xs)
                     )
                 }
 
@@ -176,7 +177,7 @@ private fun DownloadsScreenContent(
                         SectionLabel(
                             text = stringResource(R.string.downloads_in_progress).uppercase(),
                             modifier = Modifier.padding(
-                                start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp
+                                start = Spacing.lg, end = Spacing.lg, top = Spacing.lg, bottom = Spacing.sm
                             )
                         )
                     }
@@ -198,7 +199,7 @@ private fun DownloadsScreenContent(
                         SectionLabel(
                             text = stringResource(R.string.downloads_completed).uppercase(),
                             modifier = Modifier.padding(
-                                start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp
+                                start = Spacing.lg, end = Spacing.lg, top = Spacing.lg, bottom = Spacing.sm
                             )
                         )
                     }
@@ -218,7 +219,7 @@ private fun DownloadsScreenContent(
                             },
                             trailingContent = {
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
@@ -282,11 +283,11 @@ private fun StorageSummaryCard(
 
     SurfaceCard(
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = Spacing.md),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(

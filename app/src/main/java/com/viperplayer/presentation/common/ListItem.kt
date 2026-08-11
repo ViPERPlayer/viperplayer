@@ -64,6 +64,7 @@ import com.viperplayer.presentation.search.PlayingIndicator
 import com.viperplayer.presentation.ktx.formatDuration
 import com.viperplayer.presentation.search.model.ItemBadge
 import com.viperplayer.presentation.search.model.SearchItem
+import com.viperplayer.presentation.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -118,7 +119,7 @@ fun PlayingArtworkOverlay(isActive: Boolean, isPlaying: Boolean, modifier: Modif
         if (isPlaying) {
             PlayingIndicator(
                 color = Color.White,
-                modifier = Modifier.height(24.dp)
+                modifier = Modifier.height(Spacing.xxl)
             )
         } else {
             Icon(
@@ -148,7 +149,7 @@ fun ListItemLeadingTrackNumber(
             if (isPlaying) {
                 PlayingIndicator(
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp, 20.dp),
+                    modifier = Modifier.size(Spacing.lg, Spacing.xl),
                     bars = 3,
                     barWidth = 3.dp
                 )
@@ -182,7 +183,7 @@ fun ListItemTrailingWithDuration(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (durationMs != null) {
@@ -313,7 +314,7 @@ fun ListItem(
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .requiredSize(24.dp)
+                            .requiredSize(Spacing.xxl)
                     )
                 }
             }
@@ -334,7 +335,7 @@ fun ListItem(
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .requiredSize(24.dp)
+                            .requiredSize(Spacing.xxl)
                     )
                 }
             }
@@ -353,7 +354,7 @@ fun ListItem(
 
                     if (badges.isNotEmpty() || subtitle != null) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (badges.isNotEmpty()) {

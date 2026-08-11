@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -28,10 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.viperplayer.presentation.theme.Spacing
 import com.viperplayer.presentation.theme.ViPERPlayerTheme
 
 /** Fully-rounded pill radius shared by every pill/chip in the visual language. */
-private val PillShape = RoundedCornerShape(999.dp)
+private val PillShape = CircleShape
 
 /** Minimum size on both axes so every pill clears the 44dp touch-target floor, even a 1-glyph pill. */
 private val PillMinTouchTarget = 44.dp
@@ -187,7 +188,7 @@ private fun PillContent(text: String, leadingIcon: ImageVector?) {
     }
     Text(
         text = text,
-        modifier = Modifier.padding(start = if (leadingIcon != null) 8.dp else 0.dp),
+        modifier = Modifier.padding(start = if (leadingIcon != null) Spacing.sm else 0.dp),
         fontSize = 14.sp,
         fontWeight = FontWeight.SemiBold,
     )
@@ -200,7 +201,7 @@ private fun PillsPreview() {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
         ) {
             FilledPill(text = "Join", onClick = {}, leadingIcon = Icons.Rounded.GraphicEq)
             TonalChip(text = "Invite", onClick = {}, leadingIcon = Icons.Rounded.PersonAdd)
