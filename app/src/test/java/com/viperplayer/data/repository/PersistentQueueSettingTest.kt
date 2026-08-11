@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
@@ -62,9 +63,14 @@ class PersistentQueueSettingTest {
         val file = File(tempFolder.root, "settings.preferences_pb")
 
         // "First process": disable persistent queue, then tear the store's scope down.
-        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val firstJob = SupervisorJob()
+        val firstScope = CoroutineScope(firstJob + Dispatchers.IO)
         SettingsRepositoryImpl(openStore(file, firstScope)).setPersistentQueueEnabled(false)
-        firstScope.cancel()
+        // Join, don't just cancel. DataStore keeps a process-wide registry of open files and only
+        // deregisters this one when the owning job actually completes, so a bare cancel() races the
+        // second open and intermittently trips its "multiple DataStores active for the same file"
+        // check (IllegalStateException from FileStorage) on a loaded machine.
+        firstJob.cancelAndJoin()
 
         // "Second process": a fresh store over the same file must still see the disabled value.
         val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

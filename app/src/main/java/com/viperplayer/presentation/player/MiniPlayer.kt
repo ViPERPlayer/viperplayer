@@ -133,6 +133,32 @@ private fun MiniPlayerProgressIndicator(
     }
 }
 
+/**
+ * The play triangle that fades in over the artwork while playback is paused.
+ *
+ * Deliberately a separate composable rather than an inline `AnimatedVisibility`: its call site sits
+ * in a `Box` nested inside the mini player's `Row`, and `RowScope` is a `@LayoutScopeMarker` DSL
+ * receiver. Overload resolution there picks `RowScope.AnimatedVisibility` and then rejects it,
+ * because a DSL marker forbids reaching an outer implicit receiver. Hoisting the call into a
+ * function with no layout-scope receiver lets the plain top-level overload resolve, so the import
+ * stays unqualified per CLAUDE.md. Do not inline this back into the `Box`.
+ */
+@Composable
+private fun PlayOverlayIcon(visible: Boolean) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + scaleIn(initialScale = 0.7f),
+        exit = fadeOut() + scaleOut(targetScale = 0.7f)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.PlayArrow,
+            contentDescription = stringResource(R.string.action_play),
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
 @Composable
 fun MiniPlayerContent(
     song: Song?,
@@ -247,18 +273,7 @@ fun MiniPlayerContent(
                             )
                     )
 
-                    AnimatedVisibility(
-                        visible = !isPlaying,
-                        enter = fadeIn() + scaleIn(initialScale = 0.7f),
-                        exit = fadeOut() + scaleOut(targetScale = 0.7f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = stringResource(R.string.action_play),
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    PlayOverlayIcon(visible = !isPlaying)
                 }
             }
 
