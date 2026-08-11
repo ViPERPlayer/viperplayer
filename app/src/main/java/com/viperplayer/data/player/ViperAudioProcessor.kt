@@ -1,7 +1,5 @@
 package com.viperplayer.data.player
 
-import android.content.Context
-import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
@@ -11,7 +9,6 @@ import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.model.ViperSteppedValues
 import com.viperplayer.domain.repository.ViperAssetRepository
 import com.viperplayer.domain.repository.ViperRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,9 +35,8 @@ import kotlin.jvm.Volatile
 class ViperAudioProcessor @Inject constructor(
     private val viperRepository: ViperRepository,
     private val viperAssetRepository: ViperAssetRepository,
-    private val audioFileDecoder: AudioFileDecoder,
+    private val impulseResponseDecoder: ImpulseResponseDecoder,
     private val nativeDriver: ViperNativeDriver,
-    @ApplicationContext private val context: Context
 ) : BaseAudioProcessor() {
 
     private val processorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -361,11 +357,13 @@ class ViperAudioProcessor @Inject constructor(
                     // Resolve file from repository
                     val kernelFile = viperAssetRepository.getKernelFile(newIrPath)
                     if (kernelFile != null && kernelFile.exists()) {
-                        val uri = Uri.fromFile(kernelFile)
-                        val decoded = audioFileDecoder.decodeToFloatArray(context, uri)
+                        val decoded = impulseResponseDecoder.decode(kernelFile.absolutePath)
                         if (decoded != null) {
-                            Timber.d("Loaded IR file: ${kernelFile.name}, Channels: ${decoded.second}, Samples: ${decoded.first.size}")
-                            nativeDriver.setConvolverImpulseResponse(decoded.second, decoded.first)
+                            Timber.d(
+                                "Loaded IR file: %s, channels: %d, samples: %d, rate: %d",
+                                kernelFile.name, decoded.channels, decoded.interleaved.size, decoded.sampleRate,
+                            )
+                            nativeDriver.setConvolverImpulseResponse(decoded.channels, decoded.interleaved)
                             loadedIrPath = newIrPath
                         } else {
                             Timber.e("Failed to decode IR file: $newIrPath")

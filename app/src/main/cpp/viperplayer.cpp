@@ -362,23 +362,32 @@ Java_com_viperplayer_data_player_ViperNativeDriver_setConvolverImpulseResponse(J
         return;
     }
 
-    jfloat *kernelBody = env->GetFloatArrayElements(kernel, 0);
+    // Validate the channel count BEFORE dividing by it — a zero (or negative) count reaching the
+    // division below is an integer-division fault, not a catchable exception.
+    if (channels != 1 && channels != 2) {
+        __android_log_print(ANDROID_LOG_ERROR, "ViPERPlayer", "Unsupported convolver channels: %d", channels);
+        return;
+    }
+
+    jfloat *kernelBody = env->GetFloatArrayElements(kernel, nullptr);
+    if (kernelBody == nullptr) {
+        // OOM; the pending exception is thrown when we return to Java.
+        return;
+    }
 
     // Number of samples per channel
     // for mono: numSamples
     // for stereo: numSamples / 2
-    uint32_t samplesPerChannel = numSamples / channels;
+    uint32_t samplesPerChannel = (uint32_t) (numSamples / channels);
 
     if (channels == 1) {
         viperEngine.convolver.LoadKernelMono(kernelBody, samplesPerChannel);
-    } else if (channels == 2) {
-        viperEngine.convolver.LoadKernelStereoInterleaved(kernelBody, samplesPerChannel);
     } else {
-         // Fallback or handle other channel counts if supported (e.g. quad)
-         __android_log_print(ANDROID_LOG_ERROR, "ViPERPlayer", "Unsupported convolver channels: %d", channels);
+        viperEngine.convolver.LoadKernelStereoInterleaved(kernelBody, samplesPerChannel);
     }
 
-    env->ReleaseFloatArrayElements(kernel, kernelBody, 0);
+    // JNI_ABORT: the kernel is read-only here, so skip copying the (unmodified) buffer back.
+    env->ReleaseFloatArrayElements(kernel, kernelBody, JNI_ABORT);
 }
 
 extern "C"

@@ -94,7 +94,11 @@ interface AudioDecoder {
  * indexer skips that one song. Synchronous (dequeue-loop) decode is used for simplicity and determinism.
  */
 class MediaCodecAudioDecoder(
-    /** Stop decoding once this many source frames are captured. See the class doc for the ~11s budget. */
+    /**
+     * Stop decoding once this many seconds of source audio are captured. See the class doc for the
+     * ~11s CLAP budget; pass [UNBOUNDED_SECONDS] to decode the file in full (the convolver's impulse
+     * responses need every sample, not just the head).
+     */
     private val maxSourceDurationSeconds: Double = DECODE_SECONDS,
 ) : AudioDecoder {
 
@@ -195,7 +199,10 @@ class MediaCodecAudioDecoder(
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                         sawOutputEos = true
                     }
-                    if (pcm.size >= maxFrames * channels && channels > 0) sawOutputEos = true
+                    // Long math: an unbounded budget saturates maxFrames to Int.MAX_VALUE, and
+                    // `Int.MAX_VALUE * 2` would overflow to a negative Int — making this always
+                    // true and truncating the decode to its first output buffer.
+                    if (channels > 0 && pcm.size >= maxFrames.toLong() * channels) sawOutputEos = true
                 }
                 outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                     val outFormat = codec.outputFormat
@@ -253,6 +260,12 @@ class MediaCodecAudioDecoder(
          * ~1s margin so the resampled buffer comfortably covers 480000 samples for any source rate.
          */
         const val DECODE_SECONDS = 11.0
+
+        /**
+         * Budget meaning "decode the whole file". `Math.ceil(this * sampleRate).toInt()` saturates to
+         * [Int.MAX_VALUE], so the frame cap can never be reached and the loop ends only at EOS.
+         */
+        const val UNBOUNDED_SECONDS = Double.MAX_VALUE
 
         private const val DEQUEUE_TIMEOUT_US = 10_000L
         private const val ENCODING_UNKNOWN = -1
