@@ -9,66 +9,66 @@ import javax.inject.Singleton
  * Provides methods to set all effect parameters that are called from JNI.
  */
 @Singleton
-class ViperNativeDriver @Inject constructor() {
+class ViperNativeDriver @Inject constructor() : ViperEngine {
 
     init {
         System.loadLibrary("viper")
     }
 
     /** Reconfigure the engine for the stream's sample rate (its DSP coefficients are rate-dependent). */
-    external fun setSamplingRate(samplingRate: Int)
+    override external fun setSamplingRate(samplingRate: Int)
 
     // Master Limiter
-    external fun setMasterLimiterOutputGain(gainL: Float, gainR: Float)
-    external fun setMasterLimiterThresholdLimit(threshold: Float)
+    override external fun setMasterLimiterOutputGain(gainL: Float, gainR: Float)
+    override external fun setMasterLimiterThresholdLimit(threshold: Float)
 
     // Spectrum Extension
-    external fun setSpectrumExtensionEnabled(enabled: Boolean)
-    external fun setSpectrumExtensionStrength(strength: Int)
+    override external fun setSpectrumExtensionEnabled(enabled: Boolean)
+    override external fun setSpectrumExtensionStrength(strength: Int)
 
     // Field Surround
-    external fun setFieldSurroundEnabled(enabled: Boolean)
-    external fun setFieldSurroundStrength(strength: Int)
-    external fun setFieldSurroundMidImageStrength(strength: Int)
+    override external fun setFieldSurroundEnabled(enabled: Boolean)
+    override external fun setFieldSurroundStrength(strength: Int)
+    override external fun setFieldSurroundMidImageStrength(strength: Int)
 
     // Differential Surround
-    external fun setDifferentialSurroundEnabled(enabled: Boolean)
-    external fun setDifferentialSurroundDelay(delay: Int)
+    override external fun setDifferentialSurroundEnabled(enabled: Boolean)
+    override external fun setDifferentialSurroundDelay(delay: Int)
 
     // Dynamic System
-    external fun setDynamicSystemEnabled(enabled: Boolean)
-    external fun setDynamicSystemDeviceType(deviceTypeOrdinal: Int)
-    external fun setDynamicSystemBassStrength(strength: Int)
+    override external fun setDynamicSystemEnabled(enabled: Boolean)
+    override external fun setDynamicSystemDeviceType(deviceTypeOrdinal: Int)
+    override external fun setDynamicSystemBassStrength(strength: Int)
 
     // Tube Simulator
-    external fun setTubeSimulatorEnabled(enabled: Boolean)
+    override external fun setTubeSimulatorEnabled(enabled: Boolean)
 
     // ViPER Bass
-    external fun setViperBassEnabled(enabled: Boolean)
-    external fun setViperBassMode(mode: Int)
-    external fun setViperBassFrequency(frequency: Int)
-    external fun setViperBassGain(gain: Int)
+    override external fun setViperBassEnabled(enabled: Boolean)
+    override external fun setViperBassMode(mode: Int)
+    override external fun setViperBassFrequency(frequency: Int)
+    override external fun setViperBassGain(gain: Int)
 
     // ViPER Clarity
-    external fun setViperClarityEnabled(enabled: Boolean)
-    external fun setViperClarityMode(mode: Int)
-    external fun setViperClarityGain(gain: Int)
+    override external fun setViperClarityEnabled(enabled: Boolean)
+    override external fun setViperClarityMode(mode: Int)
+    override external fun setViperClarityGain(gain: Int)
 
     // Auditory System Protection (Cure)
-    external fun setAuditorySystemProtectionEnabled(enabled: Boolean)
-    external fun setAuditorySystemProtectionLevel(level: Int)
+    override external fun setAuditorySystemProtectionEnabled(enabled: Boolean)
+    override external fun setAuditorySystemProtectionLevel(level: Int)
 
     // Analog X
-    external fun setAnalogXEnabled(enabled: Boolean)
-    external fun setAnalogXLevel(level: Int)
+    override external fun setAnalogXEnabled(enabled: Boolean)
+    override external fun setAnalogXLevel(level: Int)
 
     // Speaker Optimization
-    external fun setSpeakerOptimizationEnabled(enabled: Boolean)
+    override external fun setSpeakerOptimizationEnabled(enabled: Boolean)
 
     // IIR Equalizer
-    external fun setIirEqualizerEnabled(enabled: Boolean)
-    external fun setIirEqualizerBandLevel(bandIndex: Int, level: Float)
-    external fun setIirEqualizerBandCount(bandCountOrdinal: Int)
+    override external fun setIirEqualizerEnabled(enabled: Boolean)
+    override external fun setIirEqualizerBandLevel(bandIndex: Int, level: Float)
+    override external fun setIirEqualizerBandCount(bandCountOrdinal: Int)
 
     /**
      * Apply the band count and every band gain in a SINGLE native call.
@@ -80,58 +80,58 @@ class ViperNativeDriver @Inject constructor() {
      *
      * [gains] is indexed by band; bands beyond its length are set to unity (0 dB).
      */
-    external fun setIirEqualizerBands(bandCountOrdinal: Int, gains: FloatArray)
+    override external fun setIirEqualizerBands(bandCountOrdinal: Int, gains: FloatArray)
 
     // ViPER DDC
-    external fun setViperDdcEnabled(enabled: Boolean)
-    external fun viperDdcClearCoeffs()
-    external fun viperDdcAddCoeffs(samplingRate: Int, coeffs: FloatArray)
+    override external fun setViperDdcEnabled(enabled: Boolean)
+    override external fun viperDdcClearCoeffs()
+    override external fun viperDdcAddCoeffs(samplingRate: Int, coeffs: FloatArray)
 
     // FET Compressor
-    external fun setFetCompressorEnabled(enabled: Boolean)
-    external fun setFetCompressorThreshold(value: Int)   // 0..100
-    external fun setFetCompressorRatio(value: Int)
-    external fun setFetCompressorKnee(value: Int)
-    external fun setFetCompressorAutoKnee(enabled: Boolean)
-    external fun setFetCompressorGain(value: Int)
-    external fun setFetCompressorAutoGain(enabled: Boolean)
-    external fun setFetCompressorAttack(value: Int)
-    external fun setFetCompressorAutoAttack(enabled: Boolean)
-    external fun setFetCompressorRelease(value: Int)
-    external fun setFetCompressorAutoRelease(enabled: Boolean)
-    external fun setFetCompressorKneeMulti(value: Int)
-    external fun setFetCompressorMaxAttack(value: Int)
-    external fun setFetCompressorMaxRelease(value: Int)
-    external fun setFetCompressorCrest(value: Int)
-    external fun setFetCompressorAdapt(value: Int)
-    external fun setFetCompressorNoClip(enabled: Boolean)
+    override external fun setFetCompressorEnabled(enabled: Boolean)
+    override external fun setFetCompressorThreshold(value: Int)   // 0..100
+    override external fun setFetCompressorRatio(value: Int)
+    override external fun setFetCompressorKnee(value: Int)
+    override external fun setFetCompressorAutoKnee(enabled: Boolean)
+    override external fun setFetCompressorGain(value: Int)
+    override external fun setFetCompressorAutoGain(enabled: Boolean)
+    override external fun setFetCompressorAttack(value: Int)
+    override external fun setFetCompressorAutoAttack(enabled: Boolean)
+    override external fun setFetCompressorRelease(value: Int)
+    override external fun setFetCompressorAutoRelease(enabled: Boolean)
+    override external fun setFetCompressorKneeMulti(value: Int)
+    override external fun setFetCompressorMaxAttack(value: Int)
+    override external fun setFetCompressorMaxRelease(value: Int)
+    override external fun setFetCompressorCrest(value: Int)
+    override external fun setFetCompressorAdapt(value: Int)
+    override external fun setFetCompressorNoClip(enabled: Boolean)
 
     // Headphone Surround+ (VHE)
-    external fun setHeadphoneSurroundEnabled(enabled: Boolean)
-    external fun setHeadphoneSurroundLevel(level: Int) // 0..4 (quality)
+    override external fun setHeadphoneSurroundEnabled(enabled: Boolean)
+    override external fun setHeadphoneSurroundLevel(level: Int) // 0..4 (quality)
 
     // Reverberation (values 0..100, sent to native as value/100 -> 0..1)
-    external fun setReverberationEnabled(enabled: Boolean)
-    external fun setReverberationRoomSize(value: Int)
-    external fun setReverberationWidth(value: Int)
-    external fun setReverberationDamp(value: Int)
-    external fun setReverberationWet(value: Int)
-    external fun setReverberationDry(value: Int)
+    override external fun setReverberationEnabled(enabled: Boolean)
+    override external fun setReverberationRoomSize(value: Int)
+    override external fun setReverberationWidth(value: Int)
+    override external fun setReverberationDamp(value: Int)
+    override external fun setReverberationWet(value: Int)
+    override external fun setReverberationDry(value: Int)
 
     // Convolver
-    external fun setConvolverEnabled(enabled: Boolean)
-    external fun setConvolverImpulseResponse(channels: Int, kernel: FloatArray)
-    external fun setConvolverCrossChannel(crossChannel: Int) // 0-100
+    override external fun setConvolverEnabled(enabled: Boolean)
+    override external fun setConvolverImpulseResponse(channels: Int, kernel: FloatArray)
+    override external fun setConvolverCrossChannel(crossChannel: Int) // 0-100
 
     // Playback Gain Control
-    external fun setPlaybackGainEnabled(enabled: Boolean)
-    external fun setPlaybackGainStrength(strength: Int)
-    external fun setPlaybackGainMaxGain(maxGain: Int)
-    external fun setPlaybackGainOutputThreshold(threshold: Float)
+    override external fun setPlaybackGainEnabled(enabled: Boolean)
+    override external fun setPlaybackGainStrength(strength: Int)
+    override external fun setPlaybackGainMaxGain(maxGain: Int)
+    override external fun setPlaybackGainOutputThreshold(threshold: Float)
 
     // Audio Processing
-    external fun process(buffer: ByteBuffer, offset: Int, size: Int)
+    override external fun process(buffer: ByteBuffer, offset: Int, size: Int)
 
-    external fun reset()
+    override external fun reset()
 }
 

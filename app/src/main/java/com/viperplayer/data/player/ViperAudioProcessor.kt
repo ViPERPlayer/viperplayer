@@ -37,6 +37,7 @@ class ViperAudioProcessor @Inject constructor(
     private val viperAssetRepository: ViperAssetRepository,
     private val impulseResponseDecoder: ImpulseResponseDecoder,
     private val nativeDriver: ViperNativeDriver,
+    private val stateApplier: ViperEffectsStateApplier,
 ) : BaseAudioProcessor() {
 
     private val processorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -57,7 +58,10 @@ class ViperAudioProcessor @Inject constructor(
     @Volatile
     private var stereo: Boolean = true
 
-    // Cache for loaded IR path to avoid reloading same file
+    // Cache for loaded IR path to avoid reloading same file. @Volatile because it is written from
+    // the IO coroutine that decodes the kernel and read by updateNativeDriverConfiguration on the
+    // Default dispatcher (and, via onReset, on the playback thread).
+    @Volatile
     private var loadedIrPath: String? = null
 
     init {
@@ -101,7 +105,10 @@ class ViperAudioProcessor @Inject constructor(
 
     override fun onReset() {
         nativeDriver.reset()
-        currentState?.let { updateNativeDriverConfiguration(it) }
+        // force = true is load-bearing. Without it this re-application is a no-op: it passes
+        // `currentState` into a function that diffs against `currentState`, so every comparison is
+        // false and nothing at all is pushed back to the native engine.
+        currentState?.let { updateNativeDriverConfiguration(it, force = true) }
     }
 
     /**
@@ -117,237 +124,30 @@ class ViperAudioProcessor @Inject constructor(
     }
 
     /**
-     * Updates the native driver configuration with only the changed values.
-     * This prevents unnecessary recalculations and pipeline clears.
+     * Pushes [state] to the native engine and remembers it as the new baseline.
+     *
+     * @param force re-sends every value rather than just the changed ones. Needed after the engine
+     *   has been reset underneath us, where the last-sent state no longer describes what it holds.
+     *
+     * Synchronized because it is called both from the effects-state coroutine (Dispatchers.Default)
+     * and from [onReset] on the playback thread. The `read currentState … write currentState` span
+     * is not atomic, so two concurrent runs could interleave and leave the engine holding values
+     * from neither state.
      */
-    private fun updateNativeDriverConfiguration(state: ViperEffectsState) {
-        val current = currentState
+    @Synchronized
+    private fun updateNativeDriverConfiguration(state: ViperEffectsState, force: Boolean = false) {
+        stateApplier.apply(previous = if (force) null else currentState, next = state)
+        applyImpulseResponse(state)
+        currentState = state
+    }
 
-        // Master Limiter - combine gain and pan to calculate left/right gains
-        val gainChanged =
-            current == null || current.masterLimiter.outputGain != state.masterLimiter.outputGain
-        val panChanged =
-            current == null || current.masterLimiter.outputPan != state.masterLimiter.outputPan
-
-        if (gainChanged || panChanged) {
-            val (gainL, gainR) = ViperSteppedValues.calculateLeftRightGains(
-                state.masterLimiter.outputGain,
-                state.masterLimiter.outputPan
-            )
-            nativeDriver.setMasterLimiterOutputGain(gainL, gainR)
-        }
-        if (current == null || current.masterLimiter.thresholdLimit != state.masterLimiter.thresholdLimit) {
-            val thresholdValue =
-                ViperSteppedValues.getThresholdLimitValue(state.masterLimiter.thresholdLimit)
-            nativeDriver.setMasterLimiterThresholdLimit(thresholdValue)
-        }
-
-        // IIR Equalizer
-        if (current == null || current.iirEqualizer.enabled != state.iirEqualizer.enabled) {
-            nativeDriver.setIirEqualizerEnabled(state.iirEqualizer.enabled)
-        }
-        // Band count and gains go over in ONE native call. Sending the count and then each gain
-        // separately let the audio thread render a buffer against a half-applied curve — new band
-        // count with old gains, or only some bands updated. Skipped entirely when neither changed,
-        // so a slider that is not moving costs nothing.
-        if (current == null ||
-            current.iirEqualizer.bandCount != state.iirEqualizer.bandCount ||
-            current.iirEqualizer.bandGains != state.iirEqualizer.bandGains
-        ) {
-            nativeDriver.setIirEqualizerBands(
-                when (state.iirEqualizer.bandCount) {
-                    10 -> 0
-                    15 -> 1
-                    31 -> 2
-                    else -> 0
-                },
-                state.iirEqualizer.bandGains.toFloatArray(),
-            )
-        }
-
-        // Spectrum Extension
-        if (current == null || current.spectrumExtension.enabled != state.spectrumExtension.enabled) {
-            nativeDriver.setSpectrumExtensionEnabled(state.spectrumExtension.enabled)
-        }
-        if (current == null || current.spectrumExtension.strength != state.spectrumExtension.strength) {
-            nativeDriver.setSpectrumExtensionStrength(state.spectrumExtension.strength)
-        }
-
-        // Field Surround
-        if (current == null || current.fieldSurround.enabled != state.fieldSurround.enabled) {
-            nativeDriver.setFieldSurroundEnabled(state.fieldSurround.enabled)
-        }
-        if (current == null || current.fieldSurround.surroundStrength != state.fieldSurround.surroundStrength) {
-            nativeDriver.setFieldSurroundStrength(state.fieldSurround.surroundStrength)
-        }
-        if (current == null || current.fieldSurround.midImageStrength != state.fieldSurround.midImageStrength) {
-            nativeDriver.setFieldSurroundMidImageStrength(state.fieldSurround.midImageStrength)
-        }
-
-        // Differential Surround
-        nativeDriver.setDifferentialSurroundEnabled(state.differentialSurround.enabled)
-        nativeDriver.setDifferentialSurroundDelay(state.differentialSurround.delay)
-
-        // Playback Gain Control
-        nativeDriver.setPlaybackGainEnabled(state.playbackGain.enabled)
-        nativeDriver.setPlaybackGainStrength(state.playbackGain.strength)
-        nativeDriver.setPlaybackGainMaxGain(state.playbackGain.maxGain)
-        nativeDriver.setPlaybackGainOutputThreshold(state.playbackGain.outputThreshold)
-
-        // Dynamic System
-        nativeDriver.setDynamicSystemEnabled(state.dynamicSystem.enabled)
-        if (current == null || current.dynamicSystem.deviceType != state.dynamicSystem.deviceType) {
-            nativeDriver.setDynamicSystemDeviceType(state.dynamicSystem.deviceType.ordinal)
-        }
-        if (current == null || current.dynamicSystem.dynamicBassStrength != state.dynamicSystem.dynamicBassStrength) {
-            nativeDriver.setDynamicSystemBassStrength(100 + 20 * state.dynamicSystem.dynamicBassStrength)
-        }
-
-        // Tube Simulator
-        if (current == null || current.tubeSimulator.enabled != state.tubeSimulator.enabled) {
-            nativeDriver.setTubeSimulatorEnabled(state.tubeSimulator.enabled)
-        }
-
-        // ViPER Bass
-        if (current == null || current.viperBass.enabled != state.viperBass.enabled) {
-            nativeDriver.setViperBassEnabled(state.viperBass.enabled)
-        }
-        if (current == null || current.viperBass.mode != state.viperBass.mode) {
-            nativeDriver.setViperBassMode(state.viperBass.mode)
-        }
-        if (current == null || current.viperBass.frequency != state.viperBass.frequency) {
-            nativeDriver.setViperBassFrequency(state.viperBass.frequency)
-        }
-        if (current == null || current.viperBass.gain != state.viperBass.gain) {
-            nativeDriver.setViperBassGain(state.viperBass.gain + 1)
-        }
-
-        // ViPER Clarity
-        if (current == null || current.viperClarity.enabled != state.viperClarity.enabled) {
-            nativeDriver.setViperClarityEnabled(state.viperClarity.enabled)
-        }
-        if (current == null || current.viperClarity.mode != state.viperClarity.mode) {
-            nativeDriver.setViperClarityMode(state.viperClarity.mode)
-        }
-        if (current == null || current.viperClarity.gain != state.viperClarity.gain) {
-            nativeDriver.setViperClarityGain(state.viperClarity.gain)
-        }
-
-        // Auditory System Protection
-        if (current == null || current.auditorySystemProtection.enabled != state.auditorySystemProtection.enabled) {
-            nativeDriver.setAuditorySystemProtectionEnabled(state.auditorySystemProtection.enabled)
-        }
-        if (current == null || current.auditorySystemProtection.level != state.auditorySystemProtection.level) {
-            nativeDriver.setAuditorySystemProtectionLevel(state.auditorySystemProtection.level)
-        }
-
-        // Analog X
-        if (current == null || current.analogX.enabled != state.analogX.enabled) {
-            nativeDriver.setAnalogXEnabled(state.analogX.enabled)
-        }
-        if (current == null || current.analogX.level != state.analogX.level) {
-            nativeDriver.setAnalogXLevel(state.analogX.level)
-        }
-
-        // Speaker Optimization
-        if (current == null || current.speakerOptimization.enabled != state.speakerOptimization.enabled) {
-            nativeDriver.setSpeakerOptimizationEnabled(state.speakerOptimization.enabled)
-        }
-
-        // ViPER DDC
-        if (current == null || current.viperDdc.enabled != state.viperDdc.enabled) {
-            nativeDriver.setViperDdcEnabled(state.viperDdc.enabled)
-        }
-
-        // Convolver
-        if (current == null || current.convolver.enabled != state.convolver.enabled) {
-            nativeDriver.setConvolverEnabled(state.convolver.enabled)
-        }
-        if (current == null || current.convolver.crossChannel != state.convolver.crossChannel) {
-            nativeDriver.setConvolverCrossChannel(state.convolver.crossChannel)
-        }
-
-        // FET Compressor
-        if (current == null || current.fetCompressor.enabled != state.fetCompressor.enabled) {
-            nativeDriver.setFetCompressorEnabled(state.fetCompressor.enabled)
-        }
-        if (current == null || current.fetCompressor.threshold != state.fetCompressor.threshold) {
-            nativeDriver.setFetCompressorThreshold(state.fetCompressor.threshold)
-        }
-        if (current == null || current.fetCompressor.ratio != state.fetCompressor.ratio) {
-            nativeDriver.setFetCompressorRatio(state.fetCompressor.ratio)
-        }
-        if (current == null || current.fetCompressor.knee != state.fetCompressor.knee) {
-            nativeDriver.setFetCompressorKnee(state.fetCompressor.knee)
-        }
-        if (current == null || current.fetCompressor.autoKnee != state.fetCompressor.autoKnee) {
-            nativeDriver.setFetCompressorAutoKnee(state.fetCompressor.autoKnee)
-        }
-        if (current == null || current.fetCompressor.gain != state.fetCompressor.gain) {
-            nativeDriver.setFetCompressorGain(state.fetCompressor.gain)
-        }
-        if (current == null || current.fetCompressor.autoGain != state.fetCompressor.autoGain) {
-            nativeDriver.setFetCompressorAutoGain(state.fetCompressor.autoGain)
-        }
-        if (current == null || current.fetCompressor.attack != state.fetCompressor.attack) {
-            nativeDriver.setFetCompressorAttack(state.fetCompressor.attack)
-        }
-        if (current == null || current.fetCompressor.autoAttack != state.fetCompressor.autoAttack) {
-            nativeDriver.setFetCompressorAutoAttack(state.fetCompressor.autoAttack)
-        }
-        if (current == null || current.fetCompressor.release != state.fetCompressor.release) {
-            nativeDriver.setFetCompressorRelease(state.fetCompressor.release)
-        }
-        if (current == null || current.fetCompressor.autoRelease != state.fetCompressor.autoRelease) {
-            nativeDriver.setFetCompressorAutoRelease(state.fetCompressor.autoRelease)
-        }
-        if (current == null || current.fetCompressor.kneeMulti != state.fetCompressor.kneeMulti) {
-            nativeDriver.setFetCompressorKneeMulti(state.fetCompressor.kneeMulti)
-        }
-        if (current == null || current.fetCompressor.maxAttack != state.fetCompressor.maxAttack) {
-            nativeDriver.setFetCompressorMaxAttack(state.fetCompressor.maxAttack)
-        }
-        if (current == null || current.fetCompressor.maxRelease != state.fetCompressor.maxRelease) {
-            nativeDriver.setFetCompressorMaxRelease(state.fetCompressor.maxRelease)
-        }
-        if (current == null || current.fetCompressor.crest != state.fetCompressor.crest) {
-            nativeDriver.setFetCompressorCrest(state.fetCompressor.crest)
-        }
-        if (current == null || current.fetCompressor.adapt != state.fetCompressor.adapt) {
-            nativeDriver.setFetCompressorAdapt(state.fetCompressor.adapt)
-        }
-        if (current == null || current.fetCompressor.noClip != state.fetCompressor.noClip) {
-            nativeDriver.setFetCompressorNoClip(state.fetCompressor.noClip)
-        }
-
-        // Headphone Surround+ (VHE)
-        if (current == null || current.headphoneSurround.enabled != state.headphoneSurround.enabled) {
-            nativeDriver.setHeadphoneSurroundEnabled(state.headphoneSurround.enabled)
-        }
-        if (current == null || current.headphoneSurround.level != state.headphoneSurround.level) {
-            nativeDriver.setHeadphoneSurroundLevel(state.headphoneSurround.level)
-        }
-
-        // Reverberation
-        if (current == null || current.reverberation.enabled != state.reverberation.enabled) {
-            nativeDriver.setReverberationEnabled(state.reverberation.enabled)
-        }
-        if (current == null || current.reverberation.roomSize != state.reverberation.roomSize) {
-            nativeDriver.setReverberationRoomSize(state.reverberation.roomSize)
-        }
-        if (current == null || current.reverberation.width != state.reverberation.width) {
-            nativeDriver.setReverberationWidth(state.reverberation.width)
-        }
-        if (current == null || current.reverberation.damp != state.reverberation.damp) {
-            nativeDriver.setReverberationDamp(state.reverberation.damp)
-        }
-        if (current == null || current.reverberation.wet != state.reverberation.wet) {
-            nativeDriver.setReverberationWet(state.reverberation.wet)
-        }
-        if (current == null || current.reverberation.dry != state.reverberation.dry) {
-            nativeDriver.setReverberationDry(state.reverberation.dry)
-        }
-
+    /**
+     * Loads (or clears) the convolver's impulse response for [state].
+     *
+     * Kept out of [ViperEffectsStateApplier] because decoding a kernel is asynchronous and needs a
+     * coroutine scope, where everything else that applier does is a straight-line native call.
+     */
+    private fun applyImpulseResponse(state: ViperEffectsState) {
         // Handle Impulse Response File Loading
         val newIrPath = state.convolver.impulseResponse
         if (newIrPath != null && newIrPath != loadedIrPath) {
@@ -380,24 +180,6 @@ class ViperAudioProcessor @Inject constructor(
             nativeDriver.setConvolverImpulseResponse(1, FloatArray(0))
             loadedIrPath = null
         }
-
-
-        // Check for coefficients change (content) rather than just file name
-        if (current == null || current.viperDdc.coeffs != state.viperDdc.coeffs) {
-            val coeffsMap = state.viperDdc.coeffs
-
-            // Always clear first when content changes
-            nativeDriver.viperDdcClearCoeffs()
-
-            if (coeffsMap != null && coeffsMap.isNotEmpty()) {
-                coeffsMap.forEach { (rate, coeffs) ->
-                    nativeDriver.viperDdcAddCoeffs(rate, coeffs.toFloatArray())
-                }
-            }
-        }
-
-        // Update previous state
-        currentState = state
     }
 }
 

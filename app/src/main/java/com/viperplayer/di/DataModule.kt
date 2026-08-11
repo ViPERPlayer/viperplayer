@@ -14,6 +14,8 @@ import com.viperplayer.data.repository.RealListenTogetherRepositoryImpl
 import com.viperplayer.data.social.DeviceIdStore
 import com.viperplayer.data.social.KtorJamSocketClient
 import com.viperplayer.data.social.SessionApi
+import com.viperplayer.data.player.ViperEngine
+import com.viperplayer.data.player.ViperNativeDriver
 import com.viperplayer.data.source.AndroidTagDetailsReader
 import com.viperplayer.data.repository.MediaLibraryRepositoryImpl
 import com.viperplayer.data.repository.PlayerRepositoryImpl
@@ -66,6 +68,17 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
+
+    /**
+     * The native DSP engine. Bound behind an interface so [
+     * com.viperplayer.data.player.ViperEffectsStateApplier] can be unit-tested against a fake —
+     * [ViperNativeDriver] loads `libviper.so` in its initialiser, so it cannot exist off-device.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindViperEngine(
+        impl: ViperNativeDriver
+    ): ViperEngine
 
     @Binds
     @Singleton
