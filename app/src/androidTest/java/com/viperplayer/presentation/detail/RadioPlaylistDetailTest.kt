@@ -9,7 +9,7 @@ import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Playlist
 import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.radio.RadioPlaylist
-import com.viperplayer.presentation.player.RadioQueueBuilder
+import com.viperplayer.domain.player.RadioQueueBuilder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule

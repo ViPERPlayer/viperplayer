@@ -155,6 +155,7 @@ import com.viperplayer.domain.model.navigableArtist
 import com.viperplayer.domain.model.toEntity
 import com.viperplayer.domain.model.RepeatMode
 import com.viperplayer.domain.model.Song
+import com.viperplayer.domain.player.PlayerQueueLogic
 import com.viperplayer.domain.repository.AudioFormat
 import com.viperplayer.domain.repository.snapPositionalThresholdFor
 import com.viperplayer.presentation.common.AddToPlaylistController

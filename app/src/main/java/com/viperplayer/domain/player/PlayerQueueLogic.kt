@@ -1,13 +1,17 @@
-package com.viperplayer.presentation.player
+package com.viperplayer.domain.player
 
 import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * Android-free pure logic for the now-playing player UI. Everything the player's gestures and
- * indicators depend on that can be reasoned about without Compose or a MediaController lives here so
- * it can be unit-tested on the JVM. The Composables call these; the ViewModel/MediaController only
- * gets the resulting index math / commands.
+ * Android-free pure logic behind the now-playing player: queue index math (remove/move), seek-bar
+ * fractions, and the wave indicator's geometry. Everything the player's gestures and indicators
+ * depend on that can be reasoned about without Compose or a MediaController lives here so it can be
+ * unit-tested on the JVM.
+ *
+ * Lives in `domain` because both layers consume it: the Composables call it directly for gesture and
+ * indicator math, and `PlayerRepositoryImpl` calls it for the queue-mutation index rules. Keeping it
+ * in `presentation` meant `data` had to import upward to reach it.
  */
 object PlayerQueueLogic {
 

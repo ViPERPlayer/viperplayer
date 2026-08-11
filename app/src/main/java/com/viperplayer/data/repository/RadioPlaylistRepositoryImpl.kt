@@ -8,7 +8,7 @@ import com.viperplayer.domain.model.Song
 import com.viperplayer.domain.radio.RadioPlaylist
 import com.viperplayer.domain.repository.PluginRepository
 import com.viperplayer.domain.repository.RadioPlaylistRepository
-import com.viperplayer.presentation.player.RadioQueueBuilder
+import com.viperplayer.domain.player.RadioQueueBuilder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 

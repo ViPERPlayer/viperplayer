@@ -1,4 +1,4 @@
-package com.viperplayer.presentation.player
+package com.viperplayer.domain.player
 
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song

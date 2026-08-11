@@ -1,6 +1,6 @@
-package com.viperplayer.presentation.player
+package com.viperplayer.domain.player
 
-import com.viperplayer.presentation.player.PlayerQueueLogic.movedItem
+import com.viperplayer.domain.player.PlayerQueueLogic.movedItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

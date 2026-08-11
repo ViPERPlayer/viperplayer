@@ -54,7 +54,8 @@ import coil3.compose.AsyncImage
 import com.viperplayer.R
 import com.viperplayer.domain.model.MediaId
 import com.viperplayer.domain.model.Song
-import com.viperplayer.presentation.player.PlayerQueueLogic.movedItem
+import com.viperplayer.domain.player.PlayerQueueLogic
+import com.viperplayer.domain.player.PlayerQueueLogic.movedItem
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
