@@ -28,6 +28,7 @@ import com.viperplayer.data.repository.RecommendationRepositoryImpl
 import com.viperplayer.data.repository.SearchRepositoryImpl
 import com.viperplayer.data.resources.StringProvider
 import com.viperplayer.data.repository.SettingsRepositoryImpl
+import com.viperplayer.data.repository.ViperAssetRepositoryImpl
 import com.viperplayer.data.repository.ViperRepositoryImpl
 import com.viperplayer.data.sync.LibrarySync
 import com.viperplayer.data.sync.LibrarySyncManager
@@ -50,6 +51,7 @@ import com.viperplayer.domain.rec.TasteRepository
 import com.viperplayer.domain.repository.SearchRepository
 import com.viperplayer.domain.repository.SettingsRepository
 import com.viperplayer.domain.repository.TagDetailsReader
+import com.viperplayer.domain.repository.ViperAssetRepository
 import com.viperplayer.domain.repository.ViperRepository
 import dagger.Binds
 import dagger.Module
@@ -178,6 +180,12 @@ abstract class DataModule {
     abstract fun bindViperRepository(
         impl: ViperRepositoryImpl
     ): ViperRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindViperAssetRepository(
+        impl: ViperAssetRepositoryImpl
+    ): ViperAssetRepository
 
     @Binds
     @Singleton
