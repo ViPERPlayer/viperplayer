@@ -355,7 +355,7 @@ fun MiniPlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.action_next),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
