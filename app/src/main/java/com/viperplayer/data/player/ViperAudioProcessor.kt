@@ -5,6 +5,7 @@ import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.viperplayer.domain.audio.Resampler
 import com.viperplayer.domain.model.ViperEffectsState
 import com.viperplayer.domain.model.ViperSteppedValues
 import com.viperplayer.domain.repository.ViperAssetRepository
@@ -64,6 +65,18 @@ class ViperAudioProcessor @Inject constructor(
     @Volatile
     private var loadedIrPath: String? = null
 
+    /**
+     * Sample rate the currently loaded impulse response was resampled to, or 0 when none is loaded.
+     * A kernel is only correct at the rate it was converted for, so a stream at a different rate has
+     * to reload it — see [applyImpulseResponse].
+     */
+    @Volatile
+    private var loadedIrSampleRate: Int = 0
+
+    /** The stream's sample rate, from [onConfigure]. 0 until the first stream is configured. */
+    @Volatile
+    private var streamSampleRate: Int = 0
+
     init {
         // Start observing effects state and enabled state changes
         observeEffectsState()
@@ -78,8 +91,12 @@ class ViperAudioProcessor @Inject constructor(
         // Reconfigure the native engine for the ACTUAL sample rate — its DSP coefficients (EQ centers,
         // reverb decay, bass crossover, …) are rate-dependent and were previously fixed at 44.1 kHz.
         nativeDriver.setSamplingRate(inputAudioFormat.sampleRate)
+        streamSampleRate = inputAudioFormat.sampleRate
         // ViPER is a stereo engine; pass other channel counts through untouched rather than mis-framing.
         stereo = inputAudioFormat.channelCount == 2
+        // The convolver kernel is resampled for one specific rate, so a stream at a different rate
+        // needs it reloaded. Nothing else re-triggers this: the effects state has not changed.
+        currentState?.let { applyImpulseResponse(it) }
         return inputAudioFormat
     }
 
@@ -146,11 +163,21 @@ class ViperAudioProcessor @Inject constructor(
      *
      * Kept out of [ViperEffectsStateApplier] because decoding a kernel is asynchronous and needs a
      * coroutine scope, where everything else that applier does is a straight-line native call.
+     *
+     * Reloads whenever the file changes OR the stream's sample rate does: the native convolver
+     * convolves the kernel sample-for-sample against the stream and is never told what rate the
+     * kernel was recorded at, so the conversion has to happen here.
      */
     private fun applyImpulseResponse(state: ViperEffectsState) {
-        // Handle Impulse Response File Loading
         val newIrPath = state.convolver.impulseResponse
-        if (newIrPath != null && newIrPath != loadedIrPath) {
+        val targetRate = streamSampleRate
+        val needsLoad = newIrPath != null &&
+                (newIrPath != loadedIrPath || targetRate != loadedIrSampleRate)
+
+        if (needsLoad) {
+            // Wait for the first stream: without a target rate there is nothing to convert to, and
+            // onConfigure calls back here as soon as it knows one.
+            if (targetRate <= 0) return
             // Load in background
             processorScope.launch(Dispatchers.IO) {
                 try {
@@ -159,12 +186,22 @@ class ViperAudioProcessor @Inject constructor(
                     if (kernelFile != null && kernelFile.exists()) {
                         val decoded = impulseResponseDecoder.decode(kernelFile.absolutePath)
                         if (decoded != null) {
-                            Timber.d(
-                                "Loaded IR file: %s, channels: %d, samples: %d, rate: %d",
-                                kernelFile.name, decoded.channels, decoded.interleaved.size, decoded.sampleRate,
+                            // A kernel is a time-domain response: convolved against a stream at a
+                            // different rate it is stretched or squashed, which moves every feature
+                            // of the response off its intended frequency.
+                            val kernel = Resampler.resampleInterleaved(
+                                interleaved = decoded.interleaved,
+                                channels = decoded.channels,
+                                srcSampleRate = decoded.sampleRate,
+                                dstSampleRate = targetRate,
                             )
-                            nativeDriver.setConvolverImpulseResponse(decoded.channels, decoded.interleaved)
+                            Timber.d(
+                                "Loaded IR file: %s, channels: %d, samples: %d, rate: %d -> %d",
+                                kernelFile.name, decoded.channels, kernel.size, decoded.sampleRate, targetRate,
+                            )
+                            nativeDriver.setConvolverImpulseResponse(decoded.channels, kernel)
                             loadedIrPath = newIrPath
+                            loadedIrSampleRate = targetRate
                         } else {
                             Timber.e("Failed to decode IR file: $newIrPath")
                         }
@@ -179,6 +216,7 @@ class ViperAudioProcessor @Inject constructor(
             // Clear kernel
             nativeDriver.setConvolverImpulseResponse(1, FloatArray(0))
             loadedIrPath = null
+            loadedIrSampleRate = 0
         }
     }
 }

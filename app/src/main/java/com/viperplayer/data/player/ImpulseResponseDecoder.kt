@@ -23,7 +23,10 @@ import javax.inject.Singleton
  *  * decoding runs on [Dispatchers.IO] because the caller is the DSP state-application coroutine.
  *
  * Note the decoder does NOT resample: [DecodedAudio.sampleRate] is the kernel file's own rate, which
- * may differ from the playback stream's. Matching those rates is the native convolver's concern.
+ * may differ from the playback stream's. The caller must convert — [ViperAudioProcessor] runs the
+ * result through [com.viperplayer.domain.audio.Resampler] before handing it to the engine. The native
+ * convolver cannot do it: it is never told what rate the kernel was recorded at, and convolves it
+ * sample-for-sample against whatever the stream happens to be.
  */
 @Singleton
 class ImpulseResponseDecoder @Inject constructor() {

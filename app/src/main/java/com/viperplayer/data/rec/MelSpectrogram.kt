@@ -1,5 +1,7 @@
 package com.viperplayer.data.rec
 
+import com.viperplayer.domain.audio.Resampler
+
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
@@ -54,7 +56,6 @@ object MelSpectrogram {
     const val LOG_REFERENCE = 1.0
 
     /** Half-width (in output taps) of the windowed-sinc resampling kernel. */
-    private const val RESAMPLE_KERNEL_HALF_WIDTH = 16
 
     // Lazily-built, cached artifacts (window + filterbank are input-independent).
     private val window: DoubleArray by lazy { periodicHann(FRAME_LENGTH) }
@@ -170,63 +171,11 @@ object MelSpectrogram {
      *
      * @return the input unchanged when [srcSampleRate] == 48000. Empty in -> empty out.
      */
-    fun resampleTo48k(mono: FloatArray, srcSampleRate: Int): FloatArray {
-        require(srcSampleRate > 0) { "srcSampleRate must be > 0, got $srcSampleRate" }
-        if (srcSampleRate == SR) return mono
-        if (mono.isEmpty()) return FloatArray(0)
+    fun resampleTo48k(mono: FloatArray, srcSampleRate: Int): FloatArray =
+        Resampler.resample(mono, srcSampleRate, SR)
 
-        val ratio = SR.toDouble() / srcSampleRate // dst/src; >1 upsample, <1 downsample
-        val outLen = floor(mono.size * ratio).toInt()
-        if (outLen <= 0) return FloatArray(0)
-        val out = FloatArray(outLen)
-
-        // Anti-alias cutoff (fraction of the SOURCE Nyquist). On downsampling, lower the cutoff to the
-        // destination Nyquist so we do not fold energy above 24kHz back into the band.
-        val cutoff = if (ratio < 1.0) ratio else 1.0
-        // Kernel spans +-RESAMPLE_KERNEL_HALF_WIDTH output taps, widened by 1/cutoff when downsampling.
-        val filterHalf = RESAMPLE_KERNEL_HALF_WIDTH / cutoff
-
-        val n = mono.size
-        for (i in 0 until outLen) {
-            val srcPos = i / ratio // position in source-sample space
-            val left = floor(srcPos - filterHalf).toInt()
-            val right = floor(srcPos + filterHalf).toInt()
-            var acc = 0.0
-            var norm = 0.0
-            var j = left
-            while (j <= right) {
-                if (j in 0 until n) {
-                    val x = (srcPos - j) * cutoff
-                    val w = sincWindowed(x, srcPos - j, filterHalf)
-                    acc += mono[j].toDouble() * w
-                    norm += w
-                }
-                j++
-            }
-            out[i] = if (norm != 0.0) (acc / norm).toFloat() else 0.0f
-        }
-        return out
-    }
-
-    /**
-     * Band-limited sinc weight, Blackman-windowed over [-filterHalf, +filterHalf] input-sample offsets.
-     * @param sincArg  cutoff-scaled distance (feeds sinc(pi * sincArg)).
-     * @param offset   raw input-sample offset from the interpolation position (feeds the window).
-     */
-    private fun sincWindowed(sincArg: Double, offset: Double, filterHalf: Double): Double {
-        // Blackman window over the raw offset in [-filterHalf, filterHalf].
-        val t = (offset + filterHalf) / (2.0 * filterHalf) // 0..1
-        if (t < 0.0 || t > 1.0) return 0.0
-        val window = 0.42 - 0.5 * cos(2.0 * PI * t) + 0.08 * cos(4.0 * PI * t)
-        return sinc(sincArg) * window
-    }
 
     /** Normalized sinc: sin(pi x) / (pi x), with sinc(0) = 1. */
-    private fun sinc(x: Double): Double {
-        if (x == 0.0) return 1.0
-        val px = PI * x
-        return sin(px) / px
-    }
 
     // ---------------------------------------------------------------------------------------------
     // Padding / truncation (rand_trunc / repeatpad)
