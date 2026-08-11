@@ -1,4 +1,4 @@
-package com.viperplayer.presentation.library
+package com.viperplayer.domain.library
 
 import com.viperplayer.domain.model.LyricsAlignment
 import com.viperplayer.domain.model.LyricsFontSize
