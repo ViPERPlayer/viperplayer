@@ -40,6 +40,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viperplayer.R
 import com.viperplayer.presentation.common.ViperScaffold
+import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.theme.Spacing
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -124,8 +125,7 @@ fun CustomizeTabsScreenContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
-                .padding(rootPadding),
+                .padding(contentPadding),
         ) {
             Text(
                 text = stringResource(R.string.library_customize_tabs_hint),
@@ -139,6 +139,9 @@ fun CustomizeTabsScreenContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("customizeTabsList"),
+                // On the list rather than the Column around it, so rows scroll under the mini
+                // player instead of the whole reorderable area being shrunk away from it.
+                contentPadding = rootPadding.bottom(),
             ) {
                 itemsIndexed(localTabs, key = { _, item -> item.tab.name }) { index, item ->
                     ReorderableItem(reorderableState, key = item.tab.name) { isDragging ->

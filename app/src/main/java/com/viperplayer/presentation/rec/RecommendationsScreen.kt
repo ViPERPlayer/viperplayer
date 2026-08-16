@@ -90,7 +90,7 @@ fun RecommendationsScreen(
     onThumbsDown: ((Song) -> Unit)? = null,
 ) {
     ViperScaffold(
-        modifier = modifier.padding(rootPadding.bottom()),
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {

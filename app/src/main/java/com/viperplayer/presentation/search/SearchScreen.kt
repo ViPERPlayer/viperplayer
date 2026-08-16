@@ -275,6 +275,9 @@ fun SearchScreen(
                 state = searchBarState,
                 inputField = inputField
             ) {
+                // No rootPadding here on purpose: ExpandedFullScreenSearchBar renders in its own
+                // full-screen layer above the app content, so it covers the mini player and the nav
+                // bar rather than sitting under them. Adding the inset would just leave a gap.
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {

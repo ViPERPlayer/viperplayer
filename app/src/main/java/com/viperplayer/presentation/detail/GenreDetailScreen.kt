@@ -84,7 +84,6 @@ fun GenreDetailScreen(
     val addToPlaylistController = rememberAddToPlaylistController()
 
     ViperScaffold(
-        modifier = Modifier.padding(rootPadding.bottom()),
         topBar = {
             TopAppBar(
                 title = {

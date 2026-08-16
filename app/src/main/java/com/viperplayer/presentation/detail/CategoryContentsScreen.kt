@@ -94,7 +94,6 @@ fun CategoryContentsScreen(
     }
 
     ViperScaffold(
-        modifier = Modifier.padding(rootPadding.bottom()),
         topBar = {
             TopAppBar(
                 title = {
