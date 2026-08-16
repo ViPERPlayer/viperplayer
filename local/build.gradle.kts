@@ -30,7 +30,7 @@ android {
 
 dependencies {
     // Plugin SDK
-    implementation(project(":plugin-sdk"))
+    implementation(libs.viper.plugin.sdk)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

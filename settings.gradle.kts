@@ -22,9 +22,17 @@ dependencyResolutionManagement {
 rootProject.name = "ViPER Player"
 include(":app")
 include(":local")
-include(":plugin-sdk")
-include(":plugin-example")
-include(":dsp-example")
+
+// The plugin SDK is consumed as a published artifact so the host and third-party plugins build
+// against the same contract. Point this at a local checkout to work on both at once:
+//   -Pviper.pluginSdk.dir=../plugin-sdk
+providers.gradleProperty("viper.pluginSdk.dir").orNull?.let { dir ->
+    includeBuild(dir) {
+        dependencySubstitution {
+            substitute(module("io.github.viperplayer:plugin-sdk")).using(project(":plugin-sdk"))
+        }
+    }
+}
 
 // Media3
 includeBuild("external/media") {

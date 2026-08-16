@@ -15,6 +15,8 @@
 
 - Build with the Android Studio JBR (system JDK 26 breaks AGP):
   `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew ...`
-- Plugins (`testsource`, `othersource`, `testsource`, ...) are **separate installable APKs**; only
-  `local` is embedded in the host. Changing a plugin requires rebuilding + reinstalling *that*
-  plugin APK for the change to take effect on-device.
+- Music-source plugins live in their own repositories and ship as **separate installable APKs**;
+  only `local` is embedded in the host. Changing a plugin requires rebuilding + reinstalling
+  *that* plugin APK for the change to take effect on-device.
+- The plugin SDK is a published artifact (`io.github.viperplayer:plugin-sdk`). To develop
+  against a local checkout, pass `-Pviper.pluginSdk.dir=../plugin-sdk`.

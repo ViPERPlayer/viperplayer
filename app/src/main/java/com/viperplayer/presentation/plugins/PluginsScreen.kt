@@ -26,12 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.AlertDialog
@@ -51,8 +51,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,24 +62,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.viperplayer.R
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.viperplayer.domain.plugin.PluginUpdate
-import com.viperplayer.domain.plugin.PluginUpdateProgress
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viperplayer.R
 import com.viperplayer.domain.model.Plugin
 import com.viperplayer.domain.model.PluginInfo
 import com.viperplayer.domain.model.PluginPendingAction
+import com.viperplayer.domain.plugin.PluginUpdate
+import com.viperplayer.domain.plugin.PluginUpdateProgress
 import com.viperplayer.presentation.common.components.FilledPill
 import com.viperplayer.presentation.common.components.OutlinedPill
 import com.viperplayer.presentation.common.components.SurfaceCard
+import com.viperplayer.presentation.common.components.avatarTonesFor
 import com.viperplayer.presentation.ktx.bottom
 import com.viperplayer.presentation.ktx.plus
 import com.viperplayer.presentation.theme.Spacing
@@ -693,19 +694,15 @@ private fun PluginIconTile(id: String, name: String, connected: Boolean) {
     val initial = name.trim().firstOrNull()?.uppercaseChar()
     val scheme = MaterialTheme.colorScheme
 
-    // Diagonal (top-start → bottom-end) gradient tone pair for connected tiles, mapped from
-    // well-known plugin ids to distinct colorScheme roles; otherwise a role-based default.
+    // Diagonal (top-start → bottom-end) gradient tone pair for connected tiles. Derived from the
+    // plugin id rather than matched against a list of known ids, so a third-party plugin gets its
+    // own stable colour instead of everything falling into one default.
     val gradientTones: Pair<Color, Color>? =
         if (connected) {
-            when {
-                id == LocalPluginId ->
-                    scheme.secondaryContainer to scheme.surfaceContainerHighest
-                id.contains("testsource", ignoreCase = true) ->
-                    scheme.primaryContainer to scheme.surfaceContainerHigh
-                id.contains("thirdsource", ignoreCase = true) || id.contains("music", ignoreCase = true) ->
-                    scheme.tertiaryContainer to scheme.surfaceContainerHigh
-                else ->
-                    scheme.primaryContainer to scheme.surfaceContainerHigh
+            if (id == LocalPluginId) {
+                scheme.secondaryContainer to scheme.surfaceContainerHighest
+            } else {
+                avatarTonesFor(id, scheme).first to scheme.surfaceContainerHigh
             }
         } else {
             null

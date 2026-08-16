@@ -1,4 +1,5 @@
 [versions]
+viperPluginSdk = "1.0.0"
 agp = "9.1.1"
 kotlin = "2.4.0"
 coreKtx = "1.19.0"
@@ -34,6 +35,7 @@ work = "2.10.5"
 hiltWork = "1.3.0"
 
 [libraries]
+viper-plugin-sdk = { group = "io.github.viperplayer", name = "plugin-sdk", version.ref = "viperPluginSdk" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
