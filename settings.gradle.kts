@@ -22,6 +22,8 @@ dependencyResolutionManagement {
 rootProject.name = "ViPER Player"
 include(":app")
 include(":local")
+include(":portable-plugin-core")
+include(":portable-plugin-android")
 
 // The plugin SDK is consumed as a published artifact so the host and third-party plugins build
 // against the same contract. Point this at a local checkout to work on both at once:

@@ -1,5 +1,6 @@
 [versions]
 viperPluginSdk = "1.0.0"
+quickjs = "1.0.15"
 agp = "9.1.1"
 kotlin = "2.4.10"
 coreKtx = "1.19.0"
@@ -35,6 +36,8 @@ work = "2.11.2"
 hiltWork = "1.4.0"
 
 [libraries]
+quickjs = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
+quickjs-jvm = { module = "io.github.dokar3:quickjs-kt-jvm", version.ref = "quickjs" }
 viper-plugin-sdk = { group = "io.github.viperplayer", name = "plugin-sdk", version.ref = "viperPluginSdk" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -129,6 +132,7 @@ androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", vers
 androidx-work-testing = { group = "androidx.work", name = "work-testing", version.ref = "work" }
 
 [plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
