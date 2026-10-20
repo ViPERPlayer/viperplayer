@@ -107,3 +107,11 @@ The first command needs no Android SDK or Media3 submodule. It tests real
 QuickJS/JNI execution, async HTTP, fresh globals, typed errors, permission denial,
 infinite-loop interruption and cancellation. The second requires Android SDK 37.
 Device installation/playback remains a separate manual check.
+
+Initial validation (2026-10-20): all seven runtime tests passed locally with the
+repository's Kotlin 2.4.10 toolchain. The first clean GitHub runner could not
+resolve `org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.4.10`, a version already
+selected by the app's version catalog. This dependency-resolution failure occurs
+before compilation; CI is not green. Android compilation and on-device playback
+are not yet verified. The prototype does not change the app's existing toolchain
+versions to work around this repository/dependency issue.
