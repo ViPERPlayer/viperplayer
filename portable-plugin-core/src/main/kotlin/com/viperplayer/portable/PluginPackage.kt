@@ -13,16 +13,21 @@ data class PortableManifest(
     val entry: String = "plugin.js",
     val methods: Set<String>,
     val allowedHosts: Set<String> = emptySet(),
+    val headOnlyDomains: Set<String> = emptySet(),
+    val capabilities: Set<String> = emptySet(),
 ) {
     fun validate() {
-        require(apiVersion == 1) { "Unsupported portable plugin API: $apiVersion" }
+        require(apiVersion in 1..2) { "Unsupported portable plugin API: $apiVersion" }
         require(id.matches(Regex("[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}"))) { "Invalid plugin id" }
         require(name.isNotBlank() && version.isNotBlank()) { "Missing plugin identity" }
         require(entry.matches(Regex("[a-zA-Z0-9_-]+\\.js"))) { "Entry must be a top-level .js file" }
         require(methods.isNotEmpty() && methods.size <= 64) { "Invalid method list" }
         require(methods.all { it.matches(Regex("[a-zA-Z][a-zA-Z0-9]{0,63}")) })
-        require(allowedHosts.size <= 32)
-        require(allowedHosts.all {
+        require(allowedHosts.size <= 32 && headOnlyDomains.size <= 8)
+        require(capabilities.all { it == "browser" }) { "Unknown host capability" }
+        require(apiVersion >= 2 || (headOnlyDomains.isEmpty() && capabilities.isEmpty()))
+        require(headOnlyDomains.none { it.count { c -> c == '.' } < 1 })
+        require((allowedHosts + headOnlyDomains).all {
             it == it.lowercase() && it.matches(Regex("[a-z0-9]+([.-][a-z0-9]+)*\\.[a-z]{2,}"))
         }) { "Permissions require exact lowercase DNS hostnames; no wildcards or IP literals" }
     }

@@ -16,6 +16,8 @@ data class PluginHttpRequest(
     val method: String = "GET",
     val headers: Map<String, String> = emptyMap(),
     val body: String? = null,
+    val maxResponseBytes: Int = 2_097_152,
+    val timeoutMs: Int = 10_000,
 )
 
 @Serializable
@@ -26,14 +28,24 @@ fun interface PluginHttp {
 }
 
 /** Checked before every host call, including when the transport is replaced in tests. */
-class HttpPolicy(private val allowedHosts: Set<String>) {
+class HttpPolicy(
+    private val allowedHosts: Set<String>,
+    private val headOnlyDomains: Set<String> = emptySet(),
+) {
     fun validate(request: PluginHttpRequest) {
         val uri = runCatching { URI(request.url) }.getOrNull()
-        if (uri == null || uri.scheme != "https" || uri.host !in allowedHosts ||
+        val headAllowed = request.method == "HEAD" && uri?.host?.let { host ->
+            headOnlyDomains.any { host == it || host.endsWith(".$it") }
+        } == true
+        if (uri == null || uri.scheme != "https" || (uri.host !in allowedHosts && !headAllowed) ||
             uri.rawUserInfo != null || uri.port !in setOf(-1, 443) || uri.fragment != null
         ) throw PortablePluginException("PERMISSION_DENIED", "HTTP destination is not permitted")
-        if (request.method !in setOf("GET", "POST")) {
-            throw PortablePluginException("INVALID_REQUEST", "Only GET and POST are supported")
+        if (request.method !in setOf("GET", "POST", "HEAD")) {
+            throw PortablePluginException("INVALID_REQUEST", "Only GET, POST and HEAD are supported")
+        }
+        if (request.maxResponseBytes !in 1..8_388_608 || request.timeoutMs !in 1..10_000 ||
+            (request.method != "POST" && request.body != null)) {
+            throw PortablePluginException("INVALID_REQUEST", "Invalid HTTP limits or body")
         }
         if ((request.body?.toByteArray()?.size ?: 0) > 262_144 || request.headers.size > 32) {
             throw PortablePluginException("INVALID_REQUEST", "HTTP request is too large")
@@ -60,8 +72,8 @@ class UrlConnectionPluginHttp : PluginHttp {
                     active.set(connection)
                     if (!continuation.isActive) return@launch
                     connection.instanceFollowRedirects = false
-                    connection.connectTimeout = 10_000
-                    connection.readTimeout = 10_000
+                    connection.connectTimeout = request.timeoutMs
+                    connection.readTimeout = request.timeoutMs
                     connection.useCaches = false
                     connection.requestMethod = request.method
                     request.headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
@@ -71,7 +83,7 @@ class UrlConnectionPluginHttp : PluginHttp {
                     }
                     val status = connection.responseCode
                     if (status in 300..399) throw PortablePluginException("NETWORK", "Redirects are not supported")
-                    val stream = if (status >= 400) connection.errorStream else connection.inputStream
+                    val stream = if (request.method == "HEAD") null else if (status >= 400) connection.errorStream else connection.inputStream
                     val body = stream?.use { input ->
                         val output = ByteArrayOutputStream()
                         val buffer = ByteArray(8192)
@@ -79,8 +91,8 @@ class UrlConnectionPluginHttp : PluginHttp {
                             if (!continuation.isActive) return@launch
                             val read = input.read(buffer)
                             if (read < 0) break
-                            if (output.size() + read > 2_097_152) {
-                                throw PortablePluginException("NETWORK", "HTTP response exceeds 2 MiB")
+                            if (output.size() + read > request.maxResponseBytes) {
+                                throw PortablePluginException("NETWORK", "HTTP response exceeds requested limit")
                             }
                             output.write(buffer, 0, read)
                         }

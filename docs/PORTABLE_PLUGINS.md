@@ -15,7 +15,7 @@ in the plugin contract. See `portable-plugin-core/api.d.ts`.
 The player continues to discover installed plugin APKs through the existing
 SDK/Binder transport. The plugin service constructs
 `PortableSourceProvider.fromAssets(context, "my-plugin")` and registers that
-provider and its `capabilities`. Catalog methods now execute JavaScript in the
+provider and its `capabilities`. Catalog and stream-resolution methods execute JavaScript in the
 plugin process. The player UI and media playback service need no parallel API.
 
 For a plugin checkout alongside this app checkout, add this to its settings:
@@ -42,16 +42,16 @@ with `-Pviper.portable.agp=<version>`; Gradle requires matching AGP versions acr
 included Android builds. Modules built inside the player use the player's own
 version catalog instead.
 
-The companion YouTube prototype migrates catalog operations to JavaScript and
-keeps its existing Android stream resolver behind a `SourceProvider` wrapper.
-Its WebView player challenge/cipher path has **not** been made portable. The
-YouTube repository documents exactly which operations are migrated.
+The companion YouTube prototype moves catalog and playback policy into its JavaScript
+package. The public runtime remains provider-neutral: no YouTube URL matching,
+player parsing, token protocol, or cipher implementation lives in Kotlin.
 
-## Contract v1
+## Contract v2
 
-The manifest declares `id`, `name`, `version`, `apiVersion: 1`, `entry`, `methods`
-and `allowedHosts`. Hosts must be exact lowercase DNS names. Only declared
-methods may be invoked. Optional SDK capabilities are derived from these methods.
+The manifest declares identity, entry, methods and exact lowercase `allowedHosts`.
+Version 2 adds `headOnlyDomains` (HEAD requests to that domain and its subdomains)
+and optional `capabilities: ["browser"]`. API v1 packages remain supported.
+Only declared methods may be invoked. SDK capabilities are derived from methods.
 
 Method arguments and results follow SDK 1.0.0 JSON, including `#t` discriminators
 (`song`, `video`, `album`, `artist`, `playlist`, `carousel`, etc.). Concrete
@@ -74,12 +74,42 @@ and permission errors reject the promise.
 ## Runtime and permissions
 
 Each invocation creates and disposes a runtime. Globals do not survive calls.
-Two invocations per provider may run at once. Defaults: 32 MiB JS heap, 512 KiB
-stack, 1 second active JS execution, 20 seconds total operation time. HTTP permits
-GET/POST to manifest HTTPS hosts on port 443, rejects redirects and credential
-headers, and caps request/response bodies at 256 KiB/2 MiB. Returned JSON is
-limited to 512 KiB. There is no filesystem, native reflection, storage, cookie jar,
-login bridge, module loader, or arbitrary native-call API.
+Two invocations per provider may run at once. Catalog limits: 32 MiB JS heap,
+512 KiB stack, 1 second active JS execution, 20 seconds total. `resolveStream`
+gets 96 MiB and 60 seconds total, retaining the 1 second main-script CPU limit.
+HTTP permits GET/POST/HEAD to manifest HTTPS hosts on port 443, rejects redirects
+and credential headers, and caps requests at 256 KiB. Responses default to 2 MiB;
+plugins may request up to 8 MiB for large scripts. HEAD does not read the body.
+Returned JSON is limited to 512 KiB. There is no filesystem, native reflection,
+persistent storage API, login bridge, module loader, or arbitrary native-call API.
+
+### Isolated JavaScript
+
+`host.javascript.evaluate({script,args})` executes a function expression in a new
+QuickJS realm. No host bindings, network, DOM, or state from the caller is exposed.
+The JSON result is awaited and the realm disposed. This is the intended place for
+provider-supplied parsers and downloaded transformation code. Limits: two calls per
+operation, with one active isolated realm per process; 16 MiB input, 256 MiB heap, 1 MiB stack, 10 seconds active
+execution, 15 seconds total, 512 KiB result. Main-operation cancellation closes it.
+Provider-specific libraries are packaged with the provider, not with this host.
+
+### Optional browser capability
+
+`host.browser` is null unless granted by the manifest and supported by the host.
+It provides `open({origin,userAgent})`, `evaluate({id,script,args})`, and `close(id)`.
+The function expression receives JSON arguments and can return a Promise. Globals
+persist only within a session. `open` accepts an exact permitted HTTPS origin;
+there is no arbitrary page navigation, HTML-loading API, or provider-specific method.
+At most two sessions may be open per operation. Inputs are bounded to 12 MiB and
+outputs to 512 KiB. Sessions are automatically closed on success, error or cancellation.
+
+Android supplies an offscreen WebView with network loading, file/content access,
+storage, geolocation and navigation disabled. Provider network requests go through
+`host.http`. Creation times out after 5 seconds; each evaluation after 12 seconds.
+Per-call nonces discard late results; renderer death fails pending work and destroys
+the session. These are temporary DOM tasks, not persistent background workers.
+A local browser timeout is a typed failure so the provider can choose another path;
+caller cancellation remains cancellation.
 
 These controls are defense in depth for **trusted bundled plugins**. This is not
 an untrusted-code installer or a complete network sandbox: DNS/private-address
@@ -89,16 +119,40 @@ network proxy in a web host.
 
 ## iOS and web
 
-The JavaScript source and JSON contract are reusable. The Android adapter and JVM
-HTTP transport are not. An iOS host can implement the contract with QuickJS or
-JavaScriptCore and its own HTTP/cancellation machinery. A web host can run the
-same source using the browser's JavaScript engine in a dedicated Worker, with a
-message-based host API and termination deadline. No QuickJS/WASM is needed there.
+The shared unit is source JavaScript plus the JSON contract, not bytecode. Keep
+ordinary provider logic and transforms in the interpreter. For iOS, a native
+QuickJS build can provide the same engine semantics and interruption limits;
+JavaScriptCore is another possible host implementation. Supply networking with
+URLSession and cancellation, and keep audio in the native playback engine.
 
-YouTube HTTP access from a browser is subject to CORS, cookies, and forbidden
-headers (including User-Agent/Referer). A constrained backend or other permitted
-transport may be needed. Its remaining Android playback resolver also requires a
-separate solution. This branch is not a working iOS/web player.
+An optional iOS browser adapter would implement the same session API with
+`WKWebView`, a fresh nonpersistent website data store, JSON arguments/results and
+`callAsyncJavaScript`. It must enforce network/navigation restrictions and dispose
+sessions on timeout, cancellation and process termination. A navigation delegate
+alone does not block subresource requests; content rules/CSP and an explicit
+network-isolation test are needed. Setting a base URL or user agent is not proof
+that a remote attestation service accepts the resulting browser environment.
+
+Offscreen WebKit tasks can be suspended. iOS 17+ exposes
+`WKPreferences.inactiveSchedulingPolicy`; use any relaxed policy only during a
+bounded active operation and restore it afterward. This is not an entitlement to
+run indefinitely when the app is backgrounded. Plan for unavailable browser work,
+prefetch upcoming stream resolutions, and test lock-screen track changes, expired
+URLs, renderer termination and resume on real devices. The host can report
+`browser: null` when the capability cannot run. Provider fallback behavior is still
+subject to the upstream service accepting those clients.
+
+A web host can use a Worker for provider logic and a separate Worker for isolated
+script execution, with deadlines enforced by termination. No QuickJS/WASM is needed.
+Optional DOM work needs an isolated frame and a message bridge. A frame cannot
+impersonate an arbitrary HTTPS origin; CORS, cookie rules and forbidden headers
+(including User-Agent/Referer) still apply. A constrained transport service may be
+needed. This branch implements neither an iOS host nor a web player.
+
+References:
+- [Apple async JavaScript API](https://developer.apple.com/documentation/webkit/wkwebview/callasyncjavascript(_:arguments:in:contentworld:))
+- [WebKit offscreen scheduling explanation](https://bugs.webkit.org/show_bug.cgi?id=283794)
+- [Apple nonpersistent data store](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/nonpersistent())
 
 ## Validation
 
@@ -114,10 +168,8 @@ QuickJS/JNI execution, async HTTP, fresh globals, typed errors, permission denia
 infinite-loop interruption and cancellation. The second requires Android SDK 37.
 Device installation/playback remains a separate manual check.
 
-Initial validation (2026-10-20): all seven runtime tests passed locally and in
-GitHub CI with the repository's Kotlin 2.4.10 toolchain. A supplemental local
-compile against the plugin SDK sources and Android 37 API jar also passed, with
-fixture results decoded through PortableSourceProvider into the SDK models.
-Full APK assembly is checked by the companion plugin's Android workflow;
-on-device playback remains unverified. An initial clean-runner Kotlin BOM
-resolution failure cleared on the subsequent run without a toolchain change.
+The runtime suite additionally checks optional capability grants, origin validation,
+HEAD-only domain boundaries, browser cleanup on error/cancellation, and isolated
+JavaScript interruption and lack of host bindings. The companion plugin suite
+checks playback policy and challenge orchestration; APK assembly runs in its CI.
+Device playback and iOS/WebKit acceptance remain separate manual checks.

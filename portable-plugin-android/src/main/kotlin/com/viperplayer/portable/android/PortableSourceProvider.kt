@@ -147,7 +147,8 @@ class PortableSourceProvider(private val runtime: QuickJsPlugin) : SourceProvide
             val manifest = PluginPackage.json.decodeFromString<PortableManifest>(manifestText)
             manifest.validate()
             val source = context.assets.open("$directory/${manifest.entry}").bufferedReader().use { it.readText() }
-            return PortableSourceProvider(QuickJsPlugin(PluginPackage(manifest, source), UrlConnectionPluginHttp()))
+            return PortableSourceProvider(QuickJsPlugin(PluginPackage(manifest, source), UrlConnectionPluginHttp(),
+                browserFactory = AndroidPluginBrowser(context)))
         }
     }
 }

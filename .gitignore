@@ -22,3 +22,4 @@ local.properties
 # Standalone portable-runtime builds
 /portable-plugin-core/build/
 /portable-plugin-android/build/
+/portable-plugin-core/standalone/build/
