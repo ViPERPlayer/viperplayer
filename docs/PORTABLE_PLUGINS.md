@@ -108,10 +108,10 @@ QuickJS/JNI execution, async HTTP, fresh globals, typed errors, permission denia
 infinite-loop interruption and cancellation. The second requires Android SDK 37.
 Device installation/playback remains a separate manual check.
 
-Initial validation (2026-10-20): all seven runtime tests passed locally with the
-repository's Kotlin 2.4.10 toolchain. The first clean GitHub runner could not
-resolve `org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.4.10`, a version already
-selected by the app's version catalog. This dependency-resolution failure occurs
-before compilation; CI is not green. Android compilation and on-device playback
-are not yet verified. The prototype does not change the app's existing toolchain
-versions to work around this repository/dependency issue.
+Initial validation (2026-10-20): all seven runtime tests passed locally and in
+GitHub CI with the repository's Kotlin 2.4.10 toolchain. A supplemental local
+compile against the plugin SDK sources and Android 37 API jar also passed, with
+fixture results decoded through PortableSourceProvider into the SDK models.
+Full APK assembly is checked by the companion plugin's Android workflow;
+on-device playback remains unverified. An initial clean-runner Kotlin BOM
+resolution failure cleared on the subsequent run without a toolchain change.
