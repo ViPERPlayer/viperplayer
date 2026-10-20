@@ -36,6 +36,12 @@ The composite build configures only the runtime modules, avoiding the player's
 Media3 checkout. Android supplies QuickJS's Android variant; desktop JNI is used
 only for JVM testing.
 
+The standalone Android composite defaults to AGP 9.3.1, matching the companion
+YouTube APK, and needs Gradle 9.5.0. A different consuming APK can select its AGP
+with `-Pviper.portable.agp=<version>`; Gradle requires matching AGP versions across
+included Android builds. Modules built inside the player use the player's own
+version catalog instead.
+
 The companion YouTube prototype migrates catalog operations to JavaScript and
 keeps its existing Android stream resolver behind a `SourceProvider` wrapper.
 Its WebView player challenge/cipher path has **not** been made portable. The
@@ -100,7 +106,7 @@ With JDK 17:
 
 ```sh
 ./gradlew -p portable-plugin-core/standalone :portable-plugin-core:test
-./gradlew -p portable-plugins :portable-plugin-android:assembleDebug
+gradle -p portable-plugins :portable-plugin-android:assembleDebug # Gradle 9.5.0
 ```
 
 The first command needs no Android SDK or Media3 submodule. It tests real
